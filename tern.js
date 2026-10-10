@@ -4839,6 +4839,8 @@ const css = `:root {
   color-scheme: light dark;
   --t-bg: #fdfdfb; --t-fg: #1f2328; --t-muted: #636c76; --t-line: #d9dde3; --t-soft: #f3f4f1;
   --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
+  --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
+  --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   --t-font: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
   --t-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --t-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
@@ -4848,6 +4850,8 @@ const css = `:root {
   :root {
     --t-bg: #16181c; --t-fg: #dcdfe4; --t-muted: #8b949e; --t-line: #30363d; --t-soft: #1f2329;
     --t-link: #6cb0ff; --t-mark: #5c4d00; --t-error: #ffb4ab; --t-error-bg: #3b1714; --t-warn: #e3b341;
+    --t-code-comment: #949da6; --t-code-keyword: #ff7b72; --t-code-string: #a5d6ff; --t-code-number: #79c0ff; --t-code-function: #d2a8ff;
+    --t-code-type: #ffa657; --t-code-variable: #79c0ff; --t-code-meta: #7ee787; --t-code-inserted: #7ee787; --t-code-deleted: #ffa198;
   }
 }
 html { background: var(--t-bg); color: var(--t-fg); font: var(--t-size)/var(--t-leading) var(--t-font); -webkit-text-size-adjust: 100%; }
@@ -4947,7 +4951,14 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 @media print {
   .t-diagnostics { display: none; }
   .tern > * { content-visibility: visible !important; } /* the runtime's held blocks (src/runtime.js) */
-  :root { color-scheme: light; --t-size: 11pt; --t-bg: #fff; --t-fg: #000; --t-soft: #f3f4f1; --t-line: #d9dde3; --t-mark: #fff2a8; --t-muted: #555; }
+  /* Every colour: black on white, the rest the light palette's, even for a reader in dark mode. */
+  :root {
+    color-scheme: light; --t-size: 11pt;
+    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-soft: #f3f4f1;
+    --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
+    --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
+    --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
+  }
   body { padding: 0; }
   .tern { max-width: none; }
   .tern pre { white-space: pre-wrap; }

@@ -1,17 +1,21 @@
 /* SPDX-License-Identifier: MIT */
 /* Dracula for Tern, after Dracula (https://draculatheme.com).
    Dark for every reader. Use: <script src="tern.js" data-use="themes/dracula.css"></script>
-   Raised to 4.5:1 contrast: muted, error.
+   Raised to 4.5:1 contrast: muted, error, code comment, code keyword, code number, code meta, code deleted.
    Built by tools/themes.js; edit that, not this file. */
 :root {
   color-scheme: dark;
   --t-bg: #282a36; --t-fg: #f8f8f2; --t-muted: #97a2c3; --t-line: #44475a; --t-soft: #343746;
   --t-link: #8be9fd; --t-mark: #5a6204; --t-error: #ff7e7e; --t-error-bg: #4f323c; --t-warn: #ffb86c;
+  --t-code-comment: #a7b0cc; --t-code-keyword: #ff89cd; --t-code-string: #f1fa8c; --t-code-number: #c49efa; --t-code-function: #50fa7b;
+  --t-code-type: #8be9fd; --t-code-variable: #ffb86c; --t-code-meta: #ff89cd; --t-code-inserted: #50fa7b; --t-code-deleted: #ff8f8f;
 }
 @media print {
   :root {
     color-scheme: light;
     --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-soft: #f3f4f1;
     --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
+    --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
+    --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   }
 }

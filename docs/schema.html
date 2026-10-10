@@ -1295,6 +1295,7 @@ The base stylesheet, `tern.css`, reads its colours, fonts and measures from cust
 | `--t-width` | `40rem` | | the width of the text column |
 | `--t-size` | `18px` | | the base font size; `11pt` in print |
 | `--t-leading` | `1.6` | | the line height |
+| `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | GitHub's | GitHub's | code colours, for the [code add-on](addons.html#code-colours) |
 | `--t-cols` | | | a grid's columns, set by Tern on each grid |
 :::
 
@@ -1381,16 +1382,16 @@ From jsDelivr, give the theme the same tag as `tern.js`: `https://cdn.jsdelivr.n
 :::
 
 - **A theme with both modes has three files.** `NAME.css` follows the reader's system setting, as tern.css does. `NAME-light.css` and `NAME-dark.css` give every reader one palette. A theme with one mode is one file, the same for every reader.
-- **Colours only.** A theme sets the ten colour properties and `color-scheme`. Fonts, sizes and the column width stay tern.css's ([Custom properties](#custom-properties)).
+- **Colours only.** A theme sets the colour properties and `color-scheme`, the [code colours](addons.html#code-colours) included, after the original theme's syntax colours. Fonts, sizes and the column width stay tern.css's ([Custom properties](#custom-properties)).
 - **Your CSS still wins.** A theme cascades after tern.css and before your own styles ([Overriding them](#overriding)): set a property yourself to change one colour of a theme.
-- **Readable.** Every text colour has at least 4.5:1 contrast against what it is drawn on (WCAG AA), and 7:1 in High contrast. Where a palette's own colour falls short, the theme darkens or lightens it until it passes; the first lines of each file name those colours. A highlight keeps the palette's yellow hue.
+- **Readable.** Every text colour has at least 4.5:1 contrast against what it is drawn on (WCAG AA), and 7:1 in High contrast; code colours as the [code add-on](addons.html#code-colours) says. Where a palette's own colour falls short, the theme darkens or lightens it until it passes; the first lines of each file name those colours. A highlight keeps the palette's yellow hue.
 - **Print.** A theme prints as tern.css does: black on white ([Print](#print)).
 - **Your own theme.** Copy a file and change its values. To add one to Tern, add its palette to `tools/themes.js`, which writes the folder and checks the contrast: `node tools/themes.js`.
 
 ### Print {#print}
 
 `tern.css` has a print stylesheet:
-- the colours are black on white, with `color-scheme: light`, and `--t-size` is `11pt`;
+- the text is black on white, every other colour is the light palette's even for a reader in dark mode, `color-scheme` is `light`, and `--t-size` is `11pt`;
 - the text column has no maximum width, and the body no padding;
 - code wraps, and tables, code and equations no longer scroll;
 - the diagnostics panel is hidden;
