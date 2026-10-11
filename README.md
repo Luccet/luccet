@@ -35,6 +35,8 @@ A note needs only `tern.js`; it adds its own stylesheet and loads KaTeX for math
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `data-use="themes/nord.css"`, or the same path on jsDelivr. See [themes](https://oscarac.github.io/tern/docs/schema.html#themes).
 
+**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern, such as `code.js`, which colours code by its language in the theme's colours: `data-use="themes/nord.css addons/code.js"`. See [add-ons](https://oscarac.github.io/tern/docs/addons.html).
+
 **As a file:** copy `tern.js` next to your notes and load it relatively (`src="tern.js"`, `src="../tern.js"`). Notes then work offline and straight from disk. [Publishing](https://oscarac.github.io/tern/docs/publishing.html) covers static hosts, GitHub Pages, the Content-Security-Policy and offline use.
 
 ## Using it

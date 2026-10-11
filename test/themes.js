@@ -4,8 +4,10 @@
 // themes/: they are the current build of tools/themes.js; each mode of each
 // file sets every colour property and its color-scheme; each prints as
 // tern.css prints; every text colour reaches its family's contrast (4.5:1,
-// 7:1 for high-contrast) against what it is drawn on, as tern.css's own
-// palettes do; and the documentation lists every file.
+// 7:1 for high-contrast) against what it is drawn on, and every code colour
+// too on the code background, with 3:1 (high-contrast 4.5:1) on a
+// highlighted line, as tern.css's own palettes do; and the documentation
+// lists every file.
 //
 //   node test/themes.js
 'use strict';
@@ -90,9 +92,10 @@ const APART = [['line', 'bg', 1.15], ['soft', 'bg', 1.03], ['mark', 'bg', 1.05],
 const expand = (h) => (h.length === 4 ? '#' + [...h.slice(1)].map((c) => c + c).join('') : h);
 function pairs(name, c, min, p) {
   const x = Object.fromEntries(T.COLOURS.map((k) => [k, expand(c[k])]));
-  for (const [a, b] of TEXT) {
+  const text = [...TEXT.map(([a, b]) => [a, b, min]), ...T.CODE.flatMap((k) => [[`code-${k}`, 'soft', min], [`code-${k}`, 'mark', T.onMark(min)]])];
+  for (const [a, b, least] of text) {
     const r = T.contrast(x[a], x[b]);
-    if (r < min) p.push(`${name}: --t-${a} on --t-${b} is ${r.toFixed(2)}:1, under ${min}:1`);
+    if (r < least) p.push(`${name}: --t-${a} on --t-${b} is ${r.toFixed(2)}:1, under ${least}:1`);
   }
   for (const [a, b, least] of APART) {
     const r = T.contrast(x[a], x[b]);
@@ -100,7 +103,7 @@ function pairs(name, c, min, p) {
   }
 }
 
-test('every text colour reaches its contrast against what it is drawn on (4.5:1, high-contrast 7:1)', (p) => {
+test('every text and code colour reaches its contrast against what it is drawn on (4.5:1, high-contrast 7:1; code on a highlighted line 3:1, high-contrast 4.5:1)', (p) => {
   for (const n of files) {
     const f = family(n);
     const min = (f && f.min) || 4.5;

@@ -1,17 +1,21 @@
 /* SPDX-License-Identifier: MIT */
 /* One for Tern, after Atom's One Light and One Dark (https://github.com/atom/atom/tree/master/packages/one-dark-syntax).
    Light for every reader. Use: <script src="tern.js" data-use="themes/one-light.css"></script>
-   Raised to 4.5:1 contrast: muted, link, error, warn.
+   Raised to 4.5:1 contrast: muted, link, error, warn, code comment, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted.
    Built by tools/themes.js; edit that, not this file. */
 :root {
   color-scheme: light;
   --t-bg: #fafafa; --t-fg: #383a42; --t-muted: #6d6d72; --t-line: #e5e5e6; --t-soft: #f0f0f1;
   --t-link: #3767d0; --t-mark: #f0dbb4; --t-error: #b6453a; --t-error-bg: #f8eae8; --t-warn: #9a6a01;
+  --t-code-comment: #6d6d72; --t-code-keyword: #a626a4; --t-code-string: #3d7a3c; --t-code-number: #926401; --t-code-function: #3767d0;
+  --t-code-type: #936401; --t-code-variable: #bb473c; --t-code-meta: #0174a5; --t-code-inserted: #3d7a3c; --t-code-deleted: #bb473c;
 }
 @media print {
   :root {
     color-scheme: light;
     --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-soft: #f3f4f1;
     --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
+    --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
+    --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   }
 }

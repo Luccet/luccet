@@ -1,0 +1,101 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/code.js"></script>
+
+:::meta
+description: The add-ons that come with Tern, in its addons/ folder: code highlighting with highlight.js, in the colours of the page's theme.
+:::
+
+::site-nav
+
+# Add-ons {#top}
+
+::toc
+
+Tern comes with add-ons in the `addons/` folder next to `tern.js`. Each one is a script [add-on](schema.html#addons): list it in `data-use`, with a [theme](schema.html#themes) if you like.
+
+```html
+<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="themes/nord.css addons/code.js"></script>
+```
+
+From jsDelivr, give each add-on the same tag as `tern.js`: `https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/addons/code.js`.
+
+:::table[Add-ons]{#tbl-addons}
+| Add-on | What it does |
+|---|---|
+| [`code.js`](#code) | colours code by its language, with highlight.js, in the theme's colours |
+:::
+
+## Code highlighting {#code}
+
+`code.js` colours the code in every fence that names its language: keywords, strings, comments, numbers, function and type names. The colours come from the page's theme.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/code.js"></script>
+<script src="tern.js" data-use="addons/code.js?base=vendor/highlight"></script>
+```
+:::
+
+This page loads it, so the fence below is coloured:
+
+```js {lines hl=3}
+// The nth Fibonacci number.
+function fib(n) {
+  return n < 2 ? n : fib(n - 1) + fib(n - 2);
+}
+```
+
+### Which fences {#code-fences}
+
+- **A fence that names its language,** by name or by alias: ```` ```js ````, ```` ```python ````, ```` ```tex ````. Titled fences ([listings](elements.html#numbering)) are coloured too.
+- **Left as they are:** a fence with no language, one marked `text`, `txt`, `plaintext` or `nohighlight`, and one in a language highlight.js does not know, such as `tern`. Inline code is never coloured.
+- **Line numbers and highlighted lines stay.** `{lines hl=3}` works as it does without the add-on: the coloured text is split back into the lines, and a comment that runs over two lines is coloured on both.
+- **The text does not change.** The add-on only wraps it in `<span class="hljs-…">` elements, so copying code copies the same text.
+
+### Languages {#code-languages}
+
+- **With the add-on, 36 languages load at once,** highlight.js's common bundle: bash, c, cpp, csharp, css, diff, go, graphql, ini, java, javascript, json, kotlin, less, lua, makefile, markdown, objectivec, perl, php, php-template, plaintext, python, python-repl, r, ruby, rust, scss, shell, sql, swift, typescript, vbnet, wasm, xml and yaml, with their aliases (`js`, `py`, `sh`, `html` …).
+- **157 more load the first time a note uses one,** each a small file: latex (`tex`), haskell (`hs`), scala, elixir, julia, matlab, ocaml, dockerfile, nginx, powershell and the rest of [highlight.js's languages](https://highlightjs.readthedocs.io/en/latest/supported-languages.html).
+- **An alias two languages share is not used:** `ls` is both Lasso and LiveScript, so write `lasso` or `livescript`.
+
+### Colours {#code-colours}
+
+The add-on maps highlight.js's classes onto ten [custom properties](schema.html#custom-properties). tern.css sets them for light, dark and print, and every [theme](schema.html#themes) sets its own, after that theme's syntax colours.
+
+:::table[Code colours]{#tbl-code-colours}
+| Property | Colours |
+|---|---|
+| `--t-code-comment` | comments, in italics |
+| `--t-code-keyword` | keywords, tag names |
+| `--t-code-string` | strings, regular expressions |
+| `--t-code-number` | numbers, literals such as `true` and `null` |
+| `--t-code-function` | function names, section titles |
+| `--t-code-type` | types, class names, built-ins |
+| `--t-code-variable` | variables, attributes, properties |
+| `--t-code-meta` | preprocessor lines, doctypes, prompts |
+| `--t-code-inserted` | added lines in a diff |
+| `--t-code-deleted` | removed lines in a diff |
+:::
+
+- **Readable.** Each code colour has at least 4.5:1 contrast against the code background, and 3:1 on a highlighted line (`hl=`), where it sits on the highlight colour; in High contrast, 7:1 and 4.5:1. A theme's original colour that falls short is darkened or lightened until it passes.
+- **Print** uses tern.css's light colours, as the rest of the page does.
+- **Your own colours:** set the properties in your CSS, as for any [custom property](schema.html#overriding), or style highlight.js's classes (`.hljs-keyword` …) directly.
+
+```html
+<style>
+  :root { --t-code-keyword: #8250df; }
+  .hljs-comment { font-style: normal; }
+</style>
+```
+
+### How it loads {#code-loading}
+
+- **From jsDelivr.** The add-on asks for highlight.js 11.12.0 as soon as it runs, alongside KaTeX and the other add-ons, pinned with [SRI](publishing.html#csp) hashes. Code shows plain until it arrives, then turns coloured.
+- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `highlight.min.js` and `languages/`, the layout of the npm package `@highlightjs/cdn-assets`. A copy is loaded without SRI.
+- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, as KaTeX needs, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's scripts carry the nonce.
+- **A highlight.js already on the page** is used as it is, with the languages it has.
+- **If highlight.js does not load,** code stays plain, and the console shows a warning.
+- **Without the page.** `tern check` and `tern build` run the add-on but do not colour code: a built page is coloured when `tern.js` runs on it, and without JavaScript code shows plain.
+
+### A newer highlight.js {#code-updating}
+
+The version and its hashes live in a table in `addons/code.js`. To move to another version, run `node tools/hljs.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.

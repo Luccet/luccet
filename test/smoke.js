@@ -35,8 +35,9 @@
 // filled once from the npm registry (tarball checked against its sha512) for
 // the version the page asks for. The bytes are the ones jsDelivr serves, so
 // SRI still applies, and runs are deterministic and work offline after the
-// first. --live-cdn uses the real CDN instead; so does any request the cache
-// cannot answer.
+// first. highlight.js, for addons/code.js, is served the same way from the
+// copy tools/hljs.js keeps there. --live-cdn uses the real CDN instead; so
+// does any request the cache cannot answer.
 //
 // Each test has a timeout (30 s unless it says otherwise). A test can skip
 // itself with a reason (a missing tool); skips are reported, not failed.
@@ -143,6 +144,8 @@ function staticHandler(cdnOrigin) {
       return;
     }
     let file = path.join(ROOT, path.normalize(url));
+    // A local copy of highlight.js, for addons/code.js?base=/vendor/highlightjs/.
+    if (url.startsWith('/vendor/highlightjs/')) file = path.join(CACHE, `highlightjs-${HLJS_VERSION}`, path.normalize(url.slice('/vendor/highlightjs/'.length)));
     const missing = !file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory();
     const docs = missing && file.startsWith(ROOT + path.sep) && docsReferer(req);
     if (missing && (file.startsWith(SAMPLES + path.sep) || docs)) {
@@ -318,6 +321,9 @@ function cliPage(name) {
 const CACHE = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
 const KATEX_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@(\d+\.\d+\.\d+)\/(dist\/[^?#]+)/;
 const katexCache = new Map();
+const HLJS_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@highlightjs\/cdn-assets@(\d+\.\d+\.\d+)\/([^?#]+)/;
+const HLJS_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8'))[1];
+const hljsCache = new Map();
 
 // The files of a ustar/pax tarball whose path starts with `prefix`.
 function untar(buf, prefix, onFile) {
@@ -367,6 +373,38 @@ function katexDist(version) {
     );
   }
   return katexCache.get(version);
+}
+
+// node_modules/.cache/tern-smoke/highlightjs-X.Y.Z/, the package's files
+// (tools/hljs.js fills it); null if it cannot be fetched.
+function hljsDir(version) {
+  if (!hljsCache.has(version))
+    hljsCache.set(
+      version,
+      require('../tools/hljs')
+        .packageDir(version)
+        .catch((e) => {
+          console.log(`    (highlight.js ${version} not cached, using the live CDN: ${e.message})`);
+          return null;
+        }),
+    );
+  return hljsCache.get(version);
+}
+
+// Answers highlight.js requests from the cache, as routeKatex below does KaTeX's.
+async function routeHljs(context) {
+  await context.route(
+    (url) => HLJS_URL.test(url.href),
+    async (route) => {
+      const [, version, rel] = HLJS_URL.exec(route.request().url());
+      const dir = await hljsDir(version);
+      const file = dir && path.join(dir, path.normalize(rel));
+      if (!file || !file.startsWith(dir + path.sep) || !fs.existsSync(file)) return route.continue();
+      await route
+        .fulfill({ status: 200, body: fs.readFileSync(file), headers: { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' } })
+        .catch(() => {}); // the context closed
+    },
+  );
 }
 
 // Answers KaTeX requests from the cache. ctx.cdnDelay(bytes), when set,
@@ -1023,6 +1061,85 @@ const TESTS = [
     },
   },
   {
+    name: 'code add-on: fences coloured by highlight.js with SRI, lines kept, a language loaded on first use, plain ones left',
+    url: '/test/smoke/code-addon.html',
+    async check(page) {
+      await page.waitForFunction(() => document.querySelector('code.language-tex [class*="hljs-"]'), null, { timeout: 15000 });
+      const r = await page.evaluate(() => {
+        const out = {};
+        for (const code of document.querySelectorAll('main.tern pre > code')) {
+          out[code.className || 'none'] = {
+            spans: code.querySelectorAll('[class*="hljs-"]').length,
+            lines: [...code.querySelectorAll(':scope > .t-line')].map((l) => (l.classList.contains('t-hl') ? '*' : '') + l.textContent),
+            text: code.textContent,
+          };
+        }
+        const kw = document.querySelector('code.language-js .hljs-keyword');
+        out.keyword = kw && getComputedStyle(kw).color;
+        out.want = getComputedStyle(document.documentElement).getPropertyValue('--t-code-keyword').trim();
+        out.comment = [...document.querySelectorAll('code.language-js .t-line')].map((l) => !!l.querySelector('.hljs-comment'));
+        out.scripts = [...document.querySelectorAll('script[src*="@highlightjs/"]')].map((e) => ({ src: e.src.replace(/^.*@[\d.]+\//, ''), sri: e.integrity.startsWith('sha384-') }));
+        return out;
+      });
+      const js = r['language-js'];
+      const lines = ['// The nth Fibonacci number.', 'function fib(n) {', '*  return n < 2 ? n : fib(n - 1) + fib(n - 2); /* a long', '  comment */', '}'];
+      if (JSON.stringify(js.lines) !== JSON.stringify(lines)) throw new Error(`js lines ${JSON.stringify(js.lines)}`);
+      if (!js.spans) throw new Error('js has no highlight.js spans');
+      if (r.comment.join() !== 'true,false,true,true,false') throw new Error(`the comment spans by line: ${r.comment.join()}, want a comment on lines 1, 3 and 4`);
+      if (!r['language-python'].spans || !r['language-tex'].spans) throw new Error(`python ${r['language-python'].spans} spans, tex ${r['language-tex'].spans}`);
+      for (const k of ['language-nosuchlang', 'language-text', 'none']) if (r[k].spans) throw new Error(`${k} was coloured`);
+      const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+      if (r.keyword !== rgb(r.want)) throw new Error(`a keyword is ${r.keyword}, --t-code-keyword is ${r.want}`);
+      const want = ['highlight.min.js', 'languages/latex.min.js'];
+      if (JSON.stringify(r.scripts.map((x) => x.src)) !== JSON.stringify(want) || !r.scripts.every((x) => x.sri)) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
+    },
+  },
+  {
+    name: 'code add-on: a theme colours code, and a strict CSP with data-nonce allows highlight.js',
+    url: '/csp-nonce/test/smoke/code-addon-theme.html',
+    async check(page) {
+      await page.waitForFunction(() => document.querySelector('code.language-haskell [class*="hljs-"]'), null, { timeout: 15000 });
+      const r = await page.evaluate(() => {
+        const kw = document.querySelector('code.language-js .hljs-keyword');
+        return { keyword: getComputedStyle(kw).color, want: getComputedStyle(document.documentElement).getPropertyValue('--t-code-keyword').trim(), csp: window.__csp, nonces: [...document.querySelectorAll('script[src*="@highlightjs/"]')].map((e) => e.nonce) };
+      });
+      if (r.want !== '#606e00') throw new Error(`--t-code-keyword is ${r.want}, solarized-light.css's is #606e00`);
+      if (r.keyword !== 'rgb(96, 110, 0)') throw new Error(`a keyword is ${r.keyword}`);
+      if (r.csp.length) throw new Error(`CSP violations: ${r.csp.join('; ')}`);
+      if (r.nonces.length !== 2 || !r.nonces.every((n) => n === 'tern-smoke-nonce')) throw new Error(`highlight.js scripts' nonces ${JSON.stringify(r.nonces)}`);
+    },
+  },
+  {
+    name: 'code add-on: ?base= loads a local copy without SRI',
+    url: '/test/smoke/code-addon-base.html',
+    async setup(_context, _page, ctx) {
+      if (!(await hljsDir(HLJS_VERSION))) ctx.skip(`no local copy of highlight.js ${HLJS_VERSION}`);
+    },
+    async check(page) {
+      await page.waitForFunction(() => document.querySelector('code.language-tex [class*="hljs-"]'), null, { timeout: 15000 });
+      const r = await page.evaluate(() => [...document.querySelectorAll('script[src]')].map((e) => ({ src: new URL(e.src).pathname, sri: !!e.integrity })).filter((x) => x.src.startsWith('/vendor/')));
+      const want = ['/vendor/highlightjs/highlight.min.js', '/vendor/highlightjs/languages/latex.min.js'];
+      if (JSON.stringify(r.map((x) => x.src)) !== JSON.stringify(want) || r.some((x) => x.sri)) throw new Error(`scripts ${JSON.stringify(r)}`);
+      if (!(await page.evaluate(() => document.querySelector('code.language-js [class*="hljs-"]')))) throw new Error('js not coloured');
+    },
+  },
+  {
+    name: 'code add-on: highlight.js that fails to load leaves code plain, with a warning',
+    url: '/test/smoke/code-addon.html',
+    allowConsole: /Failed to load resource|Loading failed for the <script>|integrity|MIME type/i,
+    async setup(context) {
+      // Registered after the cache route, so it wins.
+      await context.route((url) => HLJS_URL.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
+    },
+    async check(page, ctx) {
+      await page.waitForTimeout(500);
+      const spans = await page.evaluate(() => document.querySelectorAll('main.tern [class*="hljs-"]').length);
+      if (spans) throw new Error(`${spans} highlight.js spans, though it did not load`);
+      if (!(await page.evaluate(() => document.querySelectorAll('main.tern code.language-js .t-line').length === 5))) throw new Error('the js lines changed');
+      if (!ctx.console.some((m) => m.type === 'warning' && /highlight\.js did not load/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console)}`);
+    },
+  },
+  {
     // tern's presentational styles (column alignment, a grid's --t-cols)
     // must survive a policy with no 'unsafe-inline' for styles; data-nonce
     // covers tern's <style> and the note's scripts.
@@ -1582,8 +1699,8 @@ async function runTest(browser, origin, t) {
     },
   };
   const run = (async () => {
-    if (!LIVE_CDN) await routeKatex(context, ctx);
-    if (t.offline) await context.route((url) => url.origin !== origin && !KATEX_URL.test(url.href), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
+    if (!LIVE_CDN) await routeKatex(context, ctx), await routeHljs(context);
+    if (t.offline) await context.route((url) => url.origin !== origin && !KATEX_URL.test(url.href) && !HLJS_URL.test(url.href), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
     const page = await context.newPage();
     page.on('console', (m) => {
       ctx.console.push({ type: m.type(), text: m.text() });
