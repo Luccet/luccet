@@ -67,7 +67,7 @@ function pages() {
 }
 
 // Every page is analysed once (test/lib/anchors.js): the AST, its ids, its examples.
-const { load, decode } = anchors;
+const { load } = anchors;
 const usesDocs = (x) => (note.attributes(x.a.tag)['data-use'] || '').split(/\s+/).some((u) => /(?:^|\/)docs\.js(?:[?#]|$)/.test(u));
 
 function checkPage(file) {
@@ -156,97 +156,32 @@ function checkCorpus(checked) {
 
 // ---------------------------------------------------------------- links
 
-const SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:|^\/\//;
-const URL_KEYS = ['href', 'src', 'poster', 'data'];
+// cli/links.js, as `tern check` runs it, with two rules of the site's: a
+// root-relative URL is refused, and a page the navigation plans is pending.
+const links = require('../cli/links');
+const targets = new links.Targets();
 
 function checkLinks({ file, x }) {
-  const at = (node) => (node.position ? x.a.toFile(node.position).start.line : 1);
-  tern.visit(x.a.ast, (node) => {
-    // A fragment link within the page is the engine's: ref.dangling.
-    if ((node.type === 'link' || node.type === 'image') && typeof node.url === 'string' && !node.url.startsWith('#')) target(file, at(node), node.url);
-    if (node.attributes && typeof node.attributes === 'object' && node.type !== 'code') {
-      for (const k of URL_KEYS) if (typeof node.attributes[k] === 'string') target(file, at(node), node.attributes[k]);
-    }
-    if (node.type === 'html' && typeof node.value === 'string') {
-      const base = at(node);
-      for (const m of node.value.matchAll(/<[a-zA-Z][^<>]*>/g)) {
-        const line = base + (node.value.slice(0, m.index).match(/\n/g) || []).length;
-        for (const a of m[0].matchAll(/\s(href|src|poster)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) target(file, line, decode(a[2] ?? a[3] ?? a[4]));
-      }
-    }
-  });
-}
-
-function target(file, line, url) {
-  url = url.trim();
-  if (!url || SCHEME.test(url)) return;
-  if (url.startsWith('/')) return problem(file, line, `${url} is root-relative; the site is served under a path, so link relative to the page`);
-  const hash = url.indexOf('#');
-  let pathPart = (hash < 0 ? url : url.slice(0, hash)).replace(/\?.*$/, '');
-  let frag = hash < 0 ? null : url.slice(hash + 1);
-  try {
-    pathPart = decodeURIComponent(pathPart);
-    if (frag !== null) frag = decodeURIComponent(frag);
-  } catch {
-    return problem(file, line, `${url} is not a valid URL`);
-  }
-  let dest = pathPart ? path.resolve(path.dirname(file), pathPart) : file;
-  if (pathPart && (pathPart.endsWith('/') || (fs.existsSync(dest) && fs.statSync(dest).isDirectory()))) dest = path.join(dest, 'index.html');
-  if (!fs.existsSync(dest)) {
-    // A page the site navigation plans, not written yet: pending (--strict fails it).
-    if (PLANNED.has(dest) && !STRICT) {
-      const k = rel(dest);
-      if (!pendingLinks.has(k)) pendingLinks.set(k, { n: 0, first: `${rel(file)}:${line}` });
-      pendingLinks.get(k).n++;
-      return;
-    }
-    return problem(file, line, `${url}: ${rel(dest)} does not exist`);
-  }
-  if (frag === null || frag === '') return;
-  const ids = idsOf(dest);
-  // #top with no such id scrolls to the top in every browser (HTML's "top").
-  if (ids && !ids.has(frag) && frag.toLowerCase() !== 'top') problem(file, line, `${url}: ${rel(dest)} has no id ${JSON.stringify(frag)}`);
-}
-
-// The ids a file offers to a fragment: a note's registry and emitted ids; a
-// Markdown file's GitHub heading anchors; other HTML's id attributes.
-const idCache = new Map();
-function idsOf(file) {
-  if (idCache.has(file)) return idCache.get(file);
-  let ids = null;
-  if (/\.html?$/i.test(file)) {
-    const p = load(file);
-    if (p && p.ids) ids = p.ids;
-    else if (!p) ids = new Set([...fs.readFileSync(file, 'utf8').matchAll(/\sid\s*=\s*["']?([^"'\s>]+)/g)].map((m) => decode(m[1])));
-  } else if (/\.md$/i.test(file)) ids = markdownAnchors(fs.readFileSync(file, 'utf8'));
-  idCache.set(file, ids);
-  return ids;
-}
-
-function markdownAnchors(text) {
-  const ids = new Set();
-  const seen = new Map();
-  let fence = null;
-  for (const line of text.split('\n')) {
-    const f = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
-    if (f && (!fence || (f[1][0] === fence[0] && f[1].length >= fence.length))) {
-      fence = fence ? null : f[1];
+  for (const u of links.urls(x.a)) {
+    if (u.own || u.check === false) continue;
+    const line = u.filePosition.start.line;
+    const url = u.url.trim();
+    if (url.startsWith('/') && !url.startsWith('//')) {
+      problem(file, line, `${url} is root-relative; the site is served under a path, so link relative to the page`);
       continue;
     }
-    if (fence) continue;
-    const m = /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
-    if (!m) continue;
-    const slug = m[1]
-      .replace(/<[^>]+>/g, '')
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-      .toLowerCase()
-      .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '')
-      .replace(/\s/g, '-');
-    const n = seen.get(slug) || 0;
-    seen.set(slug, n + 1);
-    ids.add(n ? `${slug}-${n}` : slug);
+    const r = links.resolve(file, url, targets);
+    if (!r || !r.problem) continue;
+    if ((r.problem === 'missing' || r.problem === 'no-index') && PLANNED.has(r.dest) && !STRICT) {
+      const k = rel(r.dest);
+      if (!pendingLinks.has(k)) pendingLinks.set(k, { n: 0, first: `${rel(file)}:${line}` });
+      pendingLinks.get(k).n++;
+      continue;
+    }
+    if (r.problem === 'dangling') problem(file, line, `${url}: ${rel(r.dest)} has no id ${JSON.stringify(r.frag)}`);
+    else if (r.problem === 'case') problem(file, line, `${url}: the disk spells it ${r.actual}`);
+    else problem(file, line, `${url}: ${rel(r.dest)} does not exist`);
   }
-  return ids;
 }
 
 // ---------------------------------------------------------------- docs.js

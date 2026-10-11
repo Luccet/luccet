@@ -4,16 +4,19 @@
 // dependencies; main() starts it. It runs the engine on a note and
 // publishes its diagnostics, as the browser reports them, and the
 // `tern/outline` digest; cli/language.js answers the requests from the
-// analysis, and this file maps its answers onto the protocol's shapes.
+// analysis, and this file maps its answers onto the protocol's shapes. A
+// file renamed in the editor gets tern mv's link edits (cli/relocate.js).
 // Positions are UTF-16 code units, as the engine's columns are; note line n
 // is file line n + the head's line count (cli/note.js).
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const { fileURLToPath } = require('url');
+const { fileURLToPath, pathToFileURL } = require('url');
 const note = require('./note');
 const language = require('./language');
+const links = require('./links');
+const { relocate } = require('./relocate');
 
 const { tern } = note;
 const DEBOUNCE = 150; // ms after the last change
@@ -99,9 +102,10 @@ function receive(msg) {
   send(error ? { id, error } : { id, result });
 }
 
+const FILES = { filters: [{ scheme: 'file', pattern: { glob: '**' } }] }; // every file and folder: a link may name any
 const CAPABILITIES = {
   positionEncoding: 'utf-16',
-  textDocumentSync: { openClose: true, change: 1 }, // full text
+  textDocumentSync: { openClose: true, change: 1, save: { includeText: false } }, // full text
   completionProvider: { triggerCharacters: [':', '@', '/', '#'] },
   hoverProvider: true,
   definitionProvider: true,
@@ -110,12 +114,16 @@ const CAPABILITIES = {
   renameProvider: { prepareProvider: true },
   documentSymbolProvider: true,
   foldingRangeProvider: true,
+  workspace: { fileOperations: { willRename: FILES, didRename: FILES, didCreate: FILES, didDelete: FILES } },
 };
 
 const REQUESTS = {
-  initialize() {
+  initialize(params) {
     if (phase !== 'new') throw fail(-32600, 'the server is already initialized');
     phase = 'running';
+    const folders = Array.isArray(params.workspaceFolders) ? params.workspaceFolders.map((f) => f && f.uri) : [params.rootUri];
+    roots = folders.map(fileOf).filter(Boolean);
+    if (!roots.length && typeof params.rootPath === 'string') roots = [path.resolve(params.rootPath)];
     return { capabilities: CAPABILITIES, serverInfo: { name: 'tern', version: tern.version } };
   },
   shutdown() {
@@ -132,9 +140,19 @@ const REQUESTS = {
   'textDocument/hover': hover,
   'textDocument/documentSymbol': documentSymbol,
   'textDocument/foldingRange': foldingRange,
+  'workspace/willRenameFiles': willRenameFiles,
 };
 
-const NOTIFICATIONS = { 'textDocument/didOpen': didOpen, 'textDocument/didChange': didChange, 'textDocument/didClose': didClose };
+const NOTIFICATIONS = {
+  'textDocument/didOpen': didOpen,
+  'textDocument/didChange': didChange,
+  'textDocument/didClose': didClose,
+  'textDocument/didSave': () => refresh(null),
+  'workspace/didChangeWatchedFiles': () => refresh(null),
+  'workspace/didRenameFiles': () => refresh(null),
+  'workspace/didCreateFiles': () => refresh(null),
+  'workspace/didDeleteFiles': () => refresh(null),
+};
 
 function exit() {
   const code = phase === 'down' ? 0 : 1;
@@ -143,11 +161,16 @@ function exit() {
 
 // ---------------------------------------------------------------- documents
 
-const docs = new Map(); // uri -> {uri, version, text, timer, index, wasNote}
+// uri -> {uri, file, opened, version, text, timer, index, wasNote, a,
+// analysed, links}: `a` is the last analysis, of version `analysed`, and
+// `links` its link diagnostics as last published.
+const docs = new Map();
+let opened = 0;
+let roots = []; // the workspace folders, from initialize
 
 function didOpen({ textDocument: d }) {
   if (!d || typeof d.uri !== 'string') return;
-  const doc = { uri: d.uri, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false };
+  const doc = { uri: d.uri, file: fileOf(d.uri), opened: ++opened, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false, a: null, analysed: null, links: [] };
   docs.set(d.uri, doc);
   analyse(doc);
 }
@@ -169,6 +192,7 @@ function didClose({ textDocument: d }) {
   clearTimeout(doc.timer);
   docs.delete(d.uri);
   notify('textDocument/publishDiagnostics', { uri: doc.uri, diagnostics: [] });
+  refresh(null); // a note that linked to it now reads the disk's copy
 }
 
 // The document a request names, analysed: a pending change is analysed
@@ -181,28 +205,76 @@ function current(params) {
   return doc;
 }
 
-// Parses and transforms, then publishes the diagnostics and the outline. A
-// file that is not a note gets none, and an empty outline if it was one.
+// Parses and transforms, then publishes the diagnostics, its links' among
+// them, and the outline. A file that is not a note gets none, and an empty
+// outline if it was one. Then the other open notes' links are checked again.
 function analyse(doc) {
   clearTimeout(doc.timer);
   doc.timer = null;
   let a;
   try {
-    a = note.analyse(doc.text, fileOf(doc.uri), { addons: load });
+    a = note.analyse(doc.text, doc.file, { addons: load });
   } catch (e) {
     return log(`analysing ${doc.uri}: ${(e && e.stack) || e}`);
   }
-  notify('textDocument/publishDiagnostics', { uri: doc.uri, version: doc.version, diagnostics: a ? a.diagnostics.map(diagnostic) : [] });
+  doc.a = a;
+  doc.analysed = doc.version;
+  if (a && doc.file) targets.remember(doc.file, a);
+  doc.links = linksOf(doc);
+  publish(doc);
   if (a || doc.wasNote) guard(() => notify('tern/outline', { uri: doc.uri, version: doc.version, ...language.outline(a) }));
   doc.wasNote = !!a;
   doc.index = null;
   guard(() => (doc.index = language.index(a)));
+  refresh(doc);
 }
 
-// The note's path, for its head scripts and add-ons; null for an untitled or remote document.
+function publish(doc) {
+  const list = doc.a ? links.merge(doc.a.diagnostics, doc.links) : [];
+  notify('textDocument/publishDiagnostics', { uri: doc.uri, version: doc.analysed, diagnostics: list.map(diagnostic) });
+}
+
+// ---------------------------------------------------------------- links
+
+// cli/links.js over the disk, an open document's text winning over its
+// file's; its values are kept while their file, or document version, holds.
+const targets = new links.Targets({
+  open(file) {
+    for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
+    return undefined;
+  },
+  analyse: (text, file) => note.analyse(text, file, { addons: load }),
+});
+
+// The link diagnostics of an open note; none for an untitled document.
+function linksOf(doc) {
+  if (!doc.a || !doc.file) return [];
+  try {
+    return links.check(doc.file, doc.a, targets);
+  } catch (e) {
+    log(`checking the links of ${doc.uri}: ${(e && e.stack) || e}`);
+    return [];
+  }
+}
+
+// The other open notes' links, checked again: a file they link to may have
+// changed, been made or gone. A note is published again only when its link
+// diagnostics changed; one with a change pending waits for its analysis.
+function refresh(except) {
+  for (const d of docs.values()) {
+    if (d === except || d.timer || !d.a) continue;
+    const next = linksOf(d);
+    if (JSON.stringify(next) === JSON.stringify(d.links)) continue;
+    d.links = next;
+    publish(d);
+  }
+}
+
+// The note's path, for its head scripts and add-ons; null for an untitled or
+// remote document. A folder's has no trailing separator.
 function fileOf(uri) {
   try {
-    return fileURLToPath(uri);
+    return path.resolve(fileURLToPath(uri));
   } catch {
     return null;
   }
@@ -309,6 +381,66 @@ function documentSymbol(params) {
 
 function foldingRange(params) {
   return language.folds(current(params).index);
+}
+
+// ---------------------------------------------------------------- files
+
+// workspace/willRenameFiles: the edits tern mv makes, which the client
+// applies before it renames, so they name the files where they are. The
+// notes read are the workspace folders' and the open documents, an open
+// note's text winning over its file's; a move outside the workspace reads
+// its repository, or its folder. URLs left alone are told in one message.
+function willRenameFiles(params) {
+  const moves = [];
+  for (const f of Array.isArray(params.files) ? params.files : []) {
+    const from = f && fileOf(f.oldUri);
+    const to = f && fileOf(f.newUri);
+    if (from && to && from !== to) moves.push({ from, to });
+  }
+  if (!moves.length) return null;
+  const inside = (p, dir) => p === dir || p.startsWith(dir + path.sep);
+  const folders = new Set(roots);
+  for (const m of moves) if (!roots.some((r) => inside(m.from, r))) folders.add(note.repository(path.dirname(m.from)) || path.dirname(m.from));
+  const open = new Map();
+  for (const d of docs.values()) if (d.file) open.set(d.file, d);
+  const files = new Set(open.keys());
+  for (const dir of folders) {
+    try {
+      for (const f of note.htmlFiles(dir)) files.add(path.resolve(f));
+    } catch (e) {
+      log(`reading ${dir}: ${e.message}`);
+    }
+  }
+  const notes = [];
+  for (const file of files) {
+    try {
+      notes.push({ file, text: open.has(file) ? open.get(file).text : fs.readFileSync(file, 'utf8') });
+    } catch (e) {
+      log(`reading ${file}: ${e.message}; its links are left as they are`);
+    }
+  }
+  const shown = (f) => {
+    const dir = [...folders].find((r) => inside(f, r));
+    return dir ? path.relative(dir, f).split(path.sep).join('/') : f;
+  };
+  const changes = {};
+  const left = [];
+  for (const p of relocate(notes, moves)) {
+    if (p.edits.length) changes[open.has(p.file) ? open.get(p.file).uri : pathToFileURL(p.file).href] = p.edits.map(textEdit);
+    if (p.base) left.push(`${shown(p.file)} has a <base href>, so its URLs do not resolve from its folder; they are left as they are`);
+    for (const l of p.lost) left.push(`${shown(p.file)}:${l.line}:${l.column}: ${l.url} moves, but where it is written was not found; it is left as it is`);
+  }
+  if (left.length) notify('window/showMessage', { type: 2, message: left.map((s) => `tern: ${s}`).join('\n') });
+  return Object.keys(changes).length ? { changes } : null;
+}
+
+// A relocate() edit as a TextEdit: it replaces `was`, from its line and
+// column (the file's, 1-based).
+function textEdit(e) {
+  const lines = e.was.split('\n');
+  const last = lines.length - 1;
+  const end = { line: e.line - 1 + last, character: (last ? 0 : e.column - 1) + lines[last].length };
+  return { range: { start: { line: e.line - 1, character: e.column - 1 }, end }, newText: e.text };
 }
 
 // ---------------------------------------------------------------- main

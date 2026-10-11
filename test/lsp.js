@@ -3,7 +3,13 @@
 // The language server over stdio: spawns `node tern-cli.js lsp` and drives
 // it as an editor would. Expectations come from the engine (cli/note.js
 // `analyse`, the AST), never from the server:
-//   - published diagnostics equal the engine's, mapped to LSP;
+//   - published diagnostics equal the engine's with cli/links.js's (what
+//     `tern check` reports), mapped to LSP;
+//   - links between files: an open document's text wins over its file's,
+//     an open file exists, the other open notes are checked again;
+//   - workspace/willRenameFiles: the edits, applied as a client does, give
+//     the files tern mv writes; the workspace folders or the moved file's
+//     folder; file operations check the open notes' links again;
 //   - rename edits equal the engine's reference set, none in code or math;
 //   - definition, references, hover, completion, documentSymbol,
 //     foldingRange, documentHighlight, the `tern/outline` notification, the
@@ -21,8 +27,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
-const { pathToFileURL } = require('url');
+const { pathToFileURL, fileURLToPath } = require('url');
 const note = require('../cli/note');
+const links = require('../cli/links');
 const fixture = require('./fixtures/schema');
 
 const CLI = path.join(__dirname, '..', 'tern-cli.js');
@@ -142,13 +149,15 @@ const fileRange = (a, p) => ({
   end: { line: p.end.line + a.line - 1, character: p.end.column - 1 },
 });
 const tn = (n) => (n.data && n.data.tern) || {};
-// note.analyse, with what the add-on logs (to stderr) kept out of this
-// harness's output.
+// note.analyse, its links checked against the disk as `tern check` does,
+// with what the add-on logs (to stderr) kept out of this harness's output.
 function analyse(text, file) {
   const write = process.stderr.write;
   process.stderr.write = () => true;
   try {
-    return note.analyse(text, file);
+    const a = note.analyse(text, file);
+    if (a) a.diagnostics = links.merge(a.diagnostics, links.check(file, a, new links.Targets()));
+    return a;
   } finally {
     process.stderr.write = write;
   }
@@ -159,12 +168,21 @@ function outlineOf(a) {
   for (const k in o) for (const e of o[k]) (e.line += a.line), e.endLine && (e.endLine += a.line);
   return o;
 }
+// LSP TextEdits applied to a text as a client does: lines and UTF-16 characters.
+function applyEdits(text, edits) {
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
+  const at = (p) => starts[p.line] + p.character;
+  const sorted = [...edits].sort((x, y) => at(y.range.start) - at(x.range.start));
+  return sorted.reduce((t, e) => t.slice(0, at(e.range.start)) + e.newText + t.slice(at(e.range.end)), text);
+}
 const doc = (uri) => ({ textDocument: { uri } });
 const before = (p, q) => p.line < q.line || (p.line === q.line && p.character <= q.character);
 
 // ---------------------------------------------------------------- fixtures
 
 const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-lsp-'));
+fs.writeFileSync(path.join(DIR, 'tern.js'), ''); // the notes' tern.js, which link checking looks for
 const ADDON = path.join(DIR, 'addon.js');
 const writeAddon = (extra = '') =>
   fs.writeFileSync(
@@ -274,6 +292,7 @@ check('initialize: UTF-16 positions, full sync, the features', async () => {
   for (const f of ['hoverProvider', 'definitionProvider', 'referencesProvider', 'documentSymbolProvider', 'foldingRangeProvider']) assert.ok(k[f], f);
   assert.ok(k.renameProvider.prepareProvider);
   assert.ok(k.completionProvider.triggerCharacters.includes('@'));
+  for (const op of ['willRename', 'didRename', 'didCreate', 'didDelete']) assert.deepStrictEqual(k.workspace.fileOperations[op], { filters: [{ scheme: 'file', pattern: { glob: '**' } }] }, op);
   c.notify('initialized', {});
 });
 
@@ -646,6 +665,124 @@ See @t.
   assert.ok((await c.published(a.uri)).diagnostics.some((d) => d.code === 'stamp.ran'), 'the cached add-on’s transform runs again');
   const hover = (await c.call('textDocument/hover', { ...doc(b.uri), position: locate(B, '@t', { plus: 1 }) })).contents.value;
   assert.ok(hover.includes('Satz 1'), hover);
+});
+
+check('links between files: checked as tern check does; an open document wins over its file, an open file exists, other notes are checked again', async () => {
+  const L = path.join(DIR, 'links');
+  fs.mkdirSync(L, { recursive: true });
+  const B = '<script src="../tern.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n';
+  fs.writeFileSync(path.join(L, 'b.html'), B);
+  const A = '<script src="../tern.js"></script>\n# A\n\n[known](b.html#known), [later](b.html#later), [new](new.html).\n';
+  const fa = path.join(L, 'a.html');
+  const a = await c.open(fa, A);
+  const codes = (list) => list.map((d) => [d.code, d.message]);
+  assert.deepStrictEqual(codes(a.diagnostics), [
+    ['link.dangling', 'b.html has no element with the id later\ncheck the id after #: ids are case-sensitive'],
+    ['link.missing', 'new.html does not exist\nfix the path: it resolves from the folder of this note'],
+  ]);
+  assert.deepStrictEqual(a.diagnostics, analyse(A, fa).diagnostics.map(expected), 'what tern check reports');
+  const later = locate(A, '[later]');
+  assert.deepStrictEqual(a.diagnostics[0].range, { start: later, end: locate(A, ', [new]') }, 'the range spans the link');
+
+  // b.html opened with an unsaved #later: a.html is published again without its warning.
+  const b = await c.open(path.join(L, 'b.html'), B.replace('{#known}', '{#known}\n:::\n\n:::div{#later}\ny'));
+  assert.deepStrictEqual(b.diagnostics, []);
+  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k]) => k), ['link.missing'], 'b.html’s text, not its file');
+  // An edit to b.html that drops #known.
+  c.notify('textDocument/didChange', { textDocument: { uri: b.uri, version: 2 }, contentChanges: [{ text: B.replace('#known', '#gone') }] });
+  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k, m]) => (k === 'link.dangling' ? m.split('\n')[0] : k)), ['b.html has no element with the id known', 'b.html has no element with the id later', 'link.missing']);
+  // new.html open, never saved: it exists. Closed: it does not.
+  const n = await c.open(path.join(L, 'new.html'), '<script src="../tern.js"></script>\n# New\n');
+  assert.deepStrictEqual(n.diagnostics, []);
+  assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'an open file exists');
+  c.notify('textDocument/didClose', doc(n.uri));
+  assert.deepStrictEqual((await c.published(n.uri)).diagnostics, [], 'cleared on close');
+  assert.ok((await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'closed, never saved: missing again');
+  // Written to disk by something else; the next save is when the server looks.
+  fs.writeFileSync(path.join(L, 'new.html'), '<script src="../tern.js"></script>\n# New\n');
+  c.notify('textDocument/didSave', doc(b.uri));
+  assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'on disk now');
+  c.notify('textDocument/didClose', doc(b.uri));
+  await c.published(b.uri);
+  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k]) => k), ['link.dangling'], 'b.html closed: its file again, which has #known');
+  c.notify('textDocument/didClose', doc(a.uri));
+  await c.published(a.uri);
+
+  // An untitled document has no folder, so no link is checked.
+  const u = 'untitled:Untitled-1';
+  c.notify('textDocument/didOpen', { textDocument: { uri: u, languageId: 'html', version: 1, text: '<script src="tern.js"></script>\n[x](nope.html)\n' } });
+  assert.deepStrictEqual((await c.published(u)).diagnostics, []);
+  c.notify('textDocument/didClose', doc(u));
+  await c.published(u);
+});
+
+check('willRenameFiles: tern mv’s edits, for the files where they are; the workspace folders, else the moved file’s folder', async () => {
+  const W = path.join(DIR, 'workspace');
+  const files = {
+    'tern.js': '',
+    'notes/b.html': '<script src="../tern.js"></script>\n# B\n\n[a](a.html), ![k](img/k.svg)\n',
+    'notes/img/k.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+    'other/c.html': '<!doctype html>\r\n<script src="../tern.js"></script>\r\n# C\r\n\r\n[b](../notes/b.html#top) and <a href=\'../notes/b.html\'>b</a>\r\n',
+    'other/based.html': '<base href="/">\n<script src="../tern.js"></script>\n[b](../notes/b.html)\n',
+    'other/plain.html': '<p><a href="../notes/b.html">not a note</a>\n',
+  };
+  for (const [rel, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(W, rel)), { recursive: true });
+    fs.writeFileSync(path.join(W, rel), text);
+  }
+  const A = '<script src="../tern.js"></script>\n# A\n\n🙂 [b](b.html) [unsaved](<b.html#top>)\n';
+  const fa = path.join(W, 'notes', 'a.html');
+  fs.writeFileSync(fa, '<script src="../tern.js"></script>\n# A\n');
+  const w = new Client();
+  await w.call('initialize', { processId: process.pid, rootUri: null, workspaceFolders: [{ uri: pathToFileURL(W).href, name: 'w' }], capabilities: {} });
+  w.notify('initialized', {});
+  const a = await w.open(fa, A);
+  const uri = (rel) => pathToFileURL(path.join(W, rel)).href;
+  const rename = (from, to) => w.call('workspace/willRenameFiles', { files: [{ oldUri: uri(from), newUri: uri(to) }] });
+  // The result, applied: each file's text as tern mv writes it.
+  const after = (edit) => {
+    const out = {};
+    for (const [u, edits] of Object.entries(edit.changes)) out[path.relative(W, fileURLToPath(u)).split(path.sep).join('/')] = applyEdits(u === a.uri ? A : fs.readFileSync(fileURLToPath(u), 'utf8'), edits);
+    return out;
+  };
+
+  const edit = await rename('notes/b.html', 'notes/sub/b2.html');
+  assert.deepStrictEqual(after(edit), {
+    'notes/a.html': A.replace('(b.html)', '(sub/b2.html)').replace('<b.html#top>', '<sub/b2.html#top>'),
+    'notes/b.html': files['notes/b.html'].replace('../tern.js', '../../tern.js').replace('(a.html)', '(../a.html)').replace('(img/k.svg)', '(../img/k.svg)'),
+    'other/c.html': files['other/c.html'].replace('../notes/b.html#top', '../notes/sub/b2.html#top').replace("'../notes/b.html'", "'../notes/sub/b2.html'"),
+  });
+  assert.deepStrictEqual(edit.changes[a.uri][0].range, { start: locate(A, 'b.html'), end: locate(A, 'b.html', { plus: 6 }) }, 'the open note’s text, UTF-16 columns');
+  const told = await w.next((m) => m.method === 'window/showMessage');
+  assert.strictEqual(told.params.type, 2);
+  assert.strictEqual(told.params.message, 'tern: other/based.html has a <base href>, so its URLs do not resolve from its folder; they are left as they are');
+
+  const folder = await w.call('workspace/willRenameFiles', { files: [{ oldUri: `${uri('notes')}/`, newUri: `${uri('docs')}/` }] });
+  assert.deepStrictEqual(Object.keys(after(folder)), ['other/c.html'], 'a folder, its URI ending in /: the links into it; those inside it hold');
+  assert.strictEqual(await rename('other/plain.html', 'other/plain2.html'), null, 'nothing links to it');
+  assert.strictEqual(await w.call('workspace/willRenameFiles', { files: [{ oldUri: 'untitled:x', newUri: uri('x.html') }] }, null), null);
+  await w.next((m) => m.method === 'window/showMessage'); // the <base> note again, for the folder
+  w.proc.kill();
+
+  // No workspace: the moved file's repository, else its folder.
+  const M = path.join(DIR, 'moved');
+  fs.mkdirSync(M, { recursive: true });
+  fs.writeFileSync(path.join(M, 'x.html'), '<script src="../tern.js"></script>\n# X\n');
+  fs.writeFileSync(path.join(M, 'y.html'), '<script src="../tern.js"></script>\n[x](x.html)\n');
+  const r = await c.call('workspace/willRenameFiles', { files: [{ oldUri: pathToFileURL(path.join(M, 'x.html')).href, newUri: pathToFileURL(path.join(M, 'z.html')).href }] });
+  assert.deepStrictEqual(r, { changes: { [pathToFileURL(path.join(M, 'y.html')).href]: [{ range: { start: { line: 1, character: 4 }, end: { line: 1, character: 10 } }, newText: 'z.html' }] } });
+
+  // A file made, renamed or deleted: the open notes' links are checked again.
+  const y = await c.open(path.join(M, 'y.html'), '<script src="../tern.js"></script>\n[x](x.html) [new](new.html)\n');
+  assert.deepStrictEqual(y.diagnostics.map((d) => d.code), ['link.missing']);
+  fs.writeFileSync(path.join(M, 'new.html'), '');
+  c.notify('workspace/didCreateFiles', { files: [{ uri: pathToFileURL(path.join(M, 'new.html')).href }] });
+  assert.deepStrictEqual((await c.published(y.uri)).diagnostics, [], 'didCreateFiles');
+  fs.renameSync(path.join(M, 'x.html'), path.join(M, 'z.html'));
+  c.notify('workspace/didRenameFiles', { files: [{ oldUri: pathToFileURL(path.join(M, 'x.html')).href, newUri: pathToFileURL(path.join(M, 'z.html')).href }] });
+  assert.deepStrictEqual((await c.published(y.uri)).diagnostics.map((d) => d.code), ['link.missing'], 'didRenameFiles');
+  c.notify('textDocument/didClose', doc(y.uri));
+  await c.published(y.uri);
 });
 
 check('malformed input and unknown documents get errors, not a crash', async () => {

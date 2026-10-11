@@ -36,6 +36,7 @@ const addons = fs.readdirSync(DIR).filter((n) => n.endsWith('.js')).sort();
 
 test('every add-on runs under tern check and tern build with no diagnostic', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-addons-'));
+  fs.writeFileSync(path.join(tmp, 'tern.js'), ''); // the notes' tern.js, for tern check's link checking
   try {
     for (const n of addons) {
       const note = path.join(tmp, `${n}.html`);
