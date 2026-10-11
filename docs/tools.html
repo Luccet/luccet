@@ -786,7 +786,7 @@ tern corpus: 0 cases from 0 pages
 
 ## The language server {#lsp}
 
-`tern lsp` is a language server: it speaks the Language Server Protocol over stdin and stdout, so any editor with an LSP client can use it. It runs the same analysis as `tern check` on every note you open, as you type, and answers questions about ids, references and element names from the syntax tree, at exact columns. It never guesses with a second grammar. The answers come from one module, which an editor can also run itself: see [The language module](#language).
+`tern lsp` is a language server: it speaks the Language Server Protocol over stdin and stdout, so any editor with an LSP client can use it. It runs the same analysis as `tern check` on every note you open, as you type, and answers questions about ids, references and element names from the syntax tree, at exact columns. When you rename a file in the editor, it fixes the links to it, as `tern mv` does. It never guesses with a second grammar. The answers come from one module, which an editor can also run itself: see [The language module](#language).
 
 :::syntax[tern lsp]
 ```sh
@@ -861,7 +861,15 @@ $$ {#eq}
     "documentHighlightProvider": true,
     "renameProvider": { "prepareProvider": true },
     "documentSymbolProvider": true,
-    "foldingRangeProvider": true
+    "foldingRangeProvider": true,
+    "workspace": {
+      "fileOperations": {
+        "willRename": { "filters": [{ "scheme": "file", "pattern": { "glob": "**" } }] },
+        "didRename": { "filters": [{ "scheme": "file", "pattern": { "glob": "**" } }] },
+        "didCreate": { "filters": [{ "scheme": "file", "pattern": { "glob": "**" } }] },
+        "didDelete": { "filters": [{ "scheme": "file", "pattern": { "glob": "**" } }] }
+      }
+    }
   },
   "serverInfo": { "name": "tern", "version": "0.2.0" }
 }
@@ -878,6 +886,7 @@ $$ {#eq}
 | `renameProvider` | Rename an id or an element name, with `prepareRename`. See [Rename](#lsp-rename). |
 | `documentSymbolProvider` | The outline of headings, containers and leaves. See [Symbols](#lsp-symbols). |
 | `foldingRangeProvider` | Folds for blocks and sections. See [Folding](#lsp-folding). |
+| `workspace.fileOperations` | Renaming or moving any file or folder in the editor fixes the links to it and in it. See [Moving files](#lsp-files). Creating, renaming and deleting files checks the open notes' links again. |
 
 **Errors.** A request the server cannot answer gets a JSON-RPC error; the server keeps running.
 
@@ -941,9 +950,43 @@ Each analysis sends `textDocument/publishDiagnostics` with the document's `versi
 Each analysis also checks the note's links to other files, as [`tern check`](#check-links) does, and publishes [`link.missing`](diagnostics.html#link-missing) and [`link.dangling`](diagnostics.html#link-dangling) with the note's other diagnostics. Each one's range spans its link. In the editor:
 
 - **A note open in the editor is read as it is there,** unsaved changes included. Add `{#thm-rank}` to `maps.html` and a link to `maps.html#thm-rank` from another note stops being dangling before you save. A file open but never saved exists.
-- **The other open notes are checked again** whenever a note is analysed, opened, closed or saved, and on `workspace/didChangeWatchedFiles`. A note is published again only when its link diagnostics changed.
+- **The other open notes are checked again** whenever a note is analysed, opened, closed or saved, when the editor creates, renames or deletes a file, and on `workspace/didChangeWatchedFiles`. A note is published again only when its link diagnostics changed.
 - **Files changed outside the editor,** by a `git checkout` or a file manager, are seen at the next of those events. What the server read of a file is kept while its modification time and size hold, and a folder's listing while its modification time holds.
 - **An untitled document** has no folder, so its links are not checked.
+
+### Moving files {#lsp-files}
+
+When you rename or move a file or a folder in the editor, the client asks the server first, with `workspace/willRenameFiles`. The answer holds the edits that [`tern mv`](#mv) would make. The client applies them, then renames. It is `tern mv`, from the editor: the same edits, worked out by the same code.
+
+Moving `notes/maps.html` into `notes/linear/`, from the [`tern mv` example](#mv):
+
+```json
+{ "files": [{ "oldUri": "file:///…/notes/maps.html", "newUri": "file:///…/notes/linear/maps.html" }] }
+```
+
+```json
+{ "changes": {
+  "file:///…/notes/index.html": [
+    { "range": { "start": { "line": 3, "character": 16 }, "end": { "line": 3, "character": 25 } }, "newText": "linear/maps.html" },
+    { "range": { "start": { "line": 4, "character": 17 }, "end": { "line": 4, "character": 26 } }, "newText": "linear/maps.html" }
+  ],
+  "file:///…/notes/maps.html": [
+    { "range": { "start": { "line": 0, "character": 50 }, "end": { "line": 0, "character": 60 } }, "newText": "../../tern.js" },
+    { "range": { "start": { "line": 3, "character": 14 }, "end": { "line": 3, "character": 28 } }, "newText": "../img/kernel.svg" },
+    { "range": { "start": { "line": 9, "character": 23 }, "end": { "line": 9, "character": 33 } }, "newText": "../index.html" }
+  ],
+  "file:///…/notes/vectors/basis.html": [
+    { "range": { "start": { "line": 3, "character": 19 }, "end": { "line": 3, "character": 31 } }, "newText": "../linear/maps.html" }
+  ]
+} }
+```
+
+- **The edits name each file where it is,** before the rename: the moved note's own links are edits to `notes/maps.html`. Each one replaces the path of one URL and keeps the rest, as in [What it rewrites](#mv-rewrites).
+- **Which notes are read:** those in the workspace folders the client gave at `initialize`, and every open document. An open note is read as it is in the editor, unsaved changes included. A move outside the workspace folders, or with none, reads the notes in the moved file's repository, else in its folder.
+- **What is left alone** is what `tern mv` leaves ([What it leaves alone](#mv-leaves)). A note with a `<base href>`, or a URL whose writing was not found, is named in one `window/showMessage` warning. Files that are not notes are not read at all; `tern mv --dry-run` lists the ones that name a moved file.
+- **The answer is `null`** when no note links to what moves.
+
+Clients that support file operations, such as VS Code's `vscode-languageclient`, send the request when you rename in their file explorer, and save the edited files. Neovim 0.12 does not send it: [Neovim](#neovim) has a command that does.
 
 ### Completion {#lsp-completion}
 
@@ -1238,7 +1281,7 @@ Any editor with an LSP client can use Tern: point it at `tern lsp` for HTML file
 | Transport | stdio |
 | Files | HTML (`.html`, `.htm`). Notes are HTML files, so the server is attached to HTML buffers; it answers nothing for files that are not notes. |
 | Position encoding | UTF-16 |
-| Root folder | Not needed. Each note's add-ons are found from its own path. A folder holding `tern.js`, or the repository root, is a sensible root. |
+| Root folder | Not needed to analyse a note: its add-ons are found from its own path. [Moving files](#lsp-files) reads the notes in the workspace folders. A folder holding `tern.js`, or the repository root, is a sensible root. |
 | Custom notification | `tern/outline`, optional: see [The tern/outline notification](#outline) |
 
 You may run it beside an HTML language server. Tern's diagnostics come with `source: "tern"`.
@@ -1281,6 +1324,29 @@ vim.api.nvim_create_autocmd('FileType', {
 Either way, opening an HTML file starts the server, or attaches it to the running one, and a note's diagnostics appear with the source `tern`. The `handlers` entry is optional; without it, Neovim ignores the outline notification.
 
 To start the server only for notes, test the buffer's lines against the [detection pattern](#detection) before `vim.lsp.start`.
+
+Neovim does not ask the server before a rename, so its renames leave links as they were. This command moves the current file and fixes them ([Moving files](#lsp-files)), saving each file it edits:
+
+```lua
+-- :TernMove {to}: move this file, and fix the links to it and in it
+vim.api.nvim_create_user_command('TernMove', function(o)
+  local from = vim.api.nvim_buf_get_name(0)
+  local to = vim.fn.fnamemodify(o.args, ':p')
+  local files = { { oldUri = vim.uri_from_fname(from), newUri = vim.uri_from_fname(to) } }
+  for _, client in ipairs(vim.lsp.get_clients({ name = 'tern', bufnr = 0 })) do
+    local r = client:request_sync('workspace/willRenameFiles', { files = files }, 5000)
+    if r and r.result then
+      vim.lsp.util.apply_workspace_edit(r.result, client.offset_encoding)
+      for uri in pairs(r.result.changes or {}) do
+        vim.api.nvim_buf_call(vim.uri_to_bufnr(uri), function() vim.cmd('silent update') end)
+      end
+    end
+  end
+  vim.lsp.util.rename(from, to)
+end, { nargs = 1, complete = 'file' })
+```
+
+`:TernMove notes/linear/maps.html` then makes the edits above. Plugins that rename from a file tree and send `workspace/willRenameFiles` work too.
 
 ### VS Code {#vscode}
 

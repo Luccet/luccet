@@ -16,7 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
-const { split, notNote, attributes, addons, transformWith, loadingDiagnostic, analyse, tern } = require('./note');
+const { split, notNote, attributes, addons, transformWith, loadingDiagnostic, analyse, htmlFiles, repository, tern } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
 const examples = require('./examples');
@@ -208,25 +208,6 @@ function newNote(args) {
 
 // ---------------------------------------------------------------- check
 
-// The .html files under dir, sorted, skipping dot-directories and
-// node_modules; symbolic links to directories are not followed.
-function* htmlFiles(dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  for (const e of entries) {
-    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) yield* htmlFiles(p);
-    else if (/\.html?$/i.test(e.name)) {
-      if (e.isFile()) yield p;
-      else if (e.isSymbolicLink()) {
-        try {
-          if (fs.statSync(p).isFile()) yield p;
-        } catch {}
-      }
-    }
-  }
-}
-
 function check(args) {
   const { values: o, positionals } = options(args, { json: { type: 'boolean' }, 'fail-on': { type: 'string' }, quiet: { type: 'boolean' } });
   if (o.help) return help('check');
@@ -363,14 +344,6 @@ function buildPage(args) {
 }
 
 // ---------------------------------------------------------------- mv
-
-// The repository dir is in: the nearest folder at or above it holding .git.
-function repository(dir) {
-  for (let d = dir; ; d = path.dirname(d)) {
-    if (fs.existsSync(path.join(d, '.git'))) return d;
-    if (path.dirname(d) === d) return null;
-  }
-}
 
 // The files under root that are not notes but name a moved file or folder:
 // tern mv does not rewrite them (a name in a script or a Markdown file is

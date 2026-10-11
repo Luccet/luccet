@@ -4,17 +4,19 @@
 // dependencies; main() starts it. It runs the engine on a note and
 // publishes its diagnostics, as the browser reports them, and the
 // `tern/outline` digest; cli/language.js answers the requests from the
-// analysis, and this file maps its answers onto the protocol's shapes.
+// analysis, and this file maps its answers onto the protocol's shapes. A
+// file renamed in the editor gets tern mv's link edits (cli/relocate.js).
 // Positions are UTF-16 code units, as the engine's columns are; note line n
 // is file line n + the head's line count (cli/note.js).
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const { fileURLToPath } = require('url');
+const { fileURLToPath, pathToFileURL } = require('url');
 const note = require('./note');
 const language = require('./language');
 const links = require('./links');
+const { relocate } = require('./relocate');
 
 const { tern } = note;
 const DEBOUNCE = 150; // ms after the last change
@@ -100,6 +102,7 @@ function receive(msg) {
   send(error ? { id, error } : { id, result });
 }
 
+const FILES = { filters: [{ scheme: 'file', pattern: { glob: '**' } }] }; // every file and folder: a link may name any
 const CAPABILITIES = {
   positionEncoding: 'utf-16',
   textDocumentSync: { openClose: true, change: 1, save: { includeText: false } }, // full text
@@ -111,12 +114,16 @@ const CAPABILITIES = {
   renameProvider: { prepareProvider: true },
   documentSymbolProvider: true,
   foldingRangeProvider: true,
+  workspace: { fileOperations: { willRename: FILES, didRename: FILES, didCreate: FILES, didDelete: FILES } },
 };
 
 const REQUESTS = {
-  initialize() {
+  initialize(params) {
     if (phase !== 'new') throw fail(-32600, 'the server is already initialized');
     phase = 'running';
+    const folders = Array.isArray(params.workspaceFolders) ? params.workspaceFolders.map((f) => f && f.uri) : [params.rootUri];
+    roots = folders.map(fileOf).filter(Boolean);
+    if (!roots.length && typeof params.rootPath === 'string') roots = [path.resolve(params.rootPath)];
     return { capabilities: CAPABILITIES, serverInfo: { name: 'tern', version: tern.version } };
   },
   shutdown() {
@@ -133,6 +140,7 @@ const REQUESTS = {
   'textDocument/hover': hover,
   'textDocument/documentSymbol': documentSymbol,
   'textDocument/foldingRange': foldingRange,
+  'workspace/willRenameFiles': willRenameFiles,
 };
 
 const NOTIFICATIONS = {
@@ -141,6 +149,9 @@ const NOTIFICATIONS = {
   'textDocument/didClose': didClose,
   'textDocument/didSave': () => refresh(null),
   'workspace/didChangeWatchedFiles': () => refresh(null),
+  'workspace/didRenameFiles': () => refresh(null),
+  'workspace/didCreateFiles': () => refresh(null),
+  'workspace/didDeleteFiles': () => refresh(null),
 };
 
 function exit() {
@@ -155,6 +166,7 @@ function exit() {
 // `links` its link diagnostics as last published.
 const docs = new Map();
 let opened = 0;
+let roots = []; // the workspace folders, from initialize
 
 function didOpen({ textDocument: d }) {
   if (!d || typeof d.uri !== 'string') return;
@@ -258,10 +270,11 @@ function refresh(except) {
   }
 }
 
-// The note's path, for its head scripts and add-ons; null for an untitled or remote document.
+// The note's path, for its head scripts and add-ons; null for an untitled or
+// remote document. A folder's has no trailing separator.
 function fileOf(uri) {
   try {
-    return fileURLToPath(uri);
+    return path.resolve(fileURLToPath(uri));
   } catch {
     return null;
   }
@@ -368,6 +381,66 @@ function documentSymbol(params) {
 
 function foldingRange(params) {
   return language.folds(current(params).index);
+}
+
+// ---------------------------------------------------------------- files
+
+// workspace/willRenameFiles: the edits tern mv makes, which the client
+// applies before it renames, so they name the files where they are. The
+// notes read are the workspace folders' and the open documents, an open
+// note's text winning over its file's; a move outside the workspace reads
+// its repository, or its folder. URLs left alone are told in one message.
+function willRenameFiles(params) {
+  const moves = [];
+  for (const f of Array.isArray(params.files) ? params.files : []) {
+    const from = f && fileOf(f.oldUri);
+    const to = f && fileOf(f.newUri);
+    if (from && to && from !== to) moves.push({ from, to });
+  }
+  if (!moves.length) return null;
+  const inside = (p, dir) => p === dir || p.startsWith(dir + path.sep);
+  const folders = new Set(roots);
+  for (const m of moves) if (!roots.some((r) => inside(m.from, r))) folders.add(note.repository(path.dirname(m.from)) || path.dirname(m.from));
+  const open = new Map();
+  for (const d of docs.values()) if (d.file) open.set(d.file, d);
+  const files = new Set(open.keys());
+  for (const dir of folders) {
+    try {
+      for (const f of note.htmlFiles(dir)) files.add(path.resolve(f));
+    } catch (e) {
+      log(`reading ${dir}: ${e.message}`);
+    }
+  }
+  const notes = [];
+  for (const file of files) {
+    try {
+      notes.push({ file, text: open.has(file) ? open.get(file).text : fs.readFileSync(file, 'utf8') });
+    } catch (e) {
+      log(`reading ${file}: ${e.message}; its links are left as they are`);
+    }
+  }
+  const shown = (f) => {
+    const dir = [...folders].find((r) => inside(f, r));
+    return dir ? path.relative(dir, f).split(path.sep).join('/') : f;
+  };
+  const changes = {};
+  const left = [];
+  for (const p of relocate(notes, moves)) {
+    if (p.edits.length) changes[open.has(p.file) ? open.get(p.file).uri : pathToFileURL(p.file).href] = p.edits.map(textEdit);
+    if (p.base) left.push(`${shown(p.file)} has a <base href>, so its URLs do not resolve from its folder; they are left as they are`);
+    for (const l of p.lost) left.push(`${shown(p.file)}:${l.line}:${l.column}: ${l.url} moves, but where it is written was not found; it is left as it is`);
+  }
+  if (left.length) notify('window/showMessage', { type: 2, message: left.map((s) => `tern: ${s}`).join('\n') });
+  return Object.keys(changes).length ? { changes } : null;
+}
+
+// A relocate() edit as a TextEdit: it replaces `was`, from its line and
+// column (the file's, 1-based).
+function textEdit(e) {
+  const lines = e.was.split('\n');
+  const last = lines.length - 1;
+  const end = { line: e.line - 1 + last, character: (last ? 0 : e.column - 1) + lines[last].length };
+  return { range: { start: { line: e.line - 1, character: e.column - 1 }, end }, newText: e.text };
 }
 
 // ---------------------------------------------------------------- main
