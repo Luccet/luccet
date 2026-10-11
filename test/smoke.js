@@ -35,8 +35,9 @@
 // filled once from the npm registry (tarball checked against its sha512) for
 // the version the page asks for. The bytes are the ones jsDelivr serves, so
 // SRI still applies, and runs are deterministic and work offline after the
-// first. highlight.js, for addons/code.js, is served the same way from the
-// copy tools/hljs.js keeps there. --live-cdn uses the real CDN instead; so
+// first. highlight.js, for addons/code.js, and Mermaid, for
+// addons/mermaid.js, are served the same way from the copies tools/hljs.js
+// and tools/mermaid.js keep there. --live-cdn uses the real CDN instead; so
 // does any request the cache cannot answer.
 //
 // Each test has a timeout (30 s unless it says otherwise). A test can skip
@@ -55,8 +56,6 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const path = require('path');
-const zlib = require('zlib');
-const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { ROOT } = require('./lib/engine');
 
@@ -144,8 +143,9 @@ function staticHandler(cdnOrigin) {
       return;
     }
     let file = path.join(ROOT, path.normalize(url));
-    // A local copy of highlight.js, for addons/code.js?base=/vendor/highlightjs/.
+    // Local copies of highlight.js and Mermaid, for the add-ons' ?base=.
     if (url.startsWith('/vendor/highlightjs/')) file = path.join(CACHE, `highlightjs-${HLJS_VERSION}`, path.normalize(url.slice('/vendor/highlightjs/'.length)));
+    if (url.startsWith('/vendor/mermaid/')) file = path.join(CACHE, `mermaid-${MERMAID_VERSION}`, 'dist', path.normalize(url.slice('/vendor/mermaid/'.length)));
     const missing = !file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory();
     const docs = missing && file.startsWith(ROOT + path.sep) && docsReferer(req);
     if (missing && (file.startsWith(SAMPLES + path.sep) || docs)) {
@@ -316,88 +316,43 @@ function cliPage(name) {
   }
 }
 
-// ---- KaTeX from a local copy
+// ---- KaTeX, highlight.js and Mermaid from local copies
 
-const CACHE = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
+const npm = require('../tools/npm');
+const CACHE = npm.CACHE;
 const KATEX_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@(\d+\.\d+\.\d+)\/(dist\/[^?#]+)/;
-const katexCache = new Map();
 const HLJS_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@highlightjs\/cdn-assets@(\d+\.\d+\.\d+)\/([^?#]+)/;
 const HLJS_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8'))[1];
-const hljsCache = new Map();
+const MERMAID_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@(\d+\.\d+\.\d+)\/([^?#]+)/;
+const MERMAID_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mermaid.js'), 'utf8'))[1];
 
-// The files of a ustar/pax tarball whose path starts with `prefix`.
-function untar(buf, prefix, onFile) {
-  let off = 0;
-  let paxPath = null;
-  while (off + 512 <= buf.length) {
-    const h = buf.subarray(off, off + 512);
-    if (h.every((b) => b === 0)) break;
-    const field = (a, b) => h.toString('utf8', a, b).replace(/\0[\s\S]*$/, '');
-    const size = parseInt(field(124, 136).trim() || '0', 8);
-    const type = String.fromCharCode(h[156] || 48);
-    const name = paxPath || (field(345, 500) ? field(345, 500) + '/' : '') + field(0, 100);
-    const body = buf.subarray(off + 512, off + 512 + size);
-    paxPath = null;
-    if (type === 'x') paxPath = (/(?:^|\n)\d+ path=([^\n]*)\n/.exec(body.toString('utf8')) || [])[1] || null;
-    else if (type === '0' && name.startsWith(prefix)) onFile(name.slice(prefix.length), body);
-    off += 512 + Math.ceil(size / 512) * 512;
-  }
-}
-
-// node_modules/.cache/tern-smoke/katex-X.Y.Z/, holding dist/; null if it
-// cannot be fetched (offline on the first run).
-function katexDist(version) {
-  if (!katexCache.has(version)) {
-    katexCache.set(
-      version,
-      (async () => {
-        const dir = path.join(CACHE, `katex-${version}`);
-        if (fs.existsSync(path.join(dir, 'dist', 'katex.min.js'))) return dir;
-        const meta = await (await fetch(`https://registry.npmjs.org/katex/${version}`)).json();
-        const tgz = Buffer.from(await (await fetch(meta.dist.tarball)).arrayBuffer());
-        const want = String(meta.dist.integrity || '').replace(/^sha512-/, '');
-        if (crypto.createHash('sha512').update(tgz).digest('base64') !== want) throw new Error(`katex ${version}: tarball does not match its sha512`);
-        const tmp = `${dir}.tmp-${process.pid}`;
-        untar(zlib.gunzipSync(tgz), 'package/dist/', (rel, body) => {
-          const out = path.join(tmp, 'dist', rel);
-          fs.mkdirSync(path.dirname(out), { recursive: true });
-          fs.writeFileSync(out, body);
-        });
-        fs.rmSync(dir, { recursive: true, force: true });
-        fs.renameSync(tmp, dir);
-        return dir;
-      })().catch((e) => {
-        console.log(`    (KaTeX ${version} not cached, using the live CDN: ${e.message})`);
+// A package's folder in node_modules/.cache/tern-smoke/, filled once
+// (tools/npm.js); null if it cannot be fetched (offline on the first run).
+const dirs = new Map();
+function cached(label, packageDir, version) {
+  if (!dirs.has(`${label}@${version}`))
+    dirs.set(
+      `${label}@${version}`,
+      packageDir(version).catch((e) => {
+        console.log(`    (${label} ${version} not cached, using the live CDN: ${e.message})`);
         return null;
       }),
     );
-  }
-  return katexCache.get(version);
+  return dirs.get(`${label}@${version}`);
 }
+// katex-X.Y.Z/dist/; highlightjs-X.Y.Z/, the package (tools/hljs.js);
+// mermaid-X.Y.Z/dist/mermaid.min.js (tools/mermaid.js).
+const katexDist = (v) => cached('KaTeX', (version) => npm.packageDir('katex', version, { folder: `katex-${version}`, keep: ['dist/'], has: 'dist/katex.min.js' }), v);
+const hljsDir = (v) => cached('highlight.js', require('../tools/hljs').packageDir, v);
+const mermaidDir = (v) => cached('Mermaid', require('../tools/mermaid').packageDir, v);
 
-// node_modules/.cache/tern-smoke/highlightjs-X.Y.Z/, the package's files
-// (tools/hljs.js fills it); null if it cannot be fetched.
-function hljsDir(version) {
-  if (!hljsCache.has(version))
-    hljsCache.set(
-      version,
-      require('../tools/hljs')
-        .packageDir(version)
-        .catch((e) => {
-          console.log(`    (highlight.js ${version} not cached, using the live CDN: ${e.message})`);
-          return null;
-        }),
-    );
-  return hljsCache.get(version);
-}
-
-// Answers highlight.js requests from the cache, as routeKatex below does KaTeX's.
-async function routeHljs(context) {
+// Answers a package's CDN requests from its copy, as routeKatex below does KaTeX's.
+async function routeCached(context, re, dirOf) {
   await context.route(
-    (url) => HLJS_URL.test(url.href),
+    (url) => re.test(url.href),
     async (route) => {
-      const [, version, rel] = HLJS_URL.exec(route.request().url());
-      const dir = await hljsDir(version);
+      const [, version, rel] = re.exec(route.request().url());
+      const dir = await dirOf(version);
       const file = dir && path.join(dir, path.normalize(rel));
       if (!file || !file.startsWith(dir + path.sep) || !fs.existsSync(file)) return route.continue();
       await route
@@ -1140,6 +1095,145 @@ const TESTS = [
     },
   },
   {
+    name: 'mermaid add-on: fences drawn as diagrams in the theme, listings and ids kept, a broken one left with its error, Mermaid pinned with SRI',
+    url: '/test/smoke/mermaid-addon.html',
+    timeout: 60000,
+    async check(page, ctx) {
+      await page.waitForFunction(() => document.querySelectorAll('main.tern .t-mermaid > svg.t-mermaid-screen').length === 11 && document.querySelector('.t-mermaid-error'), null, { timeout: 40000 });
+      const r = await page.evaluate(() => {
+        const flow = document.getElementById('flow');
+        const rect = flow && flow.querySelector('svg .node rect, svg .node polygon');
+        const listing = document.querySelector('figure[data-t=code]');
+        const broken = document.querySelector('.t-mermaid-error');
+        return {
+          flow: flow && flow.matches('.t-mermaid') && !!flow.querySelector(':scope > svg') && flow.querySelector(':scope > pre').hidden,
+          pos: flow && flow.hasAttribute('data-pos'),
+          fill: rect && getComputedStyle(rect).fill,
+          soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim(),
+          listing: listing && !!listing.querySelector(':scope > .t-mermaid > svg') && !!listing.querySelector(':scope > figcaption'),
+          broken: broken && broken.previousElementSibling && broken.previousElementSibling.matches('pre:not([hidden])') && /Parse error/.test(broken.textContent),
+          js: !!document.querySelector('main.tern > pre > code.language-js'),
+          prints: document.querySelectorAll('.t-mermaid-print').length,
+          scripts: [...document.querySelectorAll('script[src*="mermaid@"]')].map((e) => ({ src: e.src.replace(/^.*\/npm\//, ''), sri: e.integrity.startsWith('sha384-') })),
+        };
+      });
+      const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+      if (!r.flow || !r.pos) throw new Error(`#flow: drawn ${r.flow}, data-pos ${r.pos}`);
+      if (r.fill !== rgb(r.soft)) throw new Error(`a flowchart node is filled ${r.fill}, --t-soft is ${r.soft}`);
+      if (!r.listing) throw new Error('the listing lost its diagram or its caption');
+      if (!r.broken) throw new Error('the broken diagram is not shown as source with its error');
+      if (!r.js) throw new Error('the js fence was touched');
+      if (r.prints) throw new Error(`${r.prints} print copies for a light palette`);
+      if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: `mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`, sri: true }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /Tern mermaid\.js: Parse error/.test(m.text))) throw new Error('no console warning for the broken diagram');
+    },
+  },
+  {
+    name: 'mermaid add-on: a dark theme under a strict CSP with data-nonce: drawn in its colours, styles kept, a light copy for print',
+    url: '/csp-nonce/test/smoke/mermaid-addon-theme.html',
+    timeout: 60000,
+    async check(page, ctx) {
+      await page.waitForFunction(() => document.querySelectorAll('.t-mermaid > svg.t-mermaid-print').length === 2, null, { timeout: 40000 });
+      const look = () => {
+        const rect = document.querySelector('.t-mermaid > svg:not([style*="display: none"]) .node rect');
+        const shown = [...document.querySelectorAll('.t-mermaid > svg')].filter((s) => getComputedStyle(s).display !== 'none');
+        const node = shown[0] && shown[0].querySelector('.node rect');
+        return {
+          fill: node && getComputedStyle(node).fill,
+          maxWidth: shown[0] && shown[0].style.maxWidth,
+          kinds: shown.map((s) => s.classList[s.classList.length - 1]),
+          soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim(),
+          csp: window.__csp,
+          nonces: [...document.querySelectorAll('script[src*="mermaid@"]')].map((e) => e.nonce),
+        };
+      };
+      const screen = await page.evaluate(look);
+      const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+      if (screen.csp.length) throw new Error(`CSP violations: ${screen.csp.slice(0, 3).join('; ')}`);
+      if (JSON.stringify(screen.nonces) !== JSON.stringify(['tern-smoke-nonce'])) throw new Error(`Mermaid's script nonces ${JSON.stringify(screen.nonces)}`);
+      if (screen.kinds.join() !== 't-mermaid-screen,t-mermaid-screen') throw new Error(`on screen: ${screen.kinds.join()}`);
+      if (screen.fill !== rgb(screen.soft)) throw new Error(`a node is filled ${screen.fill}, nord's --t-soft is ${screen.soft} (the SVG's <style> did not apply?)`);
+      if (!/px$/.test(screen.maxWidth || '')) throw new Error(`the SVG's max-width is "${screen.maxWidth}" (its style attribute was not set again)`);
+      await page.emulateMedia({ media: 'print' });
+      const print = await page.evaluate(look);
+      if (print.kinds.join() !== 't-mermaid-print,t-mermaid-print') throw new Error(`in print: ${print.kinds.join()}`);
+      if (print.fill !== rgb('#f3f4f1')) throw new Error(`in print a node is filled ${print.fill}, tern.css's print --t-soft is #f3f4f1`);
+    },
+  },
+  {
+    name: 'mermaid add-on: a change of light or dark preference redraws; a note rendered again reuses its drawings',
+    url: '/test/smoke/mermaid-addon.html',
+    timeout: 60000,
+    context: { colorScheme: 'light' },
+    async check(page) {
+      const fill = () => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill;
+      await page.waitForFunction(() => document.querySelector('#flow > svg.t-mermaid-screen'), null, { timeout: 40000 });
+      const light = await page.evaluate(fill);
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill !== was && document.querySelector('#flow > svg.t-mermaid-print'), light, { timeout: 20000 });
+      const dark = await page.evaluate(() => ({ fill: getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill, soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim() }));
+      if (dark.soft !== '#1f2329' || dark.fill !== 'rgb(31, 35, 41)') throw new Error(`after the switch a node is filled ${dark.fill}, --t-soft is ${dark.soft}`);
+      await page.emulateMedia({ colorScheme: 'light' });
+      await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === was && !document.querySelector('.t-mermaid-print'), light, { timeout: 20000 });
+      // Once the redraws the switches queued are done, render the note again.
+      const again = await page.evaluate(async () => {
+        const main = document.querySelector('main.tern');
+        const render = window.mermaid.render;
+        let calls = 0;
+        let last = performance.now();
+        window.mermaid.render = (...a) => (calls++, (last = performance.now()), render.apply(window.mermaid, a));
+        while (performance.now() - last < 1000) await new Promise((r) => setTimeout(r, 100));
+        calls = 0;
+        const html = await (await fetch(location.href)).text();
+        await window.tern.render(main, html.slice(html.indexOf('</script>') + '</script>'.length));
+        return { calls, svgs: main.querySelectorAll('.t-mermaid > svg.t-mermaid-screen').length };
+      });
+      if (again.calls || again.svgs !== 11) throw new Error(`rendered again: ${again.svgs} diagrams, ${again.calls} new drawings`);
+    },
+  },
+  {
+    name: 'mermaid add-on: ?base= loads a local copy without SRI; other options go to Mermaid',
+    url: '/test/smoke/mermaid-addon-base.html',
+    timeout: 60000,
+    async setup(_context, _page, ctx) {
+      if (!(await mermaidDir(MERMAID_VERSION))) ctx.skip(`no local copy of Mermaid ${MERMAID_VERSION}`);
+    },
+    async check(page) {
+      await page.waitForFunction(() => document.querySelector('.t-mermaid > svg.t-mermaid-screen'), null, { timeout: 40000 });
+      const r = await page.evaluate(() => ({
+        scripts: [...document.querySelectorAll('script[src*="mermaid.min.js"]')].map((e) => ({ src: new URL(e.src).pathname, sri: !!e.integrity })),
+        look: window.mermaid.mermaidAPI.getConfig().look,
+      }));
+      if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: '/vendor/mermaid/mermaid.min.js', sri: false }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
+      if (r.look !== 'classic') throw new Error(`look ${r.look}, want classic from ?look=classic`);
+    },
+  },
+  {
+    name: 'mermaid add-on: Mermaid is not requested for a note with no diagram',
+    url: '/test/smoke/mermaid-addon-none.html',
+    async check(page) {
+      await page.waitForTimeout(300);
+      const n = await page.evaluate(() => document.querySelectorAll('script[src*="mermaid@"]').length);
+      if (n) throw new Error('Mermaid was requested for a note with no mermaid fence');
+    },
+  },
+  {
+    name: 'mermaid add-on: a Mermaid that fails to load leaves each fence as its source, with a warning',
+    url: '/test/smoke/mermaid-addon.html',
+    allowConsole: /Failed to load resource|Loading failed for the <script>|integrity|MIME type/i,
+    async setup(context) {
+      // Registered after the cache route, so it wins.
+      await context.route((url) => MERMAID_URL.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
+    },
+    async check(page, ctx) {
+      await page.waitForFunction(() => [...document.querySelectorAll('script')].some((s) => /mermaid@/.test(s.src)), null, { timeout: 5000 });
+      await page.waitForTimeout(500);
+      const r = await page.evaluate(() => ({ svgs: document.querySelectorAll('.t-mermaid svg').length, hidden: document.querySelectorAll('main.tern pre[hidden]').length, fences: document.querySelectorAll('main.tern code.language-mermaid').length }));
+      if (r.svgs || r.hidden || r.fences !== 12) throw new Error(`${r.svgs} diagrams, ${r.hidden} hidden fences, ${r.fences} fences`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /Mermaid did not load/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+    },
+  },
+  {
     // tern's presentational styles (column alignment, a grid's --t-cols)
     // must survive a policy with no 'unsafe-inline' for styles; data-nonce
     // covers tern's <style> and the note's scripts.
@@ -1699,8 +1793,8 @@ async function runTest(browser, origin, t) {
     },
   };
   const run = (async () => {
-    if (!LIVE_CDN) await routeKatex(context, ctx), await routeHljs(context);
-    if (t.offline) await context.route((url) => url.origin !== origin && !KATEX_URL.test(url.href) && !HLJS_URL.test(url.href), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
+    if (!LIVE_CDN) await routeKatex(context, ctx), await routeCached(context, HLJS_URL, hljsDir), await routeCached(context, MERMAID_URL, mermaidDir);
+    if (t.offline) await context.route((url) => url.origin !== origin && ![KATEX_URL, HLJS_URL, MERMAID_URL].some((re) => re.test(url.href)), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
     const page = await context.newPage();
     page.on('console', (m) => {
       ctx.console.push({ type: m.type(), text: m.text() });

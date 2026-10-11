@@ -587,6 +587,23 @@ function* fib() {
 @lst-fib never ends; take what you need.
 ````
 
+### Diagrams {#diagrams}
+
+With the Mermaid add-on, a fence in the language `mermaid` is drawn as a diagram, in the theme's colours: flowcharts, sequence diagrams, Gantt charts and the rest of Mermaid's diagrams.
+
+```html
+<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/mermaid.js"></script>
+```
+
+````tern
+```mermaid
+flowchart LR
+  A[Write] --> B[Check] --> C[Publish]
+```
+````
+
+Put it in a `:::figure` to give it a caption and a number. The [Add-ons](addons.html#mermaid) page has the colours, the options and how to use it offline.
+
 ### Fences inside fences {#fence-in-fence}
 
 Everything inside a fence is code, including `:::`, `$$` and `#` lines. To show a fence in a fence, make the outer one longer:

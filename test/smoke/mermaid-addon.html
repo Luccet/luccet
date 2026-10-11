@@ -1,0 +1,137 @@
+<!doctype html><meta charset="utf-8"><script src="/tern.js" data-use="/addons/mermaid.js"></script>
+
+# Smoke: the mermaid add-on
+
+A flowchart, with an id:
+
+```mermaid {#flow}
+flowchart LR
+  A[Write the note] --> B{Does it parse?}
+  B -- yes --> C[Publish]
+  B -- no --> D[Fix it]
+  D --> A
+  subgraph Review
+    C
+  end
+```
+
+A sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant R as Reader
+  participant P as Page
+  R->>P: open
+  P-->>R: the note, typeset
+  Note over R,P: diagrams drawn after the mount
+```
+
+A class diagram:
+
+```mermaid
+classDiagram
+  class Note {
+    +String source
+    +render() Promise
+  }
+  class Addon
+  Note "1" --> "*" Addon : uses
+```
+
+A state diagram:
+
+```mermaid
+stateDiagram-v2
+  [*] --> Loading
+  Loading --> Drawn: Mermaid loaded
+  Loading --> Source: no network
+  Drawn --> [*]
+```
+
+A pie chart:
+
+```mermaid
+pie title Where the time goes
+  "Parse" : 12
+  "Transform" : 20
+  "Emit" : 8
+  "Math" : 35
+  "Diagrams" : 25
+```
+
+A Gantt chart:
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  title Releases
+  section Engine
+  Themes      :done,    t1, 2026-09-01, 10d
+  Code add-on :active,  t2, after t1, 12d
+  Diagrams    :crit,    t3, after t2, 7d
+```
+
+An entity relationship diagram:
+
+```mermaid
+erDiagram
+  NOTE ||--o{ FENCE : has
+  FENCE ||--o| DIAGRAM : draws
+```
+
+A mind map:
+
+```mermaid
+mindmap
+  root((Tern))
+    Engine
+      Themes
+      Add-ons
+    Editor
+    Neovim
+```
+
+A git graph:
+
+```mermaid
+gitGraph
+  commit
+  branch themes
+  commit
+  checkout main
+  merge themes
+  branch code
+  commit
+  checkout main
+  merge code
+```
+
+A timeline:
+
+```mermaid
+timeline
+  title Tern
+  2026-08 : Engine
+  2026-09 : Themes : Code add-on
+  2026-10 : Diagrams
+```
+
+A listing:
+
+```mermaid [The build]{#lst-build}
+flowchart TD
+  S[main.tern] --> P[parse] --> T[transform] --> E[emit]
+```
+
+A broken one:
+
+```mermaid
+flowchart LR
+  A -->
+```
+
+Not a diagram:
+
+```js
+const x = 1;
+```

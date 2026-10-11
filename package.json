@@ -16,6 +16,7 @@
     "build": "node tools/concat.js",
     "themes": "node tools/themes.js",
     "hljs": "node tools/hljs.js",
+    "mermaid": "node tools/mermaid.js",
     "test": "node test/all.js",
     "test:corpus": "node test/run.js",
     "lint:corpus": "node test/run.js --lint",
