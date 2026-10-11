@@ -198,19 +198,6 @@ function newNote(args) {
 
 // ---------------------------------------------------------------- check
 
-// The note's diagnostics with the link diagnostics (in file order) merged
-// in at their file positions; the note's keep their order.
-function inOrder(own, more) {
-  const before = (x, y) => x.filePosition.start.line - y.filePosition.start.line || x.filePosition.start.column - y.filePosition.start.column;
-  const out = [];
-  let i = 0;
-  for (const d of own) {
-    while (i < more.length && before(more[i], d) < 0) out.push(more[i++]);
-    out.push(d);
-  }
-  return out.concat(more.slice(i));
-}
-
 // The .html files under dir, sorted, skipping dot-directories and
 // node_modules; symbolic links to directories are not followed.
 function* htmlFiles(dir) {
@@ -278,7 +265,7 @@ function check(args) {
       continue;
     }
     notes++;
-    for (const d of inOrder(a.diagnostics, links.check(file, a, targets))) {
+    for (const d of links.merge(a.diagnostics, links.check(file, a, targets))) {
       count[d.severity]++;
       const over = RANK[d.severity] >= RANK[level];
       failed = failed || over;

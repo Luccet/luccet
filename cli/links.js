@@ -20,8 +20,9 @@
 // another HTML file's id attributes and <a name>s; a Markdown file's GitHub
 // heading anchors. #top, which every browser takes to the top, always.
 //
-//   new Targets()            files as `tern check` reads them, each once:
+//   new Targets(opts)        files as the checks read them (below):
 //     .analyse(file, text?)    cli/note.js analyse(), or null for a non-note
+//     .remember(file, a)       an analysis of the file as it is now
 //     .find(file)              {kind: 'file'|'dir', actual} or null, actual
 //                              the path as the disk spells it
 //     .ids(file)               a Set, or null when the file has no ids to know
@@ -30,7 +31,10 @@
 //   resolve(file, url, targets)  what a URL from the note at `file` names, and
 //                            its problem, if any
 //   check(file, a, targets)  the link diagnostics of the note at `file`,
-//                            analysed as `a`, in file order
+//                            analysed as `a`, in file order, each spanning
+//                            its link (the tern.js line's: column 1)
+//   merge(own, more)         a note's diagnostics and its link diagnostics,
+//                            in file order
 'use strict';
 
 const fs = require('fs');
@@ -53,41 +57,83 @@ function lineCol(text, offset) {
   return { line: before.split('\n').length, column: offset - nl };
 }
 
+// Files as the checks read them. Each value is kept with a stamp of what it
+// came from, and used while the stamp holds: a file's mtime and size, a
+// folder's mtime, an open document's version. So one Targets serves a long
+// run, such as the language server's, as well as one `tern check`.
+//   opts.open(file)          an editor's text for the file, {text, stamp},
+//                            or undefined: the editor's text wins over the
+//                            disk's, and an open file exists
+//   opts.analyse(text, file) analyses a note (default cli/note.js analyse)
 class Targets {
-  constructor() {
-    this.dirs = new Map(); // dir -> its entries' names, or null
-    this.notes = new Map(); // file -> analyse() or null
-    this.idSets = new Map(); // file -> Set or null
+  constructor({ open, analyse: run } = {}) {
+    this.open = open || (() => undefined);
+    this.run = run || ((text, file) => analyse(text, file));
+    this.dirs = new Map(); // dir -> {stamp, names}
+    this.notes = new Map(); // file -> {stamp, a}
+    this.idSets = new Map(); // file -> {stamp, ids}
+    this.pass = null; // during one check(): stamps already taken, by path
   }
 
-  analyse(file, text) {
-    if (!this.notes.has(file)) {
-      if (text === undefined) {
+  // A stat, taken once per check() pass.
+  stat(file) {
+    if (this.pass && this.pass.has(file)) return this.pass.get(file);
+    const st = fs.statSync(file, { throwIfNoEntry: false }) || null;
+    if (this.pass) this.pass.set(file, st);
+    return st;
+  }
+
+  // A file's stamp and a reader of its text.
+  source(file) {
+    const o = this.open(file);
+    if (o) return { stamp: `open ${o.stamp}`, text: () => o.text };
+    const st = this.stat(file);
+    if (!st) return { stamp: 'none', text: () => '' };
+    return {
+      stamp: `${st.mtimeMs} ${st.size}`,
+      text: () => {
         try {
-          text = fs.readFileSync(file, 'utf8');
+          return fs.readFileSync(file, 'utf8');
         } catch {
-          text = '';
+          return '';
         }
-      }
-      this.notes.set(file, analyse(text, file));
-    }
-    return this.notes.get(file);
+      },
+    };
+  }
+
+  // The note's analysis; `text` is what the caller read of it.
+  analyse(file, text) {
+    const src = this.source(file);
+    const hit = this.notes.get(file);
+    if (text === undefined && hit && hit.stamp === src.stamp) return hit.a;
+    const a = this.run(text === undefined ? src.text() : text, file);
+    this.notes.set(file, { stamp: src.stamp, a });
+    return a;
+  }
+
+  // An analysis made elsewhere, of the file as it is now (the language
+  // server's of an open document).
+  remember(file, a) {
+    this.notes.set(file, { stamp: this.source(file).stamp, a });
   }
 
   entries(dir) {
-    if (!this.dirs.has(dir)) {
-      let names = null;
-      try {
-        names = fs.readdirSync(dir);
-      } catch {}
-      this.dirs.set(dir, names);
-    }
-    return this.dirs.get(dir);
+    const st = this.stat(dir);
+    const stamp = st ? String(st.mtimeMs) : 'none';
+    const hit = this.dirs.get(dir);
+    if (hit && hit.stamp === stamp) return hit.names;
+    let names = null;
+    try {
+      names = fs.readdirSync(dir);
+    } catch {}
+    this.dirs.set(dir, { stamp, names });
+    return names;
   }
 
   // Segment by segment from the root, so that a name the disk spells in
   // another case is seen even where the disk ignores case.
   find(file) {
+    if (this.open(file)) return { kind: 'file', actual: file };
     const { root } = path.parse(file);
     let at = root;
     for (const part of file.slice(root.length).split(path.sep).filter(Boolean)) {
@@ -97,17 +143,14 @@ class Targets {
       if (name === undefined) return null;
       at = path.join(at, name);
     }
-    let st;
-    try {
-      st = fs.statSync(at);
-    } catch {
-      return null;
-    }
-    return { kind: st.isDirectory() ? 'dir' : 'file', actual: at };
+    const st = this.stat(at);
+    return st ? { kind: st.isDirectory() ? 'dir' : 'file', actual: at } : null;
   }
 
   ids(file) {
-    if (this.idSets.has(file)) return this.idSets.get(file);
+    const src = this.source(file);
+    const hit = this.idSets.get(file);
+    if (hit && hit.stamp === src.stamp) return hit.ids;
     let ids = null;
     if (/\.html?$/i.test(file)) {
       const a = this.analyse(file);
@@ -116,23 +159,15 @@ class Targets {
         const html = tern.emit(a.ast, { ...a.opts, positions: false });
         for (const m of html.matchAll(/<[a-zA-Z][^<>]*?\sid="([^"]*)"/g)) ids.add(decode(m[1]));
       } else {
-        let text = '';
-        try {
-          text = fs.readFileSync(file, 'utf8');
-        } catch {}
         ids = new Set();
-        for (const m of uncomment(text).matchAll(TAG)) {
-          for (const a of m[0].matchAll(/\s(id|name)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
-            if (a[1].toLowerCase() === 'id' || m[1].toLowerCase() === 'a') ids.add(decode(a[2] ?? a[3] ?? a[4]));
+        for (const m of uncomment(src.text()).matchAll(TAG)) {
+          for (const x of m[0].matchAll(/\s(id|name)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
+            if (x[1].toLowerCase() === 'id' || m[1].toLowerCase() === 'a') ids.add(decode(x[2] ?? x[3] ?? x[4]));
           }
         }
       }
-    } else if (/\.(md|markdown)$/i.test(file)) {
-      try {
-        ids = markdownAnchors(fs.readFileSync(file, 'utf8'));
-      } catch {}
-    }
-    this.idSets.set(file, ids);
+    } else if (/\.(md|markdown)$/i.test(file)) ids = markdownAnchors(src.text());
+    this.idSets.set(file, { stamp: src.stamp, ids });
     return ids;
   }
 }
@@ -175,7 +210,8 @@ function urls(a) {
   const head = uncomment(a.head);
   for (const m of head.matchAll(TAG)) {
     if (m[1].toLowerCase() === 'script' || m[1].toLowerCase() === 'base') continue;
-    for (const u of m[0].matchAll(URL_ATTR)) out.push({ url: decode(u[2] ?? u[3] ?? u[4]), what: `the ${u[1].toLowerCase()} of the head's <${m[1].toLowerCase()}>, %s,`, filePosition: point(lineCol(a.head, m.index)) });
+    const span = { start: lineCol(a.head, m.index), end: lineCol(a.head, m.index + m[0].length) };
+    for (const u of m[0].matchAll(URL_ATTR)) out.push({ url: decode(u[2] ?? u[3] ?? u[4]), what: `the ${u[1].toLowerCase()} of the head's <${m[1].toLowerCase()}>, %s,`, filePosition: span });
   }
   const attr = (k) => {
     const m = new RegExp(`\\s${k}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i').exec(a.tag);
@@ -195,23 +231,25 @@ function urls(a) {
     const lc = lineCol(a.note, offset);
     return { ...lc, offset };
   };
-  const place = (start) => {
-    const position = point(start);
+  const place = (start, end) => {
+    const position = { start, end };
     return { position, filePosition: a.toFile(position) };
   };
   tern.visit(a.ast, (node) => {
     if (!node.position) return;
-    const start = { line: node.position.start.line, column: node.position.start.column, offset: node.position.start.offset };
+    const pos = (p) => ({ line: p.line, column: p.column, offset: p.offset });
+    const [start, end] = [pos(node.position.start), pos(node.position.end)];
     if ((node.type === 'link' || node.type === 'image') && typeof node.url === 'string') {
-      out.push({ url: node.url, what: node.type === 'image' ? 'the image %s' : '%s', own: node.type === 'link' && node.url.startsWith('#'), ...place(start) });
+      out.push({ url: node.url, what: node.type === 'image' ? 'the image %s' : '%s', own: node.type === 'link' && node.url.startsWith('#'), ...place(start, end) });
     }
     if (node.attributes && typeof node.attributes === 'object' && node.type !== 'code') {
-      for (const k of URL_KEYS) if (typeof node.attributes[k] === 'string') out.push({ url: node.attributes[k], what: `the ${k} %s`, ...place(start) });
+      for (const k of URL_KEYS) if (typeof node.attributes[k] === 'string') out.push({ url: node.attributes[k], what: `the ${k} %s`, ...place(start, end) });
     }
     if (node.type === 'html' && typeof node.value === 'string') {
       const value = uncomment(node.value);
       for (const m of value.matchAll(TAG)) {
-        for (const u of m[0].matchAll(URL_ATTR)) out.push({ url: decode(u[2] ?? u[3] ?? u[4]), what: `the ${u[1].toLowerCase()} of <${m[1].toLowerCase()}>, %s,`, ...place(at(node.position.start.offset + m.index)) });
+        const from = node.position.start.offset + m.index;
+        for (const u of m[0].matchAll(URL_ATTR)) out.push({ url: decode(u[2] ?? u[3] ?? u[4]), what: `the ${u[1].toLowerCase()} of <${m[1].toLowerCase()}>, %s,`, ...place(at(from), at(from + m[0].length)) });
       }
     }
   });
@@ -264,6 +302,15 @@ function resolve(file, url, targets) {
 
 function check(file, a, targets) {
   if (/<base\s[^<>]*\bhref\s*=/i.test(uncomment(a.head))) return [];
+  targets.pass = new Map();
+  try {
+    return checkLinks(file, a, targets);
+  } finally {
+    targets.pass = null;
+  }
+}
+
+function checkLinks(file, a, targets) {
   const out = [];
   const say = (u, code, message, hint) => out.push({ code, severity: 'warning', message, hint, ...(u.position ? { position: u.position } : {}), filePosition: u.filePosition });
   for (const u of urls(a)) {
@@ -277,8 +324,21 @@ function check(file, a, targets) {
     else if (/\.(md|markdown)$/i.test(r.dest)) say(u, 'link.dangling', `${r.path || 'this note'} has no heading with the anchor ${r.frag}`, 'check the anchor after #: GitHub makes it from the heading, in lower case with hyphens');
     else say(u, 'link.dangling', `${r.path || 'this note'} has no element with the id ${r.frag}`, 'check the id after #: ids are case-sensitive');
   }
-  const key = (d) => [d.filePosition.start.line, d.filePosition.start.column];
-  return out.sort((x, y) => key(x)[0] - key(y)[0] || key(x)[1] - key(y)[1]);
+  return out.sort(before);
 }
 
-module.exports = { Targets, urls, resolve, check };
+const before = (x, y) => x.filePosition.start.line - y.filePosition.start.line || x.filePosition.start.column - y.filePosition.start.column;
+
+// A note's diagnostics with its link diagnostics merged in at their file
+// positions; the note's keep their order.
+function merge(own, more) {
+  const out = [];
+  let i = 0;
+  for (const d of own) {
+    while (i < more.length && before(more[i], d) < 0) out.push(more[i++]);
+    out.push(d);
+  }
+  return out.concat(more.slice(i));
+}
+
+module.exports = { Targets, urls, resolve, check, merge };

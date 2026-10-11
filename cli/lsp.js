@@ -14,6 +14,7 @@ const path = require('path');
 const { fileURLToPath } = require('url');
 const note = require('./note');
 const language = require('./language');
+const links = require('./links');
 
 const { tern } = note;
 const DEBOUNCE = 150; // ms after the last change
@@ -101,7 +102,7 @@ function receive(msg) {
 
 const CAPABILITIES = {
   positionEncoding: 'utf-16',
-  textDocumentSync: { openClose: true, change: 1 }, // full text
+  textDocumentSync: { openClose: true, change: 1, save: { includeText: false } }, // full text
   completionProvider: { triggerCharacters: [':', '@', '/', '#'] },
   hoverProvider: true,
   definitionProvider: true,
@@ -134,7 +135,13 @@ const REQUESTS = {
   'textDocument/foldingRange': foldingRange,
 };
 
-const NOTIFICATIONS = { 'textDocument/didOpen': didOpen, 'textDocument/didChange': didChange, 'textDocument/didClose': didClose };
+const NOTIFICATIONS = {
+  'textDocument/didOpen': didOpen,
+  'textDocument/didChange': didChange,
+  'textDocument/didClose': didClose,
+  'textDocument/didSave': () => refresh(null),
+  'workspace/didChangeWatchedFiles': () => refresh(null),
+};
 
 function exit() {
   const code = phase === 'down' ? 0 : 1;
@@ -143,11 +150,15 @@ function exit() {
 
 // ---------------------------------------------------------------- documents
 
-const docs = new Map(); // uri -> {uri, version, text, timer, index, wasNote}
+// uri -> {uri, file, opened, version, text, timer, index, wasNote, a,
+// analysed, links}: `a` is the last analysis, of version `analysed`, and
+// `links` its link diagnostics as last published.
+const docs = new Map();
+let opened = 0;
 
 function didOpen({ textDocument: d }) {
   if (!d || typeof d.uri !== 'string') return;
-  const doc = { uri: d.uri, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false };
+  const doc = { uri: d.uri, file: fileOf(d.uri), opened: ++opened, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false, a: null, analysed: null, links: [] };
   docs.set(d.uri, doc);
   analyse(doc);
 }
@@ -169,6 +180,7 @@ function didClose({ textDocument: d }) {
   clearTimeout(doc.timer);
   docs.delete(d.uri);
   notify('textDocument/publishDiagnostics', { uri: doc.uri, diagnostics: [] });
+  refresh(null); // a note that linked to it now reads the disk's copy
 }
 
 // The document a request names, analysed: a pending change is analysed
@@ -181,22 +193,69 @@ function current(params) {
   return doc;
 }
 
-// Parses and transforms, then publishes the diagnostics and the outline. A
-// file that is not a note gets none, and an empty outline if it was one.
+// Parses and transforms, then publishes the diagnostics, its links' among
+// them, and the outline. A file that is not a note gets none, and an empty
+// outline if it was one. Then the other open notes' links are checked again.
 function analyse(doc) {
   clearTimeout(doc.timer);
   doc.timer = null;
   let a;
   try {
-    a = note.analyse(doc.text, fileOf(doc.uri), { addons: load });
+    a = note.analyse(doc.text, doc.file, { addons: load });
   } catch (e) {
     return log(`analysing ${doc.uri}: ${(e && e.stack) || e}`);
   }
-  notify('textDocument/publishDiagnostics', { uri: doc.uri, version: doc.version, diagnostics: a ? a.diagnostics.map(diagnostic) : [] });
+  doc.a = a;
+  doc.analysed = doc.version;
+  if (a && doc.file) targets.remember(doc.file, a);
+  doc.links = linksOf(doc);
+  publish(doc);
   if (a || doc.wasNote) guard(() => notify('tern/outline', { uri: doc.uri, version: doc.version, ...language.outline(a) }));
   doc.wasNote = !!a;
   doc.index = null;
   guard(() => (doc.index = language.index(a)));
+  refresh(doc);
+}
+
+function publish(doc) {
+  const list = doc.a ? links.merge(doc.a.diagnostics, doc.links) : [];
+  notify('textDocument/publishDiagnostics', { uri: doc.uri, version: doc.analysed, diagnostics: list.map(diagnostic) });
+}
+
+// ---------------------------------------------------------------- links
+
+// cli/links.js over the disk, an open document's text winning over its
+// file's; its values are kept while their file, or document version, holds.
+const targets = new links.Targets({
+  open(file) {
+    for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
+    return undefined;
+  },
+  analyse: (text, file) => note.analyse(text, file, { addons: load }),
+});
+
+// The link diagnostics of an open note; none for an untitled document.
+function linksOf(doc) {
+  if (!doc.a || !doc.file) return [];
+  try {
+    return links.check(doc.file, doc.a, targets);
+  } catch (e) {
+    log(`checking the links of ${doc.uri}: ${(e && e.stack) || e}`);
+    return [];
+  }
+}
+
+// The other open notes' links, checked again: a file they link to may have
+// changed, been made or gone. A note is published again only when its link
+// diagnostics changed; one with a change pending waits for its analysis.
+function refresh(except) {
+  for (const d of docs.values()) {
+    if (d === except || d.timer || !d.a) continue;
+    const next = linksOf(d);
+    if (JSON.stringify(next) === JSON.stringify(d.links)) continue;
+    d.links = next;
+    publish(d);
+  }
 }
 
 // The note's path, for its head scripts and add-ons; null for an untitled or remote document.

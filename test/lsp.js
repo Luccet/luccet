@@ -3,7 +3,10 @@
 // The language server over stdio: spawns `node tern-cli.js lsp` and drives
 // it as an editor would. Expectations come from the engine (cli/note.js
 // `analyse`, the AST), never from the server:
-//   - published diagnostics equal the engine's, mapped to LSP;
+//   - published diagnostics equal the engine's with cli/links.js's (what
+//     `tern check` reports), mapped to LSP;
+//   - links between files: an open document's text wins over its file's,
+//     an open file exists, the other open notes are checked again;
 //   - rename edits equal the engine's reference set, none in code or math;
 //   - definition, references, hover, completion, documentSymbol,
 //     foldingRange, documentHighlight, the `tern/outline` notification, the
@@ -23,6 +26,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const note = require('../cli/note');
+const links = require('../cli/links');
 const fixture = require('./fixtures/schema');
 
 const CLI = path.join(__dirname, '..', 'tern-cli.js');
@@ -142,13 +146,15 @@ const fileRange = (a, p) => ({
   end: { line: p.end.line + a.line - 1, character: p.end.column - 1 },
 });
 const tn = (n) => (n.data && n.data.tern) || {};
-// note.analyse, with what the add-on logs (to stderr) kept out of this
-// harness's output.
+// note.analyse, its links checked against the disk as `tern check` does,
+// with what the add-on logs (to stderr) kept out of this harness's output.
 function analyse(text, file) {
   const write = process.stderr.write;
   process.stderr.write = () => true;
   try {
-    return note.analyse(text, file);
+    const a = note.analyse(text, file);
+    if (a) a.diagnostics = links.merge(a.diagnostics, links.check(file, a, new links.Targets()));
+    return a;
   } finally {
     process.stderr.write = write;
   }
@@ -165,6 +171,7 @@ const before = (p, q) => p.line < q.line || (p.line === q.line && p.character <=
 // ---------------------------------------------------------------- fixtures
 
 const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-lsp-'));
+fs.writeFileSync(path.join(DIR, 'tern.js'), ''); // the notes' tern.js, which link checking looks for
 const ADDON = path.join(DIR, 'addon.js');
 const writeAddon = (extra = '') =>
   fs.writeFileSync(
@@ -646,6 +653,55 @@ See @t.
   assert.ok((await c.published(a.uri)).diagnostics.some((d) => d.code === 'stamp.ran'), 'the cached add-on’s transform runs again');
   const hover = (await c.call('textDocument/hover', { ...doc(b.uri), position: locate(B, '@t', { plus: 1 }) })).contents.value;
   assert.ok(hover.includes('Satz 1'), hover);
+});
+
+check('links between files: checked as tern check does; an open document wins over its file, an open file exists, other notes are checked again', async () => {
+  const L = path.join(DIR, 'links');
+  fs.mkdirSync(L, { recursive: true });
+  const B = '<script src="../tern.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n';
+  fs.writeFileSync(path.join(L, 'b.html'), B);
+  const A = '<script src="../tern.js"></script>\n# A\n\n[known](b.html#known), [later](b.html#later), [new](new.html).\n';
+  const fa = path.join(L, 'a.html');
+  const a = await c.open(fa, A);
+  const codes = (list) => list.map((d) => [d.code, d.message]);
+  assert.deepStrictEqual(codes(a.diagnostics), [
+    ['link.dangling', 'b.html has no element with the id later\ncheck the id after #: ids are case-sensitive'],
+    ['link.missing', 'new.html does not exist\nfix the path: it resolves from the folder of this note'],
+  ]);
+  assert.deepStrictEqual(a.diagnostics, analyse(A, fa).diagnostics.map(expected), 'what tern check reports');
+  const later = locate(A, '[later]');
+  assert.deepStrictEqual(a.diagnostics[0].range, { start: later, end: locate(A, ', [new]') }, 'the range spans the link');
+
+  // b.html opened with an unsaved #later: a.html is published again without its warning.
+  const b = await c.open(path.join(L, 'b.html'), B.replace('{#known}', '{#known}\n:::\n\n:::div{#later}\ny'));
+  assert.deepStrictEqual(b.diagnostics, []);
+  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k]) => k), ['link.missing'], 'b.html’s text, not its file');
+  // An edit to b.html that drops #known.
+  c.notify('textDocument/didChange', { textDocument: { uri: b.uri, version: 2 }, contentChanges: [{ text: B.replace('#known', '#gone') }] });
+  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k, m]) => (k === 'link.dangling' ? m.split('\n')[0] : k)), ['b.html has no element with the id known', 'b.html has no element with the id later', 'link.missing']);
+  // new.html open, never saved: it exists. Closed: it does not.
+  const n = await c.open(path.join(L, 'new.html'), '<script src="../tern.js"></script>\n# New\n');
+  assert.deepStrictEqual(n.diagnostics, []);
+  assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'an open file exists');
+  c.notify('textDocument/didClose', doc(n.uri));
+  assert.deepStrictEqual((await c.published(n.uri)).diagnostics, [], 'cleared on close');
+  assert.ok((await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'closed, never saved: missing again');
+  // Written to disk by something else; the next save is when the server looks.
+  fs.writeFileSync(path.join(L, 'new.html'), '<script src="../tern.js"></script>\n# New\n');
+  c.notify('textDocument/didSave', doc(b.uri));
+  assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'on disk now');
+  c.notify('textDocument/didClose', doc(b.uri));
+  await c.published(b.uri);
+  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k]) => k), ['link.dangling'], 'b.html closed: its file again, which has #known');
+  c.notify('textDocument/didClose', doc(a.uri));
+  await c.published(a.uri);
+
+  // An untitled document has no folder, so no link is checked.
+  const u = 'untitled:Untitled-1';
+  c.notify('textDocument/didOpen', { textDocument: { uri: u, languageId: 'html', version: 1, text: '<script src="tern.js"></script>\n[x](nope.html)\n' } });
+  assert.deepStrictEqual((await c.published(u)).diagnostics, []);
+  c.notify('textDocument/didClose', doc(u));
+  await c.published(u);
 });
 
 check('malformed input and unknown documents get errors, not a crash', async () => {

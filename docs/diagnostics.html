@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The six runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script` and `addon.remote` come from the command line and the language server only, and `link.missing` and `link.dangling` from `tern check` only.
+The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The six runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -229,7 +229,7 @@ So you see the panel while you write, and the readers of a published note do not
 
 **`tern.on('diagnostic', fn)`.** Calls `fn` with each runtime diagnostic as it is reported ([API](api.html#on)). Parse and transform diagnostics are not events: read them from `tern.diagnostics`, for example after `await tern.ready`.
 
-**`tern check`.** Prints each diagnostic as `file:line:col: severity code: message`, with the hint on the next line, indented, and a summary on stderr ([tools](tools.html#check)). `--json` prints one array instead, `--fail-on` sets the severity that makes it exit with 1, and `--quiet` prints only the diagnostics at or above it. It also loads the note's vocabulary, its add-ons and head scripts, and reports [`addon.failed`](#addon-failed), [`addon.remote`](#addon-remote) and [`head.script`](#head-script) when it cannot. And it checks each note's links to other files, reporting [`link.missing`](#link-missing) and [`link.dangling`](#link-dangling) ([links between files](tools.html#check-links)). `tern build` prints the same diagnostics to stderr and writes the page anyway; the built page shows them in its own panel and console.
+**`tern check`.** Prints each diagnostic as `file:line:col: severity code: message`, with the hint on the next line, indented, and a summary on stderr ([tools](tools.html#check)). `--json` prints one array instead, `--fail-on` sets the severity that makes it exit with 1, and `--quiet` prints only the diagnostics at or above it. It also loads the note's vocabulary, its add-ons and head scripts, and reports [`addon.failed`](#addon-failed), [`addon.remote`](#addon-remote) and [`head.script`](#head-script) when it cannot. And it checks each note's links to other files, reporting [`link.missing`](#link-missing) and [`link.dangling`](#link-dangling) ([links between files](tools.html#check-links)); so does the language server ([links in the editor](tools.html#lsp-links)). `tern build` prints the same diagnostics to stderr and writes the page anyway; the built page shows them in its own panel and console.
 
 **The language server.** Publishes the same diagnostics as `textDocument/publishDiagnostics` when you open or change a note ([tools](tools.html#lsp)). Each has the range, the severity (1, 2 or 3), the `code`, `source: "tern"`, and the message followed by a line break and the hint; the hint is also in `data.hint`.
 
@@ -2889,7 +2889,7 @@ tern check: 1 note: 0 errors, 0 warnings, 1 info
   - it names a folder with no `index.html`;
   - a file has the name only in another case, such as `maps.html` for `Maps.html`. A disk that ignores case, as on a Mac or Windows, finds it; a host that tells case apart, as most do, does not.
 
-  The browser never reports it: a broken link shows only when someone follows it. The language server does not check links between files yet.
+  The browser never reports it: a broken link shows only when someone follows it. The language server reports it as you type, reading notes open in the editor as they are there ([links in the editor](tools.html#lsp-links)).
 - **Position.** The link: a Tern link or image at its `[` or `!`, an element at its start, a raw HTML tag at its `<`. A tag in the head has only a file position, and so do the `tern.js` line's own URLs: its line, column 1.
 - **Content.** None: the note renders as it would. A reader who follows the link gets a missing page, image or stylesheet. When the missing file is the `tern.js` the note loads, the note does not render at all, and the message says so.
 

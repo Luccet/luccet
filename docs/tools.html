@@ -444,7 +444,7 @@ A Tern link to `#id` in the same note is the engine's [`ref.dangling`](diagnosti
 - anything in code, math and comments;
 - ids that a script adds when the page runs.
 
-Each file is read once per run, however many links name it. A note a link names is analysed with its own add-ons, so its ids are the ones it has in the browser. The language server does not check links between files yet.
+Each file is read once per run, however many links name it. A note a link names is analysed with its own add-ons, so its ids are the ones it has in the browser. The language server checks the same links as you type ([links in the editor](#lsp-links)).
 
 ## tern parse {#parse}
 
@@ -764,7 +764,7 @@ $$ {#eq}
 {
   "capabilities": {
     "positionEncoding": "utf-16",
-    "textDocumentSync": { "openClose": true, "change": 1 },
+    "textDocumentSync": { "openClose": true, "change": 1, "save": { "includeText": false } },
     "completionProvider": { "triggerCharacters": [":", "@", "/", "#"] },
     "hoverProvider": true,
     "definitionProvider": true,
@@ -781,7 +781,7 @@ $$ {#eq}
 | Capability | What it means for a client |
 |---|---|
 | `positionEncoding: "utf-16"` | Columns count UTF-16 code units, the engine's own unit. It is the only encoding offered. |
-| `textDocumentSync` | Open and close notifications, and **full** sync: every change sends the whole text. |
+| `textDocumentSync` | Open, close and save notifications, and **full** sync: every change sends the whole text. A save is when the server looks at the disk again for [links](#lsp-links). |
 | `completionProvider` | Completion, triggered by `:`, `@`, `/` and `#`. See [Completion](#lsp-completion). |
 | `hoverProvider` | Hover on ids, references and names. See [Hover](#lsp-hover). |
 | `definitionProvider`, `referencesProvider` | Go to an id's declaration, and find its references. See [Definition and references](#lsp-definition). |
@@ -846,6 +846,15 @@ Each analysis sends `textDocument/publishDiagnostics` with the document's `versi
 | `source` | `"tern"`. |
 | `message` | The message, then a line break and the hint, when there is one. |
 | `data` | `{ "hint": … }` when there is a hint, for clients that show it apart. |
+
+### Links in the editor {#lsp-links}
+
+Each analysis also checks the note's links to other files, as [`tern check`](#check-links) does, and publishes [`link.missing`](diagnostics.html#link-missing) and [`link.dangling`](diagnostics.html#link-dangling) with the note's other diagnostics. Each one's range spans its link. In the editor:
+
+- **A note open in the editor is read as it is there,** unsaved changes included. Add `{#thm-rank}` to `maps.html` and a link to `maps.html#thm-rank` from another note stops being dangling before you save. A file open but never saved exists.
+- **The other open notes are checked again** whenever a note is analysed, opened, closed or saved, and on `workspace/didChangeWatchedFiles`. A note is published again only when its link diagnostics changed.
+- **Files changed outside the editor,** by a `git checkout` or a file manager, are seen at the next of those events. What the server read of a file is kept while its modification time and size hold, and a folder's listing while its modification time holds.
+- **An untitled document** has no folder, so its links are not checked.
 
 ### Completion {#lsp-completion}
 
