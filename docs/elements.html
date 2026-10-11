@@ -1389,7 +1389,7 @@ To put Tern inside an element, use a container with that name, `:::details` … 
 
 ### Safe rendering {#safe}
 
-`safe: true` is an option of [`tern.toHTML`](api.html#tohtml) and [`tern.emit`](api.html#emit), for rendering notes you do not trust, such as on a server. The browser runtime and `tern build` do not use it: a note you publish is trusted like any page you write ([Trust](publishing.html#trust)).
+`safe: true` renders a note you do not trust, such as a comment someone posted. It is an option of [`tern.toHTML`](api.html#tohtml) and [`tern.emit`](api.html#emit), and of [`tern.render`](api.html#render) in the browser, where it also means the note's scripts do not run and its behaviours (a schema's `dom`, `tern.define`) are not applied. The page's own note is never rendered with `safe`: a note you publish is trusted like any page you write ([Trust](publishing.html#trust)).
 
 ```js
 const html = tern.toHTML(source, { safe: true });
@@ -1398,7 +1398,8 @@ const html = tern.toHTML(source, { safe: true });
 Under `safe`:
 
 - **Raw HTML is escaped.** A raw block or an `=html` fence is shown as escaped source in a plain `<pre>`; an inline tag or comment becomes escaped text in its paragraph. An unclosed comment or raw-text block is the same `pre.t-error` as always.
-- **Risky attributes are dropped**, on every element, whether written as `{…}` or set by a schema: every attribute whose name starts with `on` (in any case), and `srcdoc`, `formaction` and `style`.
+- **Dangerous elements are neutralised.** A named element that resolves to one that loads, runs or navigates — a frame, `<object>`, `<embed>`, `<form>`, `<base>`, `<meta>`, `<link>` — or to a custom element (a hyphen in its name, which the host page might define) is emitted as a plain `<div>` (a `<span>` inline), keeping its id, class, `data-t` and content. So `::iframe` and `:::x{tag=form}` cannot reach the page's origin or the host's custom elements.
+- **Risky attributes are dropped**, on every element, whether written as `{…}` or set by a schema: every attribute whose name starts with `on` (in any case), the ones that run or submit (`srcdoc`, `formaction`, `formtarget`, `style`, `is`, `nonce`), and the ones that steer navigation or focus (`target`, `ping`, `autofocus`, `http-equiv`).
 - **URLs are checked.** Link destinations, image sources and every URL attribute (`href`, `src`, `action`, `poster`, `cite`, `data`, `srcset` and the rest) keep only http, https, mailto and relative URLs. Any other scheme, `javascript:` and `data:` included, is dropped with its attribute. Entities, tabs, newlines and leading control characters are taken into account first, as the browser does, so `&#106;avascript:` is caught.
 - **Tern's own grid survives.** The `--t-cols` style of a `cols` grid is tern's, not the author's, so it is kept when its value holds only numbers, words and `(),.%/+*-`; any other value is dropped. An author's `style` is still dropped, so it is not joined to the grid.
 
@@ -1421,7 +1422,7 @@ renders under `safe: true` as:
 ```html
 <pre>&lt;div class=&quot;box&quot;&gt;raw&lt;/div&gt;</pre>
 <p>x &lt;b&gt;bold&lt;/b&gt;, <a>a link</a> and <span title="ok">s</span></p>
-<iframe class="iframe" data-t="iframe" src="map.html"></iframe>
+<div class="iframe" data-t="iframe" src="map.html"></div>
 <div class="t-block row t-cols" data-t="row" style="--t-cols:minmax(0,2fr) minmax(0,1fr)"><div class="t-cell">
 <p>A</p>
 </div>
@@ -1431,7 +1432,7 @@ renders under `safe: true` as:
 </div>
 ```
 
-`id`, `class`, `data-*` and the other attributes are kept, and every Tern construct renders as usual.
+`id`, `class`, `data-*` and the other attributes are kept, and every Tern construct renders as usual. The `::iframe` became an inert `<div>`, so its `src` no longer loads.
 
 ## Metadata {#metadata}
 

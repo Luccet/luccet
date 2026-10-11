@@ -720,6 +720,38 @@ const TESTS = [
     },
   },
   {
+    // tern.render(el, untrusted, {safe:true}): the note's scripts do not run,
+    // raw HTML is escaped, dangerous elements are neutralised, risky
+    // attributes and URLs are dropped — but math still typesets.
+    name: 'tern.render with safe: untrusted source runs nothing and is scrubbed',
+    url: '/test/smoke/basic.html',
+    async check(page) {
+      await page.evaluate(async () => {
+        window.__ran = false;
+        const src = [
+          'A comment.',
+          '',
+          '<script>window.__ran = true;</scr' + 'ipt>',
+          '',
+          '::iframe{src=/secret srcdoc="<b>x</b>"}',
+          '',
+          '[go](javascript:alert(1)) and [click]{onclick="window.__ran = true"} and $x^2$.',
+        ].join('\n');
+        const box = document.createElement('div');
+        box.className = 'tern';
+        box.id = 'untrusted';
+        document.body.append(box);
+        await tern.render(box, src, { safe: true });
+      });
+      // Give any (wrongly) created script a chance to run.
+      await expect(page, () => document.querySelector('#untrusted .katex'), 'math still typeset under safe');
+      await expect(page, () => window.__ran === false, 'no script ran: raw <script> escaped, onclick dropped');
+      await expect(page, () => !document.querySelector('#untrusted iframe') && !document.querySelector('#untrusted script'), 'no iframe and no script element');
+      await expect(page, () => !!document.querySelector('#untrusted [data-t="iframe"]')?.matches('div'), 'the ::iframe became a div');
+      await expect(page, () => !document.querySelector('#untrusted a[href^="javascript"]'), 'the javascript: link has no href');
+    },
+  },
+  {
     name: 'note scripts run in order: inline, ≥ 250 KB external, slow CDN, inline; sentinel and load',
     url: '/test/smoke/scripts-order.html',
     async check(page) {

@@ -113,7 +113,7 @@ source ──parse──▶ AST + diagnostics ──transform──▶ transform
 | `lang` | `transform`, `toHTML`, `check` | none | the language that picks a label from a `{lang: label}` map |
 | `maxDepth` | `parse`, `toHTML`, `check` | `64` | how deep blocks may nest |
 | `positions` | `emit`, `toHTML` | `true` | writes `data-pos="line:col"` on elements |
-| `safe` | `emit`, `toHTML` | `false` | escapes raw HTML and drops risky attributes and URLs |
+| `safe` | `emit`, `toHTML`, `render` | `false` | for untrusted source: escapes raw HTML, neutralises dangerous elements, and drops risky attributes and URLs; in `render` it also skips the note's scripts and behaviours |
 
 ### `tern.parse` {#parse}
 
@@ -677,7 +677,7 @@ tern.ready.then(() => log.push('tern.ready'));
 
 :::syntax
 ```js
-tern.render(root = main.tern, source?) → Promise<diagnostics>
+tern.render(root = main.tern, source?, { safe = false }?) → Promise<diagnostics>
 ```
 :::
 
@@ -685,6 +685,7 @@ Renders, or re-renders, a root element.
 
 - **Without a source**, it runs behaviours on the elements under `root` that have not had them, and typesets the formulas not yet typeset. A second call changes nothing. It fires `render` and `math` with `root`.
 - **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `tern.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)). Then it goes on as without a source.
+- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `tern.define`) are not applied to it. Math still typesets. Use it wherever you render text from others, such as `tern.render(box, comment, { safe: true })`.
 - **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
 - **The page's own root.** When `root` is the page's `main.tern`, the new diagnostics replace those in [`tern.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `tern.diagnostics` is left alone, also later: a formula KaTeX rejects in that element, or a `document.write` in one of its scripts, fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
 - **`root`** defaults to the page's `main.tern`. Anything other than an element rejects the Promise with `TypeError: tern.render(root, source): root must be an element`.
