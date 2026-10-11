@@ -16,6 +16,7 @@ const path = require('path');
 const { parseArgs } = require('util');
 const { split, notNote, attributes, addons, transformWith, loadingDiagnostic, analyse, tern } = require('./note');
 const { build, escAttr } = require('./build');
+const links = require('./links');
 const examples = require('./examples');
 
 const SYNOPSIS = {
@@ -197,6 +198,19 @@ function newNote(args) {
 
 // ---------------------------------------------------------------- check
 
+// The note's diagnostics with the link diagnostics (in file order) merged
+// in at their file positions; the note's keep their order.
+function inOrder(own, more) {
+  const before = (x, y) => x.filePosition.start.line - y.filePosition.start.line || x.filePosition.start.column - y.filePosition.start.column;
+  const out = [];
+  let i = 0;
+  for (const d of own) {
+    while (i < more.length && before(more[i], d) < 0) out.push(more[i++]);
+    out.push(d);
+  }
+  return out.concat(more.slice(i));
+}
+
 // The .html files under dir, sorted, skipping dot-directories and
 // node_modules; symbolic links to directories are not followed.
 function* htmlFiles(dir) {
@@ -246,6 +260,8 @@ function check(args) {
   let notes = 0;
   let failed = false;
   let broken = false;
+  // Every file is analysed once, as a note checked or as a link's target.
+  const targets = new links.Targets();
   for (const f of files) {
     let text;
     try {
@@ -255,13 +271,14 @@ function check(args) {
       broken = true;
       continue;
     }
-    const a = analyse(text, f.shown);
+    const file = path.resolve(f.shown);
+    const a = targets.analyse(file, text);
     if (!a) {
       if (f.named && !o.quiet) warn(`tern check: ${f.shown} is not a note (${notNote(text)}); skipped`);
       continue;
     }
     notes++;
-    for (const d of a.diagnostics) {
+    for (const d of inOrder(a.diagnostics, links.check(file, a, targets))) {
       count[d.severity]++;
       const over = RANK[d.severity] >= RANK[level];
       failed = failed || over;

@@ -43,7 +43,7 @@ A note needs only `tern.js`; it adds its own stylesheet and loads KaTeX for math
 
 ```
 node tern-cli.js new notes/linear-maps.html     # write the first line
-node tern-cli.js check notes/                    # diagnostics, with file lines
+node tern-cli.js check notes/                    # diagnostics and broken links, with file lines
 node tern-cli.js build notes/linear-maps.html -o out.html   # a static, pre-rendered page
 node tern-cli.js lsp                              # the language server, over stdio
 ```

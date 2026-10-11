@@ -331,7 +331,7 @@ notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is stil
 …
 ```
 
-In CI, `tern check site/ --quiet` prints only what fails the build. Add `--fail-on=warning` to hold notes to a stricter standard.
+In CI, `tern check site/ --quiet` prints only what fails the build. Add `--fail-on=warning` to hold notes to a stricter standard, broken links between notes included.
 
 ### --json {#check-json}
 
@@ -397,8 +397,54 @@ tern check: 1 note: 1 error, 1 warning, 2 infos
 
 - `theorems.js loaded` is the add-on's own `console.log`, on stderr.
 - `vocab.js` and `theorems.js` loaded, so the names they declare are known, and the note's theorems are numbered as in the browser.
-- `theme.css` is a stylesheet, so it is not loaded under Node and not reported.
+- `theme.css` is a stylesheet, so it is not loaded under Node. Only its path is checked, as a [link](#check-links).
 - The inline script set `window.TERN.schema.leaf` before it threw, and that part stays in effect.
+
+### Links between files {#check-links}
+
+`tern check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`:
+
+- [`link.missing`](diagnostics.html#link-missing): the file does not exist, the link names a folder with no `index.html`, or the name's case differs from the file's;
+- [`link.dangling`](diagnostics.html#link-dangling): the file exists, but the fragment after `#` names no id in it.
+
+```sh
+$ tern check notes
+notes/index.html:4:5: warning link.missing: kernal.html does not exist
+    fix the path: it resolves from the folder of this note
+notes/rank.html:4:4: warning link.dangling: maps.html has no element with the id thm-rank
+    check the id after #: ids are case-sensitive
+tern check: 3 notes: 0 errors, 2 warnings, 0 infos
+```
+
+**What it checks:**
+
+- Tern links and images: `[text](maps.html#thm-rn)`, `![alt](img/kernel.svg)`;
+- the `href`, `src`, `poster` and `data` of elements, as in `::video{src=media/tide.mp4}`;
+- `href` and `src` in raw HTML, in the note and in the head, such as a `<link rel="stylesheet">`;
+- on the `tern.js` line: the path to `tern.js` itself, since a wrong one means the note does not render; `data-css`; and the stylesheets in `data-use`. Script add-ons and head scripts are not, being [`addon.failed`](diagnostics.html#addon-failed)'s and [`head.script`](diagnostics.html#head-script)'s.
+
+**How a link resolves:**
+
+- from the note's folder, as a browser does. A query (`?v=2`) is ignored, and escapes such as `%20` are decoded;
+- a folder (`vectors/`, or `vectors` when it is one) means its `index.html`;
+- a fragment names an id:
+  - in a note, any id its HTML would have;
+  - in another HTML file, an `id` or an `<a name>`;
+  - in a Markdown file, a heading's GitHub anchor.
+
+  `#top` always counts. A fragment in other files, such as `paper.pdf#page=3`, is not checked.
+
+A Tern link to `#id` in the same note is the engine's [`ref.dangling`](diagnostics.html#ref-dangling), reported with the note's other diagnostics.
+
+**What it leaves alone:**
+
+- URLs with a scheme, such as `https:` and `mailto:`, and URLs starting with `//`: they are elsewhere;
+- URLs starting with `/`, which depend on where the site is served;
+- all the links of a note with a `<base href>`, since its URLs do not resolve from its folder;
+- anything in code, math and comments;
+- ids that a script adds when the page runs.
+
+Each file is read once per run, however many links name it. A note a link names is analysed with its own add-ons, so its ids are the ones it has in the browser. The language server does not check links between files yet.
 
 ## tern parse {#parse}
 

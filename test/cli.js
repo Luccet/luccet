@@ -27,9 +27,14 @@ const FILTER = (process.argv.find((a) => a.startsWith('--filter=')) || '').slice
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-cli-'));
 const at = (...p) => path.join(TMP, ...p);
-function write(rel, text) {
+// A note's local tern.js is written too, empty, unless { tern: false }: tern
+// check reports a tern.js that is not there (link.missing).
+function write(rel, text, { tern = true } = {}) {
   fs.mkdirSync(path.dirname(at(rel)), { recursive: true });
   fs.writeFileSync(at(rel), text);
+  const m = tern && /<script\b[^<>]*\ssrc="((?:[^":/]+\/)*)tern\.js"/.exec(text);
+  const stub = m && path.resolve(path.dirname(at(rel)), `${m[1]}tern.js`);
+  if (stub && stub.startsWith(TMP) && !fs.existsSync(stub)) fs.writeFileSync(stub, '');
 }
 const read = (rel) => fs.readFileSync(at(rel), 'utf8');
 function run(args, { cwd = TMP, env } = {}) {
@@ -268,6 +273,7 @@ console.log('the add-on loaded');
 
 test('check: add-ons load through data-use, and their schema reaches the diagnostics', () => {
   write('a/box.js', ADDON);
+  write('a/theme.css', '');
   write('a/n.html', `${FIRST}<script src="tern.js" data-use="box.js?x=1 theme.css"></script>\n:::blinker\nhi\n:::\n`);
   const r = run(['check', 'a/n.html', '--json']);
   exits(r, 0, 'check');
@@ -448,6 +454,7 @@ test('check: every data-use entry not ending in .css is a script, .mjs and no ex
   write('m/plain', "tern.block('fromplain', { tag: 'aside' });\n");
   write('m/esm.mjs', 'export const x = 1;\n');
   fs.mkdirSync(at('m/dir'), { recursive: true });
+  write('m/THEME.CSS', '');
   write('m/n.html', `${FIRST}<script>window.TERN = { schema: { strict: true } };</script><script src="tern.js" data-use="mod.mjs plain esm.mjs nothere dir THEME.CSS"></script>\n:::frommjs\nx\n:::\n\n:::fromplain\ny\n:::\n`);
   const r = run(['check', 'm/n.html']);
   exits(r, 1, 'check');
@@ -471,6 +478,70 @@ test('check: a remote add-on is addon.remote, an info, so --fail-on decides; bui
   const b = run(['build', 'rm/n.html']);
   exits(b, 0, 'build');
   ok(b.err.includes('tern build: the add-on https://cdn.example/x.js is not loaded under node, so the page uses its names without its schema'), `build warns: ${b.err}`);
+});
+
+// ---------------------------------------------------------------- links
+
+// A small site: two notes with ids, a folder with its index, an empty folder,
+// a plain HTML page, a Markdown file and an image.
+function linkSite(dir) {
+  write(`${dir}/maps.html`, `${FIRST}<script src="tern.js"></script>\n# Linear maps {#maps}\n\n:::div{#thm-rn}\nx\n:::\n\n<p id="raw-id">raw</p>\n`);
+  write(`${dir}/vectors/index.html`, `${FIRST}<script src="../tern.js"></script>\n# Basis\n`);
+  fs.mkdirSync(at(dir, 'empty'), { recursive: true });
+  write(`${dir}/plain.html`, '<!doctype html><h2 id="plain">x</h2><a name="old">y</a>\n');
+  write(`${dir}/README.md`, '# Readme\n\n## Getting started\n\n```\n## Not a heading\n```\n');
+  write(`${dir}/img/kernel.svg`, '<svg xmlns="http://www.w3.org/2000/svg"/>');
+}
+
+test('check: links to other files: link.missing and link.dangling, warnings in file order; good links pass', () => {
+  linkSite('lk');
+  write(
+    'lk/notes.html',
+    `${FIRST}<script src="tern.js"></script>\n# Notes {#top-h}\n\n` +
+      'Good: [a](maps.html) [b](maps.html#thm-rn) [c](maps.html#raw-id) [d](vectors/) [e](vectors) [f](maps.html#top) [g](README.md#getting-started) ' +
+      '[h](plain.html#plain) [i](plain.html#old) [j](maps.html?x=1#maps) [k](https://example.com/x) [l](/abs.html) [m](mailto:a@b.c) ![n](img/kernel.svg) [o](#top-h) [p](./maps.html#thm-rn) [q](%6Daps.html).\n\n' +
+      'Bad: [a](nope.html) [b](maps.html#thm-nope) [c](Maps.html) [d](empty/) [e](README.md#not-a-heading) ![f](img/missing.png).\n\n' +
+      '::video{src=media/tide.mp4}\n\n' +
+      '<p><a href="maps.html#raw-nope">x</a> <img src="img/raw.png"> <a href="#nope-here">y</a></p>\n' +
+      '<!-- <a href="commented.html">x</a> -->\n\n' +
+      '```html\n<a href="in-code.html">x</a>\n```\n',
+  );
+  const r = run(['check', 'lk/notes.html']);
+  exits(r, 0, 'warnings, default --fail-on=error');
+  eq(r.out.trimEnd().split('\n').filter((l) => !l.startsWith(' ')), [
+    'lk/notes.html:6:6: warning link.missing: nope.html does not exist',
+    'lk/notes.html:6:21: warning link.dangling: maps.html has no element with the id thm-nope',
+    'lk/notes.html:6:45: warning link.missing: Maps.html is spelt maps.html on this disk; a host that tells case apart will not find it',
+    'lk/notes.html:6:60: warning link.missing: empty/ has no index.html',
+    'lk/notes.html:6:72: warning link.dangling: README.md has no heading with the anchor not-a-heading',
+    'lk/notes.html:6:101: warning link.missing: the image img/missing.png does not exist',
+    'lk/notes.html:8:1: warning link.missing: the src media/tide.mp4 does not exist',
+    'lk/notes.html:10:4: warning link.dangling: maps.html has no element with the id raw-nope',
+    'lk/notes.html:10:39: warning link.missing: the src of <img>, img/raw.png, does not exist',
+    'lk/notes.html:10:63: warning link.dangling: this note has no element with the id nope-here',
+  ], 'the link diagnostics');
+  ok(r.out.includes('\n    write it as the disk does: maps.html\n'), `a hint: ${r.out}`);
+  ok(/1 note: 0 errors, 10 warnings, 0 infos/.test(r.err), `summary: ${r.err}`);
+  exits(run(['check', 'lk/notes.html', '--fail-on=warning']), 1, '--fail-on=warning');
+  const list = JSON.parse(run(['check', 'lk/notes.html', '--json']).out);
+  const off = list.filter((d) => !(d.hint && d.position && d.position.start.line + 1 === d.filePosition.start.line));
+  ok(!off.length, `in the note: a note position and a file position: ${JSON.stringify(off)}`);
+  const all = run(['check', 'lk']);
+  ok(/3 notes: 0 errors, 10 warnings, 0 infos/.test(all.err), `the folder: ${all.err}`);
+});
+
+test("check: the head's links, the tern.js it loads, data-css and stylesheet add-ons; a <base href> turns link checking off", () => {
+  write('lh/style.css', '');
+  write('lh/n.html', `${FIRST}\n<link rel="stylesheet" href="style.css"><link rel="icon" href="icon.png">\n<script src="lib/tern.js" data-css="tern.css" data-use="style.css themes/nord.css https://cdn.example/x.css"></script>\n# x\n`, { tern: false });
+  const r = run(['check', 'lh/n.html', '--json']);
+  eq(JSON.parse(r.out).map((d) => [d.code, d.filePosition.start.line, d.filePosition.start.column, d.message, 'position' in d]), [
+    ['link.missing', 2, 41, "the href of the head's <link>, icon.png, does not exist", false],
+    ['link.missing', 3, 1, 'the tern.js this note loads, lib/tern.js, does not exist, so the note does not render', false],
+    ['link.missing', 3, 1, 'the stylesheet in data-css, tern.css, does not exist', false],
+    ['link.missing', 3, 1, 'the add-on themes/nord.css does not exist', false],
+  ], 'the head and the tern.js line');
+  write('lh/based.html', `${FIRST}<base href="https://example.com/"><script src="lib/tern.js"></script>\n[x](nope.html)\n`, { tern: false });
+  eq(JSON.parse(run(['check', 'lh/based.html', '--json']).out), [], 'a <base href>: nothing');
 });
 
 // ---------------------------------------------------------------- parse

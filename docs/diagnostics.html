@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The six runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script` and `addon.remote` come from the command line and the language server only.
+The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The six runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script` and `addon.remote` come from the command line and the language server only, and `link.missing` and `link.dangling` from `tern check` only.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -90,6 +90,8 @@ The first 53 codes come from the parser and the transforms, so `tern.check`, `te
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
 | [`addon.remote`](#addon-remote) | info | A remote add-on was not loaded under node. |
+| [`link.missing`](#link-missing) | warning | A link names a file that does not exist. |
+| [`link.dangling`](#link-dangling) | warning | A link's fragment names no id in its file. |
 
 ## The diagnostic object {#object}
 
@@ -128,7 +130,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
 | `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
 | `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 
-Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with one exception: `head.script` is an info for a remote script and a warning otherwise. The six runtime codes are all errors, and `addon.remote` is an info.
+Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with one exception: `head.script` is an info for a remote script and a warning otherwise. The six runtime codes are all errors, `addon.remote` is an info, and the two link codes are warnings.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -227,7 +229,7 @@ So you see the panel while you write, and the readers of a published note do not
 
 **`tern.on('diagnostic', fn)`.** Calls `fn` with each runtime diagnostic as it is reported ([API](api.html#on)). Parse and transform diagnostics are not events: read them from `tern.diagnostics`, for example after `await tern.ready`.
 
-**`tern check`.** Prints each diagnostic as `file:line:col: severity code: message`, with the hint on the next line, indented, and a summary on stderr ([tools](tools.html#check)). `--json` prints one array instead, `--fail-on` sets the severity that makes it exit with 1, and `--quiet` prints only the diagnostics at or above it. It also loads the note's vocabulary, its add-ons and head scripts, and reports [`addon.failed`](#addon-failed), [`addon.remote`](#addon-remote) and [`head.script`](#head-script) when it cannot. `tern build` prints the same diagnostics to stderr and writes the page anyway; the built page shows them in its own panel and console.
+**`tern check`.** Prints each diagnostic as `file:line:col: severity code: message`, with the hint on the next line, indented, and a summary on stderr ([tools](tools.html#check)). `--json` prints one array instead, `--fail-on` sets the severity that makes it exit with 1, and `--quiet` prints only the diagnostics at or above it. It also loads the note's vocabulary, its add-ons and head scripts, and reports [`addon.failed`](#addon-failed), [`addon.remote`](#addon-remote) and [`head.script`](#head-script) when it cannot. And it checks each note's links to other files, reporting [`link.missing`](#link-missing) and [`link.dangling`](#link-dangling) ([links between files](tools.html#check-links)). `tern build` prints the same diagnostics to stderr and writes the page anyway; the built page shows them in its own panel and console.
 
 **The language server.** Publishes the same diagnostics as `textDocument/publishDiagnostics` when you open or change a note ([tools](tools.html#lsp)). Each has the range, the severity (1, 2 or 3), the `code`, `source: "tern"`, and the message followed by a line break and the hint; the hint is also in `data.hint`.
 
@@ -2585,7 +2587,7 @@ The engine reports `ref.dangling` (warning) at 1:5:
 - **Message:** `the link points to #proof, which names no id in this note`
 - **Hint:** `check the id, or give the target that id`
 
-**Related.** [`ref.unreferenceable`](#ref-unreferenceable), [`id.duplicate`](#id-duplicate).
+**Related.** [`ref.unreferenceable`](#ref-unreferenceable), [`id.duplicate`](#id-duplicate), [`link.dangling`](#link-dangling).
 
 ### `ref.unreferenceable` {#ref-unreferenceable}
 
@@ -2877,3 +2879,81 @@ tern check: 1 note: 0 errors, 0 warnings, 1 info
 **Fix.** Nothing is wrong with the page. To check the note with its vocabulary, keep a local copy of the add-on and list that in `data-use`.
 
 **Related.** [`addon.failed`](#addon-failed), [`head.script`](#head-script).
+
+### `link.missing` {#link-missing}
+
+**Warning.** A link names a file that does not exist.
+
+- **Trigger.** `tern check` resolves each relative URL of a note from the note's folder, as a browser does ([which URLs](tools.html#check-links)), and finds that:
+  - no file or folder has that path;
+  - it names a folder with no `index.html`;
+  - a file has the name only in another case, such as `maps.html` for `Maps.html`. A disk that ignores case, as on a Mac or Windows, finds it; a host that tells case apart, as most do, does not.
+
+  The browser never reports it: a broken link shows only when someone follows it. The language server does not check links between files yet.
+- **Position.** The link: a Tern link or image at its `[` or `!`, an element at its start, a raw HTML tag at its `<`. A tag in the head has only a file position, and so do the `tern.js` line's own URLs: its line, column 1.
+- **Content.** None: the note renders as it would. A reader who follows the link gets a missing page, image or stylesheet. When the missing file is the `tern.js` the note loads, the note does not render at all, and the message says so.
+
+```html
+<!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="themes/nrd.css"></script>
+# Notes
+
+See [the kernel](kernal.html), [rank](Maps.html#thm-rn) and the [vectors](vectors/).
+
+![The kernel](img/kernel.png)
+```
+
+```sh
+$ tern check notes/index.html
+notes/index.html:1:1: warning link.missing: the add-on themes/nrd.css does not exist
+    fix the path: it resolves from the folder of this note
+notes/index.html:4:5: warning link.missing: kernal.html does not exist
+    fix the path: it resolves from the folder of this note
+notes/index.html:4:32: warning link.missing: Maps.html is spelt maps.html on this disk; a host that tells case apart will not find it
+    write it as the disk does: maps.html
+notes/index.html:4:65: warning link.missing: vectors/ has no index.html
+    link to a file in the folder, or add its index.html
+notes/index.html:6:1: warning link.missing: the image img/kernel.png does not exist
+    fix the path: it resolves from the folder of this note
+tern check: 1 note: 0 errors, 5 warnings, 0 infos
+```
+
+**Fix.** Correct the path, relative to the note's folder, or add the file. Write a name in the case the disk gives it.
+
+**Related.** [`link.dangling`](#link-dangling), [`addon.failed`](#addon-failed).
+
+### `link.dangling` {#link-dangling}
+
+**Warning.** A link's fragment names no id in its file.
+
+- **Trigger.** `tern check` finds the file a link names, but the part after `#` names nothing in it:
+  - in a note, no id its HTML would have: an `{#id}`, a heading's id, an id in raw HTML;
+  - in another HTML file, no `id` and no `<a name>`;
+  - in a Markdown file, no heading whose GitHub anchor it is.
+
+  `#top` always counts, since every browser takes it to the top of the page. A fragment in any other kind of file, such as `paper.pdf#page=3`, is not checked. A Tern link to `#id` in the note itself is [`ref.dangling`](#ref-dangling), the engine's; one in raw HTML or an attribute is this code, for "this note".
+- **Position.** As for [`link.missing`](#link-missing).
+- **Content.** None: following the link opens the page at its top.
+
+```html
+<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+# Rank
+
+By [rank–nullity](maps.html#thm-rank), as in [the README](../README.md#install).
+
+<a href="#proof">the proof</a>
+```
+
+```sh
+$ tern check notes/rank.html
+notes/rank.html:4:4: warning link.dangling: maps.html has no element with the id thm-rank
+    check the id after #: ids are case-sensitive
+notes/rank.html:4:46: warning link.dangling: ../README.md has no heading with the anchor install
+    check the anchor after #: GitHub makes it from the heading, in lower case with hyphens
+notes/rank.html:6:1: warning link.dangling: this note has no element with the id proof
+    check the id after #: ids are case-sensitive
+tern check: 1 note: 0 errors, 3 warnings, 0 infos
+```
+
+**Fix.** Correct the id after `#`, or give the element that id: `:::theorem{#thm-rank}`. Ids are case-sensitive. An id that a script adds when the page runs is not known to `tern check`; link to an id in the note's source instead.
+
+**Related.** [`ref.dangling`](#ref-dangling), [`link.missing`](#link-missing).

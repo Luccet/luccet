@@ -14,7 +14,7 @@
 const { SEVERITY } = require('../../src/diag');
 const anchors = require('./anchors');
 
-const RUNTIME_CODES = ['math.error', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'katex.unavailable', 'doc.quirks', 'head.script', 'addon.remote'];
+const RUNTIME_CODES = ['math.error', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'katex.unavailable', 'doc.quirks', 'head.script', 'addon.remote', 'link.missing', 'link.dangling'];
 
 // Coverage: every level-2 section of the three reference pages, and each of
 // the eight rules on its own (they share one level-2 section). A section is
