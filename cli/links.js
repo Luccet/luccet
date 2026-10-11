@@ -4,7 +4,8 @@
 //   link.missing   a relative URL names a file that does not exist, a folder
 //                  with no index.html, or a name whose case differs from the
 //                  file's (found on this disk, not on a host that tells case
-//                  apart)
+//                  apart); an error for the tern.js the note loads, since
+//                  the note does not render, a warning otherwise
 //   link.dangling  its fragment names no id in the file it points at
 // A Tern link to `#id` in the note itself is the engine's (ref.dangling).
 //
@@ -395,7 +396,7 @@ function check(file, a, targets) {
 
 function checkLinks(file, a, targets) {
   const out = [];
-  const say = (u, code, message, hint) => out.push({ code, severity: 'warning', message, hint, ...(u.position ? { position: u.position } : {}), filePosition: u.filePosition });
+  const say = (u, code, message, hint) => out.push({ code, severity: u.tern ? 'error' : 'warning', message, hint, ...(u.position ? { position: u.position } : {}), filePosition: u.filePosition });
   for (const u of urls(a)) {
     if (u.own || u.check === false) continue;
     const r = resolve(file, u.url, targets);

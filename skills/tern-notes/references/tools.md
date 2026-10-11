@@ -160,7 +160,7 @@ $ echo $?
 
 `--quiet` prints only diagnostics at or above `--fail-on`, with no summary and no notes about skipped files: `tern check site/ --quiet` in CI prints exactly what fails the build. Any other `--fail-on` value is a usage error.
 
-Broken links and a wrong path to `tern.js` are **warnings**: the default check exits 0 on a note whose `tern.js` is missing, which does not render at all. Use `--fail-on=warning`, or read every line.
+Broken links are **warnings**: the default check exits 0 on a note with a link to a missing page or image. Use `--fail-on=warning`, or read every line. A wrong path to `tern.js` is an error, since the note does not render.
 
 ### --json
 
@@ -216,7 +216,7 @@ tern check: 1 note: 1 error, 2 warnings, 2 infos
 
 ### Links between files
 
-`tern check` also checks each note's relative links against the disk, as warnings:
+`tern check` also checks each note's relative links against the disk, as warnings (the path to `tern.js` as an error):
 
 - `link.missing`: the file does not exist, a folder has no `index.html`, or the case differs from the disk's (`Index.html is spelt index.html on this disk; a host that tells case apart will not find it`).
 - `link.dangling`: the file exists but the `#fragment` names no id in it. For a note, its ids as rendered with its own add-ons; for other HTML, an `id` or `<a name>`; for Markdown, GitHub's heading anchors. `#top` always counts.
@@ -391,7 +391,7 @@ Run `tern check FILE` first; then match the symptom.
 
 | What the page shows | Cause and fix |
 |---|---|
-| The source run together as one paragraph (`#`, `*`, `:::` visible) | `tern.js` did not load or start. Check the `src` from the note's folder (`tern check` warns `link.missing` with "so the note does not render"); a root-relative path opened from disk; `tern.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`tern check` says "is not a note"). `tern new --guarded` makes this case readable. |
+| The source run together as one paragraph (`#`, `*`, `:::` visible) | `tern.js` did not load or start. Check the `src` from the note's folder (`tern check` reports a `link.missing` error with "so the note does not render"); a root-relative path opened from disk; `tern.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`tern check` says "is not a note"). `tern new --guarded` makes this case readable. |
 | Math as TeX, `doc.quirks` | No `<!doctype html>` at the very start of the file. |
 | Math as TeX, `katex.unavailable` | No network, the CDN blocked (CSP, filter), or a wrong `data-katex` base. |
 | `CafÃ©` for `Café` | No `<meta charset="utf-8">` near the top, or the file not saved as UTF-8. |

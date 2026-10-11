@@ -10,7 +10,7 @@ A Tern note is one `.html` file. Its first line loads `tern.js`; everything afte
 
 Tern looks like Markdown but is not Markdown, and the body is not HTML. Most mistakes come from those two habits; the sections below list them.
 
-## Recognise a note
+## Recognize a note
 
 - **A note** has a line with a plain `<script src="…tern.js"></script>` (any path to a file named `tern.js`). Everything before it is the head, ordinary HTML. Everything after it is Tern source.
 - **Not a note:** the tag has `async`, `defer`, `type="module"` (tern.js cannot read the file), or `data-built`. A `data-built` page was written by `tern build`: edit its source note, not the page.

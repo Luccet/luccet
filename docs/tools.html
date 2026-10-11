@@ -402,7 +402,7 @@ tern check: 1 note: 1 error, 1 warning, 2 infos
 
 ### Links between files {#check-links}
 
-`tern check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`:
+`tern check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`; a wrong path to the `tern.js` the note loads is an error, since the note does not render:
 
 - [`link.missing`](diagnostics.html#link-missing): the file does not exist, the link names a folder with no `index.html`, or the name's case differs from the file's;
 - [`link.dangling`](diagnostics.html#link-dangling): the file exists, but the fragment after `#` names no id in it.

@@ -28,7 +28,7 @@ const FILTER = (process.argv.find((a) => a.startsWith('--filter=')) || '').slice
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-cli-'));
 const at = (...p) => path.join(TMP, ...p);
 // A note's local tern.js is written too, empty, unless { tern: false }: tern
-// check reports a tern.js that is not there (link.missing).
+// check reports a tern.js that is not there (link.missing, an error).
 function write(rel, text, { tern = true } = {}) {
   fs.mkdirSync(path.dirname(at(rel)), { recursive: true });
   fs.writeFileSync(at(rel), text);
@@ -534,12 +534,19 @@ test("check: the head's links, the tern.js it loads, data-css and stylesheet add
   write('lh/style.css', '');
   write('lh/n.html', `${FIRST}\n<link rel="stylesheet" href="style.css"><link rel="icon" href="icon.png">\n<script src="lib/tern.js" data-css="tern.css" data-use="style.css themes/nord.css https://cdn.example/x.css"></script>\n# x\n`, { tern: false });
   const r = run(['check', 'lh/n.html', '--json']);
-  eq(JSON.parse(r.out).map((d) => [d.code, d.filePosition.start.line, d.filePosition.start.column, d.message, 'position' in d]), [
-    ['link.missing', 2, 41, "the href of the head's <link>, icon.png, does not exist", false],
-    ['link.missing', 3, 1, 'the tern.js this note loads, lib/tern.js, does not exist, so the note does not render', false],
-    ['link.missing', 3, 1, 'the stylesheet in data-css, tern.css, does not exist', false],
-    ['link.missing', 3, 1, 'the add-on themes/nord.css does not exist', false],
+  eq(JSON.parse(r.out).map((d) => [d.code, d.severity, d.filePosition.start.line, d.filePosition.start.column, d.message, 'position' in d]), [
+    ['link.missing', 'warning', 2, 41, "the href of the head's <link>, icon.png, does not exist", false],
+    ['link.missing', 'error', 3, 1, 'the tern.js this note loads, lib/tern.js, does not exist, so the note does not render', false],
+    ['link.missing', 'warning', 3, 1, 'the stylesheet in data-css, tern.css, does not exist', false],
+    ['link.missing', 'warning', 3, 1, 'the add-on themes/nord.css does not exist', false],
   ], 'the head and the tern.js line');
+  exits(r, 1, 'a missing tern.js fails the default check');
+  write('lh/lib/tern.js', '');
+  exits(run(['check', 'lh/n.html']), 0, 'with tern.js there, the other links are warnings');
+  write('lh/cased.html', `${FIRST}<script src="Lib/tern.js"></script>\n# x\n`, { tern: false });
+  eq(JSON.parse(run(['check', 'lh/cased.html', '--json']).out).map((d) => [d.code, d.severity, d.message]), [
+    ['link.missing', 'error', 'the tern.js this note loads, Lib/tern.js, is spelt lib/tern.js on this disk; a host that tells case apart will not find it'],
+  ], 'a tern.js in another case: an error too');
   write('lh/based.html', `${FIRST}<base href="https://example.com/"><script src="lib/tern.js"></script>\n[x](nope.html)\n`, { tern: false });
   eq(JSON.parse(run(['check', 'lh/based.html', '--json']).out), [], 'a <base href>: nothing');
 });

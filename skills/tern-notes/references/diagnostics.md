@@ -730,9 +730,9 @@ A `data-use` entry is a remote URL (`https://…`). The tools load nothing from 
 Hello.
 ```
 
-### `link.missing` · warning
+### `link.missing` · warning or error
 
-A relative URL in the note (a link or image, a `src` or `href` in raw HTML or the head, a `data-use` entry) names a file that does not exist, a folder with no `index.html`, or a file whose name differs only in case, which a case-sensitive host will not find. When the missing file is the note's `tern.js`, the note does not render at all.
+A relative URL in the note (a link or image, a `src` or `href` in raw HTML or the head, a `data-use` entry) names a file that does not exist, a folder with no `index.html`, or a file whose name differs only in case, which a case-sensitive host will not find. A warning, except for the note's `tern.js`: without it the note does not render at all, so a wrong path to it is an error.
 **Fix:** correct the path relative to the note's folder, in the disk's case, or add the file. To move or rename notes, use `tern mv`, which rewrites the links ([tools.md](tools.md)).
 
 ```text
