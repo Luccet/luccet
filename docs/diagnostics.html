@@ -2656,7 +2656,8 @@ A `:::macros` block that does not parse gives the message `the :::macros block d
     - an add-on file that cannot be read, or is a directory;
     - one that does not parse as a classic script, which is how tern.js runs an add-on;
     - one that throws;
-    - a transform it registers that throws.
+    - a transform it registers that throws;
+    - the note's scripts, run in the [sandbox](tools.html#sandbox), did not finish in 2 seconds or used too much memory; none of its vocabulary or transforms is then applied.
 
     A remote add-on is [`addon.remote`](#addon-remote) instead.
 - **Position.** The `tern.js` line: line 0 in the browser, shown as `the tern.js line (file line 1)`; the file line of the tag, column 1, on the command line.

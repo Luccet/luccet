@@ -7,9 +7,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const vm = require('vm');
-const { Console } = require('console');
 const tern = require('../tern.js');
+const sandbox = require('./sandbox');
 
 // The line that makes an HTML file a note: it holds a <script> that tern.js
 // would start from. Published for editors (docs/tools.html#detection) with
@@ -79,20 +78,6 @@ function attributes(tag) {
   return out;
 }
 
-// Browser globals an add-on may touch while it loads (customElements.define,
-// document.addEventListener, class extends HTMLElement …): under node each is
-// an object that accepts anything and does nothing, so the add-on gets to
-// its tern.block calls.
-const inert = new Proxy(function () {}, {
-  get: (_, k) => (k === Symbol.toPrimitive ? () => '' : k === Symbol.iterator ? function* () {} : k === 'then' ? undefined : inert),
-  apply: () => inert,
-  construct: () => inert,
-});
-const BROWSER = 'document customElements HTMLElement Element Node Event CustomEvent EventTarget CSS CSSStyleSheet navigator location history localStorage sessionStorage matchMedia getComputedStyle requestAnimationFrame cancelAnimationFrame requestIdleCallback setTimeout clearTimeout setInterval clearInterval queueMicrotask MutationObserver IntersectionObserver ResizeObserver fetch addEventListener removeEventListener dispatchEvent'.split(' ');
-// An add-on's console writes to stderr: stdout carries JSON (tern parse,
-// tern check --json) and the LSP's JSON-RPC.
-const quietConsole = new Console({ stdout: process.stderr, stderr: process.stderr });
-
 // A local add-on's file: relative to the note's directory; root-relative
 // (/lib/x.js) under the nearest ancestor that has it, since the site root is
 // not known here.
@@ -125,243 +110,77 @@ function headScripts(head) {
 }
 
 const isRemote = (url) => /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//');
-const message = (e) => {
-  try {
-    return (e && e.message) || String(e);
-  } catch {
-    return 'an exception';
-  }
-};
-const own = (o, k) => Object.prototype.propertyIsEnumerable.call(o, k);
 
-// tern.config as the runtime builds it (src/runtime.js readConfig), for an
-// add-on that reads its parameters: `use[name]` from data-use's query
-// strings, `katex` from window.TERN.katex and data-katex, and `lang`.
-function shimConfig(given, attrs, lang) {
-  const g = given && typeof given === 'object' ? given : {};
-  const use = Object.assign(Object.create(null), g.use && typeof g.use === 'object' ? g.use : null);
-  for (const entry of (attrs['data-use'] || '').split(/\s+/).filter(Boolean)) {
-    const q = entry.indexOf('?');
-    let file = (q < 0 ? entry : entry.slice(0, q)).replace(/#.*$/, '');
-    file = file.slice(file.lastIndexOf('/') + 1);
-    try {
-      file = decodeURIComponent(file);
-    } catch {}
-    const name = file.replace(/(?:\.min)?\.(?:m?js|css)$/i, '');
-    const params = Object.create(null);
-    if (q >= 0) new URLSearchParams(entry.slice(q + 1).replace(/#.*$/, '')).forEach((v, k) => (params[k] = v));
-    use[name] = Object.assign(Object.create(null), use[name], params);
-  }
-  const katex = typeof g.katex === 'string' ? { base: g.katex } : Object.assign({}, g.katex);
-  if (attrs['data-katex'] !== undefined) katex.base = attrs['data-katex'].trim();
-  return { use, katex, lang };
-}
+// Why the note's scripts were not run, as the addon.failed message: the
+// sandbox timed out, crashed, or could not start (cli/sandbox.js).
+const failMessage = (kind) =>
+  kind === 'timeout'
+    ? "the note's scripts did not finish in 2 s, so they were not run; its vocabulary and transforms are missing"
+    : kind === 'crash'
+      ? "the note's scripts used too much memory or crashed the sandbox, so they were not run; its vocabulary and transforms are missing"
+      : kind === 'unavailable'
+        ? "the script sandbox is not available, so the note's scripts were not run; its vocabulary and transforms are missing"
+        : "the note's scripts could not be run in the sandbox, so its vocabulary and transforms are missing";
 
-// addons(tag, dir, head) -> {schema, problems, transforms, lang, window}:
-// the vocabulary a note's own files declare, as the browser has it at mount.
-// One sandbox runs, in order:
-//   - the head's scripts (`head`, the preserved head), with no `tern` yet;
-//     then window.TERN is read, as tern.js reads it when it starts: its
-//     `lang` (unless the tag has data-lang) and its `schema`;
-//   - the script add-ons of the tag's data-use (every entry not ending in
-//     .css, run as a classic script, as tern.js runs it), with `window.tern`
-//     and `tern` a shim: tern.block, leaf and inline write the registry;
-//     tern.transform registers with the engine, which checks it as in a
-//     browser, and is recorded; what the runtime does in a browser (define,
-//     on, style …) is accepted and ignored.
-// Then window.TERN.schema goes on top: the note's own declaration wins over
-// an add-on's for the same name, and its `strict` sets schema.strict.
-// Browser globals are inert. Problems, none of which throws:
-//   {url, message}             an add-on that is missing or throws
-//   {kind: 'remote', url, message}   a remote add-on, never loaded
-//   {kind: 'head', severity, url, message, line, column}
-//                              a head script that is remote, missing or throws
-// `transforms` are the add-ons' tern.transform calls, {name, fn, order,
-// url}, and calls of the functions they returned, {remove: call}, in call
-// order: the engine holds none of them once addons returns, and analyse
-// replays them for one analysis (transformWith). `lang` is the label
-// language tern.js passes the transforms: data-lang, else window.TERN.lang;
-// undefined when neither is set.
-// `window` is the sandbox's global, for what an add-on exposes besides its
-// vocabulary (docs.js's window.ternDocs, read by cli/examples.js).
-function addons(tag, dir, head) {
-  const schema = { block: {}, leaf: {}, inline: {} };
+// The note's own code the sandbox must run, read here (the sandbox child
+// cannot read files): the head's classic scripts and the script add-ons of
+// data-use, each {url, code} in document order, and the problems that are the
+// host's to see — a remote script or add-on (not run under node), a local one
+// that cannot be read. `dataUse/Lang/Katex` build the add-ons' tern.config;
+// `hasCode` is false when there is nothing to run (the analysis stays here).
+// A `seq` orders every script, add-on and problem as it appears, so the
+// problems the host finds here and those the sandbox finds there merge back
+// into document order; `vocabSeq` is where a window.TERN problem belongs,
+// after the head scripts and before the add-ons.
+function collect(tag, dir, head) {
+  const scripts = [];
+  const addons = [];
   const problems = [];
-  const transforms = [];
-  const sandbox = { console: quietConsole };
-  for (const k of BROWSER) sandbox[k] = inert;
-  sandbox.window = sandbox;
-  sandbox.self = sandbox;
-  sandbox.globalThis = sandbox;
-  vm.createContext(sandbox);
-  const run = (code, filename) => vm.runInContext(code, sandbox, { filename, timeout: 2000 });
   const attrs = attributes(tag);
-
+  let seq = 0;
   for (const s of headScripts(head)) {
-    const at = { kind: 'head', line: s.line, column: s.column };
+    const at = { kind: 'head', line: s.line, column: s.column, seq: seq++ };
     const url = s.src === null ? `inline script on line ${s.line}` : s.src;
-    let code = s.body;
-    let filename = `${url} (head)`;
-    if (s.src !== null) {
-      if (isRemote(s.src)) {
-        problems.push({ ...at, severity: 'info', url, message: `the head script ${url} is not run under node, so vocabulary it declares in window.TERN.schema is unknown here` });
-        continue;
-      }
-      filename = locate(dir, s.src.replace(/[?#].*$/, ''));
-      try {
-        code = fs.readFileSync(filename, 'utf8');
-      } catch {
-        problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} cannot be read (${filename})` });
-        continue;
-      }
+    if (s.src === null) {
+      scripts.push({ url, code: s.body, line: s.line, column: s.column, seq: at.seq });
+      continue;
     }
+    if (isRemote(s.src)) {
+      problems.push({ ...at, severity: 'info', url, message: `the head script ${url} is not run under node, so vocabulary it declares in window.TERN.schema is unknown here` });
+      continue;
+    }
+    const file = locate(dir, s.src.replace(/[?#].*$/, ''));
     try {
-      run(code, filename);
+      scripts.push({ url, code: fs.readFileSync(file, 'utf8'), line: s.line, column: s.column, seq: at.seq });
+    } catch {
+      problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} cannot be read (${file})` });
+    }
+  }
+  const vocabSeq = seq - 0.5;
+  for (const entry of (attrs['data-use'] || '').split(/\s+/).filter(Boolean)) {
+    const url = entry.replace(/[?#].*$/, '');
+    if (/\.css$/i.test(url)) continue; // a stylesheet; anything else is a script
+    if (isRemote(url)) {
+      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check`, seq: seq++ });
+      continue;
+    }
+    const file = locate(dir, url);
+    try {
+      addons.push({ url, code: fs.readFileSync(file, 'utf8'), seq: seq++ });
     } catch (e) {
-      problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} threw under node: ${message(e)}; vocabulary it declares may be missing` });
+      problems.push({ url, message: e && e.code === 'EISDIR' ? `${file} is a directory` : `cannot read ${file}`, seq: seq++ });
     }
   }
-
-  // window.TERN as tern.js reads it when it starts (src/runtime.js
-  // readConfig): after the head's scripts, before the add-ons. The tag's
-  // data-lang, even empty, wins over window.TERN.lang.
-  let lang;
-  let ownSchema = null;
-  try {
-    const given = sandbox.TERN && typeof sandbox.TERN === 'object' ? sandbox.TERN : null;
-    if (given && own(given, 'lang')) lang = given.lang;
-    if (given) ownSchema = given.schema;
-    if (attrs['data-lang'] !== undefined) lang = attrs['data-lang'].trim();
-    lang = lang ? String(lang) : undefined;
-  } catch (e) {
-    lang = attrs['data-lang'] !== undefined ? attrs['data-lang'].trim() || undefined : undefined;
-    problems.push({ kind: 'head', severity: 'warning', url: 'window.TERN', message: `window.TERN cannot be read: ${message(e)}`, line: 1, column: 1 });
-  }
-
-  // tern.transform registers with the engine, for its checks (a bad name, a
-  // built-in name, an anchor that is not there throw at the add-on's top
-  // level, as in a browser), and is recorded; the engine lets go of each
-  // when addons returns.
-  let current = null; // the add-on running
-  const release = [];
-  const inertFn = () => () => {};
-  sandbox.tern = {
-    schema,
-    block: (name, spec) => void (schema.block[name] = spec),
-    leaf: (name, spec) => void (schema.leaf[name] = spec),
-    inline: (name, spec) => void (schema.inline[name] = spec),
-    define: inertFn,
-    undefine() {},
-    on: inertFn,
-    style() {},
-    transform(name, fn, order) {
-      if (typeof name !== 'string') return tern.transform(name, fn); // run the pipeline on a tree
-      const off = tern.transform(name, fn, order);
-      release.push(off);
-      const t = { name, fn, order, url: current };
-      transforms.push(t);
-      let done = false;
-      return () => {
-        if (done) return;
-        done = true;
-        transforms.push({ remove: t });
-        off();
-      };
-    },
-    render: () => Promise.resolve([]),
-    ready: new Promise(() => {}),
-    diagnostics: [],
-    config: shimConfig(sandbox.TERN, attrs, lang),
-    version: tern.version,
-    // The engine's pure functions are the real ones, as in a browser, so a
-    // transform can walk the tree with tern.visit.
-    parse: tern.parse,
-    emit: tern.emit,
-    toHTML: tern.toHTML,
-    check: tern.check,
-    visit: tern.visit,
-    outline: tern.outline,
-    css: tern.css,
+  return {
+    scripts,
+    addons,
+    problems,
+    vocabSeq,
+    dataUse: attrs['data-use'],
+    dataLang: attrs['data-lang'] !== undefined ? attrs['data-lang'].trim() : undefined,
+    dataKatex: attrs['data-katex'],
+    hasCode: scripts.length > 0 || addons.length > 0,
   };
-  try {
-    for (const entry of (attrs['data-use'] || '').split(/\s+/).filter(Boolean)) {
-      const url = entry.replace(/[?#].*$/, '');
-      if (/\.css$/i.test(url)) continue; // a stylesheet; anything else is a script
-      if (isRemote(url)) {
-        problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check` });
-        continue;
-      }
-      const file = locate(dir, url);
-      let code;
-      try {
-        code = fs.readFileSync(file, 'utf8');
-      } catch (e) {
-        problems.push({ url, message: e && e.code === 'EISDIR' ? `${file} is a directory` : `cannot read ${file}` });
-        continue;
-      }
-      current = url;
-      try {
-        run(code, file);
-      } catch (e) {
-        const syntax = e && typeof e === 'object' && e.name === 'SyntaxError';
-        problems.push({ url, message: syntax ? `it does not parse as a classic script, which is how tern.js runs an add-on: ${message(e)}` : `it threw: ${message(e)}` });
-      } finally {
-        current = null;
-      }
-    }
-  } finally {
-    for (let i = release.length - 1; i >= 0; i--) release[i]();
-  }
-
-  try {
-    const s = ownSchema && typeof ownSchema === 'object' ? ownSchema : null;
-    for (const level of ['block', 'leaf', 'inline']) {
-      const entries = s ? s[level] : null;
-      if (entries && typeof entries === 'object') for (const name of Object.keys(entries)) if (entries[name] && typeof entries[name] === 'object') schema[level][name] = entries[name];
-    }
-    if (s && s.strict !== undefined) schema.strict = !!s.strict;
-  } catch (e) {
-    problems.push({ kind: 'head', severity: 'warning', url: 'window.TERN.schema', message: `window.TERN.schema cannot be read: ${message(e)}`, line: 1, column: 1 });
-  }
-  return { schema, problems, transforms, lang, window: sandbox };
-}
-
-// Runs the transforms on `ast` with the add-ons' tern.transform calls
-// registered (addons() `transforms`), through the engine's own registration,
-// for this run only: each is unregistered after it, so one note's add-ons
-// never reach another's analysis (the LSP serves many notes in one process).
-// A transform that throws, or that no longer registers, is skipped and
-// returned as {url, name, message}; the others run.
-function transformWith(ast, options, transforms) {
-  const failures = [];
-  const off = [];
-  const undo = new Map(); // a call -> its unregister function
-  try {
-    for (const t of transforms || []) {
-      if (t.remove) {
-        if (undo.has(t.remove)) undo.get(t.remove)();
-        continue;
-      }
-      const fn = function (tree, ctx) {
-        try {
-          return t.fn.call(this, tree, ctx);
-        } catch (e) {
-          failures.push({ url: t.url, name: t.name, message: message(e) });
-        }
-      };
-      try {
-        const f = tern.transform(t.name, fn, t.order);
-        off.push(f);
-        undo.set(t, f);
-      } catch (e) {
-        failures.push({ url: t.url, name: t.name, message: message(e) });
-      }
-    }
-    tern.transform(ast, options);
-  } finally {
-    for (let i = off.length - 1; i >= 0; i--) off[i]();
-  }
-  return failures;
 }
 
 // A vocabulary problem as the commands print it: the code, severity and
@@ -369,6 +188,7 @@ function transformWith(ast, options, transforms) {
 function loadingDiagnostic(p) {
   if (p.kind === 'head') return { code: 'head.script', severity: p.severity, message: p.message };
   if (p.kind === 'remote') return { code: 'addon.remote', severity: 'info', message: p.message };
+  if (p.kind === 'sandbox') return { code: 'addon.failed', severity: 'error', message: p.message };
   if (p.kind === 'transform') return { code: 'addon.failed', severity: 'error', message: `the transform "${p.name}" of the add-on ${p.url} threw: ${p.message}` };
   return { code: 'addon.failed', severity: 'error', message: `the add-on ${p.url} did not load: ${p.message}` };
 }
@@ -380,34 +200,79 @@ const toFile = (pos, line) => ({
   end: { line: pos.end.line + line, column: pos.end.column },
 });
 
-// Parses and transforms a note file, with its vocabulary, its add-ons'
-// transforms and its label language (addons). Returns null when the file is
-// not a note. Diagnostics carry `filePosition` beside the note's `position`,
-// in document order. The problems loading vocabulary come first, with only a
-// filePosition (codes of the command line's, beside the browser's
-// addon.failed: the browser runs head scripts and remote add-ons itself):
-//   - an add-on that is missing or throws, or a transform of one that
-//     throws: `addon.failed`, an error at the tern.js line;
+// Parses and transforms a note file, with its vocabulary and its label
+// language. Returns null when the file is not a note. When the note has its
+// own code to run (head scripts, script add-ons), that runs in the sandbox
+// (cli/sandbox.js), which parses and transforms there and returns the AST and
+// diagnostics as data; a note with no code is parsed here, where no untrusted
+// code runs. `opts.noScripts` skips the code (an empty vocabulary); `opts`
+// `transform` false stops after parsing (tern parse). Diagnostics carry
+// `filePosition` beside the note's `position`, in document order; the problems
+// loading vocabulary come first, with only a filePosition (command-line codes,
+// beside the browser's addon.failed: the browser runs this code itself):
+//   - an add-on that is missing or throws, a transform of one that throws, or
+//     the sandbox refusing to run the code: `addon.failed`, an error;
 //   - a remote add-on: `addon.remote`, an info at the tern.js line;
 //   - a head script: `head.script`, an info or a warning at its <script>.
-// opts.addons(tag, dir, head) replaces addons() (the LSP caches it).
+// `.demo` is window.ternDocs.demo, a documentation add-on's schema, or null.
 function analyse(text, file, opts = {}) {
   const parts = split(text);
   if (!parts) return null;
   const dir = file ? path.dirname(path.resolve(file)) : process.cwd();
-  const loaded = (opts.addons || addons)(parts.tag, dir, parts.head);
-  const { schema } = loaded;
-  const options = { schema, head: parts.head, lang: loaded.lang };
-  const { ast, diagnostics } = tern.parse(parts.note, options);
-  const failed = transformWith(ast, options, loaded.transforms);
-  const all = diagnostics.concat(ast.data.tern.diagnostics);
+  const c = collect(parts.tag, dir, parts.head);
+  const transform = opts.transform !== false;
+  let schema = { block: {}, leaf: {}, inline: {} };
+  let lang = c.dataLang || undefined;
+  let demo = null;
+  let ternDocs = null;
+  let all;
+  let problems = c.problems;
+
+  // No code, scripts turned off, or the sandbox could not run the code: parse
+  // here with an empty vocabulary (a note that declares none is unaffected).
+  const here = () => {
+    const options = { schema, head: parts.head, lang };
+    const parsed = tern.parse(parts.note, options);
+    if (!transform) {
+      all = parsed.diagnostics;
+      return parsed.ast;
+    }
+    tern.transform(parsed.ast, options);
+    all = parsed.diagnostics.concat(parsed.ast.data.tern.diagnostics);
+    return parsed.ast;
+  };
+
+  let ast;
+  let failures = [];
+  if (opts.noScripts || !c.hasCode) {
+    ast = here();
+  } else {
+    const r = sandbox.analyse({ note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataKatex: c.dataKatex, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform });
+    if (r.failed) {
+      ast = here();
+      problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed) }]);
+    } else {
+      schema = r.schema;
+      lang = r.lang == null ? undefined : r.lang;
+      ternDocs = r.ternDocs || null;
+      demo = ternDocs && ternDocs.demo ? ternDocs.demo : null;
+      ast = r.ast;
+      all = r.diagnostics;
+      problems = problems.concat(r.problems);
+      failures = r.failures || [];
+    }
+  }
+  // Loading problems in document order (their seq, set by collect and echoed
+  // by the sandbox), then any transform failure, as they run last.
+  problems = problems.slice().sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).concat(failures.map((f) => ({ kind: 'transform', ...f })));
+
+  const options = { schema, head: parts.head, lang };
   const at = (d) => d.position.start.offset;
   all.sort((a, b) => at(a) - at(b) || a.position.end.offset - b.position.end.offset || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   for (const d of all) d.filePosition = toFile(d.position, parts.line);
   const point = (line, column) => ({ start: { line, column }, end: { line, column } });
-  const problems = (loaded.problems || []).concat(failed.map((f) => ({ kind: 'transform', ...f })));
   const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: p.kind === 'head' ? point(p.line, p.column) : point(parts.line, 1) }));
-  return { ...parts, schema, opts: options, ast, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
+  return { ...parts, schema, opts: options, ast, demo, ternDocs, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
 }
 
 // The .html files under dir, sorted, skipping dot-directories and
@@ -437,4 +302,4 @@ function repository(dir) {
   }
 }
 
-module.exports = { DETECT, detect, notNote, split, attributes, headScripts, addons, transformWith, loadingDiagnostic, analyse, htmlFiles, repository, tern };
+module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, htmlFiles, repository, tern, shutdown: sandbox.shutdown };

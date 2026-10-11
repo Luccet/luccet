@@ -297,6 +297,49 @@ test('check: a missing or failing add-on is addon.failed at the tern.js line', (
   ok(/^a\/throws\.html:1:1: error addon\.failed: the add-on throws\.js did not load: it threw: boom/.test(lines[1]), `line 2: ${lines[1]}`);
 });
 
+// A note's own code runs in the sandbox (cli/sandbox.js): a sealed context
+// inside a --permission child. It sees no Node, cannot touch the disk, and a
+// script or transform that never returns is cut off.
+test("check: a note's scripts run sandboxed — no process, no file writes", () => {
+  const marker = at('sb/escaped');
+  write('sb/break.js', `try { var P = tern.block.constructor('return process')(); if (P) P.mainModule.require('fs').writeFileSync(${JSON.stringify(marker)}, 'x'); } catch (e) {}\ntern.block('box', { tag: 'aside', counter: 'box', label: 'reached ' + (typeof globalThis.process) });\n`);
+  write('sb/n.html', `${FIRST}<script src="tern.js" data-use="break.js"></script>\n:::box[T]{#k}\nx\n:::\n`);
+  exits(run(['check', 'sb/n.html']), 0, 'the note checks clean: the add-on ran, confined');
+  ok(!fs.existsSync(marker), 'the add-on could not reach the disk');
+  const main = pageParts(run(['build', 'sb/n.html']).out).main;
+  ok(/reached undefined/.test(main), `no process in the sandbox: ${main}`);
+});
+
+test('check: a transform that never returns is addon.failed, not a hang', () => {
+  write('sb/spin.js', "tern.transform('spin', function () { while (true) {} });\n");
+  write('sb/spin.html', `${FIRST}<script src="tern.js" data-use="spin.js"></script>\n# x\n`);
+  const t0 = Date.now();
+  const r = run(['check', 'sb/spin.html']);
+  ok(Date.now() - t0 < 8000, `cut off well before the wedged deadline (${Date.now() - t0}ms)`);
+  exits(r, 1, 'check');
+  ok(/error addon\.failed: the note's scripts did not finish in 2 s/.test(r.out), `timeout: ${r.out}`);
+});
+
+test('check: a note that crashes the sandbox is addon.failed, and the run goes on', () => {
+  write('sb/bomb.js', 'tern.transform(\'bomb\', function () { var a = []; for (;;) a.push(new Array(1e6).fill(7)); });\n');
+  write('sb/bomb.html', `${FIRST}<script src="tern.js" data-use="bomb.js"></script>\n# x\n`);
+  write('sb/fine.js', "tern.block('aside', { tag: 'aside', label: 'OK' });\n");
+  write('sb/fine.html', `${FIRST}<script src="tern.js" data-use="fine.js"></script>\n:::aside{#a}\nx\n:::\n`);
+  const r = run(['check', 'sb/bomb.html', 'sb/fine.html']);
+  exits(r, 1, 'check');
+  ok(/sb\/bomb\.html:1:1: error addon\.failed: the note's scripts used too much memory or crashed/.test(r.out), `crash: ${r.out}`);
+  ok(!/sb\/fine\.html/.test(r.out), `the next note is fine, on a fresh child: ${r.out}`);
+});
+
+test('check --no-scripts: a note is analysed without running its add-ons', () => {
+  write('ns/box.js', "tern.block('blinker', { tag: 'blink' });\n");
+  write('ns/n.html', `${FIRST}<script src="tern.js" data-use="box.js"></script>\n:::blinker\nhi\n:::\n`);
+  eq(JSON.parse(run(['check', 'ns/n.html', '--json']).out).map((d) => d.code), ['tag.not-allowed'], 'with scripts: the schema gives blinker <blink>');
+  const r = run(['check', 'ns/n.html', '--no-scripts', '--json']);
+  eq(JSON.parse(r.out), [], 'no-scripts: blinker is an unknown block, so no schema and no tag.not-allowed');
+  exits(r, 0, 'no-scripts exit 0');
+});
+
 // A single-file note's vocabulary, from a head script.
 test('check: a single-file note declares its vocabulary in window.TERN.schema', () => {
   write('s/n.html', `${FIRST}<script>window.TERN = { schema: { block: { theorem: { tag: 'section', counter: 'theorem', label: 'Theorem' } }, leaf: { toc: { tag: 'nav', transform: 'toc' } } } };</script>

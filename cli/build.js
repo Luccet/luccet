@@ -146,10 +146,10 @@ function htmlAttributes(head, add) {
 
 // ---------------------------------------------------------------- build
 
-// build(text, file, {katex}) -> null when the file is not a note, else
-// {html, diagnostics, failures, warnings, math: {total, prerendered}, toFile}.
+// build(text, file, {katex, noScripts}) -> null when the file is not a note,
+// else {html, diagnostics, failures, warnings, math:{total, prerendered}, toFile}.
 function build(text, file, opts = {}) {
-  const a = analyse(text, file);
+  const a = analyse(text, file, { noScripts: opts.noScripts });
   if (!a) return null;
   const dir = path.dirname(path.resolve(file));
   const attrs = attributes(a.tag);

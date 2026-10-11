@@ -124,6 +124,10 @@ const REQUESTS = {
     const folders = Array.isArray(params.workspaceFolders) ? params.workspaceFolders.map((f) => f && f.uri) : [params.rootUri];
     roots = folders.map(fileOf).filter(Boolean);
     if (!roots.length && typeof params.rootPath === 'string') roots = [path.resolve(params.rootPath)];
+    // initializationOptions.noScripts: true analyses without running notes'
+    // own code (cli/sandbox.js), for a workspace of notes you do not trust.
+    const init = params.initializationOptions;
+    noScripts = !!(init && init.noScripts);
     return { capabilities: CAPABILITIES, serverInfo: { name: 'tern', version: tern.version } };
   },
   shutdown() {
@@ -167,6 +171,7 @@ function exit() {
 const docs = new Map();
 let opened = 0;
 let roots = []; // the workspace folders, from initialize
+let noScripts = false; // initializationOptions.noScripts: do not run notes' code
 
 function didOpen({ textDocument: d }) {
   if (!d || typeof d.uri !== 'string') return;
@@ -213,7 +218,7 @@ function analyse(doc) {
   doc.timer = null;
   let a;
   try {
-    a = note.analyse(doc.text, doc.file, { addons: load });
+    a = note.analyse(doc.text, doc.file, { noScripts });
   } catch (e) {
     return log(`analysing ${doc.uri}: ${(e && e.stack) || e}`);
   }
@@ -243,7 +248,7 @@ const targets = new links.Targets({
     for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
     return undefined;
   },
-  analyse: (text, file) => note.analyse(text, file, { addons: load }),
+  analyse: (text, file) => note.analyse(text, file, { noScripts }),
 });
 
 // The link diagnostics of an open note; none for an untitled document.
@@ -278,40 +283,6 @@ function fileOf(uri) {
   } catch {
     return null;
   }
-}
-
-// The vocabulary loader note.analyse calls (note.addons: the head's scripts,
-// the add-ons, then window.TERN.schema), cached by all its result
-// depends on: the directory, the tag, the head's scripts as written, and the
-// mtime of every file they and the add-ons may load. A root-relative URL
-// (/lib/x.js) is looked up in every ancestor directory, so each candidate is
-// stamped. The cached value holds the add-ons' transforms; note.analyse
-// registers them for each analysis and unregisters them after it, so a
-// note's transforms never run on another note.
-const cache = new Map(); // key -> {stamp, value}, the most recent 64
-const remote = (url) => /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(url);
-function load(tag, dir, head) {
-  const scripts = note.headScripts(head);
-  const urls = scripts.map((s) => s.src).filter((u) => u !== null && !remote(u));
-  for (const u of (note.attributes(tag)['data-use'] || '').split(/\s+/)) if (u && !/\.css$/i.test(u.replace(/[?#].*$/, '')) && !remote(u)) urls.push(u);
-  const files = [];
-  for (const url of urls.map((u) => u.replace(/[?#].*$/, ''))) {
-    if (!url.startsWith('/')) files.push(path.resolve(dir, url));
-    else
-      for (let d = path.resolve(dir); ; d = path.dirname(d)) {
-        files.push(path.join(d, url));
-        if (path.dirname(d) === d) break;
-      }
-  }
-  const key = JSON.stringify([dir, tag, scripts]);
-  const stamp = files.map((f) => `${f} ${fs.statSync(f, { throwIfNoEntry: false })?.mtimeMs}`).join('\n');
-  const hit = cache.get(key);
-  if (hit && hit.stamp === stamp) return hit.value;
-  const value = note.addons(tag, dir, head);
-  cache.delete(key);
-  cache.set(key, { stamp, value });
-  if (cache.size > 64) cache.delete(cache.keys().next().value);
-  return value;
 }
 
 // An engine diagnostic as LSP's: a 0-based range from the file position, the
