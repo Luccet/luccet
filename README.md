@@ -58,6 +58,8 @@ npm test            # build check, corpus, samples, perf, fuzz, API, CLI, LSP, d
 npm run smoke       # Chromium and Firefox (Playwright)
 ```
 
+**A release.** `npm run bump -- patch` (or `minor`, `major`, or a version, `X.Y.Z`) sets the new version everywhere it is written: `package.json`, `tern.version`, the README's jsDelivr tag and the docs' examples. Then it rebuilds `tern.js`. Run it without an argument to list those places. Once the change is on `main`, tag it with the same version (`git tag vX.Y.Z`) and push the tag: the release workflow checks the tag against the version, runs every test and publishes the site. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
+
 MIT licensed.
 
 ## AI-generated project

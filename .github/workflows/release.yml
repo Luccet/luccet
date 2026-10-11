@@ -32,6 +32,7 @@ jobs:
           pkg="$(node -p "require('./package.json').version")"
           echo "tag $tag, tern.version $engine, package.json $pkg"
           test "$tag" = "$engine" && test "$tag" = "$pkg"
+      - run: node tools/version.js --check # and so do the README and the docs
       - run: npm test
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium firefox

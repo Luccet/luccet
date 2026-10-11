@@ -9,6 +9,7 @@ const path = require('path');
 
 const STEPS = [
   ['build check', ['../tools/concat.js', '--check']],
+  ['version', ['../tools/version.js', '--check']],
   ['themes', ['themes.js']],
   ['add-ons', ['addons.js']],
   ['corpus lint', ['run.js', '--lint']],
