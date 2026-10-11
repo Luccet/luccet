@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
-// tern new, check, parse, build and corpus, and the arguments of tern lsp.
+// tern new, check, parse, build, mv and corpus, and the arguments of tern lsp.
 // Each command takes its arguments and returns the exit code (tern lsp: none,
 // it runs until its client exits it):
 //   0  done
 //   1  check: a diagnostic at or above --fail-on; new: it refused (the file
-//      exists, or the line it would write is not detected); corpus: an
-//      example whose diagnostics differ from its expect, or a bad schema=
+//      exists, or the line it would write is not detected); mv: it refused
+//      (a destination exists, a folder into itself) or a move failed;
+//      corpus: an example whose diagnostics differ from its expect, or a
+//      bad schema=
 //   2  a usage error, or a path that cannot be used
 // Diagnostics print as `file:line:col: severity code: message`, the hint
 // indented below, with file lines (cli/note.js filePosition).
@@ -18,12 +20,14 @@ const { split, notNote, attributes, addons, transformWith, loadingDiagnostic, an
 const { build, escAttr } = require('./build');
 const links = require('./links');
 const examples = require('./examples');
+const { relocate, apply } = require('./relocate');
 
 const SYNOPSIS = {
   new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]',
   check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet]',
   parse: 'tern parse FILE [--transformed] [--compact]',
   build: 'tern build FILE [-o OUT] [--katex]',
+  mv: 'tern mv FROM… TO [--root=DIR] [--dry-run]',
   corpus: 'tern corpus PATH… [--out=DIR]',
   lsp: 'tern lsp [--stdio]',
 };
@@ -44,6 +48,12 @@ const usage = () =>
   ${SYNOPSIS.build}
       Write a static, pre-rendered page (to stdout without -o) that still
       loads tern.js; --katex pre-renders math if the katex package is installed.
+  ${SYNOPSIS.mv}
+      Move or rename notes, files and folders, and rewrite the relative URLs
+      that point at them, in every note under DIR (default: the repository
+      FROM is in, else the current folder), and the moved notes' own. TO is
+      a folder when it ends in / or exists. --dry-run (-n) prints the moves
+      and the edits, and changes nothing.
   ${SYNOPSIS.corpus}
       Print the live examples of documentation pages (tern fences with the
       class live) as conformance-corpus cases. A case's spec: line is the
@@ -54,8 +64,8 @@ const usage = () =>
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
 
-Exit codes: 0 done; 1 check found problems, new refused, or corpus found an
-example that does not match its expect; 2 a usage error.
+Exit codes: 0 done; 1 check found problems, new or mv refused, or corpus
+found an example that does not match its expect; 2 a usage error.
 `;
 
 class UsageError extends Error {
@@ -92,9 +102,9 @@ function help(name) {
   say(`usage: ${SYNOPSIS[name]}`);
   return 0;
 }
-// tern new declines: the reason on stderr, exit 1.
-function refuse(reason) {
-  warn(`tern new: ${reason}`);
+// A command declines: the reason on stderr, exit 1.
+function refuse(reason, name = 'new') {
+  warn(`tern ${name}: ${reason}`);
   return 1;
 }
 const RANK = { info: 1, warning: 2, error: 3 };
@@ -352,6 +362,129 @@ function buildPage(args) {
   return 0;
 }
 
+// ---------------------------------------------------------------- mv
+
+// The repository dir is in: the nearest folder at or above it holding .git.
+function repository(dir) {
+  for (let d = dir; ; d = path.dirname(d)) {
+    if (fs.existsSync(path.join(d, '.git'))) return d;
+    if (path.dirname(d) === d) return null;
+  }
+}
+
+// The files under root that are not notes but name a moved file or folder:
+// tern mv does not rewrite them (a name in a script or a Markdown file is
+// not a URL it can read), so it lists them to look at.
+const TEXT = /\.(?:md|markdown|txt|html?|[cm]?js|css|json|ya?ml|toml|svg|xml)$/i;
+function mentions(root, moves, notes) {
+  const names = moves.map((m) => path.basename(m.from) + (m.folder ? '/' : ''));
+  const out = [];
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.isFile() && TEXT.test(e.name) && !notes.has(p)) {
+        let text = '';
+        try {
+          text = fs.readFileSync(p, 'utf8');
+        } catch {}
+        const named = names.filter((n) => text.includes(n));
+        if (named.length) out.push({ file: p, named });
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
+
+// Moves first, then the edits relocate() asks for, each file written once,
+// at its new path. With --dry-run, the same lines, and nothing changes.
+function mv(args) {
+  const { values: o, positionals } = options(args, { root: { type: 'string' }, 'dry-run': { type: 'boolean', short: 'n' } });
+  if (o.help) return help('mv');
+  if (positionals.length < 2) throw new UsageError('give FROM and TO');
+  const shown = (p) => path.relative(process.cwd(), p).split(path.sep).join('/') || '.';
+  const stat = (p) => fs.statSync(p, { throwIfNoEntry: false });
+  const to = positionals[positionals.length - 1];
+  const sources = positionals.slice(0, -1).map((p) => {
+    if (!stat(p)) throw new UsageError(`cannot read ${p}: no such file or directory`, false);
+    return path.resolve(p);
+  });
+  const dest = path.resolve(to);
+  const into = !!(stat(dest) && stat(dest).isDirectory()) || /[\\/]$/.test(to);
+  if (sources.length > 1 && !(stat(dest) && stat(dest).isDirectory())) throw new UsageError('with several FROMs, TO must be a folder that exists');
+  for (const s of sources) for (const t of sources) if (s !== t && t.startsWith(s + path.sep)) throw new UsageError(`${shown(t)} is inside ${shown(s)}; name only ${shown(s)}`);
+  const moves = sources.map((from) => ({ from, to: into ? path.join(dest, path.basename(from)) : dest, folder: stat(from).isDirectory() }));
+  const same = (a, b) => {
+    const x = stat(a);
+    const y = stat(b);
+    return !!(x && y && x.ino === y.ino && x.dev === y.dev);
+  };
+  for (const m of moves) {
+    if (m.from === m.to) return refuse(`${shown(m.from)} is already there`, 'mv');
+    if (m.to.startsWith(m.from + path.sep)) return refuse(`cannot move ${shown(m.from)} into itself`, 'mv');
+    if (stat(m.to) && !same(m.from, m.to)) return refuse(`${shown(m.to)} exists; move or remove it first`, 'mv');
+  }
+  if (new Set(moves.map((m) => m.to)).size < moves.length) return refuse('two FROMs have the same name', 'mv');
+
+  // Every note under the root, and the notes moved from outside it.
+  const root = o.root === undefined ? repository(path.dirname(sources[0])) || process.cwd() : path.resolve(o.root);
+  if (!(stat(root) && stat(root).isDirectory())) throw new UsageError(`--root ${o.root} is not a folder`);
+  const files = new Set([...htmlFiles(root)].map((f) => path.resolve(f)));
+  for (const s of sources) {
+    if (stat(s).isDirectory()) for (const f of htmlFiles(s)) files.add(path.resolve(f));
+    else if (/\.html?$/i.test(s)) files.add(s);
+  }
+  const notes = [];
+  for (const file of files) {
+    try {
+      notes.push({ file, text: fs.readFileSync(file, 'utf8') });
+    } catch (e) {
+      warn(`tern mv: cannot read ${shown(file)}: ${e.message}; its links are left as they are`);
+    }
+  }
+  const plan = relocate(notes, moves);
+  const dry = !!o['dry-run'];
+
+  // A move that fails undoes the ones before it, so nothing is half done.
+  if (!dry) {
+    const done = [];
+    try {
+      for (const m of moves) {
+        fs.mkdirSync(path.dirname(m.to), { recursive: true });
+        fs.renameSync(m.from, m.to);
+        done.push(m);
+      }
+    } catch (e) {
+      for (const m of done.reverse()) fs.renameSync(m.to, m.from);
+      warn(`tern mv: ${e.message}; nothing was moved, and the links are left as they were`);
+      return 1;
+    }
+  }
+  for (const m of moves) say(`${dry ? 'would move' : 'moved'} ${shown(m.from)} → ${shown(m.to)}`);
+  let count = 0;
+  for (const p of plan) {
+    for (const e of p.edits) say(`${shown(p.moved)}:${e.line}:${e.column}: ${e.was} → ${e.text}`);
+    count += p.edits.length;
+    if (p.base) warn(`tern mv: ${shown(p.moved)} has a <base href>, so its URLs do not resolve from its folder; they are left as they are`);
+    for (const l of p.lost) warn(`tern mv: ${shown(p.moved)}:${l.line}:${l.column}: ${l.url} moves, but where it is written was not found; it is left as it is`);
+  }
+  const isNote = new Set(notes.filter((n) => split(n.text)).map((n) => n.file));
+  for (const m of mentions(root, moves, isNote)) warn(`tern mv: ${shown(m.file)} names ${m.named.join(', ')} but is not a note, so it is left as it is; look at it`);
+  const edited = plan.filter((p) => p.edits.length);
+  const text = new Map(notes.map((n) => [n.file, n.text]));
+  if (!dry) for (const p of edited) fs.writeFileSync(p.moved, apply(text.get(p.file), p.edits));
+  warn(`tern mv: ${plural(moves.length, 'move')}, ${plural(count, 'link')} in ${plural(edited.length, 'note')}${dry ? '; a dry run, so nothing changed' : ''}`);
+  return 0;
+}
+
 // ---------------------------------------------------------------- corpus
 
 // The live examples of documentation pages as corpus cases (cli/examples.js
@@ -434,6 +567,7 @@ module.exports = {
   check: command('check', check),
   parse: command('parse', parse),
   build: command('build', buildPage),
+  mv: command('mv', mv),
   corpus: command('corpus', corpus),
   lsp: command('lsp', lsp),
 };

@@ -163,7 +163,7 @@ const targets = new links.Targets();
 
 function checkLinks({ file, x }) {
   for (const u of links.urls(x.a)) {
-    if (u.own) continue;
+    if (u.own || u.check === false) continue;
     const line = u.filePosition.start.line;
     const url = u.url.trim();
     if (url.startsWith('/') && !url.startsWith('//')) {

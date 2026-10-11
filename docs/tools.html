@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Command line and editors · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: The tern command line (new, check, parse, build, corpus), the language server, its tern/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, and the note-detection rule editors share.
+description: The tern command line (new, check, parse, build, mv, corpus), the language server, its tern/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, and the note-detection rule editors share.
 :::
 
 ::site-nav
@@ -10,7 +10,7 @@ description: The tern command line (new, check, parse, build, corpus), the langu
 
 ::toc
 
-Tern has one command-line program, `tern-cli.js`. It writes new notes, checks them, prints their syntax tree, pre-renders them into static pages, and runs a language server for your editor. It runs under Node and is never loaded by a note: a note needs only `tern.js`.
+Tern has one command-line program, `tern-cli.js`. It writes new notes, checks them, prints their syntax tree, pre-renders them into static pages, moves them with their links, and runs a language server for your editor. It runs under Node and is never loaded by a note: a note needs only `tern.js`.
 
 Every command runs the same engine the browser runs, on the same note, with the same vocabulary. So `tern check` reports the same diagnostics as the browser's panel, for everything the browser does not find only at run time (a formula KaTeX rejects, a script that fails), and your editor shows them again as you type.
 
@@ -62,7 +62,7 @@ $ echo $?
 | Code | Meaning |
 |---|---|
 | `0` | Done. |
-| `1` | `tern check` found a diagnostic at or above `--fail-on`, `tern new` refused to write the file, or `tern corpus` left out an example. |
+| `1` | `tern check` found a diagnostic at or above `--fail-on`, `tern new` refused to write the file, `tern mv` refused to move or a move failed, or `tern corpus` left out an example. |
 | `2` | A usage error (a missing argument, an unknown option, a bad value), or a path that cannot be used: a missing or unreadable file, or, for `tern parse` and `tern build`, a file that is not a note. |
 
 Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. Options are strict: an unknown option is a usage error, printed with the synopsis.
@@ -626,6 +626,95 @@ How a built page differs from a note:
 - **A failed CSS add-on is not reported.** Its link comes before `tern.js`, so its error has already happened. The browser's console reports it.
 - **When `tern.js` does not load**, the content still shows, with its styles. The add-ons, and any note script that calls `tern`, throw.
 - **The transforms ran at build time**, the add-ons' included (see [Vocabulary under Node](#vocabulary)). `tern.js` does not run them again on a built page.
+
+## tern mv {#mv}
+
+`tern mv` moves or renames notes, other files and folders, and rewrites the relative URLs that point at them, so that no link breaks. It is `mv` for a folder of notes.
+
+:::syntax[tern mv]
+```sh
+tern mv FROM… TO [--root=DIR] [--dry-run]
+```
+:::
+
+Moving `maps.html` into a new folder, `linear/`, first as a dry run:
+
+```sh
+$ tern mv --dry-run notes/maps.html notes/linear/
+would move notes/maps.html → notes/linear/maps.html
+notes/index.html:4:17: maps.html → linear/maps.html
+notes/index.html:5:18: maps.html → linear/maps.html
+notes/linear/maps.html:1:51: ../tern.js → ../../tern.js
+notes/linear/maps.html:4:15: img/kernel.svg → ../img/kernel.svg
+notes/linear/maps.html:10:24: index.html → ../index.html
+notes/vectors/basis.html:4:20: ../maps.html → ../linear/maps.html
+tern mv: 1 move, 6 links in 3 notes; a dry run, so nothing changed
+$ tern mv notes/maps.html notes/linear/
+moved notes/maps.html → notes/linear/maps.html
+…
+tern mv: 1 move, 6 links in 3 notes
+$ tern check notes
+tern check: 3 notes: 0 errors, 0 warnings, 0 infos
+```
+
+Each edit prints as `file:line:col: old → new`, with the file at its new path; the summary goes to stderr.
+
+| Option | What it does |
+|---|---|
+| `FROM…` | Notes, other files and folders. A folder moves with everything in it. |
+| `TO` | The new path. When it is a folder that exists, or ends in `/`, each FROM moves into it and keeps its name. With several FROMs, TO must be a folder that exists. Missing folders on the way are created. |
+| `--root=DIR` | The folder whose notes are searched for links, with its subfolders, as [`tern check`](#check-folders) finds notes. By default, the repository FROM is in (the nearest folder above it holding `.git`), else the current folder. |
+| `--dry-run`, `-n` | Prints the moves and the edits, and changes nothing. |
+
+### What it rewrites {#mv-rewrites}
+
+Two kinds of relative URL, wherever [link checking](#check-links) finds them, and also head scripts and script add-ons:
+
+- **URLs to what moved,** in every note under the root: a link to a moved note or into a moved folder, an image, a `::video{src=…}`, a raw `<a href>`, a stylesheet in `data-use`.
+- **A moved note's own URLs.** Its targets did not move, but the note did, so its links, images, `tern.js`, add-ons and head scripts are written again from its new folder. A link to a file moved with it, or to itself, works out right: inside a folder that moves, nothing changes.
+
+Each edit replaces the path of one URL and nothing else. Its fragment and query stay (`maps.html#thm-rn` becomes `linear/maps.html#thm-rn`), and so does how it is written:
+
+- `./maps.html` keeps its `./`;
+- a percent-escaped URL stays escaped (`my%20notes.html`), and `<my notes.html>` keeps its angle brackets;
+- an attribute keeps its quotes;
+- a bare destination that would now hold a space gets `%20` instead;
+- the file's line breaks stay as they were, `\r\n` included.
+
+### What it leaves alone {#mv-leaves}
+
+- URLs with a scheme, or starting with `//` or `/`, as link checking does.
+- A note with a `<base href>`: its URLs do not resolve from its folder. It is named on stderr.
+- Files that are not notes. A Markdown file, a plain HTML page or a script that names a moved note keeps its old name, since a name there need not be a URL. `tern mv` lists each one on stderr, so that you can look at it:
+
+  ```sh
+  tern mv: README.md names maps.html but is not a note, so it is left as it is; look at it
+  tern mv: docs/docs.js names maps.html but is not a note, so it is left as it is; look at it
+  ```
+
+  A site navigation list in an add-on, such as the one in Tern's own `docs.js`, is one of these.
+
+`tern mv` reads the notes but does not run their add-ons: a URL is syntax, so it works on any repository. It moves files with a rename, as `mv` does; git sees the rename when you stage it (`git add -A`).
+
+### Refusals {#mv-refusals}
+
+`tern mv` moves nothing, says why on stderr, and exits 1 when:
+
+- a destination exists. A rename that only changes the case, on a disk that ignores case, is allowed;
+- a folder would move into itself;
+- two FROMs have the same name;
+- FROM is already at TO.
+
+A FROM that does not exist, a FROM inside another FROM, and several FROMs with a TO that is not a folder are usage errors, with exit 2.
+
+A move that fails on the way, such as into a folder you cannot write to, undoes the moves before it: nothing has moved and no link has changed, and the exit code is 1.
+
+```sh
+$ tern mv notes/index.html notes/linear/maps.html
+tern mv: notes/linear/maps.html exists; move or remove it first
+$ tern mv notes notes/archive
+tern mv: cannot move notes into itself
+```
 
 ## tern corpus {#corpus}
 

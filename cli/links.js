@@ -27,7 +27,9 @@
 //                              the path as the disk spells it
 //     .ids(file)               a Set, or null when the file has no ids to know
 //   urls(a)                  the URLs of a note analysed as `a`, with where
-//                            they are: [{url, what, position?, filePosition}]
+//                            they are and where they are written
+//   parsed(text)             a note parsed, not transformed, for urls()
+//   parse(url)               what a relative URL names: {path, frag}, or null
 //   resolve(file, url, targets)  what a URL from the note at `file` names, and
 //                            its problem, if any
 //   check(file, a, targets)  the link diagnostics of the note at `file`,
@@ -39,13 +41,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { analyse, tern } = require('./note');
+const { analyse, split, tern } = require('./note');
 
 const SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:|^\/\//;
 const URL_KEYS = ['href', 'src', 'poster', 'data'];
 // A start tag, its quoted values whole, and a URL attribute in it.
 const TAG = /<([a-zA-Z][^\s/>]*)(?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*\s*\/?>/g;
 const URL_ATTR = /\s(href|src|poster)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi;
+const URL_ATTR_D = new RegExp(URL_ATTR.source, 'gid'); // with the values' offsets
 const decode = (s) => s.replace(/&(amp|quot|lt|gt|#39);/g, (_, k) => ({ amp: '&', quot: '"', lt: '<', gt: '>', '#39': "'" })[k]);
 // Comments blanked to spaces, so that offsets hold.
 const uncomment = (html) => html.replace(/<!--[\s\S]*?(?:-->|$)/g, (c) => c.replace(/[^\n]/g, ' '));
@@ -199,38 +202,52 @@ function markdownAnchors(text) {
   return ids;
 }
 
-// The note's URLs: [{url, what, position?, filePosition, own}]. `what` names
-// it in a message, %s standing for its path; `own` is true for a Tern link
-// within the note, which the engine checks.
+// The note's URLs: [{url, what, own, check, position?, filePosition, span}].
+// `what` names it in a message, %s standing for its path; `own` is true for
+// a Tern link within the note, which the engine checks; `check` is false for
+// head scripts and script add-ons, which head.script and addon.failed
+// report. `span` is where the URL is written, for tern mv to rewrite it:
+// {in: 'head' | 'tag' | 'note', from, to, quote}, offsets in a.head, a.tag
+// or a.note, quote one of " ' < (a Tern link's <…>), '' (bare) or ' ' (an
+// entry of data-use's list); null when it cannot be placed.
 function urls(a) {
   const out = [];
   const point = (p) => ({ start: p, end: p });
+  const value = (m, g) => (m[g] !== undefined ? g : m[g + 1] !== undefined ? g + 1 : g + 2); // the group that matched
+  const QUOTE = ['"', "'", ''];
   // The head and the tern.js tag, in file lines; the tag's items at column
   // 1, as addon.failed is.
   const head = uncomment(a.head);
   for (const m of head.matchAll(TAG)) {
-    if (m[1].toLowerCase() === 'script' || m[1].toLowerCase() === 'base') continue;
-    const span = { start: lineCol(a.head, m.index), end: lineCol(a.head, m.index + m[0].length) };
-    for (const u of m[0].matchAll(URL_ATTR)) out.push({ url: decode(u[2] ?? u[3] ?? u[4]), what: `the ${u[1].toLowerCase()} of the head's <${m[1].toLowerCase()}>, %s,`, filePosition: span });
+    const name = m[1].toLowerCase();
+    if (name === 'base') continue;
+    const at = { start: lineCol(a.head, m.index), end: lineCol(a.head, m.index + m[0].length) };
+    for (const u of m[0].matchAll(URL_ATTR_D)) {
+      const g = value(u, 2);
+      const span = { in: 'head', from: m.index + u.indices[g][0], to: m.index + u.indices[g][1], quote: QUOTE[g - 2] };
+      out.push({ url: decode(u[g]), what: `the ${u[1].toLowerCase()} of the head's <${name}>, %s,`, check: name !== 'script', filePosition: at, span });
+    }
   }
   const attr = (k) => {
-    const m = new RegExp(`\\s${k}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i').exec(a.tag);
-    return m ? decode(m[1] ?? m[2] ?? m[3]) : null;
+    const m = new RegExp(`\\s${k}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'id').exec(a.tag);
+    if (!m) return null;
+    const g = value(m, 1);
+    return { value: decode(m[g]), raw: m[g], from: m.indices[g][0], to: m.indices[g][1], quote: QUOTE[g - 1] };
   };
-  const src = attr('src');
   const tagAt = point({ line: a.line, column: 1 });
-  if (src !== null) out.push({ url: src, what: 'the tern.js this note loads, %s,', filePosition: tagAt, tern: true });
+  const src = attr('src');
+  if (src) out.push({ url: src.value, what: 'the tern.js this note loads, %s,', tern: true, filePosition: tagAt, span: { in: 'tag', from: src.from, to: src.to, quote: src.quote } });
   const css = attr('data-css');
-  if (css) out.push({ url: css, what: 'the stylesheet in data-css, %s,', filePosition: tagAt });
-  for (const entry of (attr('data-use') || '').split(/\s+/).filter(Boolean)) {
-    if (/\.css(?:[?#]|$)/i.test(entry)) out.push({ url: entry, what: 'the add-on %s', filePosition: tagAt });
-  }
+  if (css && css.value) out.push({ url: css.value, what: 'the stylesheet in data-css, %s,', filePosition: tagAt, span: { in: 'tag', from: css.from, to: css.to, quote: css.quote } });
+  const use = attr('data-use');
+  if (use)
+    for (const e of use.raw.matchAll(/\S+/g)) {
+      const entry = decode(e[0]);
+      out.push({ url: entry, what: 'the add-on %s', check: /\.css(?:[?#]|$)/i.test(entry), filePosition: tagAt, span: { in: 'tag', from: use.from + e.index, to: use.from + e.index + e[0].length, quote: ' ' } });
+    }
 
   // The note, in note positions.
-  const at = (offset) => {
-    const lc = lineCol(a.note, offset);
-    return { ...lc, offset };
-  };
+  const at = (offset) => ({ ...lineCol(a.note, offset), offset });
   const place = (start, end) => {
     const position = { start, end };
     return { position, filePosition: a.toFile(position) };
@@ -240,20 +257,86 @@ function urls(a) {
     const pos = (p) => ({ line: p.line, column: p.column, offset: p.offset });
     const [start, end] = [pos(node.position.start), pos(node.position.end)];
     if ((node.type === 'link' || node.type === 'image') && typeof node.url === 'string') {
-      out.push({ url: node.url, what: node.type === 'image' ? 'the image %s' : '%s', own: node.type === 'link' && node.url.startsWith('#'), ...place(start, end) });
+      out.push({ url: node.url, what: node.type === 'image' ? 'the image %s' : '%s', own: node.type === 'link' && node.url.startsWith('#'), ...place(start, end), span: destination(a.note, node) });
     }
     if (node.attributes && typeof node.attributes === 'object' && node.type !== 'code') {
-      for (const k of URL_KEYS) if (typeof node.attributes[k] === 'string') out.push({ url: node.attributes[k], what: `the ${k} %s`, ...place(start, end) });
+      for (const k of URL_KEYS) if (typeof node.attributes[k] === 'string') out.push({ url: node.attributes[k], what: `the ${k} %s`, ...place(start, end), span: attribute(a.note, node, k) });
     }
     if (node.type === 'html' && typeof node.value === 'string') {
-      const value = uncomment(node.value);
-      for (const m of value.matchAll(TAG)) {
-        const from = node.position.start.offset + m.index;
-        for (const u of m[0].matchAll(URL_ATTR)) out.push({ url: decode(u[2] ?? u[3] ?? u[4]), what: `the ${u[1].toLowerCase()} of <${m[1].toLowerCase()}>, %s,`, ...place(at(from), at(from + m[0].length)) });
+      const html = uncomment(node.value);
+      const base = node.position.start.offset;
+      const placed = a.note.slice(base, base + node.value.length) === node.value;
+      for (const m of html.matchAll(TAG)) {
+        const from = base + m.index;
+        for (const u of m[0].matchAll(URL_ATTR_D)) {
+          const g = value(u, 2);
+          const span = placed ? { in: 'note', from: from + u.indices[g][0], to: from + u.indices[g][1], quote: QUOTE[g - 2] } : null;
+          out.push({ url: decode(u[g]), what: `the ${u[1].toLowerCase()} of <${m[1].toLowerCase()}>, %s,`, ...place(at(from), at(from + m[0].length)), span });
+        }
       }
     }
   });
   return out;
+}
+
+// Where a Tern link's or image's destination is written: after the `](`
+// that ends its text, as <…> or a bare run with balanced parentheses. A
+// candidate counts when the engine reads it as the node's URL.
+function destination(note, node) {
+  const s = node.position.start.offset;
+  const slice = note.slice(s, node.position.end.offset);
+  for (let i = slice.lastIndexOf(']('); i >= 0; i = i > 0 ? slice.lastIndexOf('](', i - 1) : -1) {
+    let j = i + 2;
+    while (/\s/.test(slice[j] || '')) j++;
+    let from = j;
+    let to;
+    let quote = '';
+    if (slice[j] === '<') {
+      from = j + 1;
+      to = slice.indexOf('>', from);
+      quote = '<';
+      if (to < 0) continue;
+    } else {
+      let depth = 0;
+      for (to = j; to < slice.length; to++) {
+        const c = slice[to];
+        if (c === '\\') to++;
+        else if (/\s/.test(c)) break;
+        else if (c === '(') depth++;
+        else if (c === ')' && !depth--) break;
+      }
+    }
+    const raw = quote ? `<${slice.slice(from, to)}>` : slice.slice(from, to);
+    let read = null;
+    tern.visit(tern.parse(`[x](${raw})`).ast, (n) => {
+      if (n.type === 'link' && read === null) read = n.url;
+    });
+    if (read === node.url) return { in: 'note', from: s + from, to: s + to, quote };
+  }
+  return null;
+}
+
+// Where an element's URL attribute is written: in the attribute group on its
+// first line.
+function attribute(note, node, key) {
+  const s = node.position.start.offset;
+  const nl = note.indexOf('\n', s);
+  const line = note.slice(s, nl < 0 ? note.length : nl);
+  for (const m of line.matchAll(new RegExp(`(?:^|[\\s{])${key}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s}]+))`, 'gd'))) {
+    const g = m[1] !== undefined ? 1 : m[2] !== undefined ? 2 : 3;
+    if (m[g] === node.attributes[key]) return { in: 'note', from: s + m.indices[g][0], to: s + m.indices[g][1], quote: ['"', "'", ''][g - 1] };
+  }
+  return null;
+}
+
+// A note parsed but not transformed, its add-ons not run: its URLs are
+// syntax, and this reads them at no risk (tern mv).
+function parsed(text) {
+  const parts = split(text);
+  if (!parts) return null;
+  const { ast } = tern.parse(parts.note, { head: parts.head });
+  const shift = (p) => ({ line: p.line + parts.line, column: p.column });
+  return { ...parts, ast, toFile: (pos) => ({ start: shift(pos.start), end: shift(pos.end) }) };
 }
 
 // What a URL names: null when it is not checked, else {path, frag}: path ''
@@ -314,7 +397,7 @@ function checkLinks(file, a, targets) {
   const out = [];
   const say = (u, code, message, hint) => out.push({ code, severity: 'warning', message, hint, ...(u.position ? { position: u.position } : {}), filePosition: u.filePosition });
   for (const u of urls(a)) {
-    if (u.own) continue;
+    if (u.own || u.check === false) continue;
     const r = resolve(file, u.url, targets);
     if (!r || !r.problem) continue;
     const named = u.what.replace('%s', r.path);
@@ -341,4 +424,4 @@ function merge(own, more) {
   return out.concat(more.slice(i));
 }
 
-module.exports = { Targets, urls, resolve, check, merge };
+module.exports = { Targets, urls, parse, parsed, resolve, check, merge };

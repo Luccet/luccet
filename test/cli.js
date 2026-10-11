@@ -544,6 +544,132 @@ test("check: the head's links, the tern.js it loads, data-css and stylesheet add
   eq(JSON.parse(run(['check', 'lh/based.html', '--json']).out), [], 'a <base href>: nothing');
 });
 
+// ---------------------------------------------------------------- mv
+
+const T_LINE = `${FIRST}<script src="tern.js" data-use="theme.css"></script>\n`;
+function mvSite(dir) {
+  write(`${dir}/theme.css`, '');
+  write(`${dir}/img/kernel.svg`, '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  write(`${dir}/index.html`, `${T_LINE}# Index\n\nSee [maps](maps.html#thm-rn), [again](./maps.html), <a href="maps.html">raw</a> and [basis](vectors/basis.html).\n`);
+  write(
+    `${dir}/maps.html`,
+    `${FIRST}\r\n<link rel="stylesheet" href="theme.css">\r\n<script src="tern.js" data-use="theme.css"></script>\r\n# Linear maps {#maps}\r\n\r\n:::div{#thm-rn}\r\n` +
+      'Back to [the index](index.html), [itself](maps.html#maps), ![k](img/kernel.svg){.w} and [ext](https://x.org/a.html).\r\n:::\r\n',
+  );
+  write(`${dir}/vectors/basis.html`, `${FIRST}<script src="../tern.js"></script>\n# Basis {#b}\n\n[Maps](../maps.html#thm-rn), [index](../index.html) and [span](span.html).\n`);
+  write(`${dir}/vectors/span.html`, `${FIRST}<script src="../tern.js"></script>\n# Span\n\n[basis](basis.html#b).\n`);
+}
+
+test('mv: a note moved into a new folder; the links to it and its own rewritten, CRLF kept; --dry-run changes nothing', () => {
+  mvSite('mv1');
+  write('mv1/README.md', '# Site\n\nStart at [the maps](maps.html).\n');
+  const before = read('mv1/index.html');
+  const dry = run(['mv', '--dry-run', 'mv1/maps.html', 'mv1/linear/maps.html', '--root=mv1']);
+  exits(dry, 0, 'mv --dry-run');
+  ok(dry.out.startsWith('would move mv1/maps.html → mv1/linear/maps.html\n'), `dry run: ${dry.out}`);
+  ok(/a dry run, so nothing changed/.test(dry.err) && read('mv1/index.html') === before && fs.existsSync(at('mv1/maps.html')), 'nothing changed');
+  const r = run(['mv', 'mv1/maps.html', 'mv1/linear/maps.html', '--root=mv1']);
+  exits(r, 0, 'mv');
+  eq(r.out.trimEnd().split('\n'), [
+    'moved mv1/maps.html → mv1/linear/maps.html',
+    'mv1/index.html:4:12: maps.html → linear/maps.html',
+    'mv1/index.html:4:39: ./maps.html → ./linear/maps.html',
+    'mv1/index.html:4:62: maps.html → linear/maps.html',
+    'mv1/linear/maps.html:2:30: theme.css → ../theme.css',
+    'mv1/linear/maps.html:3:14: tern.js → ../tern.js',
+    'mv1/linear/maps.html:3:33: theme.css → ../theme.css',
+    'mv1/linear/maps.html:7:21: index.html → ../index.html',
+    'mv1/linear/maps.html:7:65: img/kernel.svg → ../img/kernel.svg',
+    'mv1/vectors/basis.html:4:8: ../maps.html → ../linear/maps.html',
+  ], 'the moves and the edits');
+  ok(/1 move, 9 links in 3 notes/.test(r.err), `summary: ${r.err}`);
+  ok(r.err.includes('tern mv: mv1/README.md names maps.html but is not a note, so it is left as it is; look at it'), `a file that is not a note: ${r.err}`);
+  eq(read('mv1/README.md'), '# Site\n\nStart at [the maps](maps.html).\n', 'and left as it is');
+  ok(!fs.existsSync(at('mv1/maps.html')), 'moved');
+  eq(read('mv1/index.html').split('\n')[3], 'See [maps](linear/maps.html#thm-rn), [again](./linear/maps.html), <a href="linear/maps.html">raw</a> and [basis](vectors/basis.html).', 'index.html');
+  eq(read('mv1/linear/maps.html').split('\r\n').slice(1, 3).concat(read('mv1/linear/maps.html').split('\r\n')[6]), [
+    '<link rel="stylesheet" href="../theme.css">',
+    '<script src="../tern.js" data-use="../theme.css"></script>',
+    'Back to [the index](../index.html), [itself](maps.html#maps), ![k](../img/kernel.svg){.w} and [ext](https://x.org/a.html).',
+  ], 'the moved note, its \\r\\n line breaks kept');
+  const c = run(['check', 'mv1', '--fail-on=warning']);
+  exits(c, 0, `tern check after the move: ${c.out}`);
+});
+
+test('mv: a folder moves with what it holds; an image; two notes moved together; how a URL is written is kept', () => {
+  mvSite('mv2');
+  exits(run(['mv', 'mv2/vectors', 'mv2/linalg/', '--root=mv2']), 0, 'a folder into a new one');
+  eq(read('mv2/linalg/vectors/span.html').split('\n')[3], '[basis](basis.html#b).', 'a link inside the folder stays');
+  eq(read('mv2/linalg/vectors/basis.html').split('\n')[3], '[Maps](../../maps.html#thm-rn), [index](../../index.html) and [span](span.html).', 'links out of it');
+  ok(read('mv2/index.html').includes('[basis](linalg/vectors/basis.html)'), 'a link into it');
+  exits(run(['mv', 'mv2/img/kernel.svg', 'mv2/img/kernel map.svg', '--root=mv2']), 0, 'an image, to a name with a space');
+  ok(read('mv2/maps.html').includes('![k](img/kernel%20map.svg){.w}'), 'a bare destination escapes the space');
+  fs.mkdirSync(at('mv2/archive'));
+  const r = run(['mv', 'mv2/index.html', 'mv2/maps.html', 'mv2/archive', '--root=mv2']);
+  exits(r, 0, 'two notes into a folder');
+  ok(read('mv2/archive/index.html').includes('See [maps](maps.html#thm-rn), [again](./maps.html), <a href="maps.html">raw</a>'), 'links between them, from their new folder');
+  ok(read('mv2/archive/maps.html').includes('Back to [the index](index.html)'), 'and back');
+  write('mv2/style.html', `${FIRST}<script src="tern.js"></script>\n[a](<my notes.html>), [b](my%20notes.html), <a href='my notes.html'>c</a>.\n`);
+  write('mv2/my notes.html', `${FIRST}<script src="tern.js"></script>\n# Notes\n`);
+  exits(run(['mv', 'mv2/my notes.html', 'mv2/old/my files.html', '--root=mv2']), 0, 'a name with a space');
+  eq(read('mv2/style.html').split('\n')[1], "[a](<old/my files.html>), [b](old/my%20files.html), <a href='old/my files.html'>c</a>.", 'angle brackets, percent-escapes and quotes kept');
+  exits(run(['check', 'mv2', '--fail-on=warning']), 0, 'tern check after the moves');
+});
+
+test('mv: the repository FROM is in, else the current folder; --root', () => {
+  write('mv3/repo/.git', 'gitdir: elsewhere\n');
+  write('mv3/repo/a.html', `${FIRST}<script src="tern.js"></script>\n[b](b.html)\n`);
+  write('mv3/repo/b.html', `${FIRST}<script src="tern.js"></script>\n# B\n`);
+  write('mv3/outside.html', `${FIRST}<script src="tern.js"></script>\n[b](repo/b.html)\n`);
+  exits(run(['mv', 'mv3/repo/b.html', 'mv3/repo/c.html']), 0, 'mv in a repository');
+  ok(read('mv3/repo/a.html').includes('[b](c.html)'), 'a note in the repository');
+  ok(read('mv3/outside.html').includes('[b](repo/b.html)'), 'a note outside it is not searched');
+  write('mv3/outside2.html', `${FIRST}<script src="tern.js"></script>\n[c](repo/c.html)\n`);
+  exits(run(['mv', 'mv3/repo/c.html', 'mv3/repo/d.html', '--root=mv3']), 0, '--root');
+  ok(read('mv3/outside2.html').includes('[c](repo/d.html)') && read('mv3/repo/a.html').includes('[b](d.html)'), 'both, under --root');
+});
+
+test('mv: refusals (exit 1) and usage errors (exit 2)', () => {
+  write('mv4/a.html', `${FIRST}<script src="tern.js"></script>\n# A\n`);
+  write('mv4/b.html', `${FIRST}<script src="tern.js"></script>\n# B\n`);
+  write('mv4/d/x.html', `${FIRST}<script src="../tern.js"></script>\n# X\n`);
+  const refused = (args, message) => {
+    const r = run(['mv', ...args, '--root=mv4']);
+    exits(r, 1, args.join(' '));
+    eq(r.err.trim(), `tern mv: ${message}`, args.join(' '));
+  };
+  refused(['mv4/a.html', 'mv4/b.html'], 'mv4/b.html exists; move or remove it first');
+  refused(['mv4/d', 'mv4/d/e'], 'cannot move mv4/d into itself');
+  refused(['mv4/a.html', 'mv4/a.html'], 'mv4/a.html is already there');
+  const usage = (args, message) => {
+    const r = run(['mv', ...args]);
+    exits(r, 2, args.join(' '));
+    ok(r.err.startsWith(`tern mv: ${message}`), `${args.join(' ')}: ${r.err}`);
+  };
+  usage(['mv4/a.html'], 'give FROM and TO');
+  usage(['mv4/nope.html', 'mv4/c.html'], 'cannot read mv4/nope.html: no such file or directory');
+  usage(['mv4/a.html', 'mv4/b.html', 'mv4/c.html'], 'with several FROMs, TO must be a folder that exists');
+  fs.mkdirSync(at('mv4/e'), { recursive: true });
+  usage(['mv4/d', 'mv4/d/x.html', 'mv4/e'], 'mv4/d/x.html is inside mv4/d; name only mv4/d');
+  usage(['mv4/a.html', 'mv4/c.html', '--root=mv4/nope'], '--root mv4/nope is not a folder');
+  ok(fs.existsSync(at('mv4/a.html')) && fs.existsSync(at('mv4/d/x.html')), 'nothing moved');
+  // A move that fails undoes those before it (a folder that cannot be
+  // written to; root writes anyway, so not as root).
+  if (process.getuid && process.getuid() !== 0) {
+    fs.mkdirSync(at('mv4/ro'));
+    fs.writeFileSync(at('mv4/ro/first.html'), '');
+    fs.chmodSync(at('mv4/ro'), 0o555);
+    try {
+      const r = run(['mv', 'mv4/a.html', 'mv4/ro/first.html', 'mv4/e', '--root=mv4']);
+      exits(r, 1, 'a move that fails');
+      ok(/nothing was moved, and the links are left as they were/.test(r.err) && r.out === '', `says so: ${r.err}`);
+      ok(fs.existsSync(at('mv4/ro/first.html')) && fs.existsSync(at('mv4/a.html')) && !fs.existsSync(at('mv4/e/a.html')), 'the first move undone');
+    } finally {
+      fs.chmodSync(at('mv4/ro'), 0o755);
+    }
+  }
+});
+
 // ---------------------------------------------------------------- parse
 
 test('parse: the AST as JSON, parsed or transformed, pretty or compact', () => {
