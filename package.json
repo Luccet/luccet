@@ -14,6 +14,7 @@
   },
   "scripts": {
     "build": "node tools/concat.js",
+    "bump": "node tools/version.js",
     "themes": "node tools/themes.js",
     "hljs": "node tools/hljs.js",
     "mermaid": "node tools/mermaid.js",
