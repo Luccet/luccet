@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Command line and editors · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: The tern command line (new, check, parse, build, mv, corpus), the language server, its tern/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, and the note-detection rule editors share.
+description: The tern command line (new, check, parse, build, mv, corpus), the language server, its tern/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, a skill for coding agents, and the note-detection rule editors share.
 :::
 
 ::site-nav
@@ -402,7 +402,7 @@ tern check: 1 note: 1 error, 1 warning, 2 infos
 
 ### Links between files {#check-links}
 
-`tern check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`:
+`tern check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`; a wrong path to the `tern.js` the note loads is an error, since the note does not render:
 
 - [`link.missing`](diagnostics.html#link-missing): the file does not exist, the link names a folder with no `index.html`, or the name's case differs from the file's;
 - [`link.dangling`](diagnostics.html#link-dangling): the file exists, but the fragment after `#` names no id in it.
@@ -1411,6 +1411,24 @@ The repository's `.vscode/settings.json` does all three for VS Code:
 ```
 
 In Vim and Neovim, `setlocal formatoptions-=t` for HTML buffers stops wrapping while you type. What each of these does to a note is on [When it does not render](publishing.html#troubleshooting).
+
+## Coding agents {#agents}
+
+Coding agents, such as GitHub Copilot, Claude Code, Codex or Cursor, know Markdown and HTML, and both habits break notes. `_emphasis_`, a heading underlined with `===` and a reference link render as text, with no diagnostic. An agent that takes the body for HTML escapes it, wraps it in tags or runs a formatter on it.
+
+The repository's `skills/` folder has a skill that teaches an agent Tern, `tern-notes`, in the [Agent Skills](https://agentskills.io/specification) format these agents read. Install it in your project with the GitHub CLI:
+
+```sh
+gh skill install OscarAC/tern tern-notes                        # Copilot, Codex, Cursor …
+gh skill install OscarAC/tern tern-notes --agent claude-code    # Claude Code
+```
+
+Or copy `skills/tern-notes/` into your project's `.github/skills/`, `.agents/skills/` or `.claude/skills/`. Install the skill from the release of Tern your notes load, so that it describes the same syntax.
+
+- **`SKILL.md`** is what the agent reads when you ask it to write or fix a note: the first line, the habits that do not carry over from Markdown and LaTeX, the syntax at a glance, vocabularies, the common diagnostics, and the loop of editing and running `tern check` until the note is clean.
+- **`references/`** holds what it reads when it needs more: the whole syntax, vocabularies and themes, every diagnostic with its fix, and the command line and publishing.
+
+Every example in the skill is checked against the engine by the test suite, as this documentation's examples are, so the skill changes when Tern does.
 
 ## The tern/outline notification {#outline}
 

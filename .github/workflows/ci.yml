@@ -93,5 +93,6 @@ jobs:
       - run: node test/cli.js
       - run: node test/lsp.js
       - run: node test/docs.js # the documentation's pages, live examples and links
+      - run: node test/skills.js # skills/: the agent skills, their format, examples and links
 
   # The release job is .github/workflows/release.yml (a pushed tag vX.Y.Z).

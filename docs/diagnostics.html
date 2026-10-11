@@ -90,7 +90,7 @@ The first 53 codes come from the parser and the transforms, so `tern.check`, `te
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
 | [`addon.remote`](#addon-remote) | info | A remote add-on was not loaded under node. |
-| [`link.missing`](#link-missing) | warning | A link names a file that does not exist. |
+| [`link.missing`](#link-missing) | error or warning | A link names a file that does not exist. |
 | [`link.dangling`](#link-dangling) | warning | A link's fragment names no id in its file. |
 
 ## The diagnostic object {#object}
@@ -130,7 +130,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
 | `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
 | `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 
-Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with one exception: `head.script` is an info for a remote script and a warning otherwise. The six runtime codes are all errors, `addon.remote` is an info, and the two link codes are warnings.
+Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The six runtime codes are all errors, `addon.remote` is an info, and `link.dangling` is a warning.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -2882,7 +2882,7 @@ tern check: 1 note: 0 errors, 0 warnings, 1 info
 
 ### `link.missing` {#link-missing}
 
-**Warning.** A link names a file that does not exist.
+**Error or warning.** A link names a file that does not exist.
 
 - **Trigger.** `tern check` resolves each relative URL of a note from the note's folder, as a browser does ([which URLs](tools.html#check-links)), and finds that:
   - no file or folder has that path;
@@ -2891,7 +2891,7 @@ tern check: 1 note: 0 errors, 0 warnings, 1 info
 
   The browser never reports it: a broken link shows only when someone follows it. The language server reports it as you type, reading notes open in the editor as they are there ([links in the editor](tools.html#lsp-links)).
 - **Position.** The link: a Tern link or image at its `[` or `!`, an element at its start, a raw HTML tag at its `<`. A tag in the head has only a file position, and so do the `tern.js` line's own URLs: its line, column 1.
-- **Content.** None: the note renders as it would. A reader who follows the link gets a missing page, image or stylesheet. When the missing file is the `tern.js` the note loads, the note does not render at all, and the message says so.
+- **Content.** None: the note renders as it would. A reader who follows the link gets a missing page, image or stylesheet. A warning, except for the `tern.js` the note loads: without it the note does not render at all, so a wrong path to it, or one in another case, is an error, and the message says so.
 
 ```html
 <!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="themes/nrd.css"></script>

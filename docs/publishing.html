@@ -493,7 +493,7 @@ error doc.quirks at the tern.js line (file line 1): the file has no <!doctype ht
 
 **Cause.** The `src` does not lead to `tern.js`: a wrong relative path, a root-relative path opened from disk, a file not uploaded, or a CDN that is unreachable.
 
-**Fix.** Check the path from the note's folder. `tern new` writes the right one for the `tern.js` it finds above the note. Open the browser's network panel to see the URL it tried.
+**Fix.** Check the path from the note's folder: `tern check` reports a local one that leads nowhere as a [`link.missing`](diagnostics.html#link-missing) error. `tern new` writes the right one for the `tern.js` it finds above the note. Open the browser's network panel to see the URL it tried.
 
 **The guard.** `tern new --guarded` adds a guard to the first line. When `tern.js` does not load, the reader then sees "tern.js did not load; the source follows." and the note exactly as written, as plain text, instead of the run-together paragraph. When JavaScript is off, they see "JavaScript is off; the source follows." The guard does nothing when `tern.js` loads. How it works is on [The guard](tools.html#guarded).
 
