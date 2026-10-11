@@ -51,6 +51,10 @@ node tern-cli.js lsp                              # the language server, over st
 
 Named blocks such as `:::theorem` get labels, counters and elements from a schema: an add-on listed in `data-use`, or `window.TERN = {schema: …}` in a script before the tern.js line ([Vocabulary and behaviour](docs/schema.html)).
 
+## Agent skills
+
+[`skills/tern-notes`](skills/tern-notes/SKILL.md) teaches coding agents (GitHub Copilot, Claude Code, Codex, Cursor) to write, check and fix notes. Install it in a project with `gh skill install OscarAC/tern tern-notes`, or copy it into the project's `.github/skills/` ([skills/README.md](skills/README.md)).
+
 ## Development
 
 ```

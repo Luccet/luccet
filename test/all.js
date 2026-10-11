@@ -22,6 +22,7 @@ const STEPS = [
   ['language', ['language.js']],
   ['lsp', ['lsp.js']],
   ['docs', ['docs.js']],
+  ['skills', ['skills.js']],
 ];
 const STATUS = { 0: 'pass', 1: 'FAIL', 2: 'no engine' };
 
