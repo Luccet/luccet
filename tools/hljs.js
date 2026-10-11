@@ -6,8 +6,8 @@
 // and the aliases a fence may use for it (`tex` for latex). Run it to move
 // to another version; it needs the network once per version.
 //
-// The package comes from the npm registry, checked against its sha512, and
-// is kept in node_modules/.cache/tern-smoke/ (test/smoke.js serves the same
+// The package comes from the npm registry, through tools/npm.js, which
+// keeps it in node_modules/.cache/tern-smoke/ (test/smoke.js serves the same
 // copy). jsDelivr's /npm/ files are the package's bytes, so the hashes hold.
 //
 //   node tools/hljs.js [VERSION]   rewrite the table (default: the version in it)
@@ -17,56 +17,17 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const zlib = require('zlib');
-const crypto = require('crypto');
+const npm = require('./npm');
 
 const ROOT = path.join(__dirname, '..');
 const ADDON = path.join(ROOT, 'addons', 'code.js');
-const CACHE = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
 const PKG = '@highlightjs/cdn-assets';
 const START = '  // <hljs> written by tools/hljs.js; do not edit by hand';
 const END = '  // </hljs>';
 
-// The files of a ustar/pax tarball whose path starts with `prefix`.
-function untar(buf, prefix, onFile) {
-  let off = 0;
-  let paxPath = null;
-  while (off + 512 <= buf.length) {
-    const h = buf.subarray(off, off + 512);
-    if (h.every((b) => b === 0)) break;
-    const field = (a, b) => h.toString('utf8', a, b).replace(/\0[\s\S]*$/, '');
-    const size = parseInt(field(124, 136).trim() || '0', 8);
-    const type = String.fromCharCode(h[156] || 48);
-    const name = paxPath || (field(345, 500) ? field(345, 500) + '/' : '') + field(0, 100);
-    const body = buf.subarray(off + 512, off + 512 + size);
-    paxPath = null;
-    if (type === 'x') paxPath = (/(?:^|\n)\d+ path=([^\n]*)\n/.exec(body.toString('utf8')) || [])[1] || null;
-    else if (type === '0' && name.startsWith(prefix)) onFile(name.slice(prefix.length), body);
-    off += 512 + Math.ceil(size / 512) * 512;
-  }
-}
-
 // node_modules/.cache/tern-smoke/highlightjs-VERSION/, the package's files.
-async function packageDir(version) {
-  const dir = path.join(CACHE, `highlightjs-${version}`);
-  if (fs.existsSync(path.join(dir, 'highlight.min.js'))) return dir;
-  const meta = await (await fetch(`https://registry.npmjs.org/${PKG.replace('/', '%2f')}/${version}`)).json();
-  if (!meta.dist) throw new Error(`${PKG}@${version} is not on the npm registry`);
-  const tgz = Buffer.from(await (await fetch(meta.dist.tarball)).arrayBuffer());
-  const want = String(meta.dist.integrity || '').replace(/^sha512-/, '');
-  if (crypto.createHash('sha512').update(tgz).digest('base64') !== want) throw new Error(`${PKG}@${version}: the tarball does not match its sha512`);
-  const tmp = `${dir}.tmp-${process.pid}`;
-  untar(zlib.gunzipSync(tgz), 'package/', (rel, body) => {
-    const out = path.join(tmp, rel);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    fs.writeFileSync(out, body);
-  });
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.renameSync(tmp, dir);
-  return dir;
-}
-
-const sri = (file) => `sha384-${crypto.createHash('sha384').update(fs.readFileSync(file)).digest('base64')}`;
+const packageDir = (version) => npm.packageDir(PKG, version, { folder: `highlightjs-${version}`, has: 'highlight.min.js' });
+const sri = npm.sri;
 
 // The table's source text for `version`.
 async function table(version) {

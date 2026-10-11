@@ -230,8 +230,10 @@
 
   // highlight.js: the page's own, or the common bundle, asked for now so that
   // it loads alongside the add-ons and KaTeX rather than after the mount.
-  const given = window.hljs || null;
-  const core = given ? Promise.resolve(given) : load(`${base}/highlight.min.js`, HLJS.core).then((ok) => (ok && window.hljs) || null);
+  // window.hljs can be an element with id="hljs", which the browser names on window.
+  const found = () => (window.hljs && typeof window.hljs.highlight === 'function' ? window.hljs : null);
+  const given = found();
+  const core = given ? Promise.resolve(given) : load(`${base}/highlight.min.js`, HLJS.core).then((ok) => (ok && found()) || null);
   core.then((h) => h || console.warn(`Tern code.js: highlight.js did not load from ${base}, so code stays plain`));
 
   // A language the core lacks: its file, by name or alias, loaded once.
