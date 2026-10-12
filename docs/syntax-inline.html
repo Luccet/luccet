@@ -1549,7 +1549,7 @@ Cites b[^b] then a[^a], and b[^b]{.again} again.
 [^b]: Note B.
 ```
 
-**Labels are case-insensitive.** Two labels match when their `label.toLowerCase().toUpperCase()` are equal, so `[^A]` reaches `[^a]:`, and `[^ß]` reaches `[^ss]:`. The ids use the *definition's* label as written:
+**Labels are case-insensitive.** Two labels match when their `label.toLowerCase().toUpperCase().toLowerCase()` are equal, so `[^A]` reaches `[^a]:`, and `[^ß]` reaches `[^ss]:`. The ids use the *definition's* label as written:
 
 ```tern {.live}
 Once[^KERNEL], twice[^kernel], and Straße[^ß].
