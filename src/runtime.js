@@ -173,17 +173,17 @@ function undefine(name) {
 // have not had them and formulas not yet typeset are typeset, so a second
 // call with no source changes nothing. Resolves to the source's
 // diagnostics, which replace tern.diagnostics when root is the page's main.
-function render(root, source) {
+function render(root, source, opts) {
   if (!BROWSER) return Promise.resolve([]);
-  return renderRoot(root, source);
+  return renderRoot(root, source, !!(opts && opts.safe));
 }
 
-async function renderRoot(root, source) {
+async function renderRoot(root, source, safe) {
   root = root || main || document.querySelector('main.tern');
   if (!root || root.nodeType !== 1) throw new TypeError('tern.render(root, source): root must be an element');
   let list = [];
   if (source !== undefined) {
-    const r = compile(String(source));
+    const r = compile(String(source), safe);
     list = r.list;
     const tpl = document.createElement('template');
     tpl.innerHTML = r.html;
@@ -197,9 +197,13 @@ async function renderRoot(root, source) {
       append(diagnostics, list);
       rebuildPanel();
     }
-    await runScripts(root, r.ast);
+    // Under `safe` the note is untrusted: its scripts do not run, and
+    // behaviours (schema `dom`, tern.define — host code acting on untrusted
+    // content) are skipped. Its raw HTML is escaped and risky attributes
+    // dropped by emit; math still typesets (KaTeX, trust off).
+    if (!safe) await runScripts(root, r.ast);
   }
-  await process(root);
+  await process(root, safe);
   return list;
 }
 
@@ -639,11 +643,11 @@ function writeMeta(m) {
 // ---------------------------------------------------------------- mount
 
 // parse → transform → emit, with every diagnostic in document order.
-function compile(source) {
+function compile(source, safe) {
   const opts = { head: page ? page.head : '', lang: config.lang || undefined };
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
-  return { ast, html: T.emit(ast, Object.assign({ cssom: true }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
 }
 
 // Tern's own presentational styles, a column's alignment and a grid's
@@ -909,12 +913,12 @@ function intercept(on) {
 
 // ---------------------------------------------------------------- behaviours
 
-async function process(root) {
+async function process(root, safe) {
   roots.add(root);
   presentation(root);
   texAttributes(root);
   lineNumbers(root);
-  behaviours(root);
+  if (!safe) behaviours(root);
   fire('render', root);
   await typeset(root);
   fire('math', root);

@@ -34,6 +34,17 @@ const VERBATIM_ERROR = new Set(['script', 'style', 'html']); // core containers 
 // Under `safe`: attributes that hold a URL, and the schemes kept.
 const URL_KEYS = new Set('href src action poster cite data background longdesc manifest ping icon codebase usemap xlink:href srcset archive profile lowsrc dynsrc classid'.split(' '));
 const SAFE_SCHEME = /^(?:https?|mailto)$/i;
+// Under `safe`, a named element that resolves to one of these is neutralised
+// to a plain container (div, or span inline), keeping its id, class, data-t
+// and content: these load or run external content, navigate, or (a hyphen)
+// are a custom element the host may have defined. Raw HTML with these tags is
+// escaped already; this catches `::iframe` and `{tag=form}`.
+const UNSAFE_TAG = new Set('iframe object embed frame frameset base form meta link portal fencedframe applet'.split(' '));
+const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
+// Under `safe`, attributes dropped from every element whatever their value:
+// event handlers (on*, caught by the regex), ones that run or submit, and
+// ones that steer navigation or focus.
+const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style'.split(' '));
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -190,7 +201,7 @@ function attrs(a, pre, post, extra, skip, fence) {
   for (const k in a) {
     if (k === 'id' || k === 'class' || k === skip || RESERVED_KEYS.has(k) || (fence && FENCE_KEYS.has(k)) || !ATTR_NAME.test(k)) continue;
     const v = a[k] == null ? '' : String(a[k]);
-    if (safe && (/^on/i.test(k) || k === 'srcdoc' || k === 'formaction' || k === 'style' || (URL_KEYS.has(k) && !safeSet(k, v)))) continue;
+    if (safe && (/^on/i.test(k) || UNSAFE_ATTR.has(k.toLowerCase()) || (URL_KEYS.has(k) && !safeSet(k, v)))) continue;
     s += v === '' ? ` ${k}` : ` ${k}="${escAttr(v)}"`;
   }
   return s;
@@ -527,7 +538,7 @@ function container(n, a) {
   // runtime finds macros by `.t-macros`, and `hidden` is tern's.
   if (name === 'macros') return void write(`<div${attrs(a, 't-macros', '', ` hidden${pos(n)}`, 'hidden')}>${esc(n.value || '')}</div>\n`);
   if (VERBATIM_ERROR.has(name)) return void write(`<pre${attrs(a, 't-error', '', pos(n))}>${esc(n.value || '')}</pre>\n`);
-  const tag = t.tag || 'div';
+  const tag = safe && unsafeTag(t.tag || 'div') ? 'div' : t.tag || 'div';
   const list = n.children || [];
   const label = list[0] && list[0].data && list[0].data.directiveLabel ? list[0] : null;
   const b = label ? 1 : 0; // the body is list[b…]
@@ -564,7 +575,7 @@ function label(t, more) {
 // paragraph; a toc leaf holds its list.
 function leaf(n, a) {
   const t = tern(n);
-  const tag = t.tag || 'div';
+  const tag = safe && unsafeTag(t.tag || 'div') ? 'div' : t.tag || 'div';
   if (Array.isArray(t.toc)) return toc(n, a, tag, t.toc, t);
   const open = `<${tag}${named(n, a, '')}>`;
   if (VOID.has(tag)) {
@@ -630,7 +641,7 @@ function tocNext(t) {
 // An inline element, its label first; a void one is followed by its content.
 function inlineElement(n, a) {
   const t = tern(n);
-  const tag = t.tag || 'span';
+  const tag = safe && unsafeTag(t.tag || 'span') ? 'span' : t.tag || 'span';
   if (VOID.has(tag)) return void (write(`<${tag}${named(n, a, '')}>`), kids(n.children));
   wrapped(`<${tag}${named(n, a, '')}>${label(t, n.children && n.children.length > 0)}`, n.children, `</${tag}>`);
 }

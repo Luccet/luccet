@@ -446,8 +446,14 @@ A note is a web page, and Tern does not sandbox it.
 
 - **A note runs its own scripts.** `<script>` blocks in the note are re-created and run in document order, with the page's full privileges, as are scripts in the head and add-ons in `data-use`. Opening someone's note is opening their web page.
 - **Raw HTML is the author's.** HTML written in the note reaches the page byte for byte: event-handler attributes, `<iframe>`s, forms. Links keep their destinations, including `javascript:` URLs.
-- **`safe: true` exists for untrusted input.** The engine's `safe` option escapes raw HTML (a raw block is shown in a `<pre>`, an inline tag as text), drops `on…` handlers, `srcdoc`, `formaction` and `style` attributes, and drops URLs that are not `http(s)`, `mailto` or relative. See [Raw HTML and safe mode](elements.html#safe) and [tern.toHTML](api.html#tohtml).
-- **The runtime never uses it.** The note on the page is always rendered without `safe`, and so is a source passed to [`tern.render(root, source)`](api.html#render). To show text you do not trust, such as comments posted by others, render it yourself and insert the result:
+- **`safe: true` exists for untrusted input.** The engine's `safe` option escapes raw HTML (a raw block is shown in a `<pre>`, an inline tag as text), neutralises dangerous elements (a frame, a form, a custom element) to a plain container, drops `on…` handlers and other running or navigating attributes, and drops URLs that are not `http(s)`, `mailto` or relative. See [Safe rendering](elements.html#safe) and [tern.toHTML](api.html#tohtml).
+- **The page's own note is rendered without it.** A note you publish is trusted like any page you write. To show text you do **not** trust, such as comments posted by others, render it with `safe`: either render into an element (scripts and behaviours are then skipped too, and math is typeset),
+
+  ```js
+  await tern.render(box, untrustedText, { safe: true });
+  ```
+
+  or get the HTML and insert it yourself:
 
   ```js
   element.innerHTML = tern.toHTML(untrustedText, { safe: true });

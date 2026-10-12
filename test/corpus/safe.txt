@@ -1,7 +1,9 @@
 # Safe rendering (raw HTML scoping)
 
-`safe: true` escapes `html` nodes and drops `on*`, `srcdoc`, `formaction` and
-`style` attributes, and URLs other than http(s), mailto and relative ones.
+`safe: true` escapes `html` nodes, neutralises elements that load, run or
+navigate (and custom elements) to a plain container, drops `on*` and other
+attributes that run or steer navigation, and drops URLs other than http(s),
+mailto and relative ones.
 
 ## safe/raw-blocks-escaped
 
@@ -71,17 +73,55 @@ Body.
 spec: elements#safe syntax-blocks#leaf
 options: safe
 
-`srcdoc`, `formaction` and `style` are dropped; `src` with a relative URL and classes stay.
+`srcdoc`, `formaction` and `style` are dropped; a span's classes stay. An `::iframe` is neutralised to a plain element (below), so its `src` is inert.
 
 ````tern
-::iframe{srcdoc="<b>x</b>" src=map.html}
-
 [go]{formaction=/x} [s]{style="color:red" .k}
 ````
 
 ````html
-<iframe class="iframe" data-t="iframe" src="map.html"></iframe>
 <p><span>go</span> <span class="k">s</span></p>
+````
+
+## safe/unsafe-elements-neutralised
+
+spec: elements#safe syntax-blocks#leaf syntax-blocks#container
+options: safe
+
+A named element that resolves to one that loads, runs or navigates — a frame, an object, a form, `<base>`, `<meta>`, `<link>` — or to a custom element (a hyphen in the name) is emitted as a plain `div` (a `span` inline), keeping its id, class, `data-t` and content. Raw HTML with these tags is escaped already; this catches `::iframe` and `{tag=form}`.
+
+````tern
+::iframe{src=map.html #f}
+
+:::signup{tag=form action=/submit}
+Body.
+:::
+
+A :tide-clock[clock]{station=leith} inline.
+````
+
+````html
+<div class="iframe" data-t="iframe" id="f" src="map.html"></div>
+<div class="t-block signup" data-t="signup" action="/submit"><p>Body.</p></div>
+<p>A <span class="tide-clock" data-t="tide-clock" station="leith">clock</span> inline.</p>
+````
+
+## safe/navigation-attributes-dropped
+
+spec: elements#safe syntax-blocks#merging-and-emission
+options: safe
+
+Attributes that steer navigation or focus — `target`, `ping`, `is`, `autofocus`, `formtarget` — are dropped; an ordinary `rel` and the link stay.
+
+````tern
+[x](https://a.org){target=_blank ping=/p rel=noopener}
+
+[y]{is=my-button autofocus title=t}
+````
+
+````html
+<p><a href="https://a.org" rel="noopener">x</a></p>
+<p><span title="t">y</span></p>
 ````
 
 ## safe/javascript-urls-dropped
