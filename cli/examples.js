@@ -20,7 +20,7 @@
 'use strict';
 
 const path = require('path');
-const { analyse, addons, tern } = require('./note');
+const { analyse, tern } = require('./note');
 
 const NONE = Object.freeze({ block: Object.freeze({}), leaf: Object.freeze({}), inline: Object.freeze({}) });
 
@@ -70,20 +70,10 @@ const classes = (node) => words(node.attributes && node.attributes.class);
 // `cite` is the anchor of the example's section, the nearest heading before
 // it with an id: `syntax-blocks#fence`, `PAGE#top` before any heading, and
 // `guide#top` on an example note (citedPage).
-function extract(text, file, opts = {}) {
-  let globals = null;
-  const load = (tag, dir, head) => {
-    const r = (opts.addons || addons)(tag, dir, head);
-    globals = r.window || null;
-    return r;
-  };
-  const a = analyse(text, file, { addons: load });
+function extract(text, file) {
+  const a = analyse(text, file);
   if (!a) return null;
-  let demo = null;
-  try {
-    const d = globals && globals.ternDocs && globals.ternDocs.demo;
-    if (d && typeof d === 'object') demo = d;
-  } catch {}
+  const demo = a.demo || null;
 
   const page = pageSlug(file || 'page.html');
   const cited = citedPage(file || 'page.html');

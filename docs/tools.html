@@ -105,7 +105,7 @@ When a command is given a file that is not a note, it says why:
 
 ### Vocabulary under Node {#vocabulary}
 
-A note's vocabulary comes from its own files: the scripts in its head, and the add-ons in `data-use` (see [Vocabulary and behaviour](schema.html#window-tern)). Every command and the language server load them the way the browser does, so names, labels and numbering match the page. They run in one sandbox, in this order:
+A note's vocabulary comes from its own files: the scripts in its head, and the add-ons in `data-use` (see [Vocabulary and behaviour](schema.html#window-tern)). Every command and the language server load them the way the browser does, so names, labels and numbering match the page. This code is the note's own, not yours, so the tools run it in a **sandbox** rather than with their own privileges (see [Running a note's code](#sandbox)); a note with no head scripts and no script add-ons has none to run. The sandbox runs them in this order:
 
 1. **The head's scripts**, those before the `tern.js` tag, in document order: inline scripts, and scripts with a local `src`. Modules, data blocks, and scripts with a `src` and `async` or `defer` (which run after `tern.js` has started) are left out. `tern` is not defined yet, as in the browser.
 2. **`window.TERN`** is read, as `tern.js` reads it when it starts: its `lang` and its `schema`.
@@ -119,7 +119,7 @@ How the sandbox behaves:
 - **Browser globals** (`document`, `customElements`, `HTMLElement`, `location`, `fetch` …) exist but do nothing. So an add-on that defines a custom element or adds a listener while it loads still reaches its `tern.block` calls.
 - **Output.** An add-on's `console` writes to stderr. stdout carries only the command's output: JSON for `tern parse` and `tern check --json`, the protocol for `tern lsp`.
 - **Paths.** A relative URL is resolved from the note's folder. A root-relative URL (`/lib/theorems.js`) is looked for under the note's folder and then under each folder above it, since the site root is not known.
-- **Time.** Each script may run for 2 seconds; a script still running then is stopped, and counts as having thrown.
+- **Time.** A note's scripts and transforms together may run for 2 seconds; still running then, they are stopped and the note gets an [`addon.failed`](diagnostics.html#addon-failed) error.
 
 What cannot be loaded is reported, and the note is still checked without it:
 
@@ -127,11 +127,21 @@ What cannot be loaded is reported, and the note is still checked without it:
 |---|---|---|---|
 | an add-on that is missing, is a folder, does not parse as a classic script (an ES module, for example), or throws | [`addon.failed`](diagnostics.html#addon-failed) | error | the `tern.js` line, column 1 |
 | a transform an add-on registered that throws; it is skipped, and the rest of the note is analysed | [`addon.failed`](diagnostics.html#addon-failed) | error | the `tern.js` line, column 1 |
+| the note's scripts did not finish in 2 seconds, or used too much memory | [`addon.failed`](diagnostics.html#addon-failed) | error | the `tern.js` line, column 1 |
 | a remote add-on (`https://…`), which is not fetched under Node | [`addon.remote`](diagnostics.html#addon-remote) | info | the `tern.js` line, column 1 |
 | a head script with a remote `src` | [`head.script`](diagnostics.html#head-script) | info | its `<script` tag |
 | a head script that is missing or throws | [`head.script`](diagnostics.html#head-script) | warning | its `<script` tag |
 
 `head.script` and `addon.remote` exist only on the command line and in the language server: in a browser, head scripts are the browser's business, and remote add-ons load like any other.
+
+### Running a note's code {#sandbox}
+
+A note's head scripts and script add-ons are the note's own code, not the tool's. So `tern check`, `tern build`, `tern parse` and the language server run them in a sandbox, and only the result — the vocabulary the note declares, its syntax tree and its diagnostics — comes back. Two walls hold the code in:
+
+- a **separate process**, started with Node's [permission model](https://nodejs.org/api/permissions.html) and an empty environment, able to read only `tern.js` and the sandbox's own file: it cannot reach your files, run another program, or load a native add-on. The tools read the note's add-on files and send the source in; the code never reads the disk itself;
+- inside it, a **sealed context** for each note: the code sees a fresh global with the engine and the `tern`/`window` shim and nothing of Node, so the usual ways to climb out (`this.constructor.constructor`, and so on) reach no real object. Dynamic `import()` is refused, and the 2-second limit stops a script or transform that never returns.
+
+This is a seat belt for code that misbehaves or that you have not read, not a vault for hostile code; Node's permission model [states as much](https://nodejs.org/api/permissions.html#permission-model). Network access is not among the things it blocks. Pass **`--no-scripts`** to `check`, `build` or `parse` (or set it in the editor) to analyse a note without running its code at all: its own vocabulary is then unknown, so names it declares may get [`name.unknown`](diagnostics.html#name-unknown) and the like, but nothing in it runs.
 
 A transform that throws is reported like this, and the note is checked without it:
 
@@ -247,7 +257,7 @@ These are usage errors instead, which exit 2 and print the synopsis: no `FILE`, 
 
 :::syntax[tern check]
 ```sh
-tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet]
+tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]
 ```
 :::
 
@@ -284,6 +294,7 @@ $$
 | `--fail-on=LEVEL` | The lowest severity that makes the exit code 1: `error` (the default), `warning` or `info`. Anything else is a usage error. |
 | `--quiet` | Prints only the diagnostics at or above `--fail-on`, and no summary and no notes about skipped files. |
 | `--json` | Prints one JSON array of the diagnostics instead of lines. See [--json](#check-json). |
+| `--no-scripts` | Analyses without running the notes' head scripts and add-ons ([Running a note's code](#sandbox)): their vocabulary is unknown, but nothing in the notes runs. |
 
 ### Folders {#check-folders}
 
@@ -452,7 +463,7 @@ Each file is read once per run, however many links name it. A note a link names 
 
 :::syntax[tern parse]
 ```sh
-tern parse FILE [--transformed] [--compact]
+tern parse FILE [--transformed] [--compact] [--no-scripts]
 ```
 :::
 
@@ -460,6 +471,7 @@ tern parse FILE [--transformed] [--compact]
 |---|---|
 | `--transformed` | Runs the transforms first, so the tree has ids, numbers, labels, resolved references and `root.data.tern` (see [The transformed AST](api.html#transformed-ast)). |
 | `--compact` | One line of JSON instead of two-space indentation. |
+| `--no-scripts` | Parses without running the note's head scripts and add-ons ([Running a note's code](#sandbox)). |
 
 ```sh
 $ cat notes/small.html
@@ -491,7 +503,7 @@ The node types and their fields are on [The AST](api.html#ast).
 
 :::syntax[tern build]
 ```sh
-tern build FILE [-o OUT] [--katex]
+tern build FILE [-o OUT] [--katex] [--no-scripts]
 ```
 :::
 
@@ -499,6 +511,7 @@ tern build FILE [-o OUT] [--katex]
 |---|---|
 | `-o OUT`, `--output=OUT` | Where to write the page. Without it, or with `-o -`, the page goes to stdout. When `OUT` ends with `/`, or is an existing folder, the page is written into that folder under the note's file name, and the folder is created if needed. Any other `OUT` is the page's file name, and missing folders on its path are created. `OUT` may not be the note itself. |
 | `--katex` | Pre-renders the math with KaTeX, if the `katex` npm package can be loaded. See [--katex](#build-katex). |
+| `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `tern.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. |
 
 ```sh
 $ tern build notes/maps.html -o dist/
@@ -913,13 +926,11 @@ $$ {#eq}
 - **The analysis** is the one `tern check` runs, so the diagnostics are the same, in the same order.
 - **Untitled buffers.** The server finds a note's add-ons from its `file:` URI. A document with another kind of URI (an unsaved buffer) loads its add-ons relative to the server's working folder.
 
-### Vocabulary and caching {#lsp-cache}
+### Vocabulary and the sandbox {#lsp-cache}
 
-The server loads each note's vocabulary as the commands do ([Vocabulary under Node](#vocabulary)), and caches it so that typing does not re-run the add-ons:
+The server loads each note's vocabulary as the commands do ([Vocabulary under Node](#vocabulary)), running the note's head scripts and add-ons in the [sandbox](#sandbox). It reads those files fresh on each analysis, so an add-on edited on disk takes effect at the note's next change, and a note with no scripts of its own skips the sandbox entirely.
 
-- **The key** is the note's folder, its `tern.js` tag, and its head scripts as written. Editing the head (adding a `window.TERN.schema` entry, changing `data-use`) reloads the vocabulary at once.
-- **The stamp** is the modification time of every local file the head scripts and add-ons may load. A root-relative URL may resolve in any folder above the note, so each candidate is stamped. An add-on edited on disk takes effect at the note's next change.
-- The 64 most recently used vocabularies are kept.
+To analyse a workspace of notes you do not trust without running any of their code, start the server with `initializationOptions: { "noScripts": true }` (how your editor sets it varies). Their own vocabulary is then unknown, so names they declare may get [`name.unknown`](diagnostics.html#name-unknown), but nothing in them runs.
 
 ### Diagnostics {#lsp-diagnostics}
 

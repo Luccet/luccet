@@ -380,8 +380,8 @@ Details: [Content-Security-Policy](https://oscarac.github.io/tern/docs/publishin
 
 ### Trust
 
-- **A note is a web page, not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
-- **The CLI runs local scripts too.** `check`, `build`, `parse` and `lsp` run a note's local head scripts and script add-ons under Node to learn its vocabulary. Node's `vm` is not a security boundary: such a script can reach `process`. Treat checking an untrusted note as running its code.
+- **In the browser a note is not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
+- **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse` and `lsp` run a note's local head scripts and script add-ons to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
 - **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin jsDelivr tags.
 - **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `tern.toHTML(text, { safe: true })` and insert the result. See [Trust](https://oscarac.github.io/tern/docs/publishing.html#trust).
 

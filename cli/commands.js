@@ -16,7 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
-const { split, notNote, attributes, addons, transformWith, loadingDiagnostic, analyse, htmlFiles, repository, tern } = require('./note');
+const { split, notNote, attributes, analyse, htmlFiles, repository, tern } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
 const examples = require('./examples');
@@ -24,9 +24,9 @@ const { relocate, apply } = require('./relocate');
 
 const SYNOPSIS = {
   new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]',
-  check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet]',
-  parse: 'tern parse FILE [--transformed] [--compact]',
-  build: 'tern build FILE [-o OUT] [--katex]',
+  check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
+  parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
+  build: 'tern build FILE [-o OUT] [--katex] [--no-scripts]',
   mv: 'tern mv FROM… TO [--root=DIR] [--dry-run]',
   corpus: 'tern corpus PATH… [--out=DIR]',
   lsp: 'tern lsp [--stdio]',
@@ -43,11 +43,15 @@ const usage = () =>
   ${SYNOPSIS.check}
       Print the diagnostics of notes; directories are searched for .html
       notes. --quiet prints only those at or above --fail-on (default error).
+      --no-scripts analyses without running the notes' head scripts and
+      add-ons (no vocabulary from them; safe for a note you do not trust).
   ${SYNOPSIS.parse}
       Print the note's AST as JSON, parsed or after the transforms.
+      --no-scripts analyses without running the note's own code.
   ${SYNOPSIS.build}
       Write a static, pre-rendered page (to stdout without -o) that still
-      loads tern.js; --katex pre-renders math if the katex package is installed.
+      loads tern.js; --katex pre-renders math if the katex package is
+      installed. --no-scripts builds without running the note's own code.
   ${SYNOPSIS.mv}
       Move or rename notes, files and folders, and rewrite the relative URLs
       that point at them, in every note under DIR (default: the repository
@@ -209,7 +213,7 @@ function newNote(args) {
 // ---------------------------------------------------------------- check
 
 function check(args) {
-  const { values: o, positionals } = options(args, { json: { type: 'boolean' }, 'fail-on': { type: 'string' }, quiet: { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { json: { type: 'boolean' }, 'fail-on': { type: 'string' }, quiet: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('check');
   const level = o['fail-on'] === undefined ? 'error' : o['fail-on'];
   if (!RANK[level]) throw new UsageError(`--fail-on is error, warning or info, not "${level}"`);
@@ -239,7 +243,7 @@ function check(args) {
   let failed = false;
   let broken = false;
   // Every file is analysed once, as a note checked or as a link's target.
-  const targets = new links.Targets();
+  const targets = new links.Targets({ analyse: (text, file) => analyse(text, file, { noScripts: o['no-scripts'] }) });
   for (const f of files) {
     let text;
     try {
@@ -276,19 +280,16 @@ function check(args) {
 // ---------------------------------------------------------------- parse
 
 function parse(args) {
-  const { values: o, positionals } = options(args, { transformed: { type: 'boolean' }, compact: { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { transformed: { type: 'boolean' }, compact: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('parse');
   if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one FILE' : 'FILE is missing');
   const file = positionals[0];
   const text = read(file);
-  const parts = split(text);
-  if (!parts) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
-  const loaded = addons(parts.tag, path.dirname(path.resolve(file)), parts.head);
-  const opts = { schema: loaded.schema, head: parts.head, lang: loaded.lang };
-  const { ast } = tern.parse(parts.note, opts);
-  const failed = o.transformed ? transformWith(ast, opts, loaded.transforms).map((f) => ({ kind: 'transform', ...f })) : [];
-  for (const p of loaded.problems.concat(failed)) warn(`tern parse: ${loadingDiagnostic(p).message}`);
-  say(JSON.stringify(ast, null, o.compact ? 0 : 2));
+  const a = analyse(text, file, { transform: !!o.transformed, noScripts: o['no-scripts'] });
+  if (!a) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
+  // The vocabulary problems (no note position) as `tern parse` prints them.
+  for (const d of a.diagnostics) if (!d.position) warn(`tern parse: ${d.message}`);
+  say(JSON.stringify(a.ast, null, o.compact ? 0 : 2));
   return 0;
 }
 
@@ -298,7 +299,7 @@ function parse(args) {
 // (created, with its parents, if missing), and the page is DIR/FILE's name;
 // otherwise the page's own path, its directory created if missing.
 function buildPage(args) {
-  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, katex: { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, katex: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
   if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one FILE' : 'FILE is missing');
   const file = positionals[0];
@@ -317,7 +318,7 @@ function buildPage(args) {
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
   const text = read(file);
-  const r = build(text, file, { katex: !!o.katex });
+  const r = build(text, file, { katex: !!o.katex, noScripts: o['no-scripts'] });
   if (!r) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
   for (const w of r.warnings) warn(`tern build: ${w}`);
   for (const d of r.diagnostics) warn(format(file, d));

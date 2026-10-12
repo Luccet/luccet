@@ -454,6 +454,7 @@ A note is a web page, and Tern does not sandbox it.
   ```
 - **KaTeX** comes from the CDN under an integrity hash (see [KaTeX](#katex)). Its `trust` option, which allows commands such as `\href` and `\includegraphics`, keeps KaTeX's default unless you set it in `window.TERN.katex`.
 - **Readers do not see diagnostics.** The panel shows only on your machine, unless the tag has `data-diagnostics`.
+- **The tools run a note's code in a sandbox.** In the browser a note has the page's full privileges, above; but `tern check`, `tern build`, `tern parse` and the language server run its head scripts and add-ons confined, so checking a note you have not read does not hand it your machine ([Running a note's code](tools.html#sandbox)). `--no-scripts` skips running it at all.
 
 ## When it does not render {#troubleshooting}
 

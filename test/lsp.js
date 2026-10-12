@@ -785,6 +785,21 @@ check('willRenameFiles: tern mv’s edits, for the files where they are; the wor
   await c.published(y.uri);
 });
 
+check('initializationOptions.noScripts: a note’s own code is not run', async () => {
+  // An inline head script turns on strict mode; with it, an unknown block is
+  // name.unknown. The default server runs it; a noScripts server does not.
+  const text = `<!doctype html><meta charset="utf-8"><script>window.TERN = { schema: { strict: true } };</script><script src="tern.js"></script>\n:::madeup\nx\n:::\n`;
+  const d = await c.open(path.join(DIR, 'ns-default.html'), text);
+  assert.ok(d.diagnostics.some((x) => x.code === 'name.unknown'), 'default: the inline script runs, strict is on, madeup is unknown');
+
+  const ns = new Client();
+  await ns.call('initialize', { processId: process.pid, rootUri: null, capabilities: {}, initializationOptions: { noScripts: true } });
+  ns.notify('initialized', {});
+  const d2 = await ns.open(path.join(DIR, 'ns-off.html'), text);
+  assert.ok(!d2.diagnostics.some((x) => x.code === 'name.unknown'), 'noScripts: the script does not run, so strict is off and madeup is not flagged');
+  ns.proc.kill();
+});
+
 check('malformed input and unknown documents get errors, not a crash', async () => {
   c.write('{not json');
   const e = await c.next((m) => m.id === null && m.error);

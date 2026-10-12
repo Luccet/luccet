@@ -190,9 +190,10 @@ function checkLinks({ file, x }) {
 const DOCS_JS = path.join(ROOT, 'docs', 'docs.js');
 function docsJs() {
   if (!fs.existsSync(DOCS_JS)) return problem(DOCS_JS, 1, 'docs.js is missing'), null;
-  const { problems: failed, window } = note.addons('<script src="../tern.js" data-use="docs.js">', path.dirname(DOCS_JS), '');
-  for (const f of failed) problem(DOCS_JS, 1, `does not load under node: ${f.message}`);
-  const docs = window && window.ternDocs;
+  // A minimal note under docs/ that loads docs.js, analysed in the sandbox.
+  const a = note.analyse('<!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="docs.js"></script>\n# x\n', path.join(ROOT, 'docs', 'probe.html'));
+  for (const d of a.diagnostics) if (!d.position && d.code === 'addon.failed') problem(DOCS_JS, 1, `does not load under node: ${d.message}`);
+  const docs = a.ternDocs;
   if (!docs) problem(DOCS_JS, 1, 'sets no window.ternDocs');
   return docs || null;
 }
