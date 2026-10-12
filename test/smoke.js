@@ -146,6 +146,9 @@ function staticHandler(cdnOrigin) {
     // Local copies of highlight.js and Mermaid, for the add-ons' ?base=.
     if (url.startsWith('/vendor/highlightjs/')) file = path.join(CACHE, `highlightjs-${HLJS_VERSION}`, path.normalize(url.slice('/vendor/highlightjs/'.length)));
     if (url.startsWith('/vendor/mermaid/')) file = path.join(CACHE, `mermaid-${MERMAID_VERSION}`, 'dist', path.normalize(url.slice('/vendor/mermaid/'.length)));
+    if (url.startsWith('/vendor/temml/')) file = path.join(CACHE, `temml-${TEMML_VERSION}`, 'dist', path.normalize(url.slice('/vendor/temml/'.length)));
+    // A sample's add-ons (addons/katex.js …) resolve to the repository's, as tern.js does.
+    if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
     const missing = !file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory();
     const docs = missing && file.startsWith(ROOT + path.sep) && docsReferer(req);
     if (missing && (file.startsWith(SAMPLES + path.sep) || docs)) {
@@ -194,7 +197,7 @@ const pad = (kb) => '/*' + 'x'.repeat(kb * 1024) + '*/\n';
 function mathNote(sections = 80) {
   const kinds = ['theorem', 'definition', 'lemma', 'example', 'details', 'details', 'remark'];
   const out = [
-    '<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>',
+    '<!doctype html><meta charset="utf-8"><script src="/tern.js" data-use="/addons/katex.js"></script>',
     '',
     '<script>',
     "  window.__t = { script: performance.now() };",
@@ -230,7 +233,7 @@ function mathNote(sections = 80) {
 function fragmentNote() {
   const filler = Array.from({ length: 40 }, (_, i) => `Filler paragraph ${i + 1}, to put what follows below the fold.`).join('\n\n');
   return [
-    '<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>',
+    '<!doctype html><meta charset="utf-8"><script src="/tern.js" data-use="/addons/katex.js"></script>',
     '',
     '# Smoke: fragment targets',
     '',
@@ -262,6 +265,7 @@ const GENERATED = {
   'fragment.html': () => ['text/html', fragmentNote()],
   'built.html': () => ['text/html', cliPage('built')],
   'built-katex.html': () => ['text/html', cliPage('built-katex')],
+  'built-mathml.html': () => ['text/html', cliPage('built-mathml')],
   'built-missing.html': () => ['text/html', cliPage('built-missing')],
   'built-own-schema.html': () => ['text/html', cliPage('built-own-schema')],
   'built-note-config.html': () => ['text/html', cliPage('built-note-config')],
@@ -278,7 +282,7 @@ const GENERATED = {
 // pre-renders with the local KaTeX copy (below) as the `katex` package, on
 // NODE_PATH: the setup awaits katexDist first.
 const CLI = path.join(ROOT, 'tern-cli.js');
-const KATEX_VERSION = /katex@([\d.]+)/.exec(require('../src/runtime').KATEX.base)[1];
+const KATEX_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8'))[1];
 const GUARDED_NOTE = '# Smoke: a guarded note\n\nRendered by tern.js, or shown as its source when tern.js does not load.\n';
 const cliPages = new Map();
 function cliPage(name) {
@@ -304,6 +308,13 @@ function cliPage(name) {
       fs.symlinkSync(path.join(CACHE, `katex-${KATEX_VERSION}`, 'dist'), path.join(pkg, 'dist'), 'dir');
       html = cli(['build', 'test/smoke/built.html', '--katex'], { NODE_PATH: path.join(tmp, 'node_modules') });
       if (!/<script data-built src=/.test(html)) throw new Error('tern build --katex left formulas to tern.js');
+    } else if (name === 'built-mathml') {
+      const pkg = path.join(tmp, 'node_modules', 'temml');
+      fs.mkdirSync(pkg, { recursive: true });
+      fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'temml', version: TEMML_VERSION, main: 'dist/temml.cjs' }));
+      fs.symlinkSync(path.join(CACHE, `temml-${TEMML_VERSION}`, 'dist'), path.join(pkg, 'dist'), 'dir');
+      html = cli(['build', 'test/smoke/built.html', '--math=mathml'], { NODE_PATH: path.join(tmp, 'node_modules') });
+      if (!/<math\b/.test(html)) throw new Error('tern build --math=mathml did not pre-render MathML');
     } else {
       const file = path.join(tmp, 'guarded.html');
       cli(['new', file, '--guarded', '--tern=/tern.js']);
@@ -325,6 +336,7 @@ const HLJS_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@highlightjs\/cdn-assets@(
 const HLJS_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8'))[1];
 const MERMAID_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@(\d+\.\d+\.\d+)\/([^?#]+)/;
 const MERMAID_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mermaid.js'), 'utf8'))[1];
+const TEMML_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mathml.js'), 'utf8'))[1];
 
 // A package's folder in node_modules/.cache/tern-smoke/, filled once
 // (tools/npm.js); null if it cannot be fetched (offline on the first run).
@@ -345,6 +357,7 @@ function cached(label, packageDir, version) {
 const katexDist = (v) => cached('KaTeX', (version) => npm.packageDir('katex', version, { folder: `katex-${version}`, keep: ['dist/'], has: 'dist/katex.min.js' }), v);
 const hljsDir = (v) => cached('highlight.js', require('../tools/hljs').packageDir, v);
 const mermaidDir = (v) => cached('Mermaid', require('../tools/mermaid').packageDir, v);
+const temmlDir = (v) => cached('Temml', require('../tools/temml').packageDir, v);
 
 // Answers a package's CDN requests from its copy, as routeKatex below does KaTeX's.
 async function routeCached(context, re, dirOf) {
@@ -777,52 +790,16 @@ const TESTS = [
     },
   },
   {
-    name: 'a KaTeX error keeps the TeX and reports math.error',
+    name: 'a KaTeX error keeps the TeX, marked t-error, with a console warning',
     url: '/test/smoke/katex-error.html',
+    allowConsole: /KaTeX cannot typeset|ParseError/i,
     async check(page, ctx) {
-      await expect(page, () => [...document.querySelectorAll('.t-math')].some((e) => e.dataset.tex === '\\frac{1}{' && e.textContent.trim() !== ''), 'the failing formula keeps visible source');
-      if (!ctx.diagnostics.some((d) => d.code === 'math.error')) throw new Error('no math.error diagnostic');
-    },
-  },
-  {
-    // data-pos holds line and column; the offset must count in the source
-    // tern.render was given, not in the note the page loaded with.
-    name: 'math.error after tern.render: positions in the source rendered, for main and for an element of the page',
-    url: '/test/smoke/katex-error.html',
-    async check(page) {
-      const sources = {
-        main: '# Moved\n\nA longer first paragraph, so that the offsets differ.\n\nAnd another.\n\n$$\n\\frac{2}{\n$$\n',
-        own: 'x\n\n$$\n\\sqrt{\n$$\n',
-      };
-      await page.evaluate((src) => {
-        window.__errors = [];
-        window.__before = tern.diagnostics.filter((d) => d.code === 'math.error').length;
-        tern.on('diagnostic', (d) => d.code === 'math.error' && window.__errors.push({ position: d.position.start, inMain: tern.diagnostics.includes(d) }));
-        tern.render(document.querySelector('main.tern'), src.main);
-      }, sources);
-      await expect(page, () => window.__errors.length === 1, 'a math.error from the new note');
-      await page.evaluate((src) => {
-        const own = document.createElement('div');
-        own.className = 'tern';
-        document.body.append(own);
-        tern.render(own, src.own);
-      }, sources);
-      await expect(page, () => window.__errors.length === 2, "a math.error from the element's note");
-      const errors = await page.evaluate(() => window.__errors);
-      const at = (text, line, column) => text.split('\n').slice(0, line - 1).reduce((n, l) => n + l.length + 1, 0) + column - 1;
-      const check = (e, text, line, what) => {
-        const p = e.position;
-        if (p.line !== line) throw new Error(`${what}: line ${p.line}, expected ${line}`);
-        if (p.offset !== at(text, p.line, p.column)) throw new Error(`${what}: offset ${p.offset}, expected ${at(text, p.line, p.column)} for ${p.line}:${p.column}`);
-      };
-      check(errors[0], sources.main, 7, 'main');
-      check(errors[1], sources.own, 3, 'an element of the page');
-      // tern.diagnostics and the panel are the page's note's: an element's
-      // problem only fires the event (docs/api.html#diagnostics).
-      if (!errors[0].inMain) throw new Error("main's math.error is not in tern.diagnostics");
-      if (errors[1].inMain) throw new Error("the element's math.error is in tern.diagnostics");
-      const panel = await page.evaluate(() => document.querySelector('.t-diagnostics')?.textContent || '');
-      if (/line 3:1/.test(panel)) throw new Error(`the element's math.error is in the panel: ${panel}`);
+      await expect(
+        page,
+        () => [...document.querySelectorAll('.t-math')].some((e) => e.dataset.tex === '\\frac{1}{' && e.classList.contains('t-error') && e.textContent.trim() !== ''),
+        'the failing formula keeps visible source, marked t-error',
+      );
+      if (!ctx.console.some((m) => m.type === 'warning' && /KaTeX cannot typeset/.test(m.text))) throw new Error(`no KaTeX error warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
     },
   },
   {
@@ -918,7 +895,7 @@ const TESTS = [
     },
   },
   {
-    name: 'KaTeX that fails to load gives katex.unavailable, and math stays as source',
+    name: 'KaTeX that fails to load leaves math as its source, with a warning',
     url: '/test/smoke/katex-unavailable.html',
     allowConsole: /Failed to load resource|Loading failed for the <script>|MIME type|katex/i,
     async setup(context) {
@@ -928,12 +905,11 @@ const TESTS = [
     async check(page, ctx) {
       const math = await page.evaluate(() => [...document.querySelectorAll('main.tern .t-math')].map((e) => ({ text: e.textContent, katex: !!e.querySelector('.katex') })));
       if (math.length !== 1 || math[0].katex || math[0].text !== 'x^2 + 1') throw new Error(`math ${JSON.stringify(math)}, expected its source "x^2 + 1"`);
-      const n = ctx.diagnostics.filter((d) => d.code === 'katex.unavailable').length;
-      if (n !== 1) throw new Error(`${n} katex.unavailable diagnostics, expected 1`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /KaTeX did not load/.test(m.text))) throw new Error(`no "KaTeX did not load" warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
     },
   },
   {
-    name: 'data-katex="none": no KaTeX request, and math stays as source',
+    name: 'no math add-on: no KaTeX is requested, and math stays as its source',
     url: '/test/smoke/katex-none.html',
     async setup(_context, page, ctx) {
       ctx.katexRequests = [];
@@ -987,18 +963,13 @@ const TESTS = [
     },
   },
   {
-    name: "math in a closed <details> is typeset on toggle, and 'math' fires on it",
+    name: 'math in a closed <details> is typeset when it opens',
     url: '/gen/fragment.html',
     async check(page) {
       const before = await page.evaluate(() => ({ n: document.querySelectorAll('#fold .t-math').length, typeset: document.querySelectorAll('#fold .t-math .katex, #box .t-math .katex').length, open: document.getElementById('fold').open }));
       if (before.n !== 2 || before.typeset || before.open) throw new Error(`before the toggle: ${JSON.stringify(before)}, expected 2 formulas, none typeset, closed`);
-      await page.evaluate(() => {
-        window.__mathRoots = [];
-        tern.on('math', (root) => window.__mathRoots.push(root.id || root.localName));
-        document.getElementById('fold').open = true;
-      });
+      await page.evaluate(() => (document.getElementById('fold').open = true));
       await expect(page, () => document.querySelectorAll('#fold .t-math .katex').length === 2, 'both formulas in the opened <details> typeset');
-      await expect(page, () => window.__mathRoots.includes('fold'), "'math' fired on the <details>");
       if (await page.evaluate(() => document.querySelectorAll('#box .t-math .katex').length)) throw new Error('math in the other, still closed <details> was typeset too');
     },
   },
@@ -1420,9 +1391,9 @@ const TESTS = [
     // are defined at assignStages. KaTeX's fonts are a fourth wave, found
     // through katex.min.css once math is typeset, which is after mount; mount
     // does not wait for them, so the budget counts only requests started
-    // before mount. The report lists them all. Also checked: tern.js, both
-    // add-ons and KaTeX's js and css start before mount, and nothing is
-    // fetched twice (a preload the page did not reuse).
+    // before mount. The report lists them all. Also checked: tern.js and the
+    // add-ons (the math add-on among them) start before mount, KaTeX after it,
+    // and nothing is fetched twice (a preload the page did not reuse).
     name: 'Slow-3G waterfall: at most 3 serial stages before mount',
     url: '/test/smoke/waterfall.html',
     browsers: ['chromium'],
@@ -1474,10 +1445,14 @@ const TESTS = [
       }
       ctx.note(`  mount at ${at(mount)} s; "+" = requested after mount (not counted); stage tolerance ${STAGE_TOL} ms`);
       const before = ordered.filter((r) => r.start < mount);
-      const want = [/\/tern\.js$/, /\/gen\/addon\.js$/, /\/gen\/addon\.css$/, /katex@[^/]+\/dist\/katex(\.min)?\.js$/, /katex@[^/]+\/dist\/katex(\.min)?\.css$/];
+      // tern.js and the add-ons (the math add-on among them) are preloaded at
+      // capture; KaTeX loads later, when the math add-on runs after mount.
+      const want = [/\/tern\.js$/, /\/gen\/addon\.js$/, /\/gen\/addon\.css$/, /\/addons\/katex\.js$/];
       for (const re of want) {
-        if (!before.some((r) => re.test(r.url))) throw new Error(`nothing matching ${re} was requested before mount (add-ons and KaTeX are preloaded at capture)`);
+        if (!before.some((r) => re.test(r.url))) throw new Error(`nothing matching ${re} was requested before mount (tern.js and the add-ons are preloaded at capture)`);
       }
+      const after = ordered.filter((r) => r.start >= mount);
+      if (!after.some((r) => /katex@[^/]+\/dist\/katex(\.min)?\.js$/.test(r.url))) throw new Error('KaTeX was not requested after mount (the math add-on loads it when it runs)');
       const seen = new Map();
       for (const r of all) seen.set(r.url, (seen.get(r.url) || 0) + 1);
       const twice = [...seen].filter(([, n]) => n > 1).map(([u]) => short(u));
@@ -1732,7 +1707,8 @@ const TESTS = [
       if (!(await katexDist(KATEX_VERSION))) ctx.skip(`no local copy of KaTeX ${KATEX_VERSION} to pre-render with`);
       cliPage('built-katex');
       ctx.katexScripts = [];
-      page.on('request', (q) => /katex(?:\.min)?\.js(?:[?#]|$)/.test(q.url()) && ctx.katexScripts.push(q.url()));
+      // KaTeX's library (katex.min.js), not the add-on script (addons/katex.js).
+      page.on('request', (q) => /katex\.min\.js(?:[?#]|$)|\/katex@[^/]+\/dist\/katex\.js/.test(q.url()) && ctx.katexScripts.push(q.url()));
     },
     async check(page, ctx) {
       const r = await page.evaluate(() => ({
@@ -1749,6 +1725,59 @@ const TESTS = [
       if (!r.css) throw new Error("KaTeX's stylesheet did not load");
       await page.waitForTimeout(300);
       if (ctx.katexScripts.length) throw new Error(`KaTeX's script was requested: ${ctx.katexScripts.join(', ')}`);
+    },
+  },
+  {
+    name: 'addons/mathml.js: formulas render as native MathML with Temml, KaTeX never requested',
+    url: '/test/smoke/mathml.html',
+    timeout: 60000,
+    async setup(_context, page, ctx) {
+      if (!(await temmlDir(TEMML_VERSION))) ctx.skip(`no local copy of Temml ${TEMML_VERSION}`);
+      ctx.katexReqs = [];
+      page.on('request', (q) => /katex/i.test(q.url()) && ctx.katexReqs.push(q.url()));
+    },
+    async check(page, ctx) {
+      await page.waitForFunction(() => document.querySelectorAll('.t-math math').length >= 3, null, { timeout: 40000 });
+      const r = await page.evaluate(() => ({
+        maths: document.querySelectorAll('.t-math math').length,
+        katex: document.querySelectorAll('.t-math .katex').length,
+        annotations: document.querySelectorAll('.t-math annotation').length,
+        tex: [...document.querySelectorAll('.t-math')].map((e) => e.dataset.tex),
+        scripts: [...document.querySelectorAll('script[src*="temml.min.js"]')].map((e) => ({ src: new URL(e.src).pathname, sri: !!e.integrity })),
+      }));
+      if (r.maths !== 3 || r.katex !== 0) throw new Error(`${r.maths} <math>, ${r.katex} .katex (expected 3, 0)`);
+      if (r.tex.join(' | ') !== 'x \\in \\RR | \\sum_{i=1}^{n} x_i^2 | \\frac{a}{b} = \\RR^n') throw new Error(`data-tex ${JSON.stringify(r.tex)}`);
+      if (r.annotations !== 3) throw new Error(`${r.annotations} annotations, expected 3 (the TeX kept for copy)`);
+      if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: '/vendor/temml/temml.min.js', sri: false }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
+      await page.waitForTimeout(200);
+      if (ctx.katexReqs.length) throw new Error(`KaTeX was requested: ${ctx.katexReqs.join(', ')}`);
+    },
+  },
+  {
+    name: 'tern build --math=mathml: native MathML, self-contained, no math asset fetched',
+    url: '/gen/built-mathml.html',
+    async setup(_context, page, ctx) {
+      if (!(await temmlDir(TEMML_VERSION))) ctx.skip(`no local copy of Temml ${TEMML_VERSION} to pre-render with`);
+      cliPage('built-mathml');
+      ctx.ext = [];
+      // A math library (katex.min.js / temml.min.js, or a CDN katex@/temml@
+      // path) or any non-local asset. The add-on scripts (addons/*.js) are
+      // local and harmless — a MathML page's formulas are already rendered.
+      page.on('request', (q) => {
+        const u = q.url();
+        if (/katex\.min|temml\.min|\/(?:katex|temml)@/i.test(u) || !/^http:\/\/(?:localhost|127\.0\.0\.1)/.test(u)) ctx.ext.push(u.replace(/^https?:\/\/[^/]+/, ''));
+      });
+    },
+    async check(page, ctx) {
+      const r = await page.evaluate(() => ({
+        mathml: document.querySelectorAll('main.tern .t-math math').length,
+        katex: document.querySelectorAll('main.tern .t-math .katex').length,
+        tex: [...document.querySelectorAll('main.tern .t-math')].map((e) => e.dataset.tex),
+      }));
+      if (r.mathml !== 2 || r.katex !== 0) throw new Error(`${r.mathml} <math>, ${r.katex} .katex (expected 2, 0)`);
+      if (r.tex.join(' | ') !== 'a^2 + b^2 = c^2 | \\int_0^1 x\\,dx = \\tfrac12') throw new Error(`data-tex ${JSON.stringify(r.tex)}`);
+      await page.waitForTimeout(200);
+      if (ctx.ext.length) throw new Error(`fetched external or math assets: ${ctx.ext.join(', ')}`);
     },
   },
   {

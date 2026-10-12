@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js"></script>
 
 :::meta
 description: The tern object in node and in the browser: parse, transform, emit, toHTML, check, visit, outline, the schema registry, the runtime API and its events, tern.config, the lifecycle, and the AST with its data.tern fields.
@@ -37,7 +37,7 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`tern.render(root, source)`](#render) | runtime | renders into an element | resolves to `[]` |
 | [`tern.ready`](#ready) | runtime | a Promise | never settles |
 | [`tern.diagnostics`](#diagnostics) | runtime | the page's diagnostics | stays `[]` |
-| [`tern.config`](#config) | runtime | `window.TERN` and the tag's `data-*` | `{use: {}, katex: {}}` |
+| [`tern.config`](#config) | runtime | `window.TERN` and the tag's `data-*` | `{use: {}}` |
 | [`tern.style(css)`](#style) | runtime | adds a stylesheet | does nothing |
 
 ## Loading {#loading}
@@ -77,7 +77,7 @@ tern.js is one file with no dependencies, so `require` needs nothing else. It re
 - **The runtime** is inert. It never touches a DOM, so nothing needs to be stubbed:
 
 ```js
-tern.config;                          // → { use: {}, katex: {} }
+tern.config;                          // → { use: {} }
 tern.diagnostics;                     // → []
 await tern.render();                  // → []
 tern.style('p { color: red }');       // → undefined, and nothing happens
@@ -320,7 +320,7 @@ tern.emit(ast, { positions: false });
 //   + '<p>See <a class="t-ref" href="#kernel">Kernel</a>.</p>\n</div>\n'
 ```
 
-**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime uses it to position [`math.error`](diagnostics.html#math-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
+**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line, and `tern build --math` uses it to position a [`math.error`](diagnostics.html#math-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
 
 **`safe`** (default `false`) is the [raw HTML scoping](elements.html#safe):
 
@@ -387,7 +387,7 @@ tern.toHTML(src, { schema, head: '<html lang="fr-CA">', positions: false });
 **What the string holds.** It is the body of the note. The runtime puts it inside `<main class="tern">`, and `tern build` does the same in a static page. It leaves out:
 
 - **the head:** `:::meta` writes nothing into the body. Its keys are in `ast.data.tern.meta`, and the runtime and `tern build` write them into the head;
-- **typeset math:** a formula is its TeX inside `span.t-math`, until KaTeX typesets it in the browser (or `tern build --katex` does);
+- **typeset math:** a formula is its TeX inside `span.t-math`; the engine renders no math, so a [math add-on](addons.html#katex) typesets it in the browser (or `tern build --math` pre-renders it);
 - **behaviours:** `tern.define` and schema `dom` functions run on the DOM, in the browser.
 
 ```js
@@ -429,7 +429,7 @@ tern.check('Hi @you.');
 //      hint: 'if it is not a reference, write \\@you' }]
 ```
 
-`tern.check` gives the parse and transform codes, plus `addon.failed` for a [registered transform that throws](#registering-a-transform). The other runtime codes (`math.error`, `doc.quirks` …) arise only in a browser and reach [`tern.diagnostics`](#diagnostics). The command line adds `head.script`, `addon.remote` for a remote add-on it does not load, and `addon.failed` for an add-on it cannot load or run ([Command line](tools.html#check)).
+`tern.check` gives the parse and transform codes, plus `addon.failed` for a [registered transform that throws](#registering-a-transform). The other runtime codes (`doc.quirks`, `script.document-write` …) arise only in a browser and reach [`tern.diagnostics`](#diagnostics). The command line adds `head.script`, `addon.remote` for a remote add-on it does not load, and `addon.failed` for an add-on it cannot load or run ([Command line](tools.html#check)).
 
 ### `tern.visit` {#visit}
 
@@ -584,7 +584,7 @@ The version of this tern.js, as a string: `'0.2.0'`. A script can check it to te
 
 ## The runtime {#runtime}
 
-The runtime is the browser half: it renders the note in the page, runs behaviours, typesets math with KaTeX and reports what went wrong. [The lifecycle](#lifecycle) gives the order of everything it does. Its API is on the same object as the engine.
+The runtime is the browser half: it renders the note in the page, runs behaviours, and reports what went wrong; a [math add-on](addons.html#katex) in `data-use` typesets the math, as the engine renders none itself. [The lifecycle](#lifecycle) gives the order of everything it does. Its API is on the same object as the engine.
 
 ### `tern.define` and `tern.undefine` {#define}
 
@@ -649,22 +649,22 @@ Listens for one of the runtime's four events. There are no others.
 | `render` | the note is in the page, its scripts have run and its behaviours have run; math is not typeset yet | the root, `main.tern` |
 | `math` | the formulas in view are typeset; again for a `<details>`, after the formulas inside it are typeset when it opens | the root, or the `<details>` element |
 | `ready` | everything is done, once: math, the scroll to the URL's fragment, the console group | the root, `main.tern` |
-| `diagnostic` | the runtime reports a problem of its own: a failed add-on, a note script's `document.write`, a formula KaTeX rejects … Never for the diagnostics of the parse and the transforms, a throwing transform's `addon.failed` included | the [diagnostic](#check) |
+| `diagnostic` | the runtime reports a problem of its own: a failed add-on, a note script's `document.write` … Never for the diagnostics of the parse and the transforms, a throwing transform's `addon.failed` included | the [diagnostic](#check) |
 
 `render` and `math` fire again for each [`tern.render`](#render) call, with that call's root. `ready` fires once per page.
 
-For a note with one behaviour and a formula KaTeX rejects, a listener on each event logs:
+- **`render` is awaited before `math`.** A `render` listener may return a promise; the runtime awaits all `render` listeners (which run concurrently) before it fires `math`. A [math add-on](addons.html#katex) typesets the formulas in its `render` listener and returns a promise, which is why `math` still means "the formulas are typeset". A synchronous listener is not held up by an async one.
+
+For a note with one behaviour, a listener on each event logs:
 
 ```js
 tern.define('probe', (el) => log.push(`define ${el.id}`));
 tern.on('render', (root) => log.push(`render ${root.localName}.${root.className}`));
-tern.on('diagnostic', (d) => log.push(`diagnostic ${d.code}`));
 tern.on('math', (root) => log.push(`math ${root.localName}`));
 tern.on('ready', (root) => log.push(`ready ${root.localName}`));
 tern.ready.then(() => log.push('tern.ready'));
 
-// log → ['define p1', 'render main.tern', 'diagnostic math.error',
-//        'math main', 'ready main', 'tern.ready']
+// log → ['define p1', 'render main.tern', 'math main', 'ready main', 'tern.ready']
 ```
 
 - **Where to listen.** Listeners must be registered before the event. An add-on in `data-use` and a script in the note both run before `render`. A head script before the tern.js line runs before `tern` exists.
@@ -687,7 +687,7 @@ Renders, or re-renders, a root element.
 - **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `tern.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)). Then it goes on as without a source.
 - **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `tern.define`) are not applied to it. Math still typesets. Use it wherever you render text from others, such as `tern.render(box, comment, { safe: true })`.
 - **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
-- **The page's own root.** When `root` is the page's `main.tern`, the new diagnostics replace those in [`tern.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `tern.diagnostics` is left alone, also later: a formula KaTeX rejects in that element, or a `document.write` in one of its scripts, fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
+- **The page's own root.** When `root` is the page's `main.tern`, the new diagnostics replace those in [`tern.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `tern.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
 - **`root`** defaults to the page's `main.tern`. Anything other than an element rejects the Promise with `TypeError: tern.render(root, source): root must be an element`.
 - **`ready`** does not fire again.
 
@@ -708,9 +708,9 @@ input.addEventListener('input', async () => {
 A page that is not a note can load tern.js in any way the runtime does not start from: `defer`, `async`, a module, or a script it inserts itself. Then `tern.render(element, source)` renders a note into any element of the page.
 
 - **Styles.** The runtime adds no stylesheet. Link `tern.css` yourself, and give the element the class `tern`: most of its rules apply inside `.tern`. Its `html` and `body` rules (colours, font, margins) style the whole page, so leave them to your own CSS where they clash.
-- **Configuration.** `window.TERN` and `data-*` are not read, so [`tern.config`](#config) stays `{use: {}, katex: {}}`. Set what you need on it before the first render that needs it: `tern.config.lang` for labels, `tern.config.katex.base` and the KaTeX options before the first render with math.
-- **KaTeX** is loaded on the first render that has math, from `tern.config.katex.base`, or from the pinned CDN with SRI when it is not set.
-- **`tern.ready`** never settles, and `tern.diagnostics` stays empty: use the diagnostics `tern.render` resolves to, and listen for [`diagnostic`](#on) for the ones found later, such as a formula KaTeX rejects.
+- **Configuration.** `window.TERN` and `data-*` are not read, so [`tern.config`](#config) stays `{use: {}}`. Set what you need on it before the first render that needs it: `tern.config.lang` for labels, and `tern.config.use.katex` for the [KaTeX add-on's options](addons.html#katex) before the first render with math.
+- **Math.** The engine renders no math. To typeset it, load a math add-on script yourself — `addons/katex.js` or `addons/mathml.js` — which registers a `render` listener and reads its options from `tern.config.use.katex`. Without one, each formula stays as its TeX.
+- **`tern.ready`** never settles, and `tern.diagnostics` stays empty: use the diagnostics `tern.render` resolves to, and listen for [`diagnostic`](#on) for the ones found later, such as a note script's `document.write`.
 
 ```html
 <link rel="stylesheet" href="tern.css">
@@ -718,7 +718,6 @@ A page that is not a note can load tern.js in any way the runtime does not start
 <script defer src="tern.js"></script>
 <script type="module">
   tern.config.lang = 'de';
-  tern.config.katex.base = '/vendor/katex';
   tern.block('lemma', { counter: 'lemma', label: { en: 'Lemma', de: 'Hilfssatz' } });
   const out = document.getElementById('out');
   const problems = await tern.render(out, ':::lemma\nEvery chain has a bound.\n:::');
@@ -751,18 +750,16 @@ The page's diagnostics, in one array that stays the same object for the life of 
 - **At mount** it holds, sorted by position:
   - the runtime diagnostics found before the mount, at line 0, which therefore come first: [`doc.quirks`](diagnostics.html#doc-quirks), and [`addon.failed`](diagnostics.html#addon-failed) for an add-on that did not load or threw while it ran;
   - the note's parse and transform diagnostics, as [`tern.check`](#check) returns them, including `addon.failed` for a registered transform that threw.
-- **Later** runtime diagnostics are appended as they happen: [`script.document-write`](diagnostics.html#script-document-write) and [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) while the note's scripts run, then [`math.error`](diagnostics.html#math-error) and [`katex.unavailable`](diagnostics.html#katex-unavailable) while math is typeset. They concern the page's note: one about an element that another `tern.render(root, source)` call rendered only fires the event. Each diagnostic the runtime reports itself, early or late, also fires the [`diagnostic`](#on) event; those of the parse and the transforms do not.
+- **Later** runtime diagnostics are appended as they happen: [`script.document-write`](diagnostics.html#script-document-write) and [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) while the note's scripts run. (The engine renders no math, so a math add-on reports a formula it cannot typeset to the console, not here.) They concern the page's note: one about an element that another `tern.render(root, source)` call rendered only fires the event. Each diagnostic the runtime reports itself, early or late, also fires the [`diagnostic`](#on) event; those of the parse and the transforms do not.
 - **`tern.render(main, source)`** replaces the contents with the new note's diagnostics, keeping the line-0 ones.
 - **On a built page** it holds the build's diagnostics, read from the page, then an `addon.failed` for each add-on script that failed to load or threw while it ran.
 
-Each entry has the [shape of a diagnostic](#check). The runtime's six codes are all errors:
+Each entry has the [shape of a diagnostic](#check). The runtime's four codes are all errors:
 
 | Code | Position | Reported when |
 |---|---|---|
-| [`doc.quirks`](diagnostics.html#doc-quirks) | line 0 | the file has no `<!doctype html>`, so the page is in quirks mode and math stays TeX |
+| [`doc.quirks`](diagnostics.html#doc-quirks) | line 0 | the file has no `<!doctype html>`, so the page is in quirks mode, where the layout and some add-ons misbehave |
 | [`addon.failed`](diagnostics.html#addon-failed) | line 0 | a `data-use` entry did not load; a script add-on threw while it ran (the note renders with what it registered before the error); a registered transform threw |
-| [`katex.unavailable`](diagnostics.html#katex-unavailable) | line 0 | KaTeX's script or stylesheet did not load, and the note has math |
-| [`math.error`](diagnostics.html#math-error) | the formula's `data-pos` | KaTeX rejects a formula or a `:::macros` body |
 | [`script.document-write`](diagnostics.html#script-document-write) | the `<script` tag | a note script calls `document.write` or `writeln` |
 | [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) | the `<script` tag | a note script listens for `DOMContentLoaded` |
 
@@ -779,17 +776,17 @@ The runtime's configuration: `window.TERN` merged with the `data-*` attributes o
 
 ```html
 <!doctype html><meta charset="utf-8">
-<script>window.TERN = { katex: { macros: { '\\R': '\\mathbb{R}' } }, lang: 'en' }</script>
-<script src="tern.js" data-use="theorems.js?labels=de theme.min.css?dark"
-        data-katex="/vendor/katex" data-nonce="abc"></script>
+<script>window.TERN = { use: { katex: { macros: { '\\R': '\\mathbb{R}' } } }, lang: 'en' }</script>
+<script src="tern.js" data-use="addons/katex.js theorems.js?labels=de theme.min.css?dark"
+        data-nonce="abc"></script>
 ```
 
 On that page, once tern.js has started:
 
 ```js
 tern.config;
-// → { use: { theorems: { labels: 'de' }, theme: { dark: '' } },
-//     katex: { macros: { '\\R': '\\mathbb{R}' }, base: '/vendor/katex' },
+// → { use: { katex: { macros: { '\\R': '\\mathbb{R}' } },
+//            theorems: { labels: 'de' }, theme: { dark: '' } },
 //     lang: 'en', nonce: 'abc', diagnostics: false, quiet: false }
 ```
 
@@ -799,8 +796,7 @@ tern.config;
 
 | `window.TERN` | Attribute | `tern.config` | Value |
 |---|---|---|---|
-| `use` | `data-use` | `use` | the add-ons' options. Each `data-use` entry's query string goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.TERN.use[NAME]` key of the same name |
-| `katex` | `data-katex` | `katex` | KaTeX's options, plus `base`, the folder of `katex.min.js` and `katex.min.css`, or `'none'` for no math rendering. The attribute sets `katex.base`; a string as `window.TERN.katex` is a base |
+| `use` | `data-use` | `use` | the add-ons' options, a math add-on's among them (`use.katex` for [`katex.js`](addons.html#katex)). Each `data-use` entry's query string goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.TERN.use[NAME]` key of the same name |
 | `schema` | | `schema` | the note's own vocabulary, `{block, leaf, inline}` in the registry's shape, applied at mount after the add-ons ([`window.TERN.schema`](schema.html#window-tern)). Its `strict` sets `tern.schema.strict`, over an add-on's |
 | `css` | `data-css` | `css` | a stylesheet to use as the base instead of the inline one ([CSP](publishing.html#csp)) |
 | `nonce` | `data-nonce` | `nonce` | a CSP nonce, set on every `style`, `link` and `script` Tern adds, and on the note's re-created scripts |
@@ -811,9 +807,9 @@ tern.config;
 
 **`data-use`** is also how add-ons are loaded. Its value is a list of URLs, separated by spaces, resolved against the page. An entry ending in `.css` (before its query) is a stylesheet, linked in its place in the [cascade](#style); any other is a script. Scripts are fetched in parallel and run in the order listed, and the note mounts only once every entry has loaded or failed.
 
-**KaTeX options.** Every key of `katex` except `base`, `displayMode` and `throwOnError` is passed to KaTeX: `macros`, `trust`, `strict`, `output`, `leqno` and the rest. `throwOnError` is always true, so that a bad formula is reported as `math.error` and keeps its TeX. `macros` is copied into one table that every formula shares; the `:::macros` blocks of the note are defined into it first.
+**KaTeX options.** The [`katex.js` add-on](addons.html#katex) reads `tern.config.use.katex` and passes every key except `displayMode` and `throwOnError` to KaTeX: `macros`, `trust`, `strict`, `output`, `leqno` and the rest. `throwOnError` is always true, so a formula KaTeX rejects keeps its TeX, and the add-on warns in the console rather than reporting a diagnostic. `macros` is copied into one table that every formula shares; the `:::macros` blocks of the note are defined into it first. A copy of KaTeX of your own is `addons/katex.js?base=URL`, not a config key.
 
-Two other attributes belong to the tag but not to `tern.config`. `data-built` marks a page written by `tern build`, with the value `math` when the build left formulas to typeset ([A built page](#built-page)). `src` must name a file called `tern.js` for editors and the command line to [detect the note](tools.html#detection).
+Two other attributes belong to the tag but not to `tern.config`. `data-built` marks a page written by `tern build` (always just `data-built`, with no value; [A built page](#built-page)). `src` must name a file called `tern.js` for editors and the command line to [detect the note](tools.html#detection).
 
 An add-on reads its options like this:
 
@@ -834,12 +830,11 @@ Adds a stylesheet to the head and returns its `<style>` element. It is how a scr
 
 Tern keeps its sheets together in the head, in this order:
 
-1. KaTeX's stylesheet;
-2. the base: `<style id="tern-style">`, or the `data-css` link, or a head link to `tern.css`;
-3. each `data-use` entry, in its order: a CSS add-on's link, or the sheets a script add-on adds with `tern.style` while it runs;
-4. every other `tern.style` sheet, such as one added by a note script.
+1. the base: `<style id="tern-style">`, or the `data-css` link, or a head link to `tern.css`;
+2. each `data-use` entry, in its order: a CSS add-on's link, or the sheets a script add-on adds with `tern.style` while it runs;
+3. every other `tern.style` sheet, such as one added by a note script.
 
-The group sits before the head's first stylesheet of your own, so your head CSS wins over Tern's at equal specificity, and a theme listed after another add-on wins over it.
+The group sits before the head's first stylesheet of your own, so your head CSS wins over Tern's at equal specificity, and a theme listed after another add-on wins over it. A [math add-on](addons.html#katex) appends its library's stylesheet (KaTeX's or Temml's) to the head on its own, outside this group.
 
 ```js
 // my-addon.js
@@ -867,13 +862,13 @@ tern.js runs from its `<script src>` tag while the HTML parser is still reading 
 3. **One `document.write`** adds to the head:
    - `<meta name="color-scheme" content="light dark">`, unless the head has one, so the page never flashes white;
    - a preload for each script add-on;
-   - preloads for KaTeX's script and stylesheet, at low priority, unless KaTeX is off or already on the page;
    - `<plaintext id="tern-source" hidden>`, which makes the HTML parser read the rest of the file as plain text: the note.
 4. **Add-ons and styles,** in the same task:
    - every script add-on is appended at once, with `async = false`: fetched in parallel, run in the order listed;
    - CSS add-ons and `data-css` become links;
-   - the base stylesheet goes in, so the empty page already has its colours;
-   - KaTeX's script and stylesheet are requested, so that KaTeX is usually ready by the time the note is.
+   - the base stylesheet goes in, so the empty page already has its colours.
+
+   The engine requests no KaTeX itself: a [math add-on](addons.html#katex) in `data-use` fetches its library when it meets the first formula.
 5. **Waiting.** The runtime waits for `DOMContentLoaded`, which means the whole note has arrived, and for each add-on to load or fail. There is no timeout. An add-on that fails to load is [`addon.failed`](diagnostics.html#addon-failed), and so is a script add-on that throws while it runs: the note still mounts, with whatever the add-on registered before the error.
 
 ### Mount {#mount}
@@ -895,10 +890,10 @@ tern.js runs from its `<script src>` tag while the HTML parser is still reading 
    - a type that is not JavaScript, a module, an import map or speculation rules is a data block, and stays inert.
 
    While they run, `document.write` writes nothing ([`script.document-write`](diagnostics.html#script-document-write)), and a `DOMContentLoaded` listener is not registered ([`script.domcontentloaded`](diagnostics.html#script-domcontentloaded)): that event is over, and it is not fired again. Use `tern.on('ready', fn)`, or run the code directly.
-2. **Behaviours.** Every formula gets `data-tex`, its TeX; a fence with line numbers and a `start` gets its first number; then each element with `data-t` gets its schema `dom` and its [`tern.define`](#define) functions, in document order.
-3. **`render`** fires with `main.tern`.
-4. **Math.** KaTeX typesets the formulas in slices of about 10 ms, one per frame, so the page stays responsive. The first slice runs in the mount's task if KaTeX is already there, so the first paint is typeset. Formulas inside a closed `<details>` wait until it opens. A note with more than 100 formulas holds its top-level blocks with `content-visibility: auto` until they come near the viewport. A formula KaTeX rejects keeps its TeX and is [`math.error`](diagnostics.html#math-error).
-5. **`math`** fires with `main.tern`.
+2. **Behaviours.** A fence with line numbers and a `start` gets its first number; then each element with `data-t` gets its schema `dom` and its [`tern.define`](#define) functions, in document order. A formula is still its TeX, in `span.t-math`.
+3. **`render`** fires with `main.tern`. A listener may return a promise; the runtime awaits all `render` listeners before it fires `math`, which is how a math add-on's typesetting completes first.
+4. **Math.** A [math add-on](addons.html#katex) loaded in `data-use` typesets the formulas in its `render` listener: it saves each formula's TeX to `data-tex`, then KaTeX (or Temml) typesets the visible ones in slices of about 10 ms, so the page stays responsive and the first paint is typeset. Formulas inside a closed `<details>` wait until it opens. A note with more than 100 formulas holds its top-level blocks with `content-visibility: auto` until they come near the viewport. A formula the add-on cannot parse keeps its TeX and the add-on warns in the console. Without a math add-on, every formula stays as its TeX.
+5. **`math`** fires with `main.tern`, after the `render` listeners have resolved.
 6. **The fragment.** If the URL has a `#id`, its target's closed `<details>` ancestors are opened, and it is scrolled into view.
 7. **The console group** is printed: "tern: N problems".
 8. **`ready`** fires with `main.tern`, and then [`tern.ready`](#ready) resolves.
@@ -909,17 +904,17 @@ After `ready`, opening a `<details>` typesets its formulas and fires `math` with
 
 `tern build` writes a static page: the head, Tern's sheets, `<main class="tern">` with the emitter's HTML, the note's source in `<script type="text/tern" id="tern-source">`, and its diagnostics in `<script type="application/json" id="tern-diagnostics">`. Its tern.js tag has `data-built`. tern.js finds that attribute and skips capture, mount and the re-creation of scripts:
 
-1. **At once:** config; the head's Tern sheets take their places in the cascade; KaTeX is requested if the tag says `data-built="math"`; add-on scripts that fail to load, or throw while they run, are noted.
+1. **At once:** config; the head's Tern sheets take their places in the cascade; add-on scripts that fail to load, or throw while they run, are noted.
 2. **At `DOMContentLoaded`:**
    1. `window.TERN.schema`;
-   2. the note's source, for `math.error` positions, and the number of file lines before it, for the panel;
+   2. the note's source, so the source can be read back, and the number of file lines before it, for the panel;
    3. the build's diagnostics, then an `addon.failed` for each add-on script that failed to load or threw, into `tern.diagnostics` and the panel;
-   4. behaviours, `render`, math for the formulas the build did not typeset, `math`, the fragment, the console group (whose first line says "a built page"), `ready`.
+   4. behaviours, `render`, a math add-on's typesetting of the formulas the build did not pre-render, `math`, the fragment, the console group (whose first line says "a built page"), `ready`.
 
 The differences from a note:
 
 - The note's scripts are real scripts the browser runs while it parses the page. `tern` and the add-ons are already defined, `document.write` writes, and `DOMContentLoaded` listeners run. Nothing is intercepted or reported.
-- A page whose formulas were all typeset by the build loads no KaTeX.
+- A page whose formulas were all pre-rendered (`tern build --math`) loads no math library, even if it still lists the add-on: the add-on finds them typeset and fetches nothing. A built note whose math was not pre-rendered shows it at view time only if its `data-use` loads a math add-on.
 - A CSS add-on that fails to load is not reported; the browser's console shows it.
 - If tern.js itself fails to load, the content still shows with its styles, but the add-ons, and any note script that calls `tern`, throw.
 
@@ -1440,4 +1435,4 @@ See @nowhere.
 
 The runtime counts the file line of the tern.js tag from what the HTML parser kept of the head. It is exact for the canonical first line and for line breaks between head elements. But the HTML parser drops the line break after `<!doctype html>`, `<html …>` and `<head>`, so a head that puts them on lines of their own gives file lines that are too low, by one for each.
 
-**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`tern.emit`](#emit)). It is how a browser maps an element back to its note line: the runtime reads the nearest one to position `math.error`.
+**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`tern.emit`](#emit)). It is how a browser maps an element back to its note line, and how `tern build --math` positions a [`math.error`](diagnostics.html#math-error).

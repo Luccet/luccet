@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/code.js ../addons/mermaid.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js"></script>
 
 :::meta
-description: The add-ons that come with Tern, in its addons/ folder: code highlighting with highlight.js and diagrams with Mermaid, in the colours of the page's theme.
+description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, and diagrams with Mermaid.
 :::
 
 ::site-nav
@@ -12,6 +12,8 @@ description: The add-ons that come with Tern, in its addons/ folder: code highli
 
 Tern comes with add-ons in the `addons/` folder next to `tern.js`. Each one is a script [add-on](schema.html#addons): list it in `data-use`, with a [theme](schema.html#themes) if you like.
 
+**The engine renders no math itself.** It leaves each formula as its TeX, the way a code fence stays plain without [`code.js`](#code). To typeset the math, load a math add-on: [`katex.js`](#katex) for KaTeX, or [`mathml.js`](#mathml) for native MathML. Load one, not both.
+
 ```html
 <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="themes/nord.css addons/code.js"></script>
 ```
@@ -21,6 +23,8 @@ From jsDelivr, give each add-on the same tag as `tern.js`: `https://cdn.jsdelivr
 :::table[Add-ons]{#tbl-addons}
 | Add-on | What it does |
 |---|---|
+| [`katex.js`](#katex) | typesets formulas with KaTeX, to styled HTML with its own fonts |
+| [`mathml.js`](#mathml) | typesets formulas as native MathML, with Temml, no fonts to load |
 | [`code.js`](#code) | colours code by its language, with highlight.js, in the theme's colours |
 | [`mermaid.js`](#mermaid) | draws `mermaid` fences as diagrams, with Mermaid, in the theme's colours |
 :::
@@ -187,3 +191,65 @@ The add-on sets Mermaid's `base` theme from the page's [custom properties](schem
 ### A newer Mermaid {#mermaid-updating}
 
 The version and its hash live in a table in `addons/mermaid.js`. To move to another version, run `node tools/mermaid.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
+
+## Math with KaTeX {#katex}
+
+`katex.js` typesets every formula — `$x$`, `$$…$$` and a [`:::macros`](guide.html#math) block — with [KaTeX](https://katex.org), to styled HTML in KaTeX's own fonts, so the math looks the same in every browser. It is the typeset default; for native MathML with no fonts to load, use [`mathml.js`](#mathml) instead.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/katex.js"></script>
+<script src="tern.js" data-use="addons/katex.js?base=vendor/katex"></script>
+```
+:::
+
+- **Without a math add-on, formulas stay as TeX.** The engine renders no math itself; this add-on (or [`mathml.js`](#mathml)) typesets it. The TeX is kept in each formula's `data-tex`, so a typeset formula still copies as `$tex$`.
+- **Options** go in `window.TERN = {use: {katex: {macros: {…}, strict: false, …}}}` — anything KaTeX takes but `displayMode` and `throwOnError`. A `:::macros` block fills one shared macro table first.
+- **Long notes stay smooth.** Formulas are typeset in time slices, so no task runs long; a note's off-screen blocks get `content-visibility` while they are, and a formula in a closed `<details>` is typeset when it opens. Everything pending is typeset before printing or a fragment scroll.
+
+### How it loads {#katex-loading}
+
+- **From jsDelivr.** The add-on asks for KaTeX 0.19.0 at the first formula, with its stylesheet, pinned with [SRI](publishing.html#csp). Each formula shows its TeX until KaTeX arrives, then is typeset.
+- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `katex.min.js` and `katex.min.css`, the `dist/` folder of the npm package `katex`. A copy is loaded without SRI. A `window.katex` already on the page is used as it is.
+- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src` and `style-src`, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's script and stylesheet carry the nonce; KaTeX writes its styles through the CSSOM, so its formulas need no inline-style exception.
+- **A formula KaTeX cannot parse** stays as its TeX source, marked `t-error`, with the reason in the console.
+- **If KaTeX does not load,** each formula stays as its TeX source, and the console shows a warning.
+- **Without the page.** `tern check` and `tern build` (without `--math`) do nothing with it: a note shows its math when `tern.js` runs. `tern build --math=katex` ([Command line](tools.html#build)) pre-renders it instead, so no script loads at view time.
+
+### A newer KaTeX {#katex-updating}
+
+The version and its hashes live in a table in `addons/katex.js`. To move to another version, run `node tools/katex.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
+
+## Math as MathML {#mathml}
+
+`mathml.js` renders every formula as native [MathML](https://developer.mozilla.org/en-US/docs/Web/MathML) with [Temml](https://temml.org), a lighter alternative to [`katex.js`](#katex). The browser draws the MathML with its math fonts, so once Temml has run nothing else is fetched: the math is selectable, scales with the text, and prints as part of the page.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/mathml.js"></script>
+<script src="tern.js" data-use="addons/mathml.js?base=vendor/temml"></script>
+```
+:::
+
+- **One math add-on, not two.** Load `mathml.js` or [`katex.js`](#katex), not both. The engine renders no math itself, so they never clash.
+- **The same TeX, the same places.** `$x$`, `$$…$$` and `:::macros` work exactly as they do with KaTeX ([Math](guide.html#math)). The add-on reads each formula's TeX, so the [dollar rules](syntax-inline.html#inline-math) are unchanged.
+- **The TeX is kept.** Each formula keeps its TeX in a MathML `<annotation>` and in `data-tex`, so it still copies as `$tex$`.
+
+### MathML or KaTeX {#mathml-why}
+
+- **[`katex.js`](#katex)** typesets to styled HTML, with KaTeX's own fonts, so a formula looks the same in every browser. It is the better choice for exact, print-quality layout and for the widest match with LaTeX.
+- **`mathml.js`** needs no KaTeX: the browser draws the MathML, so the page is lighter and, when [pre-rendered](tools.html#build), carries no math code or fonts at all. Its layout is the browser's, so it varies a little between browsers, and a few rare constructs differ. Choose it for self-contained, offline or accessible pages.
+- **Pre-render for a static page.** `tern build --math=mathml` writes the MathML into the page with the [`temml` npm package](tools.html#build), so a published note shows its math with no script, no stylesheet and no font to fetch — the add-on is for notes that render themselves.
+
+### How it loads {#mathml-loading}
+
+- **From jsDelivr.** The add-on asks for Temml 0.14.0 at the first formula, pinned with [SRI](publishing.html#csp): one 164 KB file and a 9 KB stylesheet. Each formula shows its TeX until Temml arrives, then becomes MathML.
+- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `temml.min.js` and `Temml-Local.css`, the `dist/` folder of the npm package `temml`. A copy is loaded without SRI. A `window.temml` already on the page is used as it is.
+- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's script and its stylesheet carry the nonce. Temml writes a few style attributes on a formula; a policy that forbids inline styles (no `'unsafe-inline'` in `style-src`) blocks them, so some spacing may be off. For exact math under a strict policy, [pre-render](tools.html#build) instead.
+- **A formula Temml cannot parse** stays as its TeX source, marked `t-error`, with the reason in the console.
+- **If Temml does not load,** each formula stays as its TeX source, and the console shows a warning.
+- **Without the page.** `tern check` and `tern build` (without `--math=mathml`) run the add-on but render nothing: a note that loads it shows its MathML when `tern.js` runs, and without JavaScript each formula shows its TeX.
+
+### A newer Temml {#mathml-updating}
+
+The version and its hashes live in a table in `addons/mathml.js`. To move to another version, run `node tools/temml.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.

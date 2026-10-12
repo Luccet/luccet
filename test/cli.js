@@ -22,7 +22,12 @@ const CLI = path.join(ROOT, 'tern-cli.js');
 const tern = require(path.join(ROOT, 'tern.js'));
 const { DETECT, detect, split } = require(path.join(ROOT, 'cli', 'note.js'));
 const { decodeSource } = require(path.join(ROOT, 'cli', 'build.js'));
-const { KATEX } = require(path.join(ROOT, 'src', 'runtime.js'));
+// KaTeX's pinned version and SRI hashes live in the add-on's table now.
+const KATEX = (() => {
+  const src = fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8');
+  const g = (k) => (new RegExp(`${k}: '([^']+)'`).exec(src) || [])[1];
+  return { version: g('version'), js: g('js'), css: g('css') };
+})();
 const FILTER = (process.argv.find((a) => a.startsWith('--filter=')) || '').slice(9);
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-cli-'));
@@ -794,7 +799,7 @@ test('build: the page parses; main.tern is tern.toHTML; the source and diagnosti
   ok(p.head.includes('<title>Gebaut</title>') && p.head.includes('<meta name="author" content="O. C.">'), ':::meta written');
   ok(p.head.includes('<meta name="viewport"') && p.head.includes('<meta name="color-scheme" content="light dark">'), 'viewport and color-scheme');
   ok(p.head.includes(`<style id="tern-style">\n${tern.css}</style>\n<link rel="stylesheet" href="theme.css">`), 'tern.css inlined, then the CSS add-on');
-  ok(p.head.includes('<script data-built="math" src="tern.js" data-use="box.js theme.css"></script><script src="box.js"></script>\n'), 'tern.js with data-built, then the script add-on');
+  ok(p.head.includes('<script data-built src="tern.js" data-use="box.js theme.css"></script><script src="box.js"></script>\n'), 'tern.js with data-built, then the script add-on');
   // stdout without -o; the built page is not a note.
   eq(run(['build', 'b/n.html']).out, html, 'the page on stdout');
   ok(/it is a page written by tern build/.test(run(['check', 'b/out.html']).err), 'check skips the built page');
@@ -853,9 +858,50 @@ test('build --katex: formulas pre-rendered to HTML and MathML, with data-tex and
   write('k/bad.html', `${FIRST}<script src="tern.js"></script>\nGood $x$, bad $\\left( x$.\n`);
   const bad = run(['build', 'k/bad.html', '--katex'], { env });
   ok(/k\/bad\.html:2:15: warning math\.error: KaTeX cannot typeset this formula/.test(bad.err), `stderr: ${bad.err}`);
-  ok(/<script data-built="math" src="tern\.js">/.test(bad.out) && /data-pos="1:15">\\left\( x<\/span>/.test(bad.out), 'the bad formula left as TeX, data-built="math"');
+  ok(/<script data-built src="tern\.js">/.test(bad.out) && /data-pos="1:15">\\left\( x<\/span>/.test(bad.out), 'the bad formula left as TeX (rendered only if the note loads a math add-on)');
   write('k/none.html', `${FIRST}<script src="tern.js" data-katex="none"></script>\nNo $x$.\n`);
   ok(/data-katex="none"/.test(run(['build', 'k/none.html', '--katex'], { env }).err), 'data-katex="none" is not pre-rendered');
+});
+
+test('build --math=mathml: formulas pre-rendered to native MathML with Temml, self-contained', () => {
+  const cache = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
+  const version = fs.existsSync(cache) && fs.readdirSync(cache).find((d) => /^temml-\d/.test(d) && fs.existsSync(path.join(cache, d, 'dist', 'temml.cjs')));
+  write('m/n.html', `${FIRST}<script src="tern.js"></script>\n:::macros\n\\newcommand{\\RR}{\\mathbb{R}}\n:::\n\n# Top $x^2$\n\nInline $x \\in \\RR$ and display:\n\n$$ \\sum_{i=1}^n i $$\n`);
+  // Without the package, --math=mathml leaves the formulas to tern.js and says why.
+  const without = run(['build', 'm/n.html', '--math=mathml']);
+  exits(without, 0, 'build --math=mathml without temml');
+  ok(/the temml package cannot be required/.test(without.err) && !/<math/.test(without.out), 'no pre-rendering');
+  // A bad engine name is a usage error.
+  const bogus = run(['build', 'm/n.html', '--math=latex']);
+  exits(bogus, 2, '--math=latex');
+  ok(/--math must be katex or mathml/.test(bogus.err), `usage: ${bogus.err}`);
+  if (!version) throw new Skip('no Temml in node_modules/.cache/tern-smoke (run the smoke tests once)');
+  const pkg = at('tx', 'node_modules', 'temml');
+  fs.mkdirSync(pkg, { recursive: true });
+  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'temml', version: version.slice(6), main: 'dist/temml.cjs' }));
+  try {
+    fs.symlinkSync(path.join(cache, version, 'dist'), path.join(pkg, 'dist'), 'dir');
+  } catch {
+    fs.cpSync(path.join(cache, version, 'dist'), path.join(pkg, 'dist'), { recursive: true });
+  }
+  const env = { NODE_PATH: at('tx', 'node_modules') };
+  const r = run(['build', 'm/n.html', '--math=mathml'], { env });
+  exits(r, 0, 'build --math=mathml');
+  ok(/3 formulas, 3 pre-rendered as MathML/.test(r.err), `summary: ${r.err}`);
+  const p = pageParts(r.out);
+  const spans = [...p.main.matchAll(/<span class="t-math"( data-display)? data-pos="[^"]*" data-tex="([^"]*)"><math/g)].map((m) => m[2]);
+  eq(spans, ['x^2', 'x \\in \\RR', '\\sum_{i=1}^n i'], 'pre-rendered formulas and their data-tex');
+  ok((p.main.match(/<math\b/g) || []).length === 3, 'three <math> elements');
+  ok(/annotation encoding="application\/x-tex"/.test(p.main), 'the TeX kept in an annotation');
+  // KaTeX off; its stylesheet and script never referenced; Temml inlined.
+  ok(/<script data-built src="tern\.js">/.test(r.out), 'data-built; the MathML is in the page');
+  ok(!/katex\.min\.(js|css)/.test(r.out), 'no KaTeX asset referenced');
+  ok(/<style id="tern-temml-style">/.test(p.head) && /url\(data:font\/woff2;base64,/.test(p.head), "Temml's CSS inlined with its font as a data URL");
+  // A formula Temml rejects stays as its TeX source; the page still turns KaTeX off.
+  write('m/bad.html', `${FIRST}<script src="tern.js"></script>\nGood $x$, bad $\\left( x$.\n`);
+  const bad = run(['build', 'm/bad.html', '--math=mathml'], { env });
+  ok(/m\/bad\.html:2:15: warning math\.error: Temml cannot render this formula/.test(bad.err), `stderr: ${bad.err}`);
+  ok(/<script data-built src="tern\.js">/.test(bad.out) && /data-pos="1:15">\\left\( x<\/span>/.test(bad.out), 'the bad formula left as TeX source');
 });
 
 test('build: refusals and usage errors', () => {

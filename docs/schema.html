@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js"></script>
 
 :::meta
 description: How to give Tern's element names meaning, look and behaviour: the schema and every schema field, window.TERN.schema, add-ons, tern.define, custom transforms, styling, and labels in other languages.
@@ -730,7 +730,7 @@ The examples in this section are source, not live. A live example renders with t
 - **When.** At mount, after every add-on has registered its entries. Each entry goes through `tern.block`, `tern.leaf` or `tern.inline`.
 - **Precedence.** So the note's entry replaces an add-on's entry for the same name, **whole**: the fields are not merged. An add-on's `dom` for that name is gone, unless the note's entry has one too.
 - **A bad entry** (a reserved name, a value that is not an object) is skipped with a warning in the console; the others apply.
-- **The levels and `strict`** are read: `strict: true` turns on [strict names](#strict), and `strict: false` turns off an add-on's. `window.TERN` carries other settings too, such as `lang`, `use` and `katex` ([Configuration](api.html#config)).
+- **The levels and `strict`** are read: `strict: true` turns on [strict names](#strict), and `strict: false` turns off an add-on's. `window.TERN` carries other settings too, such as `lang` and `use` (a math add-on's options live under `use.katex`; [Configuration](api.html#config)).
 - **Built pages.** `tern build` applies the vocabulary when it writes the HTML. tern.js applies it again when the built page starts, for the behaviours and for `tern.render`.
 
 **Under node.** `tern check`, `tern parse`, `tern build` and the language server run the head's scripts in a sandbox, in document order, before the add-ons. Then `window.TERN.schema` goes on top, as in the browser.
@@ -927,7 +927,7 @@ What each part does:
 | `tern.render` | resolves to `[]` |
 | `tern.ready` | a promise that never settles |
 | `tern.diagnostics` | an empty array |
-| `tern.config` | `{use: {}, katex: {}}`: no query options |
+| `tern.config` | `{use: {}}`: no query options |
 | everything else on `tern` (`parse`, `toHTML`, `visit` …) | absent: calling it throws, so the add-on, or the transform that called it, is `addon.failed` |
 :::
 
@@ -966,7 +966,7 @@ tern.define('countdown', (el) => {
 - **Keyed on `data-t`.** `fn` runs for every element whose `data-t` is `name`: containers, leaves and inline elements, with or without a schema entry, and every fence (`data-t="code"`). A bare span `[x]{…}` has no `data-t`.
 - **Once per element** and function. Elements are remembered, so `tern.render()` never runs a function twice on one element.
 - **Document order**, element by element. For each element: its schema `dom`, then each `define` function for its name, in registration order.
-- **Before math.** Formulas are still TeX, in `data-tex`, when behaviours run. See [Behaviours that need typeset math](#pattern-math).
+- **Before math.** Formulas are still TeX — no math add-on has typeset them yet — when behaviours run. See [Behaviours that need typeset math](#pattern-math).
 - **Additive.** Several functions per name all run.
 - **`undo()`** removes that one function, for elements met afterwards; what it did to earlier elements stays.
 - **`tern.undefine(name)`** removes every function `define` registered for the name. A schema `dom` stays.
@@ -1008,10 +1008,10 @@ const off = tern.on(event, fn)
 :::table[Events]{#tbl-events}
 | Event | When | `fn` receives |
 |---|---|---|
-| `render` | after the behaviours, before any formula is typeset | the root: `main.tern`, or the element given to `tern.render` |
+| `render` | after the behaviours, before any formula is typeset; a listener may return a promise, which the runtime awaits before `math` (a math add-on typesets here) | the root: `main.tern`, or the element given to `tern.render` |
 | `math` | after the formulas in view are typeset; again when a closed `<details>` opens and its formulas are typeset | the root, or that `<details>` |
 | `ready` | once, after the first `render` and `math` and the scroll to the URL's fragment | `main.tern` |
-| `diagnostic` | for each runtime diagnostic reported after you subscribe: `addon.failed`, `math.error`, `katex.unavailable`, `script.document-write`, `script.domcontentloaded` | the diagnostic object |
+| `diagnostic` | for each runtime diagnostic reported after you subscribe: `addon.failed`, `script.document-write`, `script.domcontentloaded`, `doc.quirks` | the diagnostic object |
 :::
 
 - `on` returns a function that unsubscribes `fn`.
@@ -1081,7 +1081,7 @@ No schema entry is needed: `::countdown` and `:::chart` already carry their `dat
 
 #### Behaviours that need typeset math {#pattern-math}
 
-Behaviours always run before math. A behaviour that needs KaTeX's output listens for `math`:
+Behaviours always run before math. A behaviour that needs a [math add-on's](addons.html#katex) output listens for `math`:
 
 ```js
 tern.on('math', (root) => {
@@ -1091,11 +1091,11 @@ tern.on('math', (root) => {
 });
 ```
 
-- `math` fires on `main.tern` once the formulas in view are typeset.
+- `math` fires on `main.tern` once a math add-on has typeset the formulas in view. Without a math add-on in `data-use`, `math` still fires, but each formula stays as its TeX.
 - Formulas inside a closed `<details>` wait until it opens; `math` then fires again with the `<details>` as `root`. So work inside `root`, and make the handler safe to run twice.
-- Before typesetting, every formula's TeX is in its `data-tex` attribute, which stays after typesetting too.
+- A math add-on saves each formula's TeX to its `data-tex` attribute as it typesets, and it stays after; by the `math` event it is set.
 
-To render new Tern content into a part of the page, as a live preview does, use `tern.render(root, source)`: it runs the behaviours on the new elements and typesets their math ([`tern.render`](api.html#render)).
+To render new Tern content into a part of the page, as a live preview does, use `tern.render(root, source)`: it runs the behaviours on the new elements, and a math add-on typesets their math ([`tern.render`](api.html#render)).
 
 ## Custom transforms {#transforms}
 
@@ -1230,8 +1230,8 @@ Every element Tern writes carries classes and attributes to key CSS on. Key on t
 | `.t-cell` | one cell of a container |
 | `.t-eq` | a display equation's box |
 | `.t-eqno` | an equation's number |
-| `.t-math` | every formula; display formulas also have `data-display`, and the runtime adds `data-tex` |
-| `.t-error` | a problem shown where it is: opener junk, an unclosed comment or `$$`, a `:::script`, a formula KaTeX rejects |
+| `.t-math` | every formula; display formulas also have `data-display`, and a [math add-on](addons.html#katex) adds `data-tex` when it typesets |
+| `.t-error` | a problem shown where it is: opener junk, an unclosed comment or `$$`, a `:::script`, or a formula a math add-on cannot parse |
 | `.t-footnotes` | the footnote section; `.t-fnref` the reference, `.t-fnback` the back link |
 | `.t-task` | a task list item, with its checkbox |
 | `.t-ref` | a resolved reference `@id` |
@@ -1310,12 +1310,11 @@ Set the properties in your own CSS. A style in the head, before the tern.js line
 ```
 
 **The cascade.** Tern's stylesheets form one group in the head, placed before the head's first stylesheet of your own, in this order:
-1. KaTeX's stylesheet;
-2. the base, `tern.css`;
-3. each add-on in `data-use` order: a CSS add-on's link, or the `tern.style` sheets a script add-on adds;
-4. other `tern.style` sheets: from `window.TERN.schema` entries, from note scripts.
+1. the base, `tern.css`;
+2. each add-on in `data-use` order: a CSS add-on's link, or the `tern.style` sheets a script add-on adds;
+3. other `tern.style` sheets: from `window.TERN.schema` entries, from note scripts.
 
-Your own head styles come after the group, and a `<style>` written in the note after that. So at equal specificity, **your CSS wins** over Tern's and over every add-on's.
+Your own head styles come after the group, and a `<style>` written in the note after that. So at equal specificity, **your CSS wins** over Tern's and over every add-on's. A [math add-on](addons.html#katex) appends its library's stylesheet (KaTeX's or Temml's) to the head separately, outside this group.
 
 Ways to add your own CSS:
 - a `<style>` or `<link rel="stylesheet">` in the head, before the tern.js line;
@@ -1395,9 +1394,9 @@ From jsDelivr, give the theme the same tag as `tern.js`: `https://cdn.jsdelivr.n
 - the text column has no maximum width, and the body no padding;
 - code wraps, and tables, code and equations no longer scroll;
 - the diagnostics panel is hidden;
-- KaTeX's formulas stay in their sentences in the PDF's text.
+- a math add-on's formulas stay in their sentences in the PDF's text.
 
-Before printing, tern.js opens every `details.t-block` (closing them again afterwards), and typesets every formula still waiting.
+Before printing, tern.js opens every `details.t-block` (closing them again afterwards), and a [math add-on](addons.html#katex) typesets every formula still waiting.
 
 To change print, write `@media print` rules. A property you set at the top level of your CSS also wins over the print values: give it a print value too.
 

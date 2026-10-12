@@ -381,19 +381,40 @@
     });
   }
 
-  // window.katex, which the runtime loads (it requests KaTeX at capture, math
-  // or not), or null when it will not come.
+  // KaTeX for the examples' math. A docs page loads addons/katex.js for its own
+  // prose math, which sets window.katex; if it has not (a page with no prose
+  // math), docs.js loads KaTeX here. Pinned to addons/katex.js's version.
+  const KATEX = {
+    base: 'https://cdn.jsdelivr.net/npm/katex@0.19.0/dist',
+    js: 'sha384-QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk',
+    css: 'sha384-3rdsX6e5mueWyoweR9NIVmtEsUkokpBT/0ALqKKIBMr9j4qhHkaIkAcGgsE6uVlp',
+  };
+  const katexReady_ = () => window.katex && typeof window.katex.render === 'function';
   let waiting = null;
   function katexReady() {
     if (waiting) return waiting;
-    const t0 = Date.now();
+    if (document.compatMode === 'BackCompat') return (waiting = Promise.resolve(null));
     return (waiting = new Promise((resolve) => {
+      if (katexReady_()) return resolve(window.katex);
+      // Load it once, unless addons/katex.js already is.
+      if (!document.querySelector('script[src*="katex.min.js"]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `${KATEX.base}/katex.min.css`;
+        link.integrity = KATEX.css;
+        link.crossOrigin = 'anonymous';
+        document.head.append(link);
+        const js = document.createElement('script');
+        js.src = `${KATEX.base}/katex.min.js`;
+        js.async = true;
+        js.integrity = KATEX.js;
+        js.crossOrigin = 'anonymous';
+        document.head.append(js);
+      }
+      const t0 = Date.now();
       (function poll() {
-        if (window.katex && typeof window.katex.render === 'function') return resolve(window.katex);
-        const k = T.config && T.config.katex;
-        const none = (k && k.base === 'none') || document.compatMode === 'BackCompat';
-        const failed = (T.diagnostics || []).some((d) => d.code === 'katex.unavailable');
-        if (none || failed || Date.now() - t0 > 30000) return resolve(null);
+        if (katexReady_()) return resolve(window.katex);
+        if (Date.now() - t0 > 30000) return resolve(null);
         setTimeout(poll, 50);
       })();
     }));

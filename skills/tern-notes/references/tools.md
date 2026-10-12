@@ -1,6 +1,6 @@
 # The command line and publishing
 
-`tern-cli.js` is Tern's one command-line program: `new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`. Every command runs the same engine as the browser, on the same file, with the note's own vocabulary, so `tern check` reports what the page's diagnostics panel reports, except problems found only at run time (a formula KaTeX rejects, a script that fails). A note never loads `tern-cli.js`; it needs only `tern.js`.
+`tern-cli.js` is Tern's one command-line program: `new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`. Every command runs the same engine as the browser, on the same file, with the note's own vocabulary, so `tern check` reports what the page's diagnostics panel reports, except problems found only at run time (a formula a math add-on rejects, a script that fails). A note never loads `tern-cli.js`; it needs only `tern.js`.
 
 The examples below are real runs. Paths are relative to the folder the command ran in.
 
@@ -223,7 +223,7 @@ tern check: 1 note: 1 error, 2 warnings, 2 infos
 
 **Checked:** Tern links and images; `href`, `src`, `poster` and `data` of elements (`::video{src=…}`); `href` and `src` in raw HTML, in the note and the head (a `<link rel="stylesheet">`); on the `tern.js` line, the path to `tern.js`, `data-css` and the stylesheets in `data-use`. Links resolve from the note's folder; a query is ignored and `%20` decoded.
 
-**Skipped:** URLs with a scheme (`https:`, `mailto:`) or starting with `//`; root-relative URLs (`/x.html`); every link of a note with a `<base href>`; anything in code, math and comments; fragments of non-HTML files (`paper.pdf#page=3`); ids a script adds at run time; `data-katex`. A same-note `[text](#id)` is the engine's `ref.dangling` instead.
+**Skipped:** URLs with a scheme (`https:`, `mailto:`) or starting with `//`; root-relative URLs (`/x.html`); every link of a note with a `<base href>`; anything in code, math and comments; fragments of non-HTML files (`paper.pdf#page=3`); ids a script adds at run time. A same-note `[text](#id)` is the engine's `ref.dangling` instead.
 
 ## tern mv
 
@@ -260,10 +260,10 @@ Without `--dry-run`, the first line reads `moved …` and the summary drops "a d
 ## tern build, tern parse, tern corpus
 
 ```sh
-tern build FILE [-o OUT] [--katex]
+tern build FILE [-o OUT] [--math katex|mathml]
 ```
 
-Writes a static page holding the HTML the browser would mount, plus `:::meta` written into the head. The page still loads `tern.js` for behaviours, math, the panel, copy and print. Its tag gets `data-built`, so it is **not a note**: never edit it; edit the note and rebuild.
+Writes a static page holding the HTML the browser would mount, plus `:::meta` written into the head. The page still loads `tern.js` for behaviours, the panel, copy and print. Its tag gets `data-built`, so it is **not a note**: never edit it; edit the note and rebuild.
 
 ```text
 $ tern build notes/build.html -o dist/
@@ -276,7 +276,9 @@ tern build: wrote dist/build.html; 2 formulas
 - **`-o OUT`**: without it, or with `-o -`, the page goes to stdout. `OUT` ending in `/` or naming an existing folder: written there under the note's name, folder created. Otherwise `OUT` is the file name (`-o dist2` writes a file `dist2`, and says so). `OUT` may not be the note itself (exit 2).
 - **Relative URLs are kept as written**, and resolve from the page's folder. Build into a tree that mirrors the source (`notes/a.html` to `public/notes/a.html`) and copy `tern.js`, add-ons and images into the same layout.
 - **Diagnostics** print on stderr, but the page is always written and the exit code is 0. Run `tern check` first when problems should stop you.
-- **`--katex`** pre-renders math with the `katex` npm package, which is not a dependency: install it where Node finds it for `tern-cli.js`, in the note's folder or the current folder. Without it: `tern build: the katex package cannot be required (npm install katex); formulas are left to tern.js`. On success: `wrote dist/build.html; 2 formulas, 2 pre-rendered`. A formula KaTeX rejects is left for `tern.js`, with a `math.error` warning. Pre-rendered math carries `style` attributes (see CSP below).
+- **Math at build time.** The engine renders no math itself, so a built page shows its formulas as TeX unless the note loads a math add-on (its `data-use` is kept, so `addons/katex.js` or `addons/mathml.js` still typesets at view time) or you pre-render with `--math`.
+- **`--math katex`** (and the older alias `--katex`) pre-renders math to HTML with the `katex` npm package, which is not a dependency: install it where Node finds it for `tern-cli.js`, in the note's folder or the current folder. Without it: `tern build: the katex package cannot be required (npm install katex); formulas are left to tern.js`. On success: `wrote dist/build.html; 2 formulas, 2 pre-rendered as HTML`. A formula KaTeX rejects is left as its TeX, with a `math.error` warning. Pre-rendered KaTeX carries `style` attributes (see CSP below).
+- **`--math mathml`** pre-renders to native MathML with the `temml` npm package (`npm install temml`) and inlines Temml's stylesheet, so the page is self-contained — no script, stylesheet or font to fetch at view time, and nothing for a CSP to allow. Without the package: `tern build: the temml package cannot be required (npm install temml); formulas are left to tern.js`. On success: `wrote dist/build.html; 2 formulas, 2 pre-rendered as MathML`.
 
 ```sh
 tern parse FILE [--transformed] [--compact]
@@ -323,7 +325,7 @@ The notes, `tern.js`, every add-on, theme, stylesheet and image they use, keepin
 
 ### Opening locally
 
-Double-clicking a note renders it from `file:` in Chromium and Firefox, with no server. Relative paths load from disk; root-relative ones do not. Math needs the network (KaTeX comes from a CDN) unless KaTeX is local. On `file:` and `localhost`, a diagnostics panel lists every problem at the bottom of the page; readers on other hosts do not see it (`data-diagnostics` on the tag shows it everywhere, `data-quiet` hides it). The console always has a `tern:` group. To see a note as served: `python3 -m http.server` in its folder, then `http://localhost:8000/note.html`.
+Double-clicking a note renders it from `file:` in Chromium and Firefox, with no server. Relative paths load from disk; root-relative ones do not. Math shows only if the note loads a math add-on (`addons/katex.js` or `addons/mathml.js`), which fetches its library from a CDN unless `?base=` points at a local copy; without an add-on, formulas stay as their TeX source. On `file:` and `localhost`, a diagnostics panel lists every problem at the bottom of the page; readers on other hosts do not see it (`data-diagnostics` on the tag shows it everywhere, `data-quiet` hides it). The console always has a `tern:` group. To see a note as served: `python3 -m http.server` in its folder, then `http://localhost:8000/note.html`.
 
 ### Static hosts and GitHub Pages
 
@@ -344,26 +346,28 @@ Any static host serves notes with no configuration: no rewrites, no headers; `.h
 
 - Or publish pages from `tern build`: the content, title and description are in the HTML, and readers without JavaScript see the content styled. Publish the note itself instead when its add-ons are remote (the build lacks their labels and numbers) or the host sends a strict CSP. Keep the note as the source; rebuild when it changes.
 
-### KaTeX and offline use
+### Math and offline use
 
-`tern.js` loads KaTeX from jsDelivr, pinned with integrity hashes, on every note (before it knows whether there is math). Offline, formulas stay TeX with a `katex.unavailable` error. To work offline:
+The engine renders no math itself: it leaves each formula as its TeX source, like a code fence with no `addons/code.js`. To typeset it, load a math add-on in `data-use` — `addons/katex.js` (KaTeX, to styled HTML with its own fonts) or `addons/mathml.js` (native MathML with Temml, nothing to fetch once it has run). Load one, not both. Each fetches its library from jsDelivr, pinned with integrity hashes, at the first formula; until it arrives, or if it never does, the formula shows its TeX and the add-on logs a console warning. Details: [Add-ons](https://oscarac.github.io/tern/docs/addons.html#katex).
 
-1. Copy `katex.min.js`, `katex.min.css` and the `fonts/` folder from the `dist/` folder of the `katex` npm package, at the version `tern.js` pins (`grep -o 'katex@[0-9.]*' tern.js`; `npm pack katex@X.Y.Z` downloads it), into e.g. `vendor/katex/`, keeping `fonts/` next to the CSS.
-2. Point the tag at it (relative to the note; no integrity hash, so compare hashes with [the pinned ones](https://oscarac.github.io/tern/docs/publishing.html#katex)):
+For a note read offline, or under a strict CSP, point `?base=` at a local copy (loaded without an integrity hash), or pre-render with `tern build --math` (above):
+
+1. Copy the library's `dist/` files next to the note. For KaTeX: `katex.min.js`, `katex.min.css` and the `fonts/` folder, at the version `addons/katex.js` pins (`grep version addons/katex.js`; `npm pack katex@X.Y.Z` downloads it), into e.g. `vendor/katex/`, keeping `fonts/` next to the CSS. For MathML: `temml.min.js` and `Temml-Local.css` into e.g. `vendor/temml/`.
+2. Name that folder with `?base=` on the add-on (relative to the note):
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-katex="vendor/katex"></script>
+<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/katex.js?base=vendor/katex"></script>
 ```
 
-`data-katex="none"` turns math rendering off (formulas shown as TeX, no error, no download): use it on notes without math. `tern check` does not check `data-katex`.
+A note without math loads no math add-on, and its formulas simply show as TeX. For the most self-contained page, `tern build --math=mathml` writes the MathML and its one stylesheet into the file, with nothing left to fetch.
 
 ### Content-Security-Policy
 
 Without a CSP header, skip this. Under a strict policy (no `'unsafe-inline'`):
 
 - **Link `tern.css`** (copy it from the checkout, next to `tern.js`) in the head, so `tern.js` does not inline its stylesheet; or use `data-css`, or `data-nonce`.
-- **Allow KaTeX:** `https://cdn.jsdelivr.net` in `script-src`, `style-src` and `font-src`; or a local copy (`'self'` suffices); or `data-katex="none"`.
-- **Still blocked, and yours:** `style` attributes (`{style="…"}`, raw HTML: use classes), inline `<script>` blocks in the note (unless allowed by nonce or hash; move code to a file), and in a built page the `style` attributes of aligned columns, `cols` grids and `--katex` math. Under a strict CSP, publish the note, not a `--katex` build.
+- **Allow a math add-on's library:** when the note loads `addons/katex.js` or `addons/mathml.js`, allow `https://cdn.jsdelivr.net` in `script-src`, `style-src` and (for KaTeX) `font-src`; or point `?base=` at a local copy (`'self'` suffices); or pre-render with `tern build --math=mathml`, which fetches nothing at view time.
+- **Still blocked, and yours:** `style` attributes (`{style="…"}`, raw HTML: use classes), inline `<script>` blocks in the note (unless allowed by nonce or hash; move code to a file), and in a built page the `style` attributes of aligned columns, `cols` grids and of math pre-rendered with `tern build --math=katex`. Under a strict CSP, pre-render with `tern build --math=mathml` (self-contained) or publish the note itself; KaTeX loaded by the add-on writes its own styles through the CSSOM, which a CSP allows.
 - **Nonces** on a static host are fixed values, no better than `'unsafe-inline'`.
 
 A policy that renders with no violation from Tern, math included:
@@ -392,8 +396,8 @@ Run `tern check FILE` first; then match the symptom.
 | What the page shows | Cause and fix |
 |---|---|
 | The source run together as one paragraph (`#`, `*`, `:::` visible) | `tern.js` did not load or start. Check the `src` from the note's folder (`tern check` reports a `link.missing` error with "so the note does not render"); a root-relative path opened from disk; `tern.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`tern check` says "is not a note"). `tern new --guarded` makes this case readable. |
-| Math as TeX, `doc.quirks` | No `<!doctype html>` at the very start of the file. |
-| Math as TeX, `katex.unavailable` | No network, the CDN blocked (CSP, filter), or a wrong `data-katex` base. |
+| Layout broken, add-ons misbehave; `doc.quirks` | No `<!doctype html>` at the very start of the file, so the browser is in quirks mode. |
+| Math stays as TeX source | No math add-on in `data-use` (load `addons/katex.js` or `addons/mathml.js`), or its library did not load — no network, the CDN blocked (CSP, filter), or a wrong `?base=`. The add-on logs a console warning; it is not a `tern check` or panel diagnostic. |
 | `CafÃ©` for `Café` | No `<meta charset="utf-8">` near the top, or the file not saved as UTF-8. |
 | Plain boxes, no labels or numbers; `addon.failed` | A wrong path in `data-use`, a file not uploaded, or an add-on that throws. |
 | Missing styles or scripts; CSP violations in the console | See CSP above. |

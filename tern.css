@@ -21,9 +21,11 @@
 }
 html { background: var(--t-bg); color: var(--t-fg); font: var(--t-size)/var(--t-leading) var(--t-font); -webkit-text-size-adjust: 100%; }
 body { margin: 0; padding: 2.5rem 1rem 6rem; }
-.tern { max-width: var(--t-width); margin-inline: auto; overflow-wrap: break-word; }
+.tern { max-width: var(--t-width); margin-inline: auto; overflow-wrap: break-word; hanging-punctuation: first last; }
 .tern > :first-child { margin-block-start: 0; }
 .tern :is(h1, h2, h3, h4, h5, h6) { font-family: var(--t-sans); line-height: 1.25; margin-block: 2em .6em; text-wrap: balance; }
+/* Body text wraps for an even rag and no stranded last word; headings balance. */
+.tern :is(p, li, dd, blockquote, figcaption, caption, .t-title) { text-wrap: pretty; }
 .tern h1 { font-size: 1.9rem; }
 .tern h2 { font-size: 1.4rem; padding-block-end: .25em; border-block-end: 1px solid var(--t-line); }
 .tern h3 { font-size: 1.15rem; }
@@ -126,10 +128,12 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
   }
   body { padding: 0; }
   .tern { max-width: none; }
+  /* Paged typesetting: no stranded lines across a page break, no heading left
+     at a page's foot, and figures, equations, quotes and table rows kept whole. */
+  .tern :is(p, li, blockquote) { orphans: 3; widows: 3; }
+  .tern :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
+  .tern :is(figure, figcaption, .t-eq, blockquote, tr) { break-inside: avoid; }
   .tern pre { white-space: pre-wrap; }
   .tern pre, .tern table, .t-eq { overflow: visible; }
   .tern table { display: table; inline-size: auto; }
-  /* KaTeX positions .katex (0.19) and its bases (.base, 0.19 .katex-base) relatively, so Chromium
-     paints formulas after the text around them and the PDF text layer moves them out of their sentences. */
-  .katex, .katex :is(.base, .katex-base) { position: static; }
 }
