@@ -67,6 +67,85 @@ function katexSheet(k, base) {
   return { href: `https://cdn.jsdelivr.net/npm/katex@${k.katex.version}/dist/katex.min.css`, integrity };
 }
 
+// ---------------------------------------------------------------- Temml
+
+// The temml npm package (--math=mathml), resolved like katex: {temml, main}
+// or null. It renders TeX to native MathML.
+function requireTemml(dir) {
+  const tries = [() => require.resolve('temml'), () => require.resolve('temml', { paths: [dir, process.cwd()] })];
+  for (const resolve of tries) {
+    try {
+      const main = resolve();
+      const temml = require(main);
+      if (temml && typeof temml.renderToString === 'function') return { temml, main };
+    } catch {}
+  }
+  return null;
+}
+
+// Temml's stylesheet, inlined so the page stays one self-contained file: its
+// one font (Temml.woff2, for script letters) becomes a data: URL. Native
+// MathML needs no font for the rest. Null when the package's files cannot be
+// read, in which case the browser draws the MathML with no extra styles.
+function temmlCss(main) {
+  const dir = path.dirname(main);
+  let css;
+  try {
+    css = fs.readFileSync(path.join(dir, 'Temml-Local.css'), 'utf8');
+  } catch {
+    return null;
+  }
+  try {
+    const woff2 = fs.readFileSync(path.join(dir, 'Temml.woff2')).toString('base64');
+    css = css.replace(/url\((['"]?)Temml\.woff2\1\)/g, `url(data:font/woff2;base64,${woff2})`);
+  } catch {}
+  return css;
+}
+
+// Pre-renders the formulas to native MathML with Temml, as prerender() does
+// with KaTeX: the :::macros bodies make a preamble, then each formula with
+// throwOnError and annotate (the TeX kept in an <annotation>, so it still
+// copies as $tex$). A formula Temml rejects stays as its TeX source, since a
+// MathML page turns tern.js's KaTeX off.
+function prerenderMathml(ast, M) {
+  const failures = [];
+  const formulas = [];
+  const macroNodes = [];
+  walk(ast, (n) => {
+    if (n.type === 'containerDirective' && n.name === 'macros') macroNodes.push(n);
+    else if (n.type === 'inlineMath' || (n.type === 'math' && !(n.data && n.data.tern && n.data.tern.unclosed))) formulas.push(n);
+  });
+  let macros = {};
+  const preamble = macroNodes.map((n) => n.value || '').join('\n');
+  if (preamble.trim()) {
+    try {
+      macros = M.definePreamble(preamble);
+    } catch (e) {
+      failures.push({ node: macroNodes[0], message: `the :::macros block does not parse: ${e.message}` });
+    }
+  }
+  const open = String.fromCharCode(0xe000) + crypto.randomBytes(4).toString('hex');
+  const close = String.fromCharCode(0xe001);
+  const done = [];
+  for (const n of formulas) {
+    try {
+      const html = M.renderToString(n.value || '', { throwOnError: true, annotate: true, displayMode: n.type === 'math', macros });
+      done.push({ n, value: n.value || '', html });
+      n.value = `${open}${done.length - 1}${close}`;
+    } catch (e) {
+      failures.push({ node: n, message: `Temml cannot render this formula, so it stays as its TeX source: ${e.message}` });
+    }
+  }
+  const at = new RegExp(`>${open}(\\d+)${close}</span>`, 'g');
+  const left = new RegExp(`${open}(\\d+)${close}`, 'g');
+  return {
+    count: done.length,
+    failures,
+    fill: (html) => html.replace(at, (_, i) => ` data-tex="${escAttr(done[i].value)}">${done[i].html}</span>`).replace(left, (_, i) => escText(done[i].value)),
+    restore: () => done.forEach((d) => (d.n.value = d.value)),
+  };
+}
+
 // Every node of the tree, toc entries included (they hold copies of the
 // headings' inline nodes), in document order.
 function walk(root, fn) {
@@ -146,8 +225,10 @@ function htmlAttributes(head, add) {
 
 // ---------------------------------------------------------------- build
 
-// build(text, file, {katex, noScripts}) -> null when the file is not a note,
-// else {html, diagnostics, failures, warnings, math:{total, prerendered}, toFile}.
+// build(text, file, {math, noScripts}) -> null when the file is not a note,
+// else {html, diagnostics, failures, warnings, math:{total, prerendered, engine}, toFile}.
+// math is 'katex' (pre-render with KaTeX), 'mathml' (native MathML with Temml)
+// or absent (formulas left for tern.js at view time).
 function build(text, file, opts = {}) {
   const a = analyse(text, file, { noScripts: opts.noScripts });
   if (!a) return null;
@@ -175,17 +256,29 @@ function build(text, file, opts = {}) {
   }
   const notes = a.diagnostics.filter((d) => d.position);
 
-  // KaTeX, when asked for and available, unless data-katex="none".
+  // Math, pre-rendered when asked for and the package is there. KaTeX
+  // (--math=katex) makes HTML+MathML; Temml (--math=mathml) makes native
+  // MathML and turns tern.js's KaTeX off for the page. data-katex="none"
+  // skips KaTeX pre-rendering (nothing is rendered at all).
   const katexBase = (attrs['data-katex'] || '').trim();
   let pre = null;
   let sheet = null;
-  if (opts.katex && katexBase === 'none') warnings.push('data-katex="none": math is not rendered, so it is not pre-rendered either');
-  else if (opts.katex) {
+  let mathml = false;
+  if (opts.math === 'katex' && katexBase === 'none') warnings.push('data-katex="none": math is not rendered, so it is not pre-rendered either');
+  else if (opts.math === 'katex') {
     const k = requireKatex(dir);
     if (!k) warnings.push('the katex package cannot be required (npm install katex); formulas are left to tern.js');
     else {
       pre = prerender(a.ast, k.katex);
       sheet = katexSheet(k, katexBase);
+    }
+  } else if (opts.math === 'mathml') {
+    const t = requireTemml(dir);
+    if (!t) warnings.push('the temml package cannot be required (npm install temml); formulas are left to tern.js');
+    else {
+      pre = prerenderMathml(a.ast, t.temml);
+      sheet = temmlCss(t.main) ? { inlineCss: temmlCss(t.main) } : null;
+      mathml = true;
     }
   }
   let body;
@@ -245,7 +338,7 @@ function build(text, file, opts = {}) {
   }
   const css = attrs['data-css'];
   const base = sheets.find((s) => s.href != null && (s.href === css || /(?:^|\/)tern(?:\.min)?\.css$/i.test(s.href.replace(/[?#].*$/, ''))));
-  const before = sheet ? [link(sheet.href, sheet.integrity)] : [];
+  const before = sheet ? [sheet.inlineCss ? `<style id="tern-temml-style"${n}>\n${sheet.inlineCss}</style>` : link(sheet.href, sheet.integrity)] : [];
   const after = use.filter(isCss).map((u) => link(u));
   if (base) {
     head = [head.slice(0, base.start), ...before.map((x) => `${x}\n`), head.slice(base.start, base.end), ...after.map((x) => `\n${x}`), head.slice(base.end)].join('');
@@ -256,9 +349,11 @@ function build(text, file, opts = {}) {
     head = at < head.length ? `${head.slice(0, at)}${group.join('\n')}\n${head.slice(at)}` : `${head}\n${group.join('\n')}`;
   }
 
-  // tern.js, marked as a built page; data-built="math" asks it for KaTeX at
-  // once, as capture does, because formulas are left for it.
-  const tag = a.tag.replace(/^<script/i, `<script data-built${total > prerendered ? '="math"' : ''}`);
+  // tern.js, marked as a built page. The engine renders no math itself, so a
+  // formula that was not pre-rendered shows only if the note loads a math
+  // add-on (its data-use is kept below); one pre-rendered here is already
+  // typeset (KaTeX HTML) or native MathML (Temml).
+  const tag = a.tag.replace(/^<script/i, '<script data-built');
   const scripts = use.filter((u) => !isCss(u)).map((u) => `<script src="${escAttr(u)}"${n}></script>`);
   const page = [
     head,
@@ -269,7 +364,7 @@ function build(text, file, opts = {}) {
     ...(notes.length ? [`<script type="application/json" id="tern-diagnostics">${scriptJson(notes.map(({ filePosition, ...d }) => d))}</script>`] : []),
     '',
   ].join('\n');
-  return { html: page, diagnostics: notes, failures: pre ? pre.failures : [], warnings, math: { total, prerendered, katex: !!pre }, toFile: a.toFile };
+  return { html: page, diagnostics: notes, failures: pre ? pre.failures : [], warnings, math: { total, prerendered, engine: pre ? (mathml ? 'mathml' : 'katex') : null }, toFile: a.toFile };
 }
 
 module.exports = { build, decodeSource, escAttr };

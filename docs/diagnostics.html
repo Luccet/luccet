@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Diagnostics · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Diagnostics · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js"></script>
 
 :::meta
 description: Every diagnostic Tern reports: its severity, what triggers it, where it points, what happens to the content, the engine's message and hint, and the fix, each with a live example.
@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The six runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only.
+The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `math.error` from `tern build --math`.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -82,12 +82,11 @@ The first 53 codes come from the parser and the transforms, so `tern.check`, `te
 | [`id.duplicate`](#id-duplicate) | warning | Two elements have the same id. |
 | [`ref.dangling`](#ref-dangling) | warning | A reference points at no id. |
 | [`ref.unreferenceable`](#ref-unreferenceable) | warning | An id that `@` cannot reach. |
-| [`math.error`](#math-error) | error | KaTeX cannot typeset a formula. |
 | [`addon.failed`](#addon-failed) | error | An add-on did not load, or failed while it ran. |
 | [`script.document-write`](#script-document-write) | error | A note script called `document.write`. |
 | [`script.domcontentloaded`](#script-domcontentloaded) | error | A note script listens for `DOMContentLoaded`. |
-| [`katex.unavailable`](#katex-unavailable) | error | KaTeX did not load. |
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
+| [`math.error`](#math-error) | warning | `tern build --math` cannot pre-render a formula. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
 | [`addon.remote`](#addon-remote) | info | A remote add-on was not loaded under node. |
 | [`link.missing`](#link-missing) | error or warning | A link names a file that does not exist. |
@@ -130,7 +129,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
 | `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
 | `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 
-Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The six runtime codes are all errors, `addon.remote` is an info, and `link.dangling` is a warning.
+Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling` and `math.error` are warnings.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -170,7 +169,7 @@ Here the closer is inside a list item inside a quote. Its remainder starts after
 - The panel shows both: `line 1:9 (file line 2)`.
 - The language server sends file lines, converted to the editor's 0-based lines.
 - `tern.check`, `tern.parse` and `tern.diagnostics` hold note positions.
-- The codes that concern the `tern.js` line or the head (`doc.quirks`, `addon.failed`, `katex.unavailable`) are at line 0, column 0, the line before the note's first. The panel shows them as `the tern.js line (file line 1)`.
+- The codes that concern the `tern.js` line or the head (`doc.quirks`, `addon.failed`) are at line 0, column 0, the line before the note's first. The panel shows them as `the tern.js line (file line 1)`.
 
 For example, `tern check` on a note whose first line is the usual head:
 
@@ -201,10 +200,10 @@ The same diagnostics reach six places:
 **The console.** When a note has rendered, tern.js prints one collapsed group named `tern: N problems`, even when N is 0. Its first line gives the time each stage took. Then each diagnostic is one line, for example:
 
 ```
-error math.error at line 1:5 (file line 2): KaTeX cannot typeset this formula: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \frac{a} (the formula is shown as written; fix its TeX)
+error addon.failed at the tern.js line (file line 1): the add-on missing.js did not load; the note renders without it (check the path in data-use)
 ```
 
-Errors and warnings use `console.warn`, infos `console.info`, and never `console.error`, so a note's own problems do not read as page errors. A diagnostic reported after the group, such as a formula typeset later, gets one `console.warn` line of its own, starting with `tern: `.
+Errors and warnings use `console.warn`, infos `console.info`, and never `console.error`, so a note's own problems do not read as page errors. A diagnostic reported after the group, such as one a later `tern.render` call reports, gets one `console.warn` line of its own, starting with `tern: `.
 
 **The panel.** An `<aside class="t-diagnostics" role="status">` after the note lists every diagnostic, of every severity: the severity, the code, `line L:C (file line F)`, the message and the hint. Its summary reads like `tern: 3 problems (2 errors, 1 info)`, and it opens itself when there is an error. It updates live, it is hidden when you print, and it appears only when there is at least one diagnostic. Whether it shows depends on where the page is open:
 
@@ -1026,7 +1025,7 @@ A Box<A> holds a Vec<T>.
 
 ## Math {#math}
 
-These concern [display math](syntax-blocks.html#display-math), [inline math](syntax-inline.html#inline-math) and [verbatim math](syntax-inline.html#verbatim-math). For formulas KaTeX rejects, see [`math.error`](#math-error).
+These concern [display math](syntax-blocks.html#display-math), [inline math](syntax-inline.html#inline-math) and [verbatim math](syntax-inline.html#verbatim-math). A formula a [math add-on](addons.html#katex) cannot parse is a console warning, not a diagnostic; `tern build --math` reports one it cannot pre-render as [`math.error`](#math-error).
 
 ### `math.unclosed` {#math-unclosed}
 
@@ -2616,32 +2615,9 @@ The engine reports `ref.unreferenceable` (warning) at 1:12:
 
 ## Runtime {#runtime}
 
-The browser reports these while it renders a note, after parsing. A live example cannot produce them, so their examples below are plain source. All six are errors. Each appears in the console, in the panel when it shows, and in `tern.diagnostics`, and each is passed to `tern.on('diagnostic', fn)` ([the lifecycle](api.html#lifecycle)).
+The browser reports these while it renders a note, after parsing. A live example cannot produce them, so their examples below are plain source. All four are errors. Each appears in the console, in the panel when it shows, and in `tern.diagnostics`, and each is passed to `tern.on('diagnostic', fn)` ([the lifecycle](api.html#lifecycle)).
 
-### `math.error` {#math-error}
-
-**Error.** KaTeX cannot typeset a formula.
-
-- **Trigger.** KaTeX rejects the TeX of an inline or display formula, or of a `:::macros` block. Tern passes TeX to KaTeX unchanged, so this is a TeX error, not a Tern one.
-- **Position.** The formula's start, from its element's `data-pos`: the `$` of inline math, the line of a display block's opening `$$`, or a `:::macros` block's opener.
-- **Content.** The formula keeps its TeX as text. Its element gets the class `t-error` and a `title` holding KaTeX's message. Other formulas are unaffected.
-- **When.** As formulas are typeset, which can be after the console group: a formula in a closed `<details>` is typeset when it opens.
-
-```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
-Bad $\frac{a}$ and good $x^2$.
-```
-
-The panel shows, at `line 1:5 (file line 2)`:
-
-- **Message:** `KaTeX cannot typeset this formula: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \frac{a}`
-- **Hint:** `the formula is shown as written; fix its TeX`
-
-A `:::macros` block that does not parse gives the message `the :::macros block does not parse: ` followed by KaTeX's message, and the hint `fix the TeX of the definitions`.
-
-**Fix.** Correct the TeX: `$\frac{a}{b}$`. `tern build --katex` reports the same failures as warnings, with the code `math.error`, and leaves those formulas to tern.js ([building](publishing.html#build)).
-
-**Related.** [`katex.unavailable`](#katex-unavailable), [`math.opener-tail`](#math-opener-tail).
+The engine renders no math itself, so a formula a [math add-on](addons.html#katex) cannot parse, or a library the add-on cannot load, is reported by that add-on to the console, not as a diagnostic — as the Mermaid and code add-ons report their own failures. The one math code that remains is [`math.error`](#math-error), a `tern build --math` build warning.
 
 ### `addon.failed` {#addon-failed}
 
@@ -2702,7 +2678,7 @@ A directory reads `/home/me/notes/dir.js is a directory`. `tern build` prints th
 
 **Fix.** Check the path in `data-use`. A relative path resolves from the note, as any URL in it does ([add-ons](schema.html#addons)). For an add-on or a transform that throws, fix its code.
 
-**Related.** [`addon.remote`](#addon-remote), [`head.script`](#head-script), [`katex.unavailable`](#katex-unavailable).
+**Related.** [`addon.remote`](#addon-remote), [`head.script`](#head-script).
 
 ### `script.document-write` {#script-document-write}
 
@@ -2771,35 +2747,13 @@ tern.on('ready', () => setup());
 
 **Related.** [`script.document-write`](#script-document-write).
 
-### `katex.unavailable` {#katex-unavailable}
-
-**Error.** KaTeX did not load.
-
-- **Trigger.** KaTeX's script or stylesheet fails to load from its base: the pinned CDN by default, or the URL in `data-katex`. It is reported once, and only when the note has math.
-- **Position.** The `tern.js` line (line 0).
-- **Content.** Every formula is shown as its TeX source.
-
-```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-katex="vendor/katex"></script>
-Math $x^2$ here.
-```
-
-When `vendor/katex` does not hold KaTeX, the panel shows:
-
-- **Message:** `KaTeX did not load from vendor/katex; math is shown as TeX source`
-- **Hint:** `check the connection or data-katex; data-katex="none" turns math rendering off`
-
-**Fix.** Check the connection, or the path in `data-katex`. For notes read offline, serve KaTeX locally ([KaTeX](publishing.html#katex), [offline use](publishing.html#offline)). `data-katex="none"` loads no KaTeX and reports nothing.
-
-**Related.** [`math.error`](#math-error), [`doc.quirks`](#doc-quirks).
-
 ### `doc.quirks` {#doc-quirks}
 
 **Error.** The file has no `<!doctype html>`.
 
 - **Trigger.** The page is in quirks mode, which is what a browser does with a file that does not start with `<!doctype html>`.
 - **Position.** The `tern.js` line (line 0).
-- **Content.** The note still renders in place, but its math is shown as TeX source: KaTeX refuses quirks mode, and a page cannot leave quirks mode without replacing the document.
+- **Content.** The note still renders in place, but in quirks mode the layout and some add-ons misbehave, and a page cannot leave quirks mode without replacing the document.
 - **Hint.** The canonical first line, with your `src` and `data-use`.
 
 ```html
@@ -2809,7 +2763,7 @@ Math $x^2$ here.
 
 The panel shows:
 
-- **Message:** `the file has no <!doctype html>, so the browser renders it in quirks mode and math is shown as TeX source`
+- **Message:** `the file has no <!doctype html>, so the browser renders it in quirks mode, where the layout and some add-ons misbehave`
 - **Hint:** `make the first line <!doctype html><meta charset="utf-8"><script src="tern.js"></script>`
 
 **Fix.** Start the file with the canonical first line, which `tern new` writes ([the file](publishing.html#the-file)):
@@ -2818,9 +2772,29 @@ The panel shows:
 <!doctype html><meta charset="utf-8"><script src="tern.js"></script>
 ```
 
-**Related.** [`katex.unavailable`](#katex-unavailable).
+**Related.** [`addon.failed`](#addon-failed), [`doc.frontmatter`](#doc-frontmatter).
 
 ## Command line and editors {#tools-codes}
+
+### `math.error` {#math-error}
+
+**Warning.** `tern build --math` cannot pre-render a formula.
+
+- **Trigger.** With `--math=katex` (KaTeX) or `--math=mathml` (Temml), the pre-renderer rejects the TeX of an inline or display formula, or of a `:::macros` block ([pre-rendered math](tools.html#build-katex)). Tern passes TeX to the library unchanged, so this is a TeX error, not a Tern one.
+- **Position.** The formula's start, from its element's `data-pos`: the `$` of inline math, the line of a display block's opening `$$`, or a `:::macros` block's opener.
+- **Content.** The formula is left as its TeX in the built page; the build pre-renders every other formula and still writes the page. It renders at view time only if the note's `data-use` loads a [math add-on](addons.html#katex).
+- **Where.** `tern build` only. At runtime the engine renders no math, so a math add-on reports a formula it cannot parse to the console instead ([Runtime](#runtime)).
+
+```sh
+$ tern build notes/bad.html --math=katex
+notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so tern.js will: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \frac{a}
+```
+
+A `:::macros` block that does not parse reads `the :::macros block does not parse: ` followed by the library's message. With `--math=mathml`, Temml's message reads `Temml cannot render this formula, so it stays as its TeX source: ` and the reason.
+
+**Fix.** Correct the TeX, such as `$\frac{a}{b}$`, or leave the formula to a math add-on in the browser.
+
+**Related.** [`math.opener-tail`](#math-opener-tail), [`addon.failed`](#addon-failed).
 
 ### `head.script` {#head-script}
 

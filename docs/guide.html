@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js"></script>
 
 :::meta
 description: A complete tutorial for Tern, from the first line of a note to vocabularies, styling, diagnostics, the command line and publishing, with live examples throughout.
@@ -38,7 +38,7 @@ That line is the whole setup. It has three parts:
 
 | Part | Why it is there |
 |---|---|
-| `<!doctype html>` | Standards mode. Without it the browser uses quirks mode: the note still renders, but math is shown as TeX source and you get a `doc.quirks` error. |
+| `<!doctype html>` | Standards mode. Without it the browser uses quirks mode: the note still renders, but the layout and some add-ons misbehave and you get a `doc.quirks` error. |
 | `<meta charset="utf-8">` | The file is read as UTF-8, so accents, CJK text and symbols survive, wherever the file is served from. |
 | `<script src="tern.js"></script>` | Loads the engine. The path is relative to the note: `../tern.js` from a subfolder. |
 
@@ -46,11 +46,11 @@ The script tag must be a plain one. With `async`, `defer` or `type="module"`, `t
 
 ### Writing and opening a note {#opening}
 
-1. Download [`tern.js`](../tern.js) and put it in a folder.
+1. Download [`tern.js`](../tern.js), and [`addons/katex.js`](../addons/katex.js) for the math (keep it in an `addons/` subfolder), and put them in a folder.
 2. Next to it, create `hello.html` with this content:
 
    ```html
-   <!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+   <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/katex.js"></script>
 
    # Hello
 
@@ -71,14 +71,14 @@ and a formula, $e^{i\pi} + 1 = 0$.
 When you open a note from disk, a small panel in the corner lists any problems Tern found, with their line numbers. Readers of a published note do not see it. [Diagnostics and the panel](#diagnostics) explains it.
 
 :::note
-Math is typeset by KaTeX, which `tern.js` loads from a CDN (jsDelivr). Without a connection, formulas are shown as their TeX source and the panel says so. [Publishing](publishing.html#katex) shows how to use a copy of your own.
+The engine renders no math itself: it leaves each formula as its TeX. The `addons/katex.js` in `data-use` above typesets it with KaTeX, loaded from a CDN (jsDelivr); drop the add-on and the formula stays as `$e^{i\pi} + 1 = 0$`. See [Add-ons](addons.html#katex) for the math add-ons, and [Publishing](publishing.html#katex) for a copy of your own.
 :::
 
 ### What happens when the file opens {#how-it-works}
 
 - **The head.** Everything before the `tern.js` tag, the doctype and charset on its line included, is ordinary HTML that the browser reads first: a `<title>`, `<html lang>`, icons, stylesheets. Tern keeps it, and adds only what a `:::meta` block sets (see [Metadata](#metadata)) and a few defaults, such as a viewport.
 - **The note.** Everything after the line is the note. `tern.js` takes it as text, so the browser never sees it as HTML.
-- **Rendering.** Tern parses the note, works out ids, numbers and references, writes HTML, and puts it in the page inside `<main class="tern">`. Scripts in the note then run, in order, and math is typeset.
+- **Rendering.** Tern parses the note, works out ids, numbers and references, writes HTML, and puts it in the page inside `<main class="tern">`. Scripts in the note then run, in order. If a [math add-on](addons.html#katex) is loaded, it typesets the formulas; otherwise each stays as its TeX.
 - **The same everywhere.** The command line and the editor use the same engine on the same file, so what they report is what the browser renders.
 
 You never need to write the line by hand: `tern new` writes it, with the right path to `tern.js` (see [The workflow](#workflow)).
@@ -182,7 +182,7 @@ Everything this guide teaches, on one screen.
 | Emphasis, strong | `*em*`, `**strong**` | `<em>`, `<strong>` |
 | Strikethrough, highlight | `~~gone~~`, `==key==` | `<del>`, `<mark>` |
 | Code span | `` `code` `` | `<code>` |
-| Inline math | `$x^2$`, or `` $`]0,1[` `` for awkward TeX | `span.t-math`, typeset by KaTeX |
+| Inline math | `$x^2$`, or `` $`]0,1[` `` for awkward TeX | `span.t-math`, typeset by a [math add-on](addons.html#katex) |
 | Heading | `## Title {#id}` | `<h2 id="id">`, with an id made from the text when you give none |
 | Link | `[text](https://x.org "Title")` | `<a href>` |
 | Image | `![alt text](photo.jpg){width=50%}` | `<img>` |
@@ -639,7 +639,7 @@ x = 1;
 
 ## Math {#math}
 
-Math is written in TeX between dollars and typeset by KaTeX. Inside math, everything is TeX: Tern's marks mean nothing there (rule 4).
+Math is written in TeX between dollars. The engine parses it but renders nothing itself: each formula is left as its TeX, the way a code fence stays plain without [`code.js`](addons.html#code). To typeset it, load a [math add-on](addons.html#katex) in `data-use` — `addons/katex.js` for KaTeX, or `addons/mathml.js` for native MathML. Inside math, everything is TeX: Tern's marks mean nothing there (rule 4).
 
 ### Inline math {#inline-math}
 
@@ -1753,7 +1753,7 @@ The aside and the formula are never closed.
 - **The command line.** `tern check` prints them as `file:line:col: severity code: message`.
 - **The editor.** The language server reports them as you type.
 
-A few problems only the browser can see, such as a formula KaTeX rejects (`math.error`) or an add-on that failed to load (`addon.failed`). They join the same list.
+A few problems only the browser can see, such as an add-on that failed to load (`addon.failed`). They join the same list. A [math add-on](addons.html#katex) reports a formula it cannot parse to the console, not as a diagnostic, as the other add-ons do.
 
 **Reference:** [every diagnostic](diagnostics.html#top), [severity](diagnostics.html#severity), [the console and the panel](diagnostics.html#console-and-panel).
 
@@ -1813,7 +1813,7 @@ Turn off automatic line wrapping for notes, and never run an HTML formatter such
 tern build notes/linear-maps.html -o site/
 ```
 
-It writes a page that is already rendered: the HTML is in the file, so it shows at once, and search engines read it without running scripts. The page still loads `tern.js`, which runs behaviours and typesets math, and it carries the note's source too. `--katex` typesets the math at build time as well, when the `katex` package is installed.
+It writes a page that is already rendered: the HTML is in the file, so it shows at once, and search engines read it without running scripts. The page still loads `tern.js`, which runs behaviours, and it carries the note's source too; its math is typeset at view time only if the note's `data-use` includes a [math add-on](addons.html#katex). `--math=katex` (or `--math=mathml`) typesets the math at build time instead, when the `katex` (or `temml`) package is installed.
 
 - **Where it writes.** Without `-o`, to standard output. `-o site/`, with a trailing `/` or naming an existing folder, writes `site/linear-maps.html`, creating the folder. Any other `-o` is the output file, and missing folders on its path are created.
 - **Relative paths** are kept as written, so build into a folder where `tern.js`, images and add-ons resolve the same way.
@@ -1827,7 +1827,7 @@ A note is a static file. Publishing it means putting it, with `tern.js` and what
 1. **Keep paths relative.** Upload the note with `tern.js`, add-ons and images in the same places relative to it.
 2. **Any static host works**, GitHub Pages included. There is no server code.
 3. **Or build it.** `tern build` makes a page that shows its content before scripts run, which suits search engines and slow connections.
-4. **Math.** KaTeX comes from a CDN. For offline use, point `data-katex` at a copy you host.
+4. **Math.** Load a [math add-on](addons.html#katex) in `data-use` to typeset formulas; `addons/katex.js` fetches KaTeX from a CDN. For offline use, point the add-on at a copy you host with `?base=`, or pre-render with `tern build --math`.
 5. **Content Security Policy.** Under a strict policy, link `tern.css` from the head, so that Tern does not need to inline its styles; the CSP section has the details.
 6. **Trust.** A note is a web page: its scripts and raw HTML run with the page's rights. Open notes you trust.
 

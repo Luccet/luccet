@@ -42,11 +42,12 @@ The panel shows on pages opened from `file:`, `localhost`, `127.0.0.1` or `[::1]
 | Codes | Reported by |
 |---|---|
 | The 53 engine codes, `block.unclosed` to `ref.unreferenceable` below | `tern check`, the language server, `tern build`, the browser |
-| `math.error`, `katex.unavailable`, `doc.quirks`, `script.document-write`, `script.domcontentloaded` | the browser only |
+| `doc.quirks`, `script.document-write`, `script.domcontentloaded` | the browser's panel only |
 | `addon.failed` | the browser, `tern check` and the language server |
+| `math.error` | `tern build --math` only (a warning); a math add-on also logs a formula it rejects to the browser console, but it is not a panel diagnostic |
 | `head.script`, `addon.remote`, `link.missing`, `link.dangling` | `tern check` and the language server only |
 
-So a clean `tern check` does not prove that every formula typesets, that the file starts with `<!doctype html>`, or that note scripts behave. Check those by eye, or ask the user to open the note in a browser and read the panel. `tern build --katex` (with the `katex` package installed) reports the formulas KaTeX rejects as `math.error` warnings.
+So a clean `tern check` does not prove that every formula typesets, that the file starts with `<!doctype html>`, or that note scripts behave. Check those by eye, or ask the user to open the note in a browser and read the panel. `tern build --math=katex` or `--math=mathml` (with the `katex` or `temml` package installed) reports the formulas it cannot pre-render as `math.error` warnings.
 
 ## Blocks
 
@@ -214,7 +215,7 @@ Make it <B>bold</B>. Put <div> here.
 
 ## Math
 
-Display math (`$$` lines), inline `$…$` and verbatim `` $`…` ``. For TeX that KaTeX rejects, see `math.error`.
+Display math (`$$` lines), inline `$…$` and verbatim `` $`…` ``. For TeX a math add-on cannot typeset, see `math.error`.
 
 ### `math.unclosed` · error
 
@@ -230,7 +231,7 @@ a^2 + b^2 = c^2
 
 ### `math.opener-tail` · error
 
-A group such as `{#eq}` on the opening `$$` line is TeX, not attributes: the equation gets no id or number, and with a `#` in it the browser also reports `math.error`.
+A group such as `{#eq}` on the opening `$$` line is TeX, not attributes: the equation gets no id or number, and with a `#` in it a math add-on cannot typeset it either, so it stays as its TeX source marked `t-error`.
 **Fix:** move the group after the closing `$$`.
 
 ```tern expect="math.opener-tail"
@@ -666,12 +667,7 @@ An `id=` value that is a valid HTML id but not a Tern identifier: it starts with
 
 ## Browser only
 
-The browser reports these while it renders, in the panel and the console; `tern check` cannot, except `addon.failed`. All are errors.
-
-### `math.error` · error
-
-KaTeX rejects the TeX of a formula or of a `:::macros` block: a missing brace, an unknown command, an environment KaTeX lacks. The formula shows as its TeX, in red, with KaTeX's message as a tooltip; the position is its `$` or opening `$$` line. Only `tern build --katex` reports it from the command line (as a warning).
-**Fix:** correct the TeX (`$\frac{a}{b}$`, not `$\frac{a}$`); define custom commands in a `:::macros` block with `\gdef`. As `tern check` cannot see these, check each formula you write: balanced braces, `\left` with `\right`, commands KaTeX supports.
+The browser reports four codes while it renders, in the panel and the console; `tern check` cannot, except `addon.failed`. All four are errors: `addon.failed`, `script.document-write`, `script.domcontentloaded` and `doc.quirks`.
 
 ### `addon.failed` · error
 
@@ -693,15 +689,14 @@ A `<script>` in the note body calls `document.write` or `document.writeln`. Note
 A `<script>` in the note body calls `addEventListener('DOMContentLoaded', …)` on `document` or `window`. The event fired before note scripts run, so the listener never runs.
 **Fix:** run the code directly (the note is already in the page), or use `tern.on('ready', () => setup())`.
 
-### `katex.unavailable` · error
-
-KaTeX did not load, from its CDN or from the `data-katex` path (offline, a blocked CDN, a wrong path), so every formula shows as TeX. Reported once, only when the note has math. The message reads `KaTeX did not load from …; math is shown as TeX source`.
-**Fix:** check the connection or the `data-katex` path; for offline reading, serve KaTeX locally and point `data-katex` at it ([tools.md](tools.md)). `data-katex="none"` turns math rendering off. Nothing in the note's text is wrong: do not rewrite formulas for it.
-
 ### `doc.quirks` · error
 
-The file does not start with `<!doctype html>`, so the browser renders it in quirks mode, where KaTeX refuses to run: every formula shows as TeX. `tern check` does not report it (`tern build` adds the doctype, with a warning), so check the first line yourself.
+The file does not start with `<!doctype html>`, so the browser renders it in quirks mode, where the layout and some add-ons misbehave. `tern check` does not report it (`tern build` adds the doctype, with a warning), so check the first line yourself.
 **Fix:** start the file with the canonical first line, keeping your `src` and `data-use`: `<!doctype html><meta charset="utf-8"><script src="tern.js"></script>`.
+
+### Math failures are not panel diagnostics
+
+The engine renders no math itself; a math add-on (`addons/katex.js` or `addons/mathml.js`) typesets each formula. A formula the add-on cannot parse stays as its TeX source, marked `t-error`, with the reason in the browser console — not in the panel. If the add-on's library (KaTeX, Temml) never loads, every formula stays as its TeX source and the add-on logs one console warning. There is no runtime diagnostic for either: the old `katex.unavailable` code no longer exists (it went when math moved into the add-ons), and `math.error` is now only a `tern build --math` warning (and the add-on's console message). Nothing in the note's text is wrong when a formula stays as TeX because the library did not load: do not rewrite formulas for it.
 
 ## Command line and editor only
 

@@ -89,7 +89,7 @@ The toc is a `nav` listing both headings, the theorem a `section` labelled "Theo
 - **Where.** A classic script in the head, before the tern.js line. A `<script>` inside the note runs after the note is rendered: too late to declare names for it.
 - **Function fields** (`label`, `dom`) and `css` work here as in an add-on.
 - **A bad entry** (a reserved name, a value that is not an object) is skipped with a console warning; the others apply.
-- **`window.TERN`** carries other settings too: `lang` (label language), `use` (add-on options), `katex` (KaTeX options and `base`).
+- **`window.TERN`** carries other settings too: `lang` (label language) and `use` (per-add-on options, keyed by the add-on's file name — the KaTeX add-on reads `use: {katex: {macros: {…}, …}}`).
 - **Under the command line.** `tern check`, `tern build` and the language server run the head's classic scripts too, so they see the same vocabulary (in a separate context, which is not a security boundary: [Trust](tools.md#trust)). A remote `src` is not run (`head.script`, info); a missing file or a script that throws is `head.script` (warning). Scripts with `async`, `defer` or `type="module"` are not run.
 
 ## Add-ons: `data-use`
@@ -395,7 +395,7 @@ print("hello")
 - `addons/code.js?base=vendor/highlight`: the folder holding `highlight.min.js` and `languages/` (the layout of the npm package `@highlightjs/cdn-assets`).
 - `addons/mermaid.js?base=vendor/mermaid`: the folder holding `mermaid.min.js` (the `dist/` folder of the npm package `mermaid`).
 - A `window.hljs` or `window.mermaid` already on the page is used as it is.
-- Math needs KaTeX the same way: `data-katex="vendor/katex"` on the tern.js tag names a copy of KaTeX's `dist/` files (`katex.min.js`, `katex.min.css` and `fonts/`). Otherwise offline formulas stay TeX (`katex.unavailable`). A note without math can say `data-katex="none"`.
+- Math is an add-on the same way: load `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML with Temml), and point its `?base=` at a local copy for offline use. `addons/katex.js?base=vendor/katex` names the folder of KaTeX's `dist/` files (`katex.min.js`, `katex.min.css` and `fonts/`); `addons/mathml.js?base=vendor/temml` the folder of Temml's. Without a math add-on, formulas stay as their TeX source.
 - With a CSP, allow `https://cdn.jsdelivr.net` in `script-src`, or use copies; with `data-nonce` on the tern.js tag the add-ons' scripts and styles carry the nonce.
 
 ## Themes
@@ -465,7 +465,7 @@ A note is HTML, so CSS styles it. Key every rule on Tern's classes and `data-t`,
 </style>
 ```
 
-**Where your CSS goes.** Tern's sheets form one group in the head: KaTeX, tern.css, each `data-use` entry in order (a CSS add-on, or what a script add-on adds with `tern.style`), then other `tern.style` sheets (schema `css` from `window.TERN.schema`, note scripts). Your head `<style>` or `<link rel="stylesheet">` comes after the group, and a `<style>` block in the note after that, so both win over tern.css, themes and add-ons at equal specificity. For one note, a `<style>` in the head (before the tern.js line) or at the end of the note is enough; for many, a CSS add-on.
+**Where your CSS goes.** Tern's sheets form one group in the head: tern.css, then each `data-use` entry in order (a CSS add-on, or what a script add-on adds with `tern.style` — a math add-on's stylesheet among them), then other `tern.style` sheets (schema `css` from `window.TERN.schema`, note scripts). Your head `<style>` or `<link rel="stylesheet">` comes after the group, and a `<style>` block in the note after that, so both win over tern.css, themes and add-ons at equal specificity. For one note, a `<style>` in the head (before the tern.js line) or at the end of the note is enough; for many, a CSS add-on.
 
 **Dark mode.** tern.css sets the dark colours inside `@media (prefers-color-scheme: dark)`. A colour you set outside that query holds in both modes, so setting only some colours can put light text on your light background: set the whole palette, or set it per mode. For one palette for every reader, set every colour at the top level and `color-scheme: light` (or `dark`) on `:root`, or use a `-light`/`-dark` theme.
 
@@ -584,7 +584,7 @@ conjecture: {tag: 'section', counter: 'theorem', label: 'Conjecture', ref: '{lab
 
 **Add a theme and code colours.** `data-use="themes/github.css addons/code.js"` with paths relative to the note; check that the files exist there (`tern check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
 
-**A note opened without a network.** Copy highlight.js, Mermaid and KaTeX next to the note and point `?base=` and `data-katex` at them; otherwise code stays plain, diagrams stay source and math stays TeX.
+**A note opened without a network.** Copy highlight.js, Mermaid and KaTeX (or Temml) next to the note and point each add-on's `?base=` at them; otherwise code stays plain, diagrams stay source and math stays TeX.
 
 ## The demo schema
 

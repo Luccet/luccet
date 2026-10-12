@@ -26,7 +26,7 @@ const SYNOPSIS = {
   new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]',
   check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'tern build FILE [-o OUT] [--katex] [--no-scripts]',
+  build: 'tern build FILE [-o OUT] [--math katex|mathml] [--no-scripts]',
   mv: 'tern mv FROM… TO [--root=DIR] [--dry-run]',
   corpus: 'tern corpus PATH… [--out=DIR]',
   lsp: 'tern lsp [--stdio]',
@@ -50,8 +50,10 @@ const usage = () =>
       --no-scripts analyses without running the note's own code.
   ${SYNOPSIS.build}
       Write a static, pre-rendered page (to stdout without -o) that still
-      loads tern.js; --katex pre-renders math if the katex package is
-      installed. --no-scripts builds without running the note's own code.
+      loads tern.js; --math katex pre-renders formulas with the katex
+      package (--katex is the same), --math mathml renders native MathML
+      with the temml package and turns KaTeX off. --no-scripts builds
+      without running the note's own code.
   ${SYNOPSIS.mv}
       Move or rename notes, files and folders, and rewrite the relative URLs
       that point at them, in every note under DIR (default: the repository
@@ -299,8 +301,10 @@ function parse(args) {
 // (created, with its parents, if missing), and the page is DIR/FILE's name;
 // otherwise the page's own path, its directory created if missing.
 function buildPage(args) {
-  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, katex: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
+  const math = o.math || (o.katex ? 'katex' : null);
+  if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
   if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one FILE' : 'FILE is missing');
   const file = positionals[0];
   let out = o.output === undefined || o.output === '-' ? null : o.output;
@@ -318,7 +322,7 @@ function buildPage(args) {
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
   const text = read(file);
-  const r = build(text, file, { katex: !!o.katex, noScripts: o['no-scripts'] });
+  const r = build(text, file, { math, noScripts: o['no-scripts'] });
   if (!r) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
   for (const w of r.warnings) warn(`tern build: ${w}`);
   for (const d of r.diagnostics) warn(format(file, d));
@@ -339,7 +343,7 @@ function buildPage(args) {
     }
   }
   const m = r.math;
-  warn(`tern build: ${out ? `wrote ${out}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.katex ? `, ${m.prerendered} pre-rendered` : ''}`);
+  warn(`tern build: ${out ? `wrote ${out}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}`);
   if (out && !asDir && !path.extname(out)) warn(`tern build: ${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`);
   return 0;
 }

@@ -21,7 +21,7 @@ The documentation is published at **[oscarac.github.io/tern](https://oscarac.git
 
 ## Getting tern.js
 
-A note needs only `tern.js`; it adds its own stylesheet and loads KaTeX for math when a note has some.
+A note needs only `tern.js`; it adds its own stylesheet. Math, code highlighting and diagrams are opt-in [add-ons](addons/) a note lists in `data-use` (math with `addons/katex.js` or `addons/mathml.js`).
 
 **From jsDelivr**, which serves this repository's tagged releases:
 

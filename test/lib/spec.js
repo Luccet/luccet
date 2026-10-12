@@ -14,7 +14,12 @@
 const { SEVERITY } = require('../../src/diag');
 const anchors = require('./anchors');
 
-const RUNTIME_CODES = ['math.error', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'katex.unavailable', 'doc.quirks', 'head.script', 'addon.remote', 'link.missing', 'link.dangling'];
+// Codes not produced by the parser/transform (so not in src/diag.js SEVERITY):
+// the runtime's own, plus math.error (a math add-on's console message and a
+// `tern build --math` warning), head.script/addon.remote (loading, under node),
+// and the CLI's link checks. KaTeX is an add-on now, so there is no
+// katex.unavailable.
+const RUNTIME_CODES = ['math.error', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'doc.quirks', 'head.script', 'addon.remote', 'link.missing', 'link.dangling'];
 
 // Coverage: every level-2 section of the three reference pages, and each of
 // the eight rules on its own (they share one level-2 section). A section is

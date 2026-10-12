@@ -142,9 +142,6 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
   .tern pre { white-space: pre-wrap; }
   .tern pre, .tern table, .t-eq { overflow: visible; }
   .tern table { display: table; inline-size: auto; }
-  /* KaTeX positions .katex (0.19) and its bases (.base, 0.19 .katex-base) relatively, so Chromium
-     paints formulas after the text around them and the PDF text layer moves them out of their sentences. */
-  .katex, .katex :is(.base, .katex-base) { position: static; }
 }
 `;
 

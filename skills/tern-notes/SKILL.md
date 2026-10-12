@@ -171,7 +171,7 @@ On a display formula the braces go after the closing `$$`; on the opening line t
 
 ## Math
 
-TeX between dollars, typeset by KaTeX. Inside math everything is TeX; outside it, a backslash before a letter is just a backslash.
+TeX between dollars. The engine leaves each formula as its TeX source and renders nothing; load a math add-on in `data-use` to typeset it — `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML). Inside math everything is TeX; outside it, a backslash before a letter is just a backslash.
 
 ```tern
 Inline $\sum_{i=1}^n x_i$, a price of $5 left alone, and $`]0,1[` verbatim.
@@ -189,7 +189,7 @@ For $x \in \R$, @eq-pythagoras holds.
 
 - A `$` pair is math only when it looks like math: the opener followed by a non-space, the closer after a non-space and not before a digit. Prices need no escaping; escape one with `\$` when it shares a sentence with a formula (`math.suspect-price`).
 - Display math: `$$` lines, no blank line inside (`math.unclosed`). An id after the closing `$$` numbers the equation; `@id` reads "(1)".
-- KaTeX loads from a CDN; offline, formulas show as TeX (`katex.unavailable`).
+- Without a math add-on, formulas show as their TeX source (like a code fence with no `addons/code.js`). Load one to typeset them; for offline use point it at a local copy: `addons/katex.js?base=vendor/katex`.
 
 ## Ids and references
 
