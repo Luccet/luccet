@@ -38,11 +38,11 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 **From jsDelivr**, which serves this repository's tagged releases:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="https://cdn.jsdelivr.net/gh/OscarAC/tern@v0.3.0/tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="https://cdn.jsdelivr.net/gh/OscarAC/tern@v0.4.0/tern.js"></script>
 ```
 
 - **Pin an exact tag,** as above, in notes you publish: jsDelivr caches a tag's files permanently, and a note keeps rendering the same way.
-- **To follow releases,** use `@0.3` (the newest 0.3.x) or `@latest` (the newest release). jsDelivr re-checks these about every 12 hours. A new release can change how existing notes render, so keep these for notes you're happy to see change.
+- **To follow releases,** use `@0.4` (the newest 0.4.x) or `@latest` (the newest release). jsDelivr re-checks these about every 12 hours. A new release can change how existing notes render, so keep these for notes you're happy to see change.
 - **Keep the file name `tern.js`.** jsDelivr's minified `tern.min.js` is not recognised: a note is an HTML file whose tag loads a file named `tern.js` ([note detection](https://oscarac.github.io/tern/docs/tools.html#detection)).
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://oscarac.github.io/tern/docs/schema.html#themes).

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// tern.js 0.3.0: built from src/ by tools/concat.js. Edit the sources, not this file.
+// tern.js 0.4.0: built from src/ by tools/concat.js. Edit the sources, not this file.
 (function (global) {
   'use strict';
   var defs = {};
@@ -6111,7 +6111,7 @@ const { emit } = require('./emit');
 const { css } = require('./css');
 const runtime = require('./runtime');
 
-const version = '0.3.0';
+const version = '0.4.0';
 
 // The schema a call uses: opts.schema when given (the corpus passes one),
 // else the registry that tern.block/leaf/inline write.
