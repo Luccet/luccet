@@ -583,6 +583,19 @@ title: Linear maps
 
 How a name becomes an element; the vocabulary is in [vocabulary.md](vocabulary.md).
 
+### `use.late` · warning
+
+A `:::use` block after any content, or inside a block, quote, list item or footnote definition; it is ignored and its add-ons are not loaded. Only `:::meta`, blank lines and other `:::use` blocks may come before it.
+**Fix:** move it to the top of the note, after `:::meta` at most.
+
+```tern expect="use.late"
+Text.
+
+:::use
+addons/katex.js
+:::
+```
+
 ### `name.reserved` · warning
 
 A reserved name, key or class:

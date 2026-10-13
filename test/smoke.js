@@ -257,6 +257,13 @@ function fragmentNote() {
   ].join('\n');
 }
 
+// A leading `:::use` block, then enough prose that the file arrives in many
+// chunks on a slow network: the runtime must find the block in the first.
+function useLongNote() {
+  const filler = Array.from({ length: 2500 }, (_, i) => `Paragraph ${i + 1}: enough prose to make the file arrive in many network chunks on Slow 3G, so that the leading block is read long before the end.`).join('\n\n');
+  return ['<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>', '', ':::use', '/addons/katex.js', ':::', '', '# Smoke: a long note with a leading :::use', '', 'A formula $x^2$ near the top.', '', filler, ''].join('\n');
+}
+
 const GENERATED = {
   'big.js': () => ['text/javascript', pad(260) + "window.order = (window.order || []).concat('external');\n"],
   'addon.js': () => ['text/javascript', pad(20) + 'window.__addon = (window.__addon || 0) + 1;\n'],
@@ -266,6 +273,7 @@ const GENERATED = {
   'built.html': () => ['text/html', cliPage('built')],
   'built-katex.html': () => ['text/html', cliPage('built-katex')],
   'built-mathml.html': () => ['text/html', cliPage('built-mathml')],
+  'use-long.html': () => ['text/html', useLongNote()],
   'built-missing.html': () => ['text/html', cliPage('built-missing')],
   'built-own-schema.html': () => ['text/html', cliPage('built-own-schema')],
   'built-note-config.html': () => ['text/html', cliPage('built-note-config')],
@@ -1778,6 +1786,49 @@ const TESTS = [
       if (r.tex.join(' | ') !== 'a^2 + b^2 = c^2 | \\int_0^1 x\\,dx = \\tfrac12') throw new Error(`data-tex ${JSON.stringify(r.tex)}`);
       await page.waitForTimeout(200);
       if (ctx.ext.length) throw new Error(`fetched external or math assets: ${ctx.ext.join(', ')}`);
+    },
+  },
+  {
+    name: 'a leading :::use block loads its add-ons like data-use; a late one is ignored with use.late',
+    url: '/test/smoke/use.html',
+    async setup(_context, page, ctx) {
+      ctx.reqs = [];
+      page.on('request', (q) => /\/addons\/|\/themes\//.test(q.url()) && ctx.reqs.push(q.url().replace(/^https?:\/\/[^/]+/, '')));
+    },
+    async check(page, ctx) {
+      await expect(page, () => document.querySelectorAll('main.tern .t-math .katex').length === 2, 'both formulas typeset by the KaTeX the block loads');
+      const r = await page.evaluate(() => ({
+        useDivs: document.querySelectorAll('[data-t="use"]').length,
+        nord: [...document.styleSheets].some((s) => /\/themes\/nord\.css/.test(s.href || '')),
+        cfg: Object.keys(tern.config.use).sort(),
+      }));
+      if (r.useDivs) throw new Error(`${r.useDivs} :::use elements in the page, expected none`);
+      if (!r.nord) throw new Error('the theme the block lists did not load');
+      if (JSON.stringify(r.cfg) !== JSON.stringify(['katex', 'nord'])) throw new Error(`config.use ${JSON.stringify(r.cfg)}, expected katex and nord only`);
+      await page.waitForTimeout(200);
+      if (ctx.reqs.some((u) => /code\.js/.test(u))) throw new Error("the late block's add-on was requested");
+      if (!ctx.diagnostics.some((d) => d.code === 'use.late')) throw new Error('no use.late for the late block');
+    },
+  },
+  {
+    name: ':::use is read as the file streams in: its add-on starts loading before the note has finished arriving (Slow 3G)',
+    url: '/gen/use-long.html',
+    browsers: ['chromium'],
+    timeout: 120000,
+    readyTimeout: 90000,
+    async setup(context, page, ctx) {
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Network.enable');
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: SLOW_3G.latency, downloadThroughput: SLOW_3G.bytesPerSecond, uploadThroughput: SLOW_3G.bytesPerSecond });
+      ctx.katexAt = null;
+      page.on('request', (q) => /\/addons\/katex\.js/.test(q.url()) && ctx.katexAt === null && (ctx.katexAt = Date.now()));
+    },
+    async check(page, ctx) {
+      await expect(page, () => !!document.querySelector('main.tern .t-math .katex'), 'math typeset', 60000);
+      const dcl = await page.evaluate(() => performance.timeOrigin + performance.getEntriesByType('navigation')[0].domContentLoadedEventStart);
+      if (ctx.katexAt === null) throw new Error('the add-on was never requested');
+      ctx.note(`  addons/katex.js requested ${Math.round(dcl - ctx.katexAt)} ms before DOMContentLoaded`);
+      if (ctx.katexAt >= dcl) throw new Error(`the add-on was requested only at DOMContentLoaded (${Math.round(ctx.katexAt - dcl)} ms after): the streaming scan did not fire early`);
     },
   },
   {

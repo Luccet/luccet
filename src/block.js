@@ -49,7 +49,7 @@ const META = /^([A-Za-z][-\w.:]*?): (.*)$/; // a `:::meta` line; the separator i
 // Containers whose body is verbatim, kept as `value`: the core `:::macros`
 // and `:::meta`, and the reserved `:::script`, `:::style`, `:::html`, whose
 // body is shown as text.
-const RAW_BODY = new Set(['macros', 'meta', 'script', 'style', 'html']);
+const RAW_BODY = new Set(['macros', 'meta', 'use', 'script', 'style', 'html']);
 const RESERVED_HINT = { script: 'write `<script>` … `</script>`', style: 'write `<style>` … `</style>`', html: 'use a ```=html fence' };
 const isPrefix = (k) => k === 'quote' || k === 'item' || k === 'fn'; // the frames with a line prefix
 // parseInline's options, shared, as inline.js only reads them: IO[context][footnote ? 1 : 0]
@@ -80,7 +80,7 @@ let depth = 0; // open quotes, items, footnotes and containers, against MAX; cel
 let ls = 0, le = 0, pos = 0, col = 0, partial = 0, lineNo = 0;
 let prevBlank = false;
 let unclosedWhat = null; // a verbatim leaf that just ran out unclosed, named in the hint of the block.unclosed that follows
-let meta = null, head = null, front = null; // `:::meta`'s keys; what the preserved head sets; a `---` that may open front matter
+let meta = null, use = null, head = null, front = null; // `:::meta`'s keys; `:::use`'s entries; what the preserved head sets; a `---` that may open front matter
 const cuts = [], cells = [], one = [0, 0, 0]; // a table row's cells, as text ranges and as nodes; a one-line row
 let rl = null, rq = 0, rf = 0; // off()'s forward cursor in the row being cut
 
@@ -985,6 +985,7 @@ function finish(v) {
   if (v.kind === 'math') attach(node, v.pa, v.res);
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
+  if (v.kind === 'raw' && v.name === 'use') readUse(v);
   if (v.kind === 'math' && v.unclosed) {
     Object.assign(tern(node), { unclosed: true, source: v.lines.join('\n') });
     const where = v.stop >= 0 ? `ends at ${v.why} on line ${lineOf(v.stop)} without a closing \`$$\`` : 'is never closed';
@@ -1077,7 +1078,7 @@ function opener(r, fi, te) {
   const m = attach(node, pa, o.res);
   if (RESERVED_HINT[name]) report('name.reserved', ns, r.ne, `\`:::${name}\` is reserved: its body is shown as text, not run`, RESERVED_HINT[name]);
   reserved(RESERVED_HINT[name] || name === 'meta' ? '' : name, ns, m);
-  if (name === 'meta' && m) metaAttrs(node, m);
+  if ((name === 'meta' || name === 'use') && m) metaAttrs(node, m, name);
   const cols = m && m.attrs.cols;
   if (/^\s*-?\d+(?:\.\d+)?\s*$/.test(cols) && Number(cols) <= 0) {
     let v = m.keyAt.cols + 4;
@@ -1110,9 +1111,10 @@ function opener(r, fi, te) {
 // the id). The reserved keys have their own reports (transform.js
 // misplaced: `tag`, `cols`, `ref`); `raw` changes nothing on a body that is
 // verbatim already.
-function metaAttrs(node, m) {
+function metaAttrs(node, m, name = 'meta') {
+  const hint = name === 'meta' ? 'remove it; metadata goes in the body, as `key: value` lines' : 'remove it; add-ons go in the body, one per line';
   const dropped = (at, e, what, many) =>
-    report('attr.malformed', at, e, `${what} ${many ? 'apply' : 'applies'} to no element here, as \`:::meta\` emits nothing; ${many ? 'they are' : 'it is'} dropped`, 'remove it; metadata goes in the body, as `key: value` lines');
+    report('attr.malformed', at, e, `${what} ${many ? 'apply' : 'applies'} to no element here, as \`:::${name}\` emits nothing; ${many ? 'they are' : 'it is'} dropped`, hint);
   const idp = tern(node).idPosition;
   if (idp) dropped(idp.start.offset, idp.end.offset, `the id "${m.attrs.id}"`, false);
   const cls = m.attrs.class;
@@ -1212,6 +1214,23 @@ function readMeta(v) {
   });
 }
 
+// A leading `:::use` body: the add-ons the note loads, one or more per line,
+// into root.data.tern.use as [{url, position}]. The runtime and the tools read
+// the same block from the text (src/use.js), before parsing, to load them.
+// Leading: at the top level, before any content; only `:::meta`, blank lines
+// and other `:::use` blocks may come first. One elsewhere is use.late and
+// ignored, as its add-ons could not have been loaded in time.
+function readUse(v) {
+  const prior = stack.length > 1 ? null : root.children.slice(0, root.children.indexOf(v.node));
+  const late = !prior || prior.some((c) => !(c.type === 'containerDirective' && (c.name === 'meta' || c.name === 'use')));
+  if (late) return report('use.late', v.open, v.ne, '`:::use` counts only at the top of the note, before any content; this one is ignored', 'move it to the top of the note, after `:::meta` at most');
+  use = use || [];
+  v.lines.forEach((s, k) => {
+    const re = /\S+/g;
+    for (let m; (m = re.exec(s)); ) use.push({ url: m[0], position: ctx.position(v.at[k] + m.index, v.at[k] + m.index + m[0].length) });
+  });
+}
+
 // What the preserved head (opts.head) sets: <title>, <html lang dir>, <meta name content>.
 function headValue(key) {
   if (!head) {
@@ -1239,7 +1258,7 @@ function parseBlocks(c) {
   (ctx = c), (src = c.src), (N = src.length), (MAX = c.opts.maxDepth || 64);
   root = { type: 'root', children: [] };
   stack = [{ kind: 'root', node: root, start: 0, end: 0, fn: 0 }];
-  leaf = unclosedWhat = meta = head = front = null;
+  leaf = unclosedWhat = meta = use = head = front = null;
   (depth = lineNo = 0), (prevBlank = false);
   for (ls = 0; ls < N; ls = le + 1) {
     le = src.indexOf('\n', ls);
@@ -1253,9 +1272,9 @@ function parseBlocks(c) {
   if (leaf) closeLeaf(-1);
   closeFrames(1, null);
   root.position = ctx.position(0, N);
-  if (meta) root.data = { tern: { meta } };
+  if (meta || use) root.data = { tern: Object.assign(meta ? { meta } : {}, use ? { use } : {}) };
   const out = root;
-  (ctx = root = stack = rl = meta = head = front = null), (src = ''), (cells.length = 0); // keep nothing of this note alive
+  (ctx = root = stack = rl = meta = use = head = front = null), (src = ''), (cells.length = 0); // keep nothing of this note alive
   return out;
 }
 

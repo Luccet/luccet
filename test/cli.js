@@ -151,8 +151,8 @@ test('new: --tern, --use (commas, spaces, repeated) and --title', () => {
   write('o/a.js', '');
   const r = run(['new', 'o/n.html', '--tern=https://cdn.example/x/tern.js', '--use=a.js,b.css', '--use', 'c.js d.css', '--title=Linear maps: kernel & image']);
   exits(r, 0, 'new');
-  eq(read('o/n.html'), `${FIRST}<script src="https://cdn.example/x/tern.js" data-use="a.js b.css c.js d.css"></script>\n:::meta\ntitle: Linear maps: kernel & image\n:::\n\n`, 'the file');
-  ok(/data-use names b\.css, which does not exist yet/.test(r.err) && !/names a\.js/.test(r.err), `stderr: ${r.err}`);
+  eq(read('o/n.html'), `${FIRST}<script src="https://cdn.example/x/tern.js"></script>\n:::meta\ntitle: Linear maps: kernel & image\n:::\n\n:::use\na.js\nb.css\nc.js\nd.css\n:::\n\n`, 'the file');
+  ok(/:::use names b\.css, which does not exist yet/.test(r.err) && !/names a\.js/.test(r.err), `stderr: ${r.err}`);
   const ast = JSON.parse(run(['parse', 'o/n.html', '--transformed']).out);
   eq(ast.data.tern.meta.title, 'Linear maps: kernel & image', 'the title read back');
 });
@@ -313,6 +313,28 @@ test("check: a note's scripts run sandboxed — no process, no file writes", () 
   ok(!fs.existsSync(marker), 'the add-on could not reach the disk');
   const main = pageParts(run(['build', 'sb/n.html']).out).main;
   ok(/reached undefined/.test(main), `no process in the sandbox: ${main}`);
+});
+
+test('check, build: a leading :::use block lists add-ons like data-use; a missing one is addon.failed at its line; a late block is use.late', () => {
+  write('u/box.js', "tern.block('box', { label: 'Box' });\n");
+  write('u/theme.css', '');
+  write('u/n.html', `${FIRST}<script src="tern.js"></script>\n:::meta\ntitle: U\n:::\n\n:::use\nbox.js?x=1\ntheme.css nope.js\n:::\n\n:::box[T]\nx\n:::\n`);
+  const r = run(['check', 'u/n.html']);
+  exits(r, 1, 'check');
+  ok(/^u\/n\.html:8:11: error addon\.failed: the add-on nope\.js did not load: cannot read /m.test(r.out), `stdout: ${r.out}`);
+  ok(!/name\.unknown/.test(r.out), 'box.js loaded from :::use, so :::box is known');
+  const b = run(['build', 'u/n.html']);
+  exits(b, 0, 'build');
+  ok(/<script data-built src="tern\.js" data-use="box\.js\?x=1 theme\.css nope\.js"><\/script><script src="box\.js\?x=1"><\/script><script src="nope\.js"><\/script>/.test(b.out), `the tag and the static add-on tags: ${b.out.slice(0, 400)}`);
+  ok(/<link rel="stylesheet" href="theme\.css">/.test(b.out) && !/data-t="use"/.test(b.out) && /<span class="t-label">Box<\/span>/.test(b.out), 'the stylesheet, no :::use in the body, the add-on applied');
+  write('u/late.html', `${FIRST}<script src="tern.js"></script>\nText.\n\n:::use\nbox.js\n:::\n`);
+  const l = run(['check', 'u/late.html']);
+  ok(/^u\/late\.html:4:1: warning use\.late: /m.test(l.out), `stdout: ${l.out}`);
+  // tern mv rewrites a :::use entry as it does data-use's, query string kept.
+  write('u/m.html', `${FIRST}<script src="tern.js"></script>\n:::use\nbox.js?x=1\n:::\n`);
+  const mv = run(['mv', 'u/box.js', 'u/lib/box.js']);
+  exits(mv, 0, 'mv');
+  ok(/^u\/m\.html:3:1: box\.js → lib\/box\.js/m.test(mv.out) && /^:::use\nlib\/box\.js\?x=1\n:::$/m.test(read('u/m.html')), `mv: ${mv.out}\n${read('u/m.html')}`);
 });
 
 test('check: a transform that never returns is addon.failed, not a hang', () => {

@@ -186,8 +186,8 @@ function newNote(args) {
   const src = o.tern !== undefined ? o.tern.trim() : found || 'tern.js';
   const use = (o.use || []).flatMap((u) => u.split(/[\s,]+/)).filter(Boolean);
   const title = o.title === undefined ? null : o.title.trim();
-  const first = `<!doctype html><meta charset="utf-8"><script src="${escAttr(src)}"${use.length ? ` data-use="${escAttr(use.join(' '))}"` : ''}></script>${o.guarded ? GUARD : ''}`;
-  const text = `${first}\n${title === null ? '' : `:::meta\ntitle: ${title}\n:::\n\n`}`;
+  const first = `<!doctype html><meta charset="utf-8"><script src="${escAttr(src)}"></script>${o.guarded ? GUARD : ''}`;
+  const text = `${first}\n${title === null ? '' : `:::meta\ntitle: ${title}\n:::\n\n`}${use.length ? `:::use\n${use.join('\n')}\n:::\n\n` : ''}`;
 
   // What is written must read back as a note with that line, src and title.
   const parts = split(text);
@@ -196,6 +196,7 @@ function newNote(args) {
     return refuse(`<script src="${src}"> would not make ${given} a note: the src must name a file called tern.js`);
   }
   if (title !== null && !(meta && meta.tern && meta.tern.meta && meta.tern.meta.title === title)) return refuse(`the title does not read back from :::meta`);
+  if (use.length && JSON.stringify((meta && meta.tern && meta.tern.use ? meta.tern.use : []).map((u) => u.url)) !== JSON.stringify(use)) return refuse(`the add-ons do not read back from :::use`);
 
   try {
     fs.writeFileSync(file, text, { flag: o.force ? 'w' : 'wx' });
@@ -207,7 +208,7 @@ function newNote(args) {
   for (const u of use) {
     const local = u.replace(/[?#].*$/, '');
     if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(local) || local.startsWith('/')) continue;
-    if (!fs.existsSync(path.resolve(dir, local))) warn(`tern new: data-use names ${u}, which does not exist yet`);
+    if (!fs.existsSync(path.resolve(dir, local))) warn(`tern new: :::use names ${u}, which does not exist yet`);
   }
   return 0;
 }

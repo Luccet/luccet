@@ -755,9 +755,22 @@ An add-on is a script or a stylesheet listed in `data-use` on the tern.js tag:
 <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="lib/callout.js lib/theme.css"></script>
 ```
 
+or in a [`:::use` block](syntax-blocks.html#use) at the top of the note, one or more per line:
+
+```html
+<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+
+:::use
+lib/callout.js
+lib/theme.css
+:::
+```
+
 ### Listing add-ons {#data-use}
 
-- **The list** is space-separated. Each entry is a URL, relative to the page like any `src`.
+- **The list** is space-separated on the tag, and one or more entries per line in the block. Each entry is a URL, relative to the page like any `src`.
+- **Two places, one list.** `data-use` is fine for a single add-on; `:::use` is the readable form for several. Both are honoured and merge: the tag's entries load first, then the block's, in order.
+- **`:::use` must lead the note:** at the top level, before any content; only `:::meta`, blank lines and other `:::use` blocks may come before it. tern.js reads it from the file as it arrives, so its add-ons start loading almost as early as the tag's, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) and is ignored. The block emits nothing.
 - **Stylesheets and scripts.** An entry whose path ends in `.css` is a stylesheet; anything else is a script.
 - **Order matters.** Scripts run in the order listed, so a later add-on sees an earlier one's entries and can change them. Stylesheets cascade in the order listed: a theme listed after an add-on wins at equal specificity.
 - **Under node**, the command line reads the entries the same way: every entry that does not end in `.css` is run as a classic script, `.mjs` or no extension included. One that does not parse as a classic script, or names a directory, is `addon.failed`.
@@ -773,6 +786,8 @@ An add-on takes options from its URL's query string, in `tern.config.use`:
 ```js
 tern.config.use.callout   // {collapse: 'all', accent: 'teal'}
 ```
+
+A `:::use` entry takes the same query string, `lib/callout.min.js?collapse=all&accent=teal`, with `&` written as it is: the block's body is verbatim.
 
 - **The key** is the file name without its directory, `.min`, and `.js`, `.mjs` or `.css`: `lib/callout.min.js` is `callout`.
 - **Every entry** gets an object, empty when there is no query.

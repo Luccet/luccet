@@ -10,12 +10,24 @@ description: The add-ons that come with Tern, in its addons/ folder: math with K
 
 ::toc
 
-Tern comes with add-ons in the `addons/` folder next to `tern.js`. Each one is a script [add-on](schema.html#addons): list it in `data-use`, with a [theme](schema.html#themes) if you like.
+Tern comes with add-ons in the `addons/` folder next to `tern.js`. Each one is a script [add-on](schema.html#addons): list it in `data-use` on the tern.js tag, or in a [`:::use` block](syntax-blocks.html#use) at the top of the note, with a [theme](schema.html#themes) if you like.
 
 **The engine renders no math itself.** It leaves each formula as its TeX, the way a code fence stays plain without [`code.js`](#code). To typeset the math, load a math add-on: [`katex.js`](#katex) for KaTeX, or [`mathml.js`](#mathml) for native MathML. Load one, not both.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="themes/nord.css addons/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/code.js"></script>
+```
+
+Several read better in a `:::use` block, one or more per line, which must come first in the note, after `:::meta` at most:
+
+```html
+<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+
+:::use
+themes/nord.css
+addons/code.js
+addons/katex.js
+:::
 ```
 
 From jsDelivr, give each add-on the same tag as `tern.js`: `https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/addons/code.js`.

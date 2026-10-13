@@ -56,7 +56,7 @@ const ALLOW = {
 };
 // Core containers: each has its own output, so it is never resolved, and a
 // schema cannot define one.
-const CORE = words('meta macros script style html');
+const CORE = words('meta use macros script style html');
 // HTML's void elements: content given to one follows it.
 const VOID = words('area base br col embed hr img input link meta source track wbr');
 
