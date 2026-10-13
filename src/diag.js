@@ -64,6 +64,7 @@ const SEVERITY = {
   'id.duplicate': W,
   'ref.dangling': W,
   'ref.unreferenceable': W,
+  'use.late': W,
   'name.unknown': I,
 };
 

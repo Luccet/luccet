@@ -41,6 +41,7 @@
 'use strict';
 
 const fs = require('fs');
+const { scanUse } = require('../src/use');
 const path = require('path');
 const { analyse, split, tern } = require('./note');
 
@@ -253,6 +254,13 @@ function urls(a) {
     const position = { start, end };
     return { position, filePosition: a.toFile(position) };
   };
+  // The leading `:::use` block's entries, as data-use's: a stylesheet is
+  // checked; a script is addon.failed's. Bare, so tern mv rewrites them.
+  for (const e of a.use || []) {
+    const start = { line: e.line, column: e.column, offset: e.offset };
+    const end = { line: e.line, column: e.column + e.url.length, offset: e.offset + e.url.length };
+    out.push({ url: e.url, what: 'the add-on %s', check: /\.css(?:[?#]|$)/i.test(e.url), ...place(start, end), span: { in: 'note', from: e.offset, to: e.offset + e.url.length, quote: '' } });
+  }
   tern.visit(a.ast, (node) => {
     if (!node.position) return;
     const pos = (p) => ({ line: p.line, column: p.column, offset: p.offset });
@@ -337,7 +345,9 @@ function parsed(text) {
   if (!parts) return null;
   const { ast } = tern.parse(parts.note, { head: parts.head });
   const shift = (p) => ({ line: p.line + parts.line, column: p.column });
-  return { ...parts, ast, toFile: (pos) => ({ start: shift(pos.start), end: shift(pos.end) }) };
+  // The leading `:::use` block's entries, as analyse() carries them (urls() reads them).
+  const use = scanUse(parts.note, { eof: true }).entries;
+  return { ...parts, ast, use, toFile: (pos) => ({ start: shift(pos.start), end: shift(pos.end) }) };
 }
 
 // What a URL names: null when it is not checked, else {path, frag}: path ''

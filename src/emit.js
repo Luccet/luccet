@@ -534,6 +534,7 @@ function container(n, a) {
   const t = tern(n);
   const name = n.name;
   if (name === 'meta') return; // nothing: the runtime writes it into the head
+  if (name === 'use') return; // nothing: the add-ons it lists are loaded, not shown
   // The author's id, classes and keys are carried, as on any element; the
   // runtime finds macros by `.t-macros`, and `hidden` is tern's.
   if (name === 'macros') return void write(`<div${attrs(a, 't-macros', '', ` hidden${pos(n)}`, 'hidden')}>${esc(n.value || '')}</div>\n`);

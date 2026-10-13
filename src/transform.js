@@ -581,8 +581,8 @@ function ids(ast, ctx) {
     while (j < fns.length && (fns[j].position ? fns[j].position.start.offset : 0) <= at) generated(fns[j++]);
     if (dead(n, inDef)) continue;
     const a = n.attributes;
-    if (a && a.id !== undefined && n.type === 'containerDirective' && n.name === 'meta') {
-      delete a.id; // `:::meta` emits nothing, so its id names nothing (attr.malformed at parse)
+    if (a && a.id !== undefined && n.type === 'containerDirective' && (n.name === 'meta' || n.name === 'use')) {
+      delete a.id; // `:::meta` and `:::use` emit nothing, so their ids name nothing (attr.malformed at parse)
       if (empty(a)) delete n.attributes;
     } else if (a && a.id !== undefined) authorId(n, a, peek(n), ctx, add);
     if (n.type === 'heading') heads.push(n);

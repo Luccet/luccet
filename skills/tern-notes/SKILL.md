@@ -14,7 +14,7 @@ Tern looks like Markdown but is not Markdown, and the body is not HTML. Most mis
 
 - **A note** has a line with a plain `<script src="…tern.js"></script>` (any path to a file named `tern.js`). Everything before it is the head, ordinary HTML. Everything after it is Tern source.
 - **Not a note:** the tag has `async`, `defer`, `type="module"` (tern.js cannot read the file), or `data-built`. A `data-built` page was written by `tern build`: edit its source note, not the page.
-- **The vocabulary** of a note is in its head. Look for `data-use="…"` on the tern.js line (add-ons, themes) and a `window.TERN = {schema: …}` script before it. Names such as `theorem` or `proof` only number and label when the vocabulary declares them.
+- **The vocabulary** of a note is in its head. Look for `data-use="…"` on the tern.js line and a `:::use` block at the top of the note (add-ons, themes), and a `window.TERN = {schema: …}` script before the line. Names such as `theorem` or `proof` only number and label when the vocabulary declares them.
 
 ## The first line
 
@@ -33,7 +33,7 @@ A note with *emphasis* and a formula, $e^{i\pi} + 1 = 0$.
 
 ## The loop
 
-1. **Read** the note and its head: the path to `tern.js`, `data-use`, `window.TERN.schema`.
+1. **Read** the note and its head: the path to `tern.js`, `data-use`, a leading `:::use` block, `window.TERN.schema`.
 2. **Edit** in Tern's syntax (below).
 3. **Check:** `tern check FILE` (or a folder). Fix every error and warning; each comes with a hint that spells the fix. The `file:line:col` in front is a line of the file; a line number inside a message counts from the note's first line.
 4. **Repeat** until the check is clean. An info is a hint: fix it when it points at something you did not mean.
@@ -171,7 +171,7 @@ On a display formula the braces go after the closing `$$`; on the opening line t
 
 ## Math
 
-TeX between dollars. The engine leaves each formula as its TeX source and renders nothing; load a math add-on in `data-use` to typeset it — `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML). Inside math everything is TeX; outside it, a backslash before a letter is just a backslash.
+TeX between dollars. The engine leaves each formula as its TeX source and renders nothing; load a math add-on in `:::use` or `data-use` to typeset it — `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML). Inside math everything is TeX; outside it, a backslash before a letter is just a backslash.
 
 ```tern
 Inline $\sum_{i=1}^n x_i$, a price of $5 left alone, and $`]0,1[` verbatim.
@@ -246,7 +246,7 @@ Every code, with what it means and how to fix it: [references/diagnostics.md](re
 ## More
 
 - [references/syntax.md](references/syntax.md): every construct, its edge cases and escapes.
-- [references/vocabulary.md](references/vocabulary.md): schemas, add-ons (`data-use`), themes, styling and behaviours.
+- [references/vocabulary.md](references/vocabulary.md): schemas, add-ons (`:::use`, `data-use`), themes, styling and behaviours.
 - [references/diagnostics.md](references/diagnostics.md): every diagnostic code.
 - [references/tools.md](references/tools.md): `tern new`, `check`, `build`, `mv`, the language server, and publishing.
 - The documentation: [the guide](https://oscarac.github.io/tern/docs/guide.html#top), [the eight rules](https://oscarac.github.io/tern/docs/guide.html#rules).

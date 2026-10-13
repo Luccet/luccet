@@ -68,7 +68,7 @@ $ cat notes/kernel.html
 
 - **The path to tern.js.** Without `--tern`, it looks for a file called `tern.js` in FILE's folder, then each folder above, and writes the nearest as a relative path (`../../tern.js` two levels down). With none, it writes `tern.js` and warns: `tern new: no tern.js in . or above; the note loads tern.js from its own directory`. Copy `tern.js` into place, or pass `--tern`.
 - **`--tern=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.jsdelivr.net/gh/OscarAC/tern@vX.Y.Z/tern.js` (pin a tag). Prefer relative paths for anything published or opened from disk.
-- **`--use=LIST`** writes `data-use`. `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give `data-use="a.js b.css"`. Paths are relative to the note; a local one that does not exist gets a warning on stderr, and the file is still written.
+- **`--use=LIST`** writes a `:::use` block, one entry per line, after the `:::meta` block. `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same block. Paths are relative to the note; a local one that does not exist gets a warning on stderr, and the file is still written.
 - **`--title=TEXT`** adds a `:::meta` block with `title: TEXT` and a blank line. One non-empty line.
 - **`--guarded`** appends a guard to the first line: when `tern.js` does not load (or JavaScript is off), the reader sees a one-line message and the source as plain text instead of a run-together paragraph. It changes nothing when `tern.js` loads; `tern build` drops it.
 - **`--force`** overwrites. Do not use it on an existing note unless the user asked for a fresh file.
@@ -76,12 +76,17 @@ $ cat notes/kernel.html
 ```text
 $ tern new notes/first.html --title="Linear maps" --use=theorems.js,theme.css
 created notes/first.html, loading ../tern.js
-tern new: data-use names theorems.js, which does not exist yet
-tern new: data-use names theme.css, which does not exist yet
+tern new: :::use names theorems.js, which does not exist yet
+tern new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="theorems.js theme.css"></script>
+<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
 :::meta
 title: Linear maps
+:::
+
+:::use
+theorems.js
+theme.css
 :::
 
 ```
@@ -192,7 +197,7 @@ One JSON array of every diagnostic (`[]` when there are none), filtered by `--qu
 
 ### Add-ons and head scripts under Node
 
-To know the note's vocabulary, the commands run, in one context, as the browser would: the head's classic scripts (inline, or a local `src`; not modules, `async`/`defer` ones or other origins), then `window.TERN`, then each script add-on of `data-use`, then `window.TERN.schema` on top. Transforms that add-ons register run; behaviours (`tern.define`, a schema's `dom`) do not. CSS add-ons are not run; their paths are link-checked. An add-on's `console` output goes to stderr. Each script gets 2 seconds.
+To know the note's vocabulary, the commands run, in one context, as the browser would: the head's classic scripts (inline, or a local `src`; not modules, `async`/`defer` ones or other origins), then `window.TERN`, then each script add-on of `data-use` and of the leading `:::use` block, then `window.TERN.schema` on top. Transforms that add-ons register run; behaviours (`tern.define`, a schema's `dom`) do not. CSS add-ons are not run; their paths are link-checked. An add-on's `console` output goes to stderr. Each script gets 2 seconds.
 
 ```text
 $ tern check addons.html
@@ -221,7 +226,7 @@ tern check: 1 note: 1 error, 2 warnings, 2 infos
 - `link.missing`: the file does not exist, a folder has no `index.html`, or the case differs from the disk's (`Index.html is spelt index.html on this disk; a host that tells case apart will not find it`).
 - `link.dangling`: the file exists but the `#fragment` names no id in it. For a note, its ids as rendered with its own add-ons; for other HTML, an `id` or `<a name>`; for Markdown, GitHub's heading anchors. `#top` always counts.
 
-**Checked:** Tern links and images; `href`, `src`, `poster` and `data` of elements (`::video{src=…}`); `href` and `src` in raw HTML, in the note and the head (a `<link rel="stylesheet">`); on the `tern.js` line, the path to `tern.js`, `data-css` and the stylesheets in `data-use`. Links resolve from the note's folder; a query is ignored and `%20` decoded.
+**Checked:** Tern links and images; `href`, `src`, `poster` and `data` of elements (`::video{src=…}`); `href` and `src` in raw HTML, in the note and the head (a `<link rel="stylesheet">`); on the `tern.js` line, the path to `tern.js`, `data-css` and the stylesheets in `data-use` or `:::use`. Links resolve from the note's folder; a query is ignored and `%20` decoded.
 
 **Skipped:** URLs with a scheme (`https:`, `mailto:`) or starting with `//`; root-relative URLs (`/x.html`); every link of a note with a `<base href>`; anything in code, math and comments; fragments of non-HTML files (`paper.pdf#page=3`); ids a script adds at run time. A same-note `[text](#id)` is the engine's `ref.dangling` instead.
 
@@ -251,7 +256,7 @@ Without `--dry-run`, the first line reads `moved …` and the summary drops "a d
 
 - **TO** is a folder when it ends in `/` or exists; each FROM moves into it under its own name. Otherwise it is the new name: when `notes/algebra` does not exist, `tern mv notes/kernel.html notes/algebra` renames the note to a file called `algebra`. End with `/` to move into a new folder. With several FROMs, TO must be an existing folder. Missing folders on the way are created.
 - **`--root=DIR`**: the notes searched for links to what moves (found as `tern check` finds them). Default: the repository FROM is in (the nearest folder above holding `.git`), else the current folder.
-- **Rewritten:** links, images, element URLs, raw `<a href>`, stylesheets in `data-use`, and in moved notes also `tern.js`, add-ons and head scripts. Only the path changes: `#fragment` and `?query`, `./`, percent-escapes, `<…>` brackets, quotes and line endings stay.
+- **Rewritten:** links, images, element URLs, raw `<a href>`, stylesheets in `data-use` or `:::use`, and in moved notes also `tern.js`, add-ons and head scripts. Only the path changes: `#fragment` and `?query`, `./`, percent-escapes, `<…>` brackets, quotes and line endings stay.
 - **Left alone:** URLs with a scheme, `//` or `/`; notes with a `<base href>` (named on stderr); and **files that are not notes**. Each non-note file that names a moved file is listed on stderr (`README.md names maps.html but is not a note …; look at it`). Open each one: fix real links by hand (a Markdown link in a README, a navigation list in an add-on), leave mere mentions.
 - It does not run add-ons. It renames as `mv` does; git sees a rename once staged.
 
@@ -276,7 +281,7 @@ tern build: wrote dist/build.html; 2 formulas
 - **`-o OUT`**: without it, or with `-o -`, the page goes to stdout. `OUT` ending in `/` or naming an existing folder: written there under the note's name, folder created. Otherwise `OUT` is the file name (`-o dist2` writes a file `dist2`, and says so). `OUT` may not be the note itself (exit 2).
 - **Relative URLs are kept as written**, and resolve from the page's folder. Build into a tree that mirrors the source (`notes/a.html` to `public/notes/a.html`) and copy `tern.js`, add-ons and images into the same layout.
 - **Diagnostics** print on stderr, but the page is always written and the exit code is 0. Run `tern check` first when problems should stop you.
-- **Math at build time.** The engine renders no math itself, so a built page shows its formulas as TeX unless the note loads a math add-on (its `data-use` is kept, so `addons/katex.js` or `addons/mathml.js` still typesets at view time) or you pre-render with `--math`.
+- **Math at build time.** The engine renders no math itself, so a built page shows its formulas as TeX unless the note loads a math add-on (the add-ons are kept: the tag's `data-use`, with a `:::use` block's entries merged into it and static tags for each, so `addons/katex.js` or `addons/mathml.js` still typesets at view time) or you pre-render with `--math`.
 - **`--math katex`** (and the older alias `--katex`) pre-renders math to HTML with the `katex` npm package, which is not a dependency: install it where Node finds it for `tern-cli.js`, in the note's folder or the current folder. Without it: `tern build: the katex package cannot be required (npm install katex); formulas are left to tern.js`. On success: `wrote dist/build.html; 2 formulas, 2 pre-rendered as HTML`. A formula KaTeX rejects is left as its TeX, with a `math.error` warning. Pre-rendered KaTeX carries `style` attributes (see CSP below).
 - **`--math mathml`** pre-renders to native MathML with the `temml` npm package (`npm install temml`) and inlines Temml's stylesheet, so the page is self-contained — no script, stylesheet or font to fetch at view time, and nothing for a CSP to allow. Without the package: `tern build: the temml package cannot be required (npm install temml); formulas are left to tern.js`. On success: `wrote dist/build.html; 2 formulas, 2 pre-rendered as MathML`.
 

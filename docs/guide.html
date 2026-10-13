@@ -1607,6 +1607,17 @@ An add-on is a script, shared by many notes, that declares a vocabulary with `te
 <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="math-vocab.js theme.css"></script>
 ```
 
+Several read better in a [`:::use` block](syntax-blocks.html#use), one or more per line. It must come first in the note, after `:::meta` at most; both forms are honoured, the tag's entries loading first.
+
+```html
+<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+
+:::use
+math-vocab.js
+theme.css
+:::
+```
+
 ```js
 // math-vocab.js
 tern.block('theorem', {tag: 'section', counter: 'theorem', label: 'Theorem'});
@@ -1772,7 +1783,7 @@ It writes the first line, with the relative path to the nearest `tern.js` in the
 | Option | Effect |
 |---|---|
 | `--title=TEXT` | adds a `:::meta` block with that title |
-| `--use=a.js,b.css` | lists add-ons in `data-use` |
+| `--use=a.js,b.css` | lists add-ons in a `:::use` block |
 | `--tern=PATH` | the path to `tern.js`, as written |
 | `--guarded` | shows the source as text if `tern.js` cannot load, or if JavaScript is off |
 | `--force` | overwrites an existing file |
@@ -1827,7 +1838,7 @@ A note is a static file. Publishing it means putting it, with `tern.js` and what
 1. **Keep paths relative.** Upload the note with `tern.js`, add-ons and images in the same places relative to it.
 2. **Any static host works**, GitHub Pages included. There is no server code.
 3. **Or build it.** `tern build` makes a page that shows its content before scripts run, which suits search engines and slow connections.
-4. **Math.** Load a [math add-on](addons.html#katex) in `data-use` to typeset formulas; `addons/katex.js` fetches KaTeX from a CDN. For offline use, point the add-on at a copy you host with `?base=`, or pre-render with `tern build --math`.
+4. **Math.** Load a [math add-on](addons.html#katex) in `:::use` or `data-use` to typeset formulas; `addons/katex.js` fetches KaTeX from a CDN. For offline use, point the add-on at a copy you host with `?base=`, or pre-render with `tern build --math`.
 5. **Content Security Policy.** Under a strict policy, link `tern.css` from the head, so that Tern does not need to inline its styles; the CSP section has the details.
 6. **Trust.** A note is a web page: its scripts and raw HTML run with the page's rights. Open notes you trust.
 

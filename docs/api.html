@@ -386,7 +386,7 @@ tern.toHTML(src, { schema, head: '<html lang="fr-CA">', positions: false });
 
 **What the string holds.** It is the body of the note. The runtime puts it inside `<main class="tern">`, and `tern build` does the same in a static page. It leaves out:
 
-- **the head:** `:::meta` writes nothing into the body. Its keys are in `ast.data.tern.meta`, and the runtime and `tern build` write them into the head;
+- **the head:** `:::meta` writes nothing into the body. Its keys are in `ast.data.tern.meta`, and the runtime and `tern build` write them into the head. `:::use` writes nothing either: its entries are in `ast.data.tern.use`, add-ons the runtime loads and `tern build` writes as tags;
 - **typeset math:** a formula is its TeX inside `span.t-math`; the engine renders no math, so a [math add-on](addons.html#katex) typesets it in the browser (or `tern build --math` pre-renders it);
 - **behaviours:** `tern.define` and schema `dom` functions run on the DOM, in the browser.
 
@@ -759,7 +759,7 @@ Each entry has the [shape of a diagnostic](#check). The runtime's four codes are
 | Code | Position | Reported when |
 |---|---|---|
 | [`doc.quirks`](diagnostics.html#doc-quirks) | line 0 | the file has no `<!doctype html>`, so the page is in quirks mode, where the layout and some add-ons misbehave |
-| [`addon.failed`](diagnostics.html#addon-failed) | line 0 | a `data-use` entry did not load; a script add-on threw while it ran (the note renders with what it registered before the error); a registered transform threw |
+| [`addon.failed`](diagnostics.html#addon-failed) | line 0 | a `data-use` or `:::use` entry did not load; a script add-on threw while it ran (the note renders with what it registered before the error); a registered transform threw |
 | [`script.document-write`](diagnostics.html#script-document-write) | the `<script` tag | a note script calls `document.write` or `writeln` |
 | [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) | the `<script` tag | a note script listens for `DOMContentLoaded` |
 
@@ -796,7 +796,7 @@ tern.config;
 
 | `window.TERN` | Attribute | `tern.config` | Value |
 |---|---|---|---|
-| `use` | `data-use` | `use` | the add-ons' options, a math add-on's among them (`use.katex` for [`katex.js`](addons.html#katex)). Each `data-use` entry's query string goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.TERN.use[NAME]` key of the same name |
+| `use` | `data-use` | `use` | the add-ons' options, a math add-on's among them (`use.katex` for [`katex.js`](addons.html#katex)). Each add-on entry's query string, in `data-use` or `:::use`, goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.TERN.use[NAME]` key of the same name |
 | `schema` | | `schema` | the note's own vocabulary, `{block, leaf, inline}` in the registry's shape, applied at mount after the add-ons ([`window.TERN.schema`](schema.html#window-tern)). Its `strict` sets `tern.schema.strict`, over an add-on's |
 | `css` | `data-css` | `css` | a stylesheet to use as the base instead of the inline one ([CSP](publishing.html#csp)) |
 | `nonce` | `data-nonce` | `nonce` | a CSP nonce, set on every `style`, `link` and `script` Tern adds, and on the note's re-created scripts |
@@ -805,7 +805,7 @@ tern.config;
 | `quiet` | `data-quiet` | `quiet` | true hides the panel everywhere; it wins over `diagnostics` |
 | any other key | | the same key | copied as it is |
 
-**`data-use`** is also how add-ons are loaded. Its value is a list of URLs, separated by spaces, resolved against the page. An entry ending in `.css` (before its query) is a stylesheet, linked in its place in the [cascade](#style); any other is a script. Scripts are fetched in parallel and run in the order listed, and the note mounts only once every entry has loaded or failed.
+**`data-use`** is also how add-ons are loaded. Its value is a list of URLs, separated by spaces, resolved against the page; a [`:::use` block](syntax-blocks.html#use) at the top of the note lists more, one or more per line, loaded after the tag's. An entry ending in `.css` (before its query) is a stylesheet, linked in its place in the [cascade](#style); any other is a script. Scripts are fetched in parallel and run in the order listed, and the note mounts only once every entry has loaded or failed.
 
 **KaTeX options.** The [`katex.js` add-on](addons.html#katex) reads `tern.config.use.katex` and passes every key except `displayMode` and `throwOnError` to KaTeX: `macros`, `trust`, `strict`, `output`, `leqno` and the rest. `throwOnError` is always true, so a formula KaTeX rejects keeps its TeX, and the add-on warns in the console rather than reporting a diagnostic. `macros` is copied into one table that every formula shares; the `:::macros` blocks of the note are defined into it first. A copy of KaTeX of your own is `addons/katex.js?base=URL`, not a config key.
 
@@ -977,7 +977,7 @@ See @kernel and $\dim V$.
 
 | Type | From | Fields | Written |
 |---|---|---|---|
-| `root` | mdast | `children`; `data.tern.meta` when the note has a top-level `:::meta` | the note |
+| `root` | mdast | `children`; `data.tern.meta` when the note has a top-level `:::meta`, `data.tern.use` when it has a leading `:::use` | the note |
 | `paragraph` | mdast | `children` | text |
 | `heading` | mdast | `depth` (1 to 6), `children` | `## Title` |
 | `thematicBreak` | mdast | | `---` |
@@ -1194,6 +1194,7 @@ The parser records under `data.tern` what it knows that mdast has no field for. 
 | Field | On | Value |
 |---|---|---|
 | `meta` | `root` | the top-level `:::meta` keys, as `{key: string}` with no prototype. Absent when the note has none |
+| `use` | `root` | the leading [`:::use`](syntax-blocks.html#use) entries, `[{url, position}]` in order. Absent when the note has none |
 | `colons` | `containerDirective` | the length of the opener's colon run |
 | `namePosition` | `containerDirective`, `leafDirective` | the position of the name after the colons |
 | `idPosition` | any node with an author's id | the position of the `#id` or `id=…` item that set it |
@@ -1239,6 +1240,7 @@ The transforms write what the emitter reads; the emitter reads nothing else. Thi
 | `data.tern.diagnostics` | the transforms' diagnostics, sorted |
 | `data.tern.footnotes` | the identifiers of the footnote definitions, in output order: the referenced ones by number, then the unused ones in document order |
 | `data.tern.meta` | `:::meta`, plus the title fallback when it applies (created for it when there was no `:::meta`) |
+| `data.tern.use` | the leading `:::use` entries, as the parser left them |
 | `data.tern.transformed` | `true`, set by the first run |
 
 In `ids`, `kind` is a named element's name (`theorem`), else the node type (`heading`, `math`, `code`, `span`, `footnoteDefinition` …). `explicit` is false for a heading slug and for a generated footnote id. `line` and `column` say where the id is written: the `#` or `id=` item; for a slug, the heading; for a footnote id, the definition's or the reference's `[`. `ids` is built the first time it is read, so the emitter, which never reads it, never pays for it; any reader, `JSON.stringify` included, sees a plain object.

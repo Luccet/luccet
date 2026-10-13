@@ -328,7 +328,8 @@ function build(text, file, opts = {}) {
   // around it.
   const n = attrs['data-nonce'] ? ` nonce="${escAttr(attrs['data-nonce'])}"` : '';
   const link = (href, sri) => `<link rel="stylesheet" href="${escAttr(href)}"${sri ? ` integrity="${sri}" crossorigin="anonymous"` : ''}${n}>`;
-  const use = (attrs['data-use'] || '').split(/\s+/).filter(Boolean);
+  // The add-ons: the tag's data-use, then the leading `:::use` block's.
+  const use = (attrs['data-use'] || '').split(/\s+/).filter(Boolean).concat((a.use || []).map((e) => e.url));
   const isCss = (u) => /\.css$/i.test(u.replace(/[?#].*$/, ''));
   const sheets = [];
   for (const m of head.matchAll(SHEETS)) {
@@ -351,9 +352,15 @@ function build(text, file, opts = {}) {
 
   // tern.js, marked as a built page. The engine renders no math itself, so a
   // formula that was not pre-rendered shows only if the note loads a math
-  // add-on (its data-use is kept below); one pre-rendered here is already
-  // typeset (KaTeX HTML) or native MathML (Temml).
-  const tag = a.tag.replace(/^<script/i, '<script data-built');
+  // add-on; one pre-rendered here is already typeset (KaTeX HTML) or native
+  // MathML (Temml). The tag keeps its data-use, with the `:::use` block's
+  // entries merged in: the block emits nothing, and tern.js on the built page
+  // reads the tag alone.
+  let tag = a.tag.replace(/^<script/i, '<script data-built');
+  if (a.use && a.use.length) {
+    const value = ` data-use="${escAttr(use.join(' '))}"`;
+    tag = /\sdata-use\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(tag) ? tag.replace(/\sdata-use\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, value) : tag.replace(/\s*\/?>$/, (m) => value + m);
+  }
   const scripts = use.filter((u) => !isCss(u)).map((u) => `<script src="${escAttr(u)}"${n}></script>`);
   const page = [
     head,

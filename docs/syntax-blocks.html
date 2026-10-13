@@ -3078,6 +3078,30 @@ title: Linear maps
 
 The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 
+### `:::use` {#use}
+
+- The body lists the add-ons the note loads — scripts and stylesheets, as the tern.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, on [Vocabulary and behaviour](schema.html#addons).
+- It must lead the note: at the top level, before any content, after `:::meta` at most. The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (warning) and is ignored: its add-ons could not have been loaded in time.
+- Nothing is emitted, and its body is verbatim. As on `:::meta`, an id, a class or a key on `:::use` gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped.
+- The entries are in the tree as `root.data.tern.use`, `[{url, position}]`, in order.
+
+```tern {.live}
+:::use
+addons/katex.js
+themes/nord.css addons/code.js?base=vendor/highlight
+:::
+
+The add-ons load; the block renders nothing here.
+```
+
+```tern {.live expect="use.late"}
+Some text first.
+
+:::use
+addons/katex.js
+:::
+```
+
 ### `{raw}` on any container {#raw-attribute}
 
 `{raw}` on a container makes its body one verbatim text node, emitted escaped inside the element, for a behaviour (a diagram renderer, a chart) to read. The `raw` key itself is never emitted; the title slot, the id, classes and other keys are kept.

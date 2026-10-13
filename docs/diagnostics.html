@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 53 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `math.error` from `tern build --math`.
+The first 54 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `math.error` from `tern build --math`.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -74,6 +74,7 @@ The first 53 codes come from the parser and the transforms, so `tern.check`, `te
 | [`meta.duplicate`](#meta-duplicate) | warning | A metadata key is set twice. |
 | [`meta.malformed`](#meta-malformed) | warning | A `:::meta` line is not `key: value`. |
 | [`meta.nested`](#meta-nested) | warning | `:::meta` is not at the top level. |
+| [`use.late`](#use-late) | warning | `:::use` is not at the top of the note. |
 | [`name.reserved`](#name-reserved) | warning | A reserved name, key or class. |
 | [`tag.not-allowed`](#tag-not-allowed) | warning | `tag=`, or a schema's `tag`, names an element the level cannot be. |
 | [`table.body`](#table-body) | warning | A `:::table` whose body is not exactly one pipe table. |
@@ -129,7 +130,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
 | `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
 | `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 
-Of the 53 parser and transform codes, 8 are errors, 32 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling` and `math.error` are warnings.
+Of the 54 parser and transform codes, 8 are errors, 33 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling` and `math.error` are warnings.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -2244,6 +2245,37 @@ A note.
 
 These concern how a name becomes an element: [names](elements.html#names), [allowlists](elements.html#allowlists) and [reserved names](elements.html#reserved).
 
+### `use.late` {#use-late}
+
+**Warning.** `:::use` is not at the top of the note.
+
+- **Trigger.** A `:::use` block after any content, or inside a container, a quote, a list item or a footnote definition. Only `:::meta`, blank lines and other `:::use` blocks may come before it.
+- **Position.** The opener.
+- **Content.** The block is ignored: its add-ons are not loaded, since the runtime reads the leading block from the file as it arrives, and the tools read it before they analyse. Its body is still verbatim, and nothing is emitted for it.
+
+```tern {.live expect="use.late"}
+Some text first.
+
+:::use
+addons/katex.js
+:::
+```
+
+The engine reports `use.late` (warning) at 3:1:
+
+- **Message:** `` `:::use` counts only at the top of the note, before any content; this one is ignored ``
+- **Hint:** `` move it to the top of the note, after `:::meta` at most ``
+
+**Fix.** Move it to the top of the note:
+
+```tern {.live}
+:::use
+addons/katex.js
+:::
+
+Some text first.
+```
+
 ### `name.reserved` {#name-reserved}
 
 **Warning.** A reserved name, key or class.
@@ -2650,7 +2682,7 @@ Hello.
 The panel shows:
 
 - **Message:** `the add-on missing.js did not load; the note renders without it`
-- **Hint:** `check the path in data-use`
+- **Hint:** `` check its path in data-use or `:::use` ``
 
 An add-on that throws while it runs, here `vocab.js` calling a function that does not exist:
 
@@ -2676,7 +2708,7 @@ note.html:1:1: error addon.failed: the transform "boom" of the add-on tx.js thre
 
 A directory reads `/home/me/notes/dir.js is a directory`. `tern build` prints these as `tern build:` warnings, since the page itself is still written.
 
-**Fix.** Check the path in `data-use`. A relative path resolves from the note, as any URL in it does ([add-ons](schema.html#addons)). For an add-on or a transform that throws, fix its code.
+**Fix.** Check the path in `data-use` or `:::use`. A relative path resolves from the note, as any URL in it does ([add-ons](schema.html#addons)). For an add-on or a transform that throws, fix its code.
 
 **Related.** [`addon.remote`](#addon-remote), [`head.script`](#head-script).
 

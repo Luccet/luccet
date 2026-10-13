@@ -105,11 +105,11 @@ When a command is given a file that is not a note, it says why:
 
 ### Vocabulary under Node {#vocabulary}
 
-A note's vocabulary comes from its own files: the scripts in its head, and the add-ons in `data-use` (see [Vocabulary and behaviour](schema.html#window-tern)). Every command and the language server load them the way the browser does, so names, labels and numbering match the page. This code is the note's own, not yours, so the tools run it in a **sandbox** rather than with their own privileges (see [Running a note's code](#sandbox)); a note with no head scripts and no script add-ons has none to run. The sandbox runs them in this order:
+A note's vocabulary comes from its own files: the scripts in its head, and the add-ons in `data-use` and `:::use` (see [Vocabulary and behaviour](schema.html#window-tern)). Every command and the language server load them the way the browser does, so names, labels and numbering match the page. This code is the note's own, not yours, so the tools run it in a **sandbox** rather than with their own privileges (see [Running a note's code](#sandbox)); a note with no head scripts and no script add-ons has none to run. The sandbox runs them in this order:
 
 1. **The head's scripts**, those before the `tern.js` tag, in document order: inline scripts, and scripts with a local `src`. Modules, data blocks, and scripts with a `src` and `async` or `defer` (which run after `tern.js` has started) are left out. `tern` is not defined yet, as in the browser.
 2. **`window.TERN`** is read, as `tern.js` reads it when it starts: its `lang` and its `schema`.
-3. **The script add-ons** of `data-use`, in order. Every entry that does not end in `.css` is run as a classic script, as the browser runs it. Here `tern.block`, `tern.leaf` and `tern.inline` write the vocabulary, and `tern.transform(name, fn)` registers a transform, which then runs on the note as it does in the browser. `tern.define`, `tern.on`, `tern.style` and `tern.render` are accepted and do nothing. CSS add-ons are skipped.
+3. **The script add-ons** of `data-use`, then of the leading `:::use` block, in order. Every entry that does not end in `.css` is run as a classic script, as the browser runs it. Here `tern.block`, `tern.leaf` and `tern.inline` write the vocabulary, and `tern.transform(name, fn)` registers a transform, which then runs on the note as it does in the browser. `tern.define`, `tern.on`, `tern.style` and `tern.render` are accepted and do nothing. CSS add-ons are skipped.
 4. **`window.TERN.schema`** goes on top: the note's own entry wins over an add-on's for the same name. Its `strict: true` turns on strict mode, so a name with no schema entry gets [`name.unknown`](diagnostics.html#name-unknown); `strict: false` turns it off, whatever an add-on set.
 
 The label language follows the browser's order too: `data-lang` on the tag, then `window.TERN.lang`, then `lang` in `:::meta`, then `<html lang>`. With a theorem labelled `{ en: 'Theorem', de: 'Satz', fr: 'Théorème' }` and `<html lang="fr">`, `tern build` writes "Théorème 1"; adding `data-lang="de"` to the tag makes it "Satz 1", as in the browser.
@@ -174,7 +174,7 @@ $ cat notes/kernel.html
 | Option | What it does |
 |---|---|
 | `--tern=PATH` | The `src` of the script tag, as given: a relative path, a root-relative path, or a URL. Without it, see below. |
-| `--use=LIST` | The add-ons, written to `data-use`. Separate them with commas or spaces; the option may repeat. |
+| `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block. Separate them with commas or spaces; the option may repeat. |
 | `--title=TEXT` | Adds a `:::meta` block with `title: TEXT`, then a blank line. One non-empty line. |
 | `--guarded` | Adds the guard, which shows the note's source when `tern.js` does not run. See [The guard](#guarded). |
 | `--force` | Overwrites an existing file. |
@@ -198,19 +198,24 @@ Relative paths are what you want for publishing: they keep working when the fold
 ```sh
 $ tern new notes/first.html --title="Linear maps" --use=theorems.js,theme.css
 created notes/first.html, loading ../tern.js
-tern new: data-use names theorems.js, which does not exist yet
-tern new: data-use names theme.css, which does not exist yet
+tern new: :::use names theorems.js, which does not exist yet
+tern new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="theorems.js theme.css"></script>
+<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
 :::meta
 title: Linear maps
 :::
 
+:::use
+theorems.js
+theme.css
+:::
+
 ```
 
-- `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give `data-use="a.js b.css"`.
+- `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same `:::use` block, `a.js` then `b.css`, one per line.
 - A local add-on that does not exist yet (relative to the note's folder) gets a note on stderr. The file is still written: you may be about to create it. Remote URLs and root-relative paths are not checked.
-- `--title` is written as `:::meta` (see [Metadata](elements.html#metadata)). Before writing, `tern new` reads the file back and checks that the title survives as written; a title that would not is refused.
+- `--title` is written as `:::meta` (see [Metadata](elements.html#metadata)). Before writing, `tern new` reads the file back and checks that the title survives as written, and that the add-ons read back from `:::use`; a title that would not is refused.
 
 ### The guard (--guarded) {#guarded}
 
@@ -410,6 +415,7 @@ tern check: 1 note: 1 error, 1 warning, 2 infos
 - `vocab.js` and `theorems.js` loaded, so the names they declare are known, and the note's theorems are numbered as in the browser.
 - `theme.css` is a stylesheet, so it is not loaded under Node. Only its path is checked, as a [link](#check-links).
 - The inline script set `window.TERN.schema.leaf` before it threw, and that part stays in effect.
+- An entry of a [`:::use` block](syntax-blocks.html#use) is loaded and checked the same way, and a problem with one is reported at the entry's line in the note.
 
 ### Links between files {#check-links}
 
@@ -432,7 +438,7 @@ tern check: 3 notes: 0 errors, 2 warnings, 0 infos
 - Tern links and images: `[text](maps.html#thm-rn)`, `![alt](img/kernel.svg)`;
 - the `href`, `src`, `poster` and `data` of elements, as in `::video{src=media/tide.mp4}`;
 - `href` and `src` in raw HTML, in the note and in the head, such as a `<link rel="stylesheet">`;
-- on the `tern.js` line: the path to `tern.js` itself, since a wrong one means the note does not render; `data-css`; and the stylesheets in `data-use`. Script add-ons and head scripts are not, being [`addon.failed`](diagnostics.html#addon-failed)'s and [`head.script`](diagnostics.html#head-script)'s.
+- on the `tern.js` line: the path to `tern.js` itself, since a wrong one means the note does not render; `data-css`; and the stylesheets in `data-use` or `:::use`. Script add-ons and head scripts are not, being [`addon.failed`](diagnostics.html#addon-failed)'s and [`head.script`](diagnostics.html#head-script)'s.
 
 **How a link resolves:**
 
@@ -578,9 +584,9 @@ title: Linear maps
 3. **Tern's stylesheets**, in the order the runtime uses, placed before the head's first stylesheet of your own, so yours win:
    - KaTeX's CSS, when math was pre-rendered;
    - the base: tern.css inlined as `<style id="tern-style">`. If the head links `tern.css` (or the `data-css` URL), that link is the base and stays where it is; `data-css` without such a link becomes a `<link>`;
-   - each CSS add-on of `data-use`, as a `<link>`, not inlined, so its relative `url()`s keep working;
+   - each CSS add-on of `data-use` and of the `:::use` block, as a `<link>`, not inlined, so its relative `url()`s keep working;
    - with `data-nonce`, each of them carries the nonce, and so do the script add-on tags. The `tern.js` tag is kept as written: give it a `nonce` yourself if your policy needs one.
-4. **The `tern.js` tag**, as written plus `data-built` (always just `data-built`, with no value). Anything after the tag on its line, such as a [guard](#guarded), is dropped. Then each script add-on of `data-use`, as a static `<script src>` tag, in order. Both run before the body is parsed, so the note's own scripts find `tern` and the add-ons' globals, as after a mount. A formula the build did not pre-render typesets at view time only if `data-use` lists a [math add-on](addons.html#katex).
+4. **The `tern.js` tag**, as written plus `data-built` (always just `data-built`, with no value). When the note has a [`:::use` block](syntax-blocks.html#use), its entries are merged into the tag's `data-use`, after the tag's own: the block emits nothing, and `tern.js` on a built page reads the tag alone. Anything after the tag on its line, such as a [guard](#guarded), is dropped. Then each script add-on, as a static `<script src>` tag, in order. Both run before the body is parsed, so the note's own scripts find `tern` and the add-ons' globals, as after a mount. A formula the build did not pre-render typesets at view time only if `data-use` lists a [math add-on](addons.html#katex).
 5. **`<main class="tern">`** holding the emitted HTML, exactly what `tern.toHTML` returns for the note, with its vocabulary and head. So the page has its layout before any script runs.
 6. **The note's source**, in `<script type="text/tern" id="tern-source" data-line="N">`, where `N` is the number of file lines before the note. See [The source kept](#build-source).
 7. **The diagnostics**, when there are any, in `<script type="application/json" id="tern-diagnostics">`: the parse and transform diagnostics, at note positions, as JSON with each `<` written `\u003c`.
@@ -700,7 +706,7 @@ Each edit prints as `file:line:col: old → new`, with the file at its new path;
 
 Two kinds of relative URL, wherever [link checking](#check-links) finds them, and also head scripts and script add-ons:
 
-- **URLs to what moved,** in every note under the root: a link to a moved note or into a moved folder, an image, a `::video{src=…}`, a raw `<a href>`, a stylesheet in `data-use`.
+- **URLs to what moved,** in every note under the root: a link to a moved note or into a moved folder, an image, a `::video{src=…}`, a raw `<a href>`, a stylesheet in `data-use` or `:::use`.
 - **A moved note's own URLs.** Its targets did not move, but the note did, so its links, images, `tern.js`, add-ons and head scripts are written again from its new folder. A link to a file moved with it, or to itself, works out right: inside a folder that moves, nothing changes.
 
 Each edit replaces the path of one URL and nothing else. Its fragment and query stay (`maps.html#thm-rn` becomes `linear/maps.html#thm-rn`), and so does how it is written:

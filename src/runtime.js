@@ -32,6 +32,7 @@
 
 const { css: BASE_CSS } = require('./css');
 const { sortDiagnostics } = require('./diag');
+const { scanUse } = require('./use');
 
 // The runtime's own diagnostic codes, all errors: each loses or changes what
 // the reader sees. (Math is rendered by an add-on now — addons/katex.js or
@@ -345,27 +346,53 @@ function start() {
   const holder = document.getElementById('tern-source');
   if (!holder) return; // the write was ignored: not a parser-inserted script
 
-  // Add-ons: every script at once with async=false, so they are fetched in
-  // parallel but run in order (an inserted script is async by default); CSS
-  // as links in data-use order. A failure is addon.failed; mount waits for
-  // each to load or fail, with no timeout.
+  // The tag's add-ons (data-use) load now; mount waits for each.
   const waits = [];
-  const failed = (a) => (ok) => ok || report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check the path in data-use');
-  const unwatch = watchAddons(addons); // one that loads but throws while it runs
-  for (const a of addons) {
-    if (a.css) {
-      waits.push(loaded(insert(sheet(a.url), a.slot)).then(failed(a)));
-      continue;
-    }
-    const s = nonce(document.createElement('script'));
-    s.src = a.url;
-    s.async = false;
-    scriptSlot.set(s, a.slot);
-    waits.push(loaded(s).then(failed(a)));
-    document.head.append(s);
-  }
+  let unwatch = watchAddons(addons); // one that loads but throws while it runs
+  loadAddons(addons, waits);
   if (config.css && !BASE_SLOT.els.length) waits.push(loaded(insert(sheet(config.css), BASE_SLOT)));
   baseStyle();
+
+  // `:::use`: the add-ons the note's leading block lists are found in the
+  // text as it streams into the holder (src/use.js), so they start loading
+  // almost as early as the tag's, before the body has finished arriving. The
+  // scan decides once the leading blocks end, or at DOMContentLoaded with the
+  // whole note. Mount waits for these too.
+  const noteText = () => {
+    const t = holder.textContent;
+    const nl = t.indexOf('\n');
+    return nl < 0 ? null : t.slice(nl + 1);
+  };
+  let useDone = false;
+  const useP = new Promise((resolve) => {
+    const decide = (eof) => {
+      if (useDone) return;
+      const text = noteText();
+      if (text === null && !eof) return;
+      const r = scanUse(text || '', { eof });
+      if (!r.decided) return;
+      useDone = true;
+      observer.disconnect();
+      const extra = [];
+      for (const e of r.entries) {
+        const a = addonEntry(e.url);
+        if (a) extra.push(a);
+      }
+      if (!extra.length) return resolve();
+      slots.splice(slots.length - 1, 0, ...extra.map((a) => a.slot));
+      addonList.push(...extra);
+      const prev = unwatch;
+      const next = watchAddons(extra);
+      unwatch = () => (prev(), next());
+      const more = [];
+      loadAddons(extra, more);
+      resolve(Promise.all(more));
+    };
+    const observer = new MutationObserver(() => decide(false));
+    observer.observe(holder, { childList: true, characterData: true, subtree: true });
+    decide(false);
+    document.addEventListener('DOMContentLoaded', () => decide(true), { once: true });
+  });
 
   const parsed = new Promise((resolve) =>
     document.addEventListener(
@@ -380,7 +407,7 @@ function start() {
       { once: true },
     ),
   );
-  Promise.all([parsed, ...waits]).then(() => {
+  Promise.all([parsed, useP, ...waits]).then(() => {
     unwatch();
     return mount();
   });
@@ -431,23 +458,51 @@ function readConfig(script) {
   config.quiet = flag('data-quiet', config.quiet);
   const addons = [];
   for (const url of (attr('data-use') || '').split(/\s+/)) {
-    let u;
-    try {
-      if (url) u = new URL(url, document.baseURI);
-    } catch {}
-    if (!u) continue;
-    let file = u.pathname.slice(u.pathname.lastIndexOf('/') + 1);
-    try {
-      file = decodeURIComponent(file);
-    } catch {}
-    const name = file.replace(/(?:\.min)?\.(?:m?js|css)$/i, '');
-    const params = Object.create(null);
-    u.searchParams.forEach((v, k) => (params[k] = v));
-    config.use[name] = Object.assign(Object.create(null), config.use[name], params);
-    addons.push({ url, abs: u.href, name, css: /\.css$/i.test(u.pathname), slot: { els: [] } });
+    const a = addonEntry(url);
+    if (a) addons.push(a);
   }
   slots = [BASE_SLOT, ...addons.map((a) => a.slot), STYLE_SLOT];
   return (addonList = addons);
+}
+
+// One add-on from a URL, as data-use and `:::use` list them: its query string
+// goes to config.use[name] ("my-addon.js?lang=de" gives use['my-addon'].lang).
+// Null for a URL that does not parse.
+function addonEntry(url) {
+  let u;
+  try {
+    if (url) u = new URL(url, document.baseURI);
+  } catch {}
+  if (!u) return null;
+  let file = u.pathname.slice(u.pathname.lastIndexOf('/') + 1);
+  try {
+    file = decodeURIComponent(file);
+  } catch {}
+  const name = file.replace(/(?:\.min)?\.(?:m?js|css)$/i, '');
+  const params = Object.create(null);
+  u.searchParams.forEach((v, k) => (params[k] = v));
+  config.use[name] = Object.assign(Object.create(null), config.use[name], params);
+  return { url, abs: u.href, name, css: /\.css$/i.test(u.pathname), slot: { els: [] } };
+}
+
+// Loads add-ons: every script at once with async=false, so they are fetched
+// in parallel but run in order (an inserted script is async by default); CSS
+// as links, each in its slot. A failure is addon.failed; the promises pushed
+// to `waits` settle when each has loaded or failed, with no timeout.
+function loadAddons(list, waits) {
+  const failed = (a) => (ok) => ok || report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check its path in data-use or `:::use`');
+  for (const a of list) {
+    if (a.css) {
+      waits.push(loaded(insert(sheet(a.url), a.slot)).then(failed(a)));
+      continue;
+    }
+    const s = nonce(document.createElement('script'));
+    s.src = a.url;
+    s.async = false;
+    scriptSlot.set(s, a.slot);
+    waits.push(loaded(s).then(failed(a)));
+    document.head.append(s);
+  }
 }
 
 // A single-file note declares its vocabulary in window.TERN.schema, in

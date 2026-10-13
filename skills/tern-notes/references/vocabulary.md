@@ -36,7 +36,7 @@ Every named element keeps its name as a class and as `data-t="name"`, so CSS and
 ## Before you edit: read the note's vocabulary
 
 1. **The head**, before the tern.js line: a `<script>` that sets `window.TERN = {schema: {…}}`, inline or as `<script src="vocab.js">`.
-2. **`data-use`** on the tern.js line: each script entry (not ending in `.css`) may declare names with `tern.block`, `tern.leaf` and `tern.inline`. Open the local ones and search for those calls. `.css` entries are styles only.
+2. **`data-use`** on the tern.js line and a **`:::use`** block at the top of the note: each script entry (not ending in `.css`) may declare names with `tern.block`, `tern.leaf` and `tern.inline`. Open the local ones and search for those calls. `.css` entries are styles only.
 3. **The body**: the names already in use.
 
 Then:
@@ -45,7 +45,7 @@ Then:
 - **A name the vocabulary lacks** is either an HTML name (`:::aside`, `:::details[Summary]`, `:::figure`), or something to declare. Do not leave a meaningful-looking `:::lemma` undeclared in a note whose vocabulary has `theorem`: declare it on the same counter.
 - **Change the vocabulary where it lives.** A note's own entries are in its head. An add-on shared by other notes is not yours to edit for one note: override in the head (see precedence) or ask.
 
-**Precedence.** Add-ons run in `data-use` order, and a later one that declares a name replaces the earlier entry. Then `window.TERN.schema` is applied on top: the note's entry replaces an add-on's entry for the same name **whole**. Fields are not merged, and the add-on's `dom` for that name is gone unless the note's entry has one.
+**Precedence.** Add-ons run in the order listed (the tag's `data-use`, then the `:::use` block), and a later one that declares a name replaces the earlier entry. Then `window.TERN.schema` is applied on top: the note's entry replaces an add-on's entry for the same name **whole**. Fields are not merged, and the add-on's `dom` for that name is gone unless the note's entry has one.
 
 ## Declaring vocabulary in the head
 
@@ -92,7 +92,7 @@ The toc is a `nav` listing both headings, the theorem a `section` labelled "Theo
 - **`window.TERN`** carries other settings too: `lang` (label language) and `use` (per-add-on options, keyed by the add-on's file name — the KaTeX add-on reads `use: {katex: {macros: {…}, …}}`).
 - **Under the command line.** `tern check`, `tern build` and the language server run the head's classic scripts too, so they see the same vocabulary (in a separate context, which is not a security boundary: [Trust](tools.md#trust)). A remote `src` is not run (`head.script`, info); a missing file or a script that throws is `head.script` (warning). Scripts with `async`, `defer` or `type="module"` are not run.
 
-## Add-ons: `data-use`
+## Add-ons: `data-use` and `:::use`
 
 An add-on is a script or a stylesheet listed, space-separated, in `data-use` on the tern.js tag:
 
@@ -100,20 +100,31 @@ An add-on is a script or a stylesheet listed, space-separated, in `data-use` on 
 <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="themes/gruvbox.css addons/code.js"></script>
 ```
 
+or, one or more per line, in a `:::use` block, the readable form for several. It must lead the note: top level, before any content, with only `:::meta` and blank lines before it; one anywhere else is `use.late` (warning) and ignored. Both forms merge, the tag's entries first. The block emits nothing.
+
+```html
+<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+
+:::use
+themes/gruvbox.css
+addons/code.js
+:::
+```
+
 | Entry | Is | Under `tern check` |
 |---|---|---|
 | ends in `.css` (before any `?query`) | a stylesheet, linked in its place in the cascade | not run; a missing local file is `link.missing` |
 | anything else (`.js`, `.mjs`, no extension) | a classic script, run before the note is rendered | run: its vocabulary and transforms count |
-| a local script that is missing, a directory, does not parse, or throws | | `addon.failed` (error, at the tern.js line) |
+| a local script that is missing, a directory, does not parse, or throws | | `addon.failed` (error, at the tern.js line, or at the entry's line in `:::use`) |
 | a remote script (`https://…`) | loaded by the browser | not loaded: `addon.remote` (info); the names it declares are unknown to the check |
 | a remote stylesheet | loaded by the browser | nothing reported |
 
 - **Paths** are URLs relative to the note, like any `src`: from `notes/a.html` write `data-use="../themes/nord.css"`, as its tern.js line has `src="../tern.js"`. Under the command line a root-relative path (`/lib/x.js`) resolves from the note's folder or the nearest ancestor that has it.
 - **Order.** Scripts download in parallel and run in the order listed; a later add-on sees and can change an earlier one's entries. Stylesheets cascade in the order listed: a theme listed after another CSS add-on wins at equal specificity.
-- **Options** go in the query string and arrive in `tern.config.use.NAME`, where NAME is the file name without its folder, `.min` and extension: `data-use="lib/callout.min.js?collapse=all"` gives `tern.config.use.callout.collapse === 'all'`. Write `&` as `&amp;` in strict HTML; both work. Defaults can sit in `window.TERN = {use: {callout: {…}}}`; the query wins key by key.
+- **Options** go in the query string and arrive in `tern.config.use.NAME`, where NAME is the file name without its folder, `.min` and extension: `data-use="lib/callout.min.js?collapse=all"` gives `tern.config.use.callout.collapse === 'all'`. Write `&` as `&amp;` in strict HTML; both work. In a `:::use` entry, write `&` as it is. Defaults can sit in `window.TERN = {use: {callout: {…}}}`; the query wins key by key.
 - **Failure never blanks the note.** A script that fails to load renders the note without it; one that throws renders it with what it registered before the error. Both are `addon.failed`.
 - **A remote add-on that declares names** makes `tern check` blind to them: under strict names those names show as `name.unknown`, and `tern build` warns that the page uses them without their entries. Prefer a local copy when the vocabulary matters to the check. `addon.remote` alone does not fail the check.
-- **`tern new FILE --use="../themes/nord.css ../addons/code.js"`** writes the list as given, relative to the new note, and warns about a local entry that does not exist.
+- **`tern new FILE --use="../themes/nord.css ../addons/code.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
 
 ```html expect="addon.remote"
 <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/addons/code.js https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/themes/nord.css"></script>

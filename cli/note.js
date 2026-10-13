@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const tern = require('../tern.js');
 const sandbox = require('./sandbox');
+const { scanUse } = require('../src/use');
 
 // The line that makes an HTML file a note: it holds a <script> that tern.js
 // would start from. Published for editors (docs/tools.html#detection) with
@@ -132,7 +133,7 @@ const failMessage = (kind) =>
 // problems the host finds here and those the sandbox finds there merge back
 // into document order; `vocabSeq` is where a window.TERN problem belongs,
 // after the head scripts and before the add-ons.
-function collect(tag, dir, head) {
+function collect(tag, dir, head, note) {
   const scripts = [];
   const addons = [];
   const problems = [];
@@ -171,12 +172,32 @@ function collect(tag, dir, head) {
       problems.push({ url, message: e && e.code === 'EISDIR' ? `${file} is a directory` : `cannot read ${file}`, seq: seq++ });
     }
   }
+  // The leading `:::use` block's entries (src/use.js), after the tag's, each
+  // at its line in the note so a problem with one points there.
+  const use = scanUse(note || '', { eof: true }).entries;
+  for (const e of use) {
+    const span = { start: { line: e.line, column: e.column, offset: e.offset }, end: { line: e.line, column: e.column + e.url.length, offset: e.offset + e.url.length } };
+    const url = e.url.replace(/[?#].*$/, '');
+    if (/\.css$/i.test(url)) continue;
+    if (isRemote(url)) {
+      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check`, seq: seq++, position: span });
+      continue;
+    }
+    const file = locate(dir, url);
+    try {
+      addons.push({ url: e.url, code: fs.readFileSync(file, 'utf8'), seq: seq++, position: span });
+    } catch (err) {
+      problems.push({ url, message: err && err.code === 'EISDIR' ? `${file} is a directory` : `cannot read ${file}`, seq: seq++, position: span });
+    }
+  }
+  const dataUse = [attrs['data-use'], ...use.map((e) => e.url)].filter(Boolean).join(' ') || undefined;
   return {
     scripts,
     addons,
     problems,
     vocabSeq,
-    dataUse: attrs['data-use'],
+    use,
+    dataUse,
     dataLang: attrs['data-lang'] !== undefined ? attrs['data-lang'].trim() : undefined,
     dataKatex: attrs['data-katex'],
     hasCode: scripts.length > 0 || addons.length > 0,
@@ -219,7 +240,7 @@ function analyse(text, file, opts = {}) {
   const parts = split(text);
   if (!parts) return null;
   const dir = file ? path.dirname(path.resolve(file)) : process.cwd();
-  const c = collect(parts.tag, dir, parts.head);
+  const c = collect(parts.tag, dir, parts.head, parts.note);
   const transform = opts.transform !== false;
   let schema = { block: {}, leaf: {}, inline: {} };
   let lang = c.dataLang || undefined;
@@ -271,8 +292,16 @@ function analyse(text, file, opts = {}) {
   all.sort((a, b) => at(a) - at(b) || a.position.end.offset - b.position.end.offset || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   for (const d of all) d.filePosition = toFile(d.position, parts.line);
   const point = (line, column) => ({ start: { line, column }, end: { line, column } });
-  const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: p.kind === 'head' ? point(p.line, p.column) : point(parts.line, 1) }));
-  return { ...parts, schema, opts: options, ast, demo, ternDocs, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
+  // A problem with a `:::use` add-on points at its line: the host's carry the
+  // position; the sandbox's name the add-on, and match by URL.
+  const usePos = new Map((c.addons || []).filter((a) => a.position).map((a) => [a.url, a.position]));
+  const where = (p) => {
+    const pos = p.position || usePos.get(p.url);
+    if (pos) return toFile(pos, parts.line);
+    return p.kind === 'head' ? point(p.line, p.column) : point(parts.line, 1);
+  };
+  const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: where(p) }));
+  return { ...parts, schema, opts: options, ast, demo, ternDocs, use: c.use, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
 }
 
 // The .html files under dir, sorted, skipping dot-directories and

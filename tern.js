@@ -78,6 +78,7 @@ const SEVERITY = {
   'id.duplicate': W,
   'ref.dangling': W,
   'ref.unreferenceable': W,
+  'use.late': W,
   'name.unknown': I,
 };
 
@@ -1544,7 +1545,7 @@ const META = /^([A-Za-z][-\w.:]*?): (.*)$/; // a `:::meta` line; the separator i
 // Containers whose body is verbatim, kept as `value`: the core `:::macros`
 // and `:::meta`, and the reserved `:::script`, `:::style`, `:::html`, whose
 // body is shown as text.
-const RAW_BODY = new Set(['macros', 'meta', 'script', 'style', 'html']);
+const RAW_BODY = new Set(['macros', 'meta', 'use', 'script', 'style', 'html']);
 const RESERVED_HINT = { script: 'write `<script>` … `</script>`', style: 'write `<style>` … `</style>`', html: 'use a ```=html fence' };
 const isPrefix = (k) => k === 'quote' || k === 'item' || k === 'fn'; // the frames with a line prefix
 // parseInline's options, shared, as inline.js only reads them: IO[context][footnote ? 1 : 0]
@@ -1575,7 +1576,7 @@ let depth = 0; // open quotes, items, footnotes and containers, against MAX; cel
 let ls = 0, le = 0, pos = 0, col = 0, partial = 0, lineNo = 0;
 let prevBlank = false;
 let unclosedWhat = null; // a verbatim leaf that just ran out unclosed, named in the hint of the block.unclosed that follows
-let meta = null, head = null, front = null; // `:::meta`'s keys; what the preserved head sets; a `---` that may open front matter
+let meta = null, use = null, head = null, front = null; // `:::meta`'s keys; `:::use`'s entries; what the preserved head sets; a `---` that may open front matter
 const cuts = [], cells = [], one = [0, 0, 0]; // a table row's cells, as text ranges and as nodes; a one-line row
 let rl = null, rq = 0, rf = 0; // off()'s forward cursor in the row being cut
 
@@ -2480,6 +2481,7 @@ function finish(v) {
   if (v.kind === 'math') attach(node, v.pa, v.res);
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
+  if (v.kind === 'raw' && v.name === 'use') readUse(v);
   if (v.kind === 'math' && v.unclosed) {
     Object.assign(tern(node), { unclosed: true, source: v.lines.join('\n') });
     const where = v.stop >= 0 ? `ends at ${v.why} on line ${lineOf(v.stop)} without a closing \`$$\`` : 'is never closed';
@@ -2572,7 +2574,7 @@ function opener(r, fi, te) {
   const m = attach(node, pa, o.res);
   if (RESERVED_HINT[name]) report('name.reserved', ns, r.ne, `\`:::${name}\` is reserved: its body is shown as text, not run`, RESERVED_HINT[name]);
   reserved(RESERVED_HINT[name] || name === 'meta' ? '' : name, ns, m);
-  if (name === 'meta' && m) metaAttrs(node, m);
+  if ((name === 'meta' || name === 'use') && m) metaAttrs(node, m, name);
   const cols = m && m.attrs.cols;
   if (/^\s*-?\d+(?:\.\d+)?\s*$/.test(cols) && Number(cols) <= 0) {
     let v = m.keyAt.cols + 4;
@@ -2605,9 +2607,10 @@ function opener(r, fi, te) {
 // the id). The reserved keys have their own reports (transform.js
 // misplaced: `tag`, `cols`, `ref`); `raw` changes nothing on a body that is
 // verbatim already.
-function metaAttrs(node, m) {
+function metaAttrs(node, m, name = 'meta') {
+  const hint = name === 'meta' ? 'remove it; metadata goes in the body, as `key: value` lines' : 'remove it; add-ons go in the body, one per line';
   const dropped = (at, e, what, many) =>
-    report('attr.malformed', at, e, `${what} ${many ? 'apply' : 'applies'} to no element here, as \`:::meta\` emits nothing; ${many ? 'they are' : 'it is'} dropped`, 'remove it; metadata goes in the body, as `key: value` lines');
+    report('attr.malformed', at, e, `${what} ${many ? 'apply' : 'applies'} to no element here, as \`:::${name}\` emits nothing; ${many ? 'they are' : 'it is'} dropped`, hint);
   const idp = tern(node).idPosition;
   if (idp) dropped(idp.start.offset, idp.end.offset, `the id "${m.attrs.id}"`, false);
   const cls = m.attrs.class;
@@ -2707,6 +2710,23 @@ function readMeta(v) {
   });
 }
 
+// A leading `:::use` body: the add-ons the note loads, one or more per line,
+// into root.data.tern.use as [{url, position}]. The runtime and the tools read
+// the same block from the text (src/use.js), before parsing, to load them.
+// Leading: at the top level, before any content; only `:::meta`, blank lines
+// and other `:::use` blocks may come first. One elsewhere is use.late and
+// ignored, as its add-ons could not have been loaded in time.
+function readUse(v) {
+  const prior = stack.length > 1 ? null : root.children.slice(0, root.children.indexOf(v.node));
+  const late = !prior || prior.some((c) => !(c.type === 'containerDirective' && (c.name === 'meta' || c.name === 'use')));
+  if (late) return report('use.late', v.open, v.ne, '`:::use` counts only at the top of the note, before any content; this one is ignored', 'move it to the top of the note, after `:::meta` at most');
+  use = use || [];
+  v.lines.forEach((s, k) => {
+    const re = /\S+/g;
+    for (let m; (m = re.exec(s)); ) use.push({ url: m[0], position: ctx.position(v.at[k] + m.index, v.at[k] + m.index + m[0].length) });
+  });
+}
+
 // What the preserved head (opts.head) sets: <title>, <html lang dir>, <meta name content>.
 function headValue(key) {
   if (!head) {
@@ -2734,7 +2754,7 @@ function parseBlocks(c) {
   (ctx = c), (src = c.src), (N = src.length), (MAX = c.opts.maxDepth || 64);
   root = { type: 'root', children: [] };
   stack = [{ kind: 'root', node: root, start: 0, end: 0, fn: 0 }];
-  leaf = unclosedWhat = meta = head = front = null;
+  leaf = unclosedWhat = meta = use = head = front = null;
   (depth = lineNo = 0), (prevBlank = false);
   for (ls = 0; ls < N; ls = le + 1) {
     le = src.indexOf('\n', ls);
@@ -2748,9 +2768,9 @@ function parseBlocks(c) {
   if (leaf) closeLeaf(-1);
   closeFrames(1, null);
   root.position = ctx.position(0, N);
-  if (meta) root.data = { tern: { meta } };
+  if (meta || use) root.data = { tern: Object.assign(meta ? { meta } : {}, use ? { use } : {}) };
   const out = root;
-  (ctx = root = stack = rl = meta = head = front = null), (src = ''), (cells.length = 0); // keep nothing of this note alive
+  (ctx = root = stack = rl = meta = use = head = front = null), (src = ''), (cells.length = 0); // keep nothing of this note alive
   return out;
 }
 
@@ -2892,7 +2912,7 @@ const ALLOW = {
 };
 // Core containers: each has its own output, so it is never resolved, and a
 // schema cannot define one.
-const CORE = words('meta macros script style html');
+const CORE = words('meta use macros script style html');
 // HTML's void elements: content given to one follows it.
 const VOID = words('area base br col embed hr img input link meta source track wbr');
 
@@ -3618,8 +3638,8 @@ function ids(ast, ctx) {
     while (j < fns.length && (fns[j].position ? fns[j].position.start.offset : 0) <= at) generated(fns[j++]);
     if (dead(n, inDef)) continue;
     const a = n.attributes;
-    if (a && a.id !== undefined && n.type === 'containerDirective' && n.name === 'meta') {
-      delete a.id; // `:::meta` emits nothing, so its id names nothing (attr.malformed at parse)
+    if (a && a.id !== undefined && n.type === 'containerDirective' && (n.name === 'meta' || n.name === 'use')) {
+      delete a.id; // `:::meta` and `:::use` emit nothing, so their ids name nothing (attr.malformed at parse)
       if (empty(a)) delete n.attributes;
     } else if (a && a.id !== undefined) authorId(n, a, peek(n), ctx, add);
     if (n.type === 'heading') heads.push(n);
@@ -4651,6 +4671,7 @@ function container(n, a) {
   const t = tern(n);
   const name = n.name;
   if (name === 'meta') return; // nothing: the runtime writes it into the head
+  if (name === 'use') return; // nothing: the add-ons it lists are loaded, not shown
   // The author's id, classes and keys are carried, as on any element; the
   // runtime finds macros by `.t-macros`, and `hidden` is tern's.
   if (name === 'macros') return void write(`<div${attrs(a, 't-macros', '', ` hidden${pos(n)}`, 'hidden')}>${esc(n.value || '')}</div>\n`);
@@ -4987,6 +5008,56 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 
 module.exports = { css };
   };
+  // ---- src/use.js
+  defs['use'] = function (module, exports, require) {
+// The leading `:::use` block: the add-ons a note loads, one per line, as the
+// tern.js tag's data-use lists them. It is read from the note's text, not its
+// tree, because the add-ons must be loaded before the note is parsed (the
+// parser consults their schema): the runtime scans the file as it streams in,
+// the tools scan it before they analyse. The parser reads the same block for
+// the tree (block.js readUse), where `use.late` reports one that is not
+// leading.
+
+const OPENER = /^[ \t]*:{3,}(meta|use)(?:[ \t\[{].*)?$/;
+const CLOSER = /^[ \t]*:{3,}(?:\/[A-Za-z][\w-]*)?[ \t]*$/;
+
+// scanUse(text, {eof}) -> {entries, decided}: the entries of every leading
+// `:::use` block ({url, line, column, offset}, 1-based line and column),
+// `:::meta` blocks and blank lines skipped, stopping at the first other line.
+// `decided` is false while the text ends inside an open block, or after the
+// blocks with nothing else yet, and `eof` is false: more may still come. With
+// `eof`, an open block ends at the text's end.
+function scanUse(text, { eof = true } = {}) {
+  const entries = [];
+  let i = 0;
+  let line = 0;
+  let open = null; // 'meta' | 'use' while inside a block
+  while (i <= text.length) {
+    const nl = text.indexOf('\n', i);
+    const end = nl < 0 ? text.length : nl;
+    const complete = nl >= 0 || eof; // a last line without its newline may still be growing
+    const s = text.slice(i, end);
+    line++;
+    if (!complete) return { entries, decided: false };
+    if (open) {
+      if (CLOSER.test(s)) open = null;
+      else if (open === 'use') {
+        const re = /\S+/g;
+        for (let m; (m = re.exec(s)); ) entries.push({ url: m[0], line, column: m.index + 1, offset: i + m.index });
+      }
+    } else {
+      const m = OPENER.exec(s);
+      if (m) open = m[1];
+      else if (/\S/.test(s)) return { entries, decided: true };
+    }
+    if (nl < 0) break;
+    i = nl + 1;
+  }
+  return { entries, decided: !!eof };
+}
+
+module.exports = { scanUse };
+  };
   // ---- src/runtime.js
   defs['runtime'] = function (module, exports, require) {
 // The browser runtime. Run from a plain <script src> in a loading document,
@@ -5021,6 +5092,7 @@ module.exports = { css };
 
 const { css: BASE_CSS } = require('./css');
 const { sortDiagnostics } = require('./diag');
+const { scanUse } = require('./use');
 
 // The runtime's own diagnostic codes, all errors: each loses or changes what
 // the reader sees. (Math is rendered by an add-on now — addons/katex.js or
@@ -5334,27 +5406,53 @@ function start() {
   const holder = document.getElementById('tern-source');
   if (!holder) return; // the write was ignored: not a parser-inserted script
 
-  // Add-ons: every script at once with async=false, so they are fetched in
-  // parallel but run in order (an inserted script is async by default); CSS
-  // as links in data-use order. A failure is addon.failed; mount waits for
-  // each to load or fail, with no timeout.
+  // The tag's add-ons (data-use) load now; mount waits for each.
   const waits = [];
-  const failed = (a) => (ok) => ok || report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check the path in data-use');
-  const unwatch = watchAddons(addons); // one that loads but throws while it runs
-  for (const a of addons) {
-    if (a.css) {
-      waits.push(loaded(insert(sheet(a.url), a.slot)).then(failed(a)));
-      continue;
-    }
-    const s = nonce(document.createElement('script'));
-    s.src = a.url;
-    s.async = false;
-    scriptSlot.set(s, a.slot);
-    waits.push(loaded(s).then(failed(a)));
-    document.head.append(s);
-  }
+  let unwatch = watchAddons(addons); // one that loads but throws while it runs
+  loadAddons(addons, waits);
   if (config.css && !BASE_SLOT.els.length) waits.push(loaded(insert(sheet(config.css), BASE_SLOT)));
   baseStyle();
+
+  // `:::use`: the add-ons the note's leading block lists are found in the
+  // text as it streams into the holder (src/use.js), so they start loading
+  // almost as early as the tag's, before the body has finished arriving. The
+  // scan decides once the leading blocks end, or at DOMContentLoaded with the
+  // whole note. Mount waits for these too.
+  const noteText = () => {
+    const t = holder.textContent;
+    const nl = t.indexOf('\n');
+    return nl < 0 ? null : t.slice(nl + 1);
+  };
+  let useDone = false;
+  const useP = new Promise((resolve) => {
+    const decide = (eof) => {
+      if (useDone) return;
+      const text = noteText();
+      if (text === null && !eof) return;
+      const r = scanUse(text || '', { eof });
+      if (!r.decided) return;
+      useDone = true;
+      observer.disconnect();
+      const extra = [];
+      for (const e of r.entries) {
+        const a = addonEntry(e.url);
+        if (a) extra.push(a);
+      }
+      if (!extra.length) return resolve();
+      slots.splice(slots.length - 1, 0, ...extra.map((a) => a.slot));
+      addonList.push(...extra);
+      const prev = unwatch;
+      const next = watchAddons(extra);
+      unwatch = () => (prev(), next());
+      const more = [];
+      loadAddons(extra, more);
+      resolve(Promise.all(more));
+    };
+    const observer = new MutationObserver(() => decide(false));
+    observer.observe(holder, { childList: true, characterData: true, subtree: true });
+    decide(false);
+    document.addEventListener('DOMContentLoaded', () => decide(true), { once: true });
+  });
 
   const parsed = new Promise((resolve) =>
     document.addEventListener(
@@ -5369,7 +5467,7 @@ function start() {
       { once: true },
     ),
   );
-  Promise.all([parsed, ...waits]).then(() => {
+  Promise.all([parsed, useP, ...waits]).then(() => {
     unwatch();
     return mount();
   });
@@ -5420,23 +5518,51 @@ function readConfig(script) {
   config.quiet = flag('data-quiet', config.quiet);
   const addons = [];
   for (const url of (attr('data-use') || '').split(/\s+/)) {
-    let u;
-    try {
-      if (url) u = new URL(url, document.baseURI);
-    } catch {}
-    if (!u) continue;
-    let file = u.pathname.slice(u.pathname.lastIndexOf('/') + 1);
-    try {
-      file = decodeURIComponent(file);
-    } catch {}
-    const name = file.replace(/(?:\.min)?\.(?:m?js|css)$/i, '');
-    const params = Object.create(null);
-    u.searchParams.forEach((v, k) => (params[k] = v));
-    config.use[name] = Object.assign(Object.create(null), config.use[name], params);
-    addons.push({ url, abs: u.href, name, css: /\.css$/i.test(u.pathname), slot: { els: [] } });
+    const a = addonEntry(url);
+    if (a) addons.push(a);
   }
   slots = [BASE_SLOT, ...addons.map((a) => a.slot), STYLE_SLOT];
   return (addonList = addons);
+}
+
+// One add-on from a URL, as data-use and `:::use` list them: its query string
+// goes to config.use[name] ("my-addon.js?lang=de" gives use['my-addon'].lang).
+// Null for a URL that does not parse.
+function addonEntry(url) {
+  let u;
+  try {
+    if (url) u = new URL(url, document.baseURI);
+  } catch {}
+  if (!u) return null;
+  let file = u.pathname.slice(u.pathname.lastIndexOf('/') + 1);
+  try {
+    file = decodeURIComponent(file);
+  } catch {}
+  const name = file.replace(/(?:\.min)?\.(?:m?js|css)$/i, '');
+  const params = Object.create(null);
+  u.searchParams.forEach((v, k) => (params[k] = v));
+  config.use[name] = Object.assign(Object.create(null), config.use[name], params);
+  return { url, abs: u.href, name, css: /\.css$/i.test(u.pathname), slot: { els: [] } };
+}
+
+// Loads add-ons: every script at once with async=false, so they are fetched
+// in parallel but run in order (an inserted script is async by default); CSS
+// as links, each in its slot. A failure is addon.failed; the promises pushed
+// to `waits` settle when each has loaded or failed, with no timeout.
+function loadAddons(list, waits) {
+  const failed = (a) => (ok) => ok || report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check its path in data-use or `:::use`');
+  for (const a of list) {
+    if (a.css) {
+      waits.push(loaded(insert(sheet(a.url), a.slot)).then(failed(a)));
+      continue;
+    }
+    const s = nonce(document.createElement('script'));
+    s.src = a.url;
+    s.async = false;
+    scriptSlot.set(s, a.slot);
+    waits.push(loaded(s).then(failed(a)));
+    document.head.append(s);
+  }
 }
 
 // A single-file note declares its vocabulary in window.TERN.schema, in

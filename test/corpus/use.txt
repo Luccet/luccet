@@ -1,0 +1,152 @@
+# The `:::use` block
+
+The leading `:::use` block lists the add-ons a note loads, as the tern.js
+tag's data-use does: one or more per line, each a URL with optional
+`?options`, kept as written, into `root.data.tern.use` as `[{url, position}]`
+in order. The runtime and the tools read the same block from the text before
+parsing (src/use.js), to load the add-ons in time; the parser reads it for the
+tree. It emits nothing and its body is verbatim. It must lead the note: at the
+top level, before any content, after `:::meta` at most; elsewhere it is
+`use.late` and ignored, its entries not recorded. Attributes on it are
+`attr.malformed`, as on `:::meta`. One unclosed at the end of the note is
+`block.unclosed`, and its lines so far are its entries, as the runtime reads
+them.
+
+## use/entries
+
+spec: syntax-blocks#use
+
+Entries, one or more per line, each kept as written, options and all; the block emits nothing.
+
+````tern
+:::use
+addons/katex.js
+themes/nord.css addons/code.js?base=vendor/highlight
+:::
+
+Text.
+````
+
+````json ast
+{"data":{"tern":{"use":[{"url":"addons/katex.js"},{"url":"themes/nord.css"},{"url":"addons/code.js?base=vendor/highlight"}]}}}
+````
+
+````html
+<p>Text.</p>
+````
+
+## use/after-meta
+
+spec: syntax-blocks#use syntax-blocks#meta
+
+`:::meta` may come first; the block is still leading.
+
+````tern
+:::meta
+title: T
+:::
+
+:::use
+a.js
+:::
+
+Text.
+````
+
+````json ast
+{"data":{"tern":{"meta":{"title":"T"},"use":[{"url":"a.js"}]}}}
+````
+
+````html
+<p>Text.</p>
+````
+
+## use/late
+
+spec: syntax-blocks#use diagnostics#use-late
+
+After content the block is `use.late` and ignored.
+
+````tern
+Text.
+
+:::use
+late.js
+:::
+````
+
+````html
+<p>Text.</p>
+````
+
+````diagnostics
+3:1 warning use.late
+````
+
+## use/nested
+
+spec: syntax-blocks#use diagnostics#use-late
+
+Inside a container it is not at the top level: `use.late`, ignored.
+
+````tern
+:::div
+:::use
+n.js
+:::
+:::
+````
+
+````html
+<div class="t-block div" data-t="div"></div>
+````
+
+````diagnostics
+2:1 warning use.late
+````
+
+## use/attributes
+
+spec: syntax-blocks#use diagnostics#attr-malformed
+
+An id or class on the opener applies to nothing: `attr.malformed`, dropped; the entries are still read.
+
+````tern
+:::use{#x .c}
+a.js
+:::
+````
+
+````json ast
+{"data":{"tern":{"use":[{"url":"a.js"}]}}}
+````
+
+````html
+````
+
+````diagnostics
+1:8 warning attr.malformed
+1:11 warning attr.malformed
+````
+
+## use/unclosed
+
+spec: syntax-blocks#use diagnostics#block-unclosed
+
+Unclosed at the end of the note: `block.unclosed`; the lines so far are its entries.
+
+````tern
+:::use
+a.js
+````
+
+````json ast
+{"data":{"tern":{"use":[{"url":"a.js"}]}}}
+````
+
+````html
+````
+
+````diagnostics
+1:1 error block.unclosed
+````

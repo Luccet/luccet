@@ -94,7 +94,7 @@ See [Metadata](elements.html#metadata) for every key.
 
 | Attribute | What it does |
 |---|---|
-| `data-use="a.js theme.css"` | Add-ons: scripts and stylesheets, separated by spaces, loaded in parallel and run in order before the note renders. A query string (`a.js?lang=de`) reaches the add-on as `tern.config.use.a.lang`. See [Add-ons](schema.html#addons). |
+| `data-use="a.js theme.css"` | Add-ons: scripts and stylesheets, separated by spaces, loaded in parallel and run in order before the note renders. A query string (`a.js?lang=de`) reaches the add-on as `tern.config.use.a.lang`. A [`:::use` block](syntax-blocks.html#use) at the top of the note lists them the same way, one or more per line; the tag's load first. See [Add-ons](schema.html#addons). |
 | `data-css="URL"` | Tern's base stylesheet from this URL instead of the inline copy. |
 | `data-nonce="VALUE"` | A CSP nonce for everything `tern.js` adds: stylesheets, scripts, links, and the note's own scripts. See [CSP](#csp). |
 | `data-lang="de"` | The language of generated labels, when it differs from `<html lang>`. |
@@ -512,10 +512,10 @@ With `type="module"`, nothing is said.
 **Symptom.** The note renders, but what the add-on declares is missing: no labels or numbers, names rendered as plain `div` boxes, no styles from a CSS add-on. The panel and console report one error per add-on:
 
 ```text
-error addon.failed at the tern.js line (file line 1): the add-on missing-addon.js did not load; the note renders without it (check the path in data-use)
+error addon.failed at the tern.js line (file line 1): the add-on missing-addon.js did not load; the note renders without it (check its path in data-use or `:::use`)
 ```
 
-**Cause.** A path in `data-use` is wrong, the file is missing on the host, or the add-on's origin is unreachable. `tern.js` waits for every add-on to load or fail before it renders, so a failing add-on never blocks the note.
+**Cause.** A path in `data-use` or `:::use` is wrong, the file is missing on the host, or the add-on's origin is unreachable. `tern.js` waits for every add-on to load or fail before it renders, so a failing add-on never blocks the note.
 
 **An add-on that throws.** An add-on that loads but throws while it runs is reported too. What it registered before the error stays in effect:
 
