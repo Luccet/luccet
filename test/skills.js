@@ -33,7 +33,7 @@ const fixture = require('./fixtures/schema');
 
 const ROOT = path.join(__dirname, '..');
 const SKILLS = path.join(ROOT, 'skills');
-const DOCS = 'https://oscarac.github.io/tern/';
+const DOCS = 'https://ozkrac.github.io/tern/';
 const verbose = process.argv.includes('--verbose');
 
 const RUNTIME = fs

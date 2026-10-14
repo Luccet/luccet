@@ -127,7 +127,7 @@ addons/code.js
 - **`tern new FILE --use="../themes/nord.css ../addons/code.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
 
 ```html expect="addon.remote"
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/addons/code.js https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/themes/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="https://cdn.jsdelivr.net/gh/OzkrAC/tern@TAG/addons/code.js https://cdn.jsdelivr.net/gh/OzkrAC/tern@TAG/themes/nord.css"></script>
 
 # Remote add-ons
 ```
@@ -431,7 +431,7 @@ A theme is a CSS add-on from the `themes/` folder next to `tern.js`: list it in 
 | Tokyo Night | `tokyo-night.css`, `tokyo-night-light.css`, `tokyo-night-dark.css` | light and dark |
 
 - **`NAME.css`** follows the reader's system light/dark setting; **`NAME-light.css`** and **`NAME-dark.css`** give every reader one palette. A one-mode theme is one file, the same for everyone.
-- **Load one:** `data-use="themes/nord.css"` (relative to the note), or from jsDelivr `https://cdn.jsdelivr.net/gh/OscarAC/tern@TAG/themes/nord.css` with the note's TAG. Use one theme: one listed later overrides it at equal specificity.
+- **Load one:** `data-use="themes/nord.css"` (relative to the note), or from jsDelivr `https://cdn.jsdelivr.net/gh/OzkrAC/tern@TAG/themes/nord.css` with the note's TAG. Use one theme: one listed later overrides it at equal specificity.
 - **Contrast.** Every text colour meets 4.5:1 (7:1 in High contrast); a theme prints black on white like tern.css.
 - **Your CSS still wins** over a theme: set one property to change one colour. To make a new theme, copy a file and change its values.
 
@@ -561,7 +561,7 @@ A note then writes `:::warning[Power]{#w data-fold}` … `:::`, and in a note wi
 | `tern.style(css)` | adds a `<style>` at this add-on's place in the cascade, with the page's nonce |
 | `tern.define(name, fn)`, `tern.on(event, fn)` | behaviours and listeners, as above |
 | `tern.config.use.NAME` | this add-on's query options |
-| `tern.transform(name, fn, {before: 'ids'})` | a transform over the AST before the HTML is written (glossaries, indexes); see [Custom transforms](https://oscarac.github.io/tern/docs/schema.html#transforms) |
+| `tern.transform(name, fn, {before: 'ids'})` | a transform over the AST before the HTML is written (glossaries, indexes); see [Custom transforms](https://ozkrac.github.io/tern/docs/schema.html#transforms) |
 
 **Guidelines.**
 - Register everything at the top level while the script runs; nothing registered later applies to the note until the next render.
@@ -603,8 +603,8 @@ The ```` ```tern schema=demo ```` examples here, and the documentation's live ex
 
 ## See also
 
-- [Vocabulary and behaviour](https://oscarac.github.io/tern/docs/schema.html#fields): every field in full; [window.TERN](https://oscarac.github.io/tern/docs/schema.html#window-tern); [add-ons under node](https://oscarac.github.io/tern/docs/schema.html#addons-under-node); [the demo schema](https://oscarac.github.io/tern/docs/schema.html#demo-schema).
-- [Numbering](https://oscarac.github.io/tern/docs/elements.html#numbering), [references](https://oscarac.github.io/tern/docs/elements.html#references), [title slots](https://oscarac.github.io/tern/docs/elements.html#title-slots), [allowlists](https://oscarac.github.io/tern/docs/elements.html#allowlists).
-- [Add-ons: code](https://oscarac.github.io/tern/docs/addons.html#code) and [Mermaid](https://oscarac.github.io/tern/docs/addons.html#mermaid); [themes](https://oscarac.github.io/tern/docs/schema.html#themes); [styling](https://oscarac.github.io/tern/docs/schema.html#styling).
-- [`tern.define`](https://oscarac.github.io/tern/docs/api.html#define), [`tern.on`](https://oscarac.github.io/tern/docs/api.html#on), [`tern.style`](https://oscarac.github.io/tern/docs/api.html#style), [`tern.config`](https://oscarac.github.io/tern/docs/api.html#config), [the lifecycle](https://oscarac.github.io/tern/docs/api.html#lifecycle).
+- [Vocabulary and behaviour](https://ozkrac.github.io/tern/docs/schema.html#fields): every field in full; [window.TERN](https://ozkrac.github.io/tern/docs/schema.html#window-tern); [add-ons under node](https://ozkrac.github.io/tern/docs/schema.html#addons-under-node); [the demo schema](https://ozkrac.github.io/tern/docs/schema.html#demo-schema).
+- [Numbering](https://ozkrac.github.io/tern/docs/elements.html#numbering), [references](https://ozkrac.github.io/tern/docs/elements.html#references), [title slots](https://ozkrac.github.io/tern/docs/elements.html#title-slots), [allowlists](https://ozkrac.github.io/tern/docs/elements.html#allowlists).
+- [Add-ons: code](https://ozkrac.github.io/tern/docs/addons.html#code) and [Mermaid](https://ozkrac.github.io/tern/docs/addons.html#mermaid); [themes](https://ozkrac.github.io/tern/docs/schema.html#themes); [styling](https://ozkrac.github.io/tern/docs/schema.html#styling).
+- [`tern.define`](https://ozkrac.github.io/tern/docs/api.html#define), [`tern.on`](https://ozkrac.github.io/tern/docs/api.html#on), [`tern.style`](https://ozkrac.github.io/tern/docs/api.html#style), [`tern.config`](https://ozkrac.github.io/tern/docs/api.html#config), [the lifecycle](https://ozkrac.github.io/tern/docs/api.html#lifecycle).
 - Back to [SKILL.md](../SKILL.md).

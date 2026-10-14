@@ -11,8 +11,8 @@ Skills that teach coding agents (GitHub Copilot, Claude Code, Codex, Cursor and 
 With the GitHub CLI, from the release of Tern your notes use:
 
 ```sh
-gh skill install OscarAC/tern tern-notes                        # Copilot, Codex, Cursor …: .agents/skills/
-gh skill install OscarAC/tern tern-notes --agent claude-code    # Claude Code
+gh skill install OzkrAC/tern tern-notes                        # Copilot, Codex, Cursor …: .agents/skills/
+gh skill install OzkrAC/tern tern-notes --agent claude-code    # Claude Code
 ```
 
 Or copy the folder into the directory your agent reads: `.github/skills/`, `.agents/skills/` or `.claude/skills/` in the project, or `~/.copilot/skills/`, `~/.agents/skills/` or `~/.claude/skills/` for all your projects. The agent then uses the skill when you ask it to write or fix a note; you can also name it, as in "use /tern-notes to …".

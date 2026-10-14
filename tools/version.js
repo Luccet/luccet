@@ -28,7 +28,7 @@ const PLACES = [
   ['src/index.js', "const version = '{v}';"],
   ['tern.js', '// tern.js {v}: built from src/', { built: true }],
   ['tern.js', "const version = '{v}';", { built: true }],
-  ['README.md', 'cdn.jsdelivr.net/gh/OscarAC/tern@v{v}/tern.js'],
+  ['README.md', 'cdn.jsdelivr.net/gh/OzkrAC/tern@v{v}/tern.js'],
   ['README.md', 'use `@{xy}` (the newest {xy}.x)'],
   ['docs/api.html', "| engine | `'{v}'` |"],
   ['docs/api.html', "tern.version;                    // → '{v}'"],

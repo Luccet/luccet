@@ -10,7 +10,7 @@ The examples below are real runs. Paths are relative to the folder the command r
 2. Otherwise look for a checkout: `find . -name tern-cli.js -not -path '*/node_modules/*'` in the project (a vendored copy such as `tools/tern/`, or a submodule), then run `node path/to/tern-cli.js COMMAND …`.
 3. It needs **Node 22 or later** (`node --version`) and nothing else: no `npm install`, no dependencies.
 4. Tern is **not on npm**. Never run `npx tern` outside a checkout: it fetches an unrelated package called `tern`. Inside a checkout, `npx --no -- tern check notes/` is safe (`--no` refuses to download, `--` keeps npx's own options apart).
-5. No checkout anywhere: say so. With the user's agreement, clone the release the notes load, outside the project: `git clone --depth 1 --branch vX.Y.Z https://github.com/OscarAC/tern.git`.
+5. No checkout anywhere: say so. With the user's agreement, clone the release the notes load, outside the project: `git clone --depth 1 --branch vX.Y.Z https://github.com/OzkrAC/tern.git`.
 
 Match versions. `tern --version` prints the engine's version; line 2 of a `tern.js` names its own (`sed -n 2p tern.js`), and a jsDelivr URL carries it as its tag. A checkout of another release may report different diagnostics from the page.
 
@@ -49,7 +49,7 @@ tern check: min.html is not a note (no line loads tern.js); skipped
 tern check: no notes found
 ```
 
-A page written by `tern build` is skipped too: "it is a page written by tern build; check its source note". The exact rule, with its test cases: [Note detection](https://oscarac.github.io/tern/docs/tools.html#detection).
+A page written by `tern build` is skipped too: "it is a page written by tern build; check its source note". The exact rule, with its test cases: [Note detection](https://ozkrac.github.io/tern/docs/tools.html#detection).
 
 ## tern new
 
@@ -67,7 +67,7 @@ $ cat notes/kernel.html
 ```
 
 - **The path to tern.js.** Without `--tern`, it looks for a file called `tern.js` in FILE's folder, then each folder above, and writes the nearest as a relative path (`../../tern.js` two levels down). With none, it writes `tern.js` and warns: `tern new: no tern.js in . or above; the note loads tern.js from its own directory`. Copy `tern.js` into place, or pass `--tern`.
-- **`--tern=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.jsdelivr.net/gh/OscarAC/tern@vX.Y.Z/tern.js` (pin a tag). Prefer relative paths for anything published or opened from disk.
+- **`--tern=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.jsdelivr.net/gh/OzkrAC/tern@vX.Y.Z/tern.js` (pin a tag). Prefer relative paths for anything published or opened from disk.
 - **`--use=LIST`** writes a `:::use` block, one entry per line, after the `:::meta` block. `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same block. Paths are relative to the note; a local one that does not exist gets a warning on stderr, and the file is still written.
 - **`--title=TEXT`** adds a `:::meta` block with `title: TEXT` and a blank line. One non-empty line.
 - **`--guarded`** appends a guard to the first line: when `tern.js` does not load (or JavaScript is off), the reader sees a one-line message and the source as plain text instead of a run-together paragraph. It changes nothing when `tern.js` loads; `tern build` drops it.
@@ -297,7 +297,7 @@ Prints the syntax tree as JSON (no diagnostics), for debugging what the parser s
 
 `tern lsp` speaks the Language Server Protocol over stdio (`--stdio` is accepted). It gives, as you type, the same diagnostics as `tern check` (links included, with unsaved buffers), completion of block, leaf and inline names and of ids (after `:::`, `::`, `:`, `@`, `](#`), hover, go to definition, references, rename of ids and element names, the outline, folding, and, when the editor renames a file, the edits `tern mv` would make. It answers nothing for HTML files that are not notes, so it can attach to every `.html` buffer, beside an HTML server.
 
-Setting up the user's editor is the user's business: do not change editor configuration unasked. The command is `tern lsp` or `node /path/to/tern-cli.js lsp`, for HTML files, UTF-16 positions. Setup for Neovim, VS Code and Helix: [Editor setup](https://oscarac.github.io/tern/docs/tools.html#editors).
+Setting up the user's editor is the user's business: do not change editor configuration unasked. The command is `tern lsp` or `node /path/to/tern-cli.js lsp`, for HTML files, UTF-16 positions. Setup for Neovim, VS Code and Helix: [Editor setup](https://ozkrac.github.io/tern/docs/tools.html#editors).
 
 ## Settings and tools that damage notes
 
@@ -308,7 +308,7 @@ A note is an `.html` file whose body is not HTML. Before editing, look for anyth
 - **Trailing-whitespace trimming** breaks no syntax (no construct depends on trailing spaces), but it changes content kept byte for byte: fences, raw HTML, display math, `:::macros`, `:::meta` and `{raw}` bodies. Harmless elsewhere. EditorConfig: `trim_trailing_whitespace = false` under `[*.html]`.
 - **Hosts and CDNs that minify or rewrite HTML** change the note, which is text inside the file. Turn that off.
 
-The VS Code settings that avoid all three: [Settings for notes](https://oscarac.github.io/tern/docs/tools.html#editor-settings).
+The VS Code settings that avoid all three: [Settings for notes](https://ozkrac.github.io/tern/docs/tools.html#editor-settings).
 
 ## Publishing
 
@@ -337,7 +337,7 @@ Double-clicking a note renders it from `file:` in Chromium and Firefox, with no 
 Any static host serves notes with no configuration: no rewrites, no headers; `.html` is served as `text/html`.
 
 - **GitHub Pages from a branch:** add an empty `.nojekyll` at the root of what is published (otherwise Jekyll skips files and folders starting with `_` or `.`), put `tern.js` in the published folder, use relative paths. A project page lives under a sub-path (`https://USER.github.io/REPO/`), where `/tern.js` is not your file.
-- **From a workflow:** check out the repository, set up Node 22, optionally run `node path/to/tern-cli.js check site/ --quiet` to fail the deployment on errors, then the Pages actions upload `site/` and deploy it (no Jekyll). Choose "GitHub Actions" as the Pages source. The full workflow: [GitHub Pages](https://oscarac.github.io/tern/docs/publishing.html#github-pages).
+- **From a workflow:** check out the repository, set up Node 22, optionally run `node path/to/tern-cli.js check site/ --quiet` to fail the deployment on errors, then the Pages actions upload `site/` and deploy it (no Jekyll). Choose "GitHub Actions" as the Pages source. The full workflow: [GitHub Pages](https://ozkrac.github.io/tern/docs/publishing.html#github-pages).
 
 ### Search engines and link previews
 
@@ -353,7 +353,7 @@ Any static host serves notes with no configuration: no rewrites, no headers; `.h
 
 ### Math and offline use
 
-The engine renders no math itself: it leaves each formula as its TeX source, like a code fence with no `addons/code.js`. To typeset it, load a math add-on in `data-use` — `addons/katex.js` (KaTeX, to styled HTML with its own fonts) or `addons/mathml.js` (native MathML with Temml, nothing to fetch once it has run). Load one, not both. Each fetches its library from jsDelivr, pinned with integrity hashes, at the first formula; until it arrives, or if it never does, the formula shows its TeX and the add-on logs a console warning. Details: [Add-ons](https://oscarac.github.io/tern/docs/addons.html#katex).
+The engine renders no math itself: it leaves each formula as its TeX source, like a code fence with no `addons/code.js`. To typeset it, load a math add-on in `data-use` — `addons/katex.js` (KaTeX, to styled HTML with its own fonts) or `addons/mathml.js` (native MathML with Temml, nothing to fetch once it has run). Load one, not both. Each fetches its library from jsDelivr, pinned with integrity hashes, at the first formula; until it arrives, or if it never does, the formula shows its TeX and the add-on logs a console warning. Details: [Add-ons](https://ozkrac.github.io/tern/docs/addons.html#katex).
 
 For a note read offline, or under a strict CSP, point `?base=` at a local copy (loaded without an integrity hash), or pre-render with `tern build --math` (above):
 
@@ -385,14 +385,14 @@ Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdel
 <!doctype html><meta charset="utf-8"><link rel="stylesheet" href="tern.css"><script src="tern.js"></script>
 ```
 
-Details: [Content-Security-Policy](https://oscarac.github.io/tern/docs/publishing.html#csp).
+Details: [Content-Security-Policy](https://ozkrac.github.io/tern/docs/publishing.html#csp).
 
 ### Trust
 
 - **In the browser a note is not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
 - **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse` and `lsp` run a note's local head scripts and script add-ons to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
 - **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin jsDelivr tags.
-- **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `tern.toHTML(text, { safe: true })` and insert the result. See [Trust](https://oscarac.github.io/tern/docs/publishing.html#trust).
+- **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `tern.toHTML(text, { safe: true })` and insert the result. See [Trust](https://ozkrac.github.io/tern/docs/publishing.html#trust).
 
 ### When a note does not render
 
@@ -416,4 +416,4 @@ Run `tern check FILE` first; then match the symptom.
 | 404s in Chromium's console for files only shown in code examples | The preload scanner. Harmless. |
 | `_x_`, `[a][b]`, `\ref{x}` shown literally | Markdown or LaTeX habits: see [../SKILL.md](../SKILL.md) and [syntax.md](syntax.md). |
 
-Every symptom in detail: [When it does not render](https://oscarac.github.io/tern/docs/publishing.html#troubleshooting).
+Every symptom in detail: [When it does not render](https://ozkrac.github.io/tern/docs/publishing.html#troubleshooting).

@@ -17,7 +17,7 @@ Sections: [the eight rules](#the-eight-rules) · [lines, names and case](#lines-
 7. **Nothing is lost silently.** A malformed construct stays visible where it is and gets a diagnostic: an error (content lost or meaning changed), a warning (probably not what you meant) or an info (a hint).
 8. **One spelling per construct.** A few Markdown alternates are accepted (`***`, `___`, `- - -` for `---`; `~~~` for a fence). Write the documented spelling.
 
-Docs: [the eight rules](https://oscarac.github.io/tern/docs/syntax-blocks.html#rules).
+Docs: [the eight rules](https://ozkrac.github.io/tern/docs/syntax-blocks.html#rules).
 
 ## Lines, names and case
 
@@ -79,11 +79,11 @@ Tern first matches the prefixes of the open containers: a quote's `>` (plus one 
 - **Fallback lines.** A closer-shaped or `+++` line that cannot act (stray, mismatched, orphan) is text, but it still ends the paragraph above and starts its own. A `::: name` line or a demoted `::word` line is an ordinary paragraph line.
 - **Depth.** Containers, quotes, items and footnotes nest 64 deep; a deeper opener is text (`nesting.limit`).
 
-Docs: [the line algorithm](https://oscarac.github.io/tern/docs/syntax-blocks.html#line-algorithm).
+Docs: [the line algorithm](https://ozkrac.github.io/tern/docs/syntax-blocks.html#line-algorithm).
 
 ## Blocks
 
-Docs: [Syntax: blocks](https://oscarac.github.io/tern/docs/syntax-blocks.html#top), one section per construct.
+Docs: [Syntax: blocks](https://ozkrac.github.io/tern/docs/syntax-blocks.html#top), one section per construct.
 
 ### Paragraphs and line breaks
 
@@ -199,7 +199,7 @@ an inner fence, shown as code
 ````
 `````
 
-Docs: [fenced code](https://oscarac.github.io/tern/docs/syntax-blocks.html#fence).
+Docs: [fenced code](https://ozkrac.github.io/tern/docs/syntax-blocks.html#fence).
 
 ### The `=html` fence
 
@@ -243,7 +243,7 @@ Some **bold** text
 </form>
 ```
 
-Docs: [raw HTML blocks](https://oscarac.github.io/tern/docs/syntax-blocks.html#raw-html).
+Docs: [raw HTML blocks](https://ozkrac.github.io/tern/docs/syntax-blocks.html#raw-html).
 
 ### Display math
 
@@ -281,7 +281,7 @@ a^2 + b^2
 ## The heading survives
 ```
 
-Docs: [display math](https://oscarac.github.io/tern/docs/syntax-blocks.html#display-math).
+Docs: [display math](https://ozkrac.github.io/tern/docs/syntax-blocks.html#display-math).
 
 ### Tables
 
@@ -320,7 +320,7 @@ Key | Action
 w | next word
 ```
 
-Docs: [tables](https://oscarac.github.io/tern/docs/syntax-blocks.html#tables).
+Docs: [tables](https://ozkrac.github.io/tern/docs/syntax-blocks.html#tables).
 
 ### Containers
 
@@ -369,7 +369,7 @@ The next line closes the aside, not the section.
 ::::
 ```
 
-Docs: [containers](https://oscarac.github.io/tern/docs/syntax-blocks.html#container), [closers](https://oscarac.github.io/tern/docs/syntax-blocks.html#closer).
+Docs: [containers](https://ozkrac.github.io/tern/docs/syntax-blocks.html#container), [closers](https://ozkrac.github.io/tern/docs/syntax-blocks.html#closer).
 
 ### Cells and grids
 
@@ -434,7 +434,7 @@ graph TD
 :::
 ```
 
-Docs: [raw bodies](https://oscarac.github.io/tern/docs/syntax-blocks.html#raw-body), [metadata](https://oscarac.github.io/tern/docs/elements.html#metadata).
+Docs: [raw bodies](https://ozkrac.github.io/tern/docs/syntax-blocks.html#raw-body), [metadata](https://ozkrac.github.io/tern/docs/elements.html#metadata).
 
 ### Footnote definitions
 
@@ -475,7 +475,7 @@ A blank line came between, so the line above is an orphan.
 
 ## Inline
 
-Inline content is the text of paragraphs, headings, titles, leaf and element content, and table cells. Docs: [Syntax: inline](https://oscarac.github.io/tern/docs/syntax-inline.html#top), [figures](https://oscarac.github.io/tern/docs/elements.html#figures).
+Inline content is the text of paragraphs, headings, titles, leaf and element content, and table cells. Docs: [Syntax: inline](https://ozkrac.github.io/tern/docs/syntax-inline.html#top), [figures](https://ozkrac.github.io/tern/docs/elements.html#figures).
 
 ### Reading order
 
@@ -547,7 +547,7 @@ Prices stay text: $5, or $10 at peak hours. The $n$th term is math.
 Verbatim math: $`]0,1[` and $`\$5 + \$10`. A mix that pairs wrongly: $5 then x$.
 ```
 
-Docs: [inline math](https://oscarac.github.io/tern/docs/syntax-inline.html#inline-math), [verbatim math](https://oscarac.github.io/tern/docs/syntax-inline.html#verbatim-math).
+Docs: [inline math](https://ozkrac.github.io/tern/docs/syntax-inline.html#inline-math), [verbatim math](https://ozkrac.github.io/tern/docs/syntax-inline.html#verbatim-math).
 
 ### Links
 
@@ -623,7 +623,7 @@ $$ e^{i\pi} + 1 = 0 $$ {#eq-euler}
 See @ki, @ki{ref=title} and @eq-euler. Write to me@example.org, in @2024. Thanks @alice and \@bob.
 ```
 
-Docs: [references](https://oscarac.github.io/tern/docs/syntax-inline.html#reference).
+Docs: [references](https://ozkrac.github.io/tern/docs/syntax-inline.html#reference).
 
 ### Footnote references
 
@@ -697,7 +697,7 @@ A [link](https://example.com){target=_blank rel=noopener}, `code`{.lang-js}, $x$
 A [span]{tag=b}, a [chip]{.t-chip} and [x]{#k!}.
 ```
 
-Docs: [attributes](https://oscarac.github.io/tern/docs/syntax-blocks.html#attributes), [the five positions](https://oscarac.github.io/tern/docs/syntax-blocks.html#positions).
+Docs: [attributes](https://ozkrac.github.io/tern/docs/syntax-blocks.html#attributes), [the five positions](https://ozkrac.github.io/tern/docs/syntax-blocks.html#positions).
 
 ## What a name becomes
 
@@ -748,7 +748,7 @@ Not a main element: a div, with a warning.
 :::
 ```
 
-Docs: [names](https://oscarac.github.io/tern/docs/elements.html#names), [allowlists](https://oscarac.github.io/tern/docs/elements.html#allowlists), [reserved names](https://oscarac.github.io/tern/docs/elements.html#reserved), [title slots](https://oscarac.github.io/tern/docs/elements.html#title-slots).
+Docs: [names](https://ozkrac.github.io/tern/docs/elements.html#names), [allowlists](https://ozkrac.github.io/tern/docs/elements.html#allowlists), [reserved names](https://ozkrac.github.io/tern/docs/elements.html#reserved), [title slots](https://ozkrac.github.io/tern/docs/elements.html#title-slots).
 
 ## Ids
 
@@ -760,7 +760,7 @@ Docs: [names](https://oscarac.github.io/tern/docs/elements.html#names), [allowli
 - An id on `:::meta` is not registered.
 - Prefer short kebab-case ids with a kind prefix, as the documentation does: `#thm-rank`, `#eq-euler`, `#fig-map`, `#tbl-phases`, `#lst-setup`.
 
-Docs: [ids](https://oscarac.github.io/tern/docs/elements.html#ids).
+Docs: [ids](https://ozkrac.github.io/tern/docs/elements.html#ids).
 
 ## Escapes
 
@@ -793,4 +793,4 @@ Docs: [ids](https://oscarac.github.io/tern/docs/elements.html#ids).
 
 Nothing needs escaping for `_`, a `#` inside a line, `%`, a lone `~` or `^`, `<` before a space or a digit, an `&` that forms no entity, the `@` of an e-mail address, ordinary prices, or `{` in prose. Escapes do not work inside code spans, fences, raw HTML, raw bodies and attribute values; inside math, `\` is TeX's.
 
-Docs: [escapes](https://oscarac.github.io/tern/docs/syntax-inline.html#escapes), [residual cases](https://oscarac.github.io/tern/docs/syntax-inline.html#residuals).
+Docs: [escapes](https://ozkrac.github.io/tern/docs/syntax-inline.html#escapes), [residual cases](https://ozkrac.github.io/tern/docs/syntax-inline.html#residuals).

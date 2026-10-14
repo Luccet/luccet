@@ -2,7 +2,7 @@
 
 Every code Tern reports, what triggers it, and the fix in Tern's syntax. Load this when `tern check`, the language server or the browser's panel reports a code. Tern never drops what you wrote: it keeps the text visible and reports a diagnostic with a code, a severity, a message, a position and a hint. Match on the code; the hint usually spells the fix.
 
-Each code has a section in the documentation at `diagnostics.html#` plus the code with dots turned into hyphens, such as [block.unclosed](https://oscarac.github.io/tern/docs/diagnostics.html#block-unclosed). The syntax is in [syntax.md](syntax.md), vocabularies in [vocabulary.md](vocabulary.md), the commands in [tools.md](tools.md).
+Each code has a section in the documentation at `diagnostics.html#` plus the code with dots turned into hyphens, such as [block.unclosed](https://ozkrac.github.io/tern/docs/diagnostics.html#block-unclosed). The syntax is in [syntax.md](syntax.md), vocabularies in [vocabulary.md](vocabulary.md), the commands in [tools.md](tools.md).
 
 ## Reading a diagnostic
 

@@ -17,7 +17,7 @@ By @thm-rn, an injective map between spaces of equal dimension is surjective.
 
 ## Documentation
 
-The documentation is published at **[oscarac.github.io/tern](https://oscarac.github.io/tern/)**. Start with the [guide](https://oscarac.github.io/tern/docs/guide.html). The pages are themselves Tern notes: the same files are [`index.html`](index.html) and [`docs/`](docs/) in this repository, and they open locally in a browser too.
+The documentation is published at **[ozkrac.github.io/tern](https://ozkrac.github.io/tern/)**. Start with the [guide](https://ozkrac.github.io/tern/docs/guide.html). The pages are themselves Tern notes: the same files are [`index.html`](index.html) and [`docs/`](docs/) in this repository, and they open locally in a browser too.
 
 ## Getting tern.js
 
@@ -38,18 +38,18 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 **From jsDelivr**, which serves this repository's tagged releases:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="https://cdn.jsdelivr.net/gh/OscarAC/tern@v0.4.0/tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v0.4.0/tern.js"></script>
 ```
 
 - **Pin an exact tag,** as above, in notes you publish: jsDelivr caches a tag's files permanently, and a note keeps rendering the same way.
 - **To follow releases,** use `@0.4` (the newest 0.4.x) or `@latest` (the newest release). jsDelivr re-checks these about every 12 hours. A new release can change how existing notes render, so keep these for notes you're happy to see change.
-- **Keep the file name `tern.js`.** jsDelivr's minified `tern.min.js` is not recognised: a note is an HTML file whose tag loads a file named `tern.js` ([note detection](https://oscarac.github.io/tern/docs/tools.html#detection)).
+- **Keep the file name `tern.js`.** jsDelivr's minified `tern.min.js` is not recognised: a note is an HTML file whose tag loads a file named `tern.js` ([note detection](https://ozkrac.github.io/tern/docs/tools.html#detection)).
 
-**Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://oscarac.github.io/tern/docs/schema.html#themes).
+**Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://ozkrac.github.io/tern/docs/schema.html#themes).
 
-**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `katex.js` and `mathml.js` typeset math; `search.js` gives a `::search` box over a set of notes, indexed in the browser. List them in `:::use`, one per line. See [add-ons](https://oscarac.github.io/tern/docs/addons.html).
+**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `katex.js` and `mathml.js` typeset math; `search.js` gives a `::search` box over a set of notes, indexed in the browser. List them in `:::use`, one per line. See [add-ons](https://ozkrac.github.io/tern/docs/addons.html).
 
-**As a file:** copy `tern.js` next to your notes and load it relatively (`src="tern.js"`, `src="../tern.js"`). Notes then work offline and straight from disk. [Publishing](https://oscarac.github.io/tern/docs/publishing.html) covers static hosts, GitHub Pages, the Content-Security-Policy and offline use.
+**As a file:** copy `tern.js` next to your notes and load it relatively (`src="tern.js"`, `src="../tern.js"`). Notes then work offline and straight from disk. [Publishing](https://ozkrac.github.io/tern/docs/publishing.html) covers static hosts, GitHub Pages, the Content-Security-Policy and offline use.
 
 ## Using it
 
@@ -66,7 +66,7 @@ Named blocks such as `:::theorem` get labels, counters and elements from a schem
 
 ## Agent skills
 
-[`skills/tern-notes`](skills/tern-notes/SKILL.md) teaches coding agents (GitHub Copilot, Claude Code, Codex, Cursor) to write, check and fix notes. Install it in a project with `gh skill install OscarAC/tern tern-notes`, or copy it into the project's `.github/skills/` ([skills/README.md](skills/README.md)).
+[`skills/tern-notes`](skills/tern-notes/SKILL.md) teaches coding agents (GitHub Copilot, Claude Code, Codex, Cursor) to write, check and fix notes. Install it in a project with `gh skill install OzkrAC/tern tern-notes`, or copy it into the project's `.github/skills/` ([skills/README.md](skills/README.md)).
 
 ## Development
 

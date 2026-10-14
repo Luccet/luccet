@@ -6,7 +6,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OscarAC/tern.git"
+    "url": "git+https://github.com/OzkrAC/tern.git"
   },
   "main": "tern.js",
   "engines": {

@@ -250,4 +250,4 @@ Every code, with what it means and how to fix it: [references/diagnostics.md](re
 - [references/vocabulary.md](references/vocabulary.md): schemas, add-ons (`:::use`, `data-use`), themes, styling and behaviours.
 - [references/diagnostics.md](references/diagnostics.md): every diagnostic code.
 - [references/tools.md](references/tools.md): `tern new`, `check`, `build`, `mv`, the language server, and publishing.
-- The documentation: [the guide](https://oscarac.github.io/tern/docs/guide.html#top), [the eight rules](https://oscarac.github.io/tern/docs/guide.html#rules).
+- The documentation: [the guide](https://ozkrac.github.io/tern/docs/guide.html#top), [the eight rules](https://ozkrac.github.io/tern/docs/guide.html#rules).
