@@ -1869,6 +1869,73 @@ const TESTS = [
       if (!r.hidden || r.main) throw new Error(`the guard shows itself (${!r.hidden}) or the note mounted (${r.main})`);
     },
   })),
+  {
+    name: 'search add-on: the linked notes are indexed, hits link to their block, a missing note is counted, nothing else is fetched',
+    url: '/test/smoke/search/index.html',
+    allowConsole: /Failed to load resource/,
+    async setup(_context, page, ctx) {
+      ctx.fetched = [];
+      page.on('request', (r) => r.resourceType() !== 'document' && /\/test\/smoke\/search\//.test(r.url()) && ctx.fetched.push(r.url().replace(/^.*\/search\//, '')));
+    },
+    async check(page, ctx) {
+      const status = () => page.evaluate(() => document.querySelector('.t-search-status').textContent);
+      await expect(page, () => !/Indexing/.test(document.querySelector('.t-search-status').textContent), 'the index to build');
+      if ((await status()) !== '2 notes, 5 entries; 1 could not be read') throw new Error(`status "${await status()}"`);
+      const hits = async (q) => {
+        await page.fill('.t-search-box', q);
+        await page.waitForTimeout(250);
+        return page.evaluate(() => [...document.querySelectorAll('.t-search-results > li')].map((li) => ({
+          title: li.querySelector('.t-search-title').textContent,
+          page: li.querySelector('.t-search-page').textContent,
+          href: li.querySelector('a').getAttribute('href').replace(/^.*\/search\//, ''),
+          snippet: li.querySelector('.t-search-snippet').textContent,
+          marks: [...li.querySelectorAll('mark')].map((m) => m.textContent),
+        })));
+      };
+      let r = await hits('pythag');
+      if (r.length !== 1) throw new Error(`"pythag": ${JSON.stringify(r)}, expected the one exercise`);
+      if (r[0].title !== 'Exercise 1 I.1' || r[0].page !== 'Alpha: triangles' || r[0].href !== 'alpha.html#ex-1') throw new Error(`"pythag" hit ${JSON.stringify(r[0])}`);
+      if (r[0].marks.join() !== 'Pythagoras' || !/using squares/.test(r[0].snippet)) throw new Error(`"pythag" snippet ${JSON.stringify(r[0])}: expected Pythagoras marked and the hard break read as a space`);
+      r = await hits('triangle');
+      if (r[0].href !== 'alpha.html#tri' || r[0].title !== 'Triangles') throw new Error(`"triangle" first hit ${JSON.stringify(r[0])}, expected the heading (a title hit weighs more)`);
+      if (!r.some((h) => h.href === 'beta.html#ex-3') || !r.some((h) => h.href === 'alpha.html#ex-2')) throw new Error(`"triangle" hits ${JSON.stringify(r.map((h) => h.href))}`);
+      r = await hits('sqrt');
+      if (r.length !== 1 || r[0].href !== 'alpha.html#tri' || r[0].marks.join() !== 'sqrt') throw new Error(`"sqrt" (TeX as written) ${JSON.stringify(r)}`);
+      r = await hits('circumference');
+      if (r.length !== 2 || r[0].href !== 'beta.html#circ') throw new Error(`"circumference" ${JSON.stringify(r.map((h) => h.href))}, expected beta's section first (shorter) then alpha's exercise`);
+      r = await hits('nothingofthesort');
+      if (r.length || (await status()) !== 'No results') throw new Error(`a miss: ${JSON.stringify(r)}, status "${await status()}"`);
+      await page.fill('.t-search-box', 'circle');
+      await page.waitForTimeout(250);
+      const url = await page.evaluate(() => location.search);
+      if (url !== '?q=circle') throw new Error(`the URL after typing: "${url}", expected ?q=circle`);
+      const fetched = [...new Set(ctx.fetched)].sort();
+      if (fetched.join() !== 'alpha.html,beta.html,missing.html,vocab.js') throw new Error(`fetched ${fetched.join(', ')}: expected the two notes and the missing one, not hidden.html or notes.txt`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.html could not be fetched/.test(m.text))) throw new Error(`no warning for missing.html; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    name: 'search add-on: from= takes another page\'s links, ?q= fills the box, limit and placeholder apply, Enter opens the first hit',
+    url: '/test/smoke/search-from.html?q=pi',
+    allowConsole: /Failed to load resource/,
+    async check(page) {
+      await expect(page, () => /result/.test(document.querySelector('.t-search-status').textContent), 'the prefilled query to run');
+      const r = await page.evaluate(() => ({
+        status: document.querySelector('.t-search-status').textContent,
+        value: document.querySelector('.t-search-box').value,
+        placeholder: document.querySelector('.t-search-box').placeholder,
+        hrefs: [...document.querySelectorAll('.t-search-results a')].map((a) => a.getAttribute('href').replace(/^.*\/search\//, '')),
+        role: document.querySelector('search.t-search').getAttribute('role'),
+      }));
+      if (r.status !== '1 result' || r.value !== 'pi' || r.placeholder !== 'Find an exercise') throw new Error(JSON.stringify(r));
+      if (r.hrefs.join() !== 'beta.html#circ') throw new Error(`hits ${r.hrefs.join()}, expected beta's section alone (limit=1)`);
+      if (r.role !== 'search') throw new Error(`the element is ${r.role}`);
+      await page.focus('.t-search-box');
+      await page.keyboard.press('Enter');
+      await page.waitForURL(/beta\.html#circ$/, { timeout: 5000 });
+    },
+  },
 ];
 
 async function expect(page, fn, what, timeout = 8000, arg) {

@@ -132,6 +132,59 @@ test('within: a heading inside a dropped footnote definition counts for nothing'
   eq(labels(src, thm({ within: 'h2' })), ['Theorem 1.1'], 'labels');
 });
 
+// ---------------------------------------------------------------- tern.search
+
+test('search.records: one entry per heading section and per block with an id, with note lines; a block without an id gives its text to its section', () => {
+  const { ast } = tern.parse('Before any heading.\n\n# Triangles {#tri}\n\nThe hypotenuse: $c=\\sqrt{a^2+b^2}$.\n\n:::note[I.1]{#ex-1}\nProve Pythagoras\\\ntheorem.\n:::\n\n:::note\nNo id here.\n:::\n\n## Circles\n\nRound.\n');
+  tern.transform(ast);
+  const r = tern.search.records(ast, { url: 'a.html', title: 'Alpha' });
+  eq(r.map((e) => [e.kind, e.id, e.line, e.endLine, e.label, e.title, e.text]), [
+    ['page', '', 1, 19, 'Alpha', '', 'Before any heading.'],
+    ['heading', 'tri', 3, 15, 'Triangles', '', 'The hypotenuse: c=\\sqrt{a^2+b^2}.\nNo id here.'],
+    ['note', 'ex-1', 7, 10, 'note', 'I.1', 'Prove Pythagoras theorem.'],
+    ['heading', 'circles', 16, 19, 'Circles', '', 'Round.'],
+  ], 'entries');
+  eq(JSON.parse(JSON.stringify(tern.search.index(r))).entries.length, 4, 'the index is plain data');
+});
+
+test('search.query: a word stands for the stems it begins, a title hit weighs more, a miss is empty', () => {
+  const { ast } = tern.parse('# Triangles {#tri}\n\nA right triangle.\n\n:::note{#n}\nThe triangles inscribed in a circle.\n:::\n\n## Circles {#c}\n\nThe circumference is $2\\pi r$.\n');
+  tern.transform(ast);
+  const idx = tern.search.index(tern.search.records(ast, { url: 'a.html' }));
+  eq(tern.search.query(idx, 'triangle').map((h) => h.entry.id), ['tri', 'n'], 'triangle finds triangles, the heading first');
+  eq(tern.search.query(idx, 'triangles').map((h) => h.entry.id), ['tri', 'n'], 'the plural the same');
+  eq(tern.search.query(idx, 'circ').map((h) => h.entry.id), ['c', 'n'], 'a prefix: circles, circumference, circle');
+  eq(tern.search.query(idx, 'pi').map((h) => h.entry.id), ['c'], 'TeX as written');
+  eq(tern.search.query(idx, 'circ', { limit: 1 }).length, 1, 'limit');
+  eq(tern.search.query(idx, 'nothing'), [], 'a miss');
+  eq(tern.search.query(idx, ''), [], 'no words');
+  eq(tern.search.query(idx, 'triangle')[0].matched, ['triangl'], 'the stems matched');
+});
+
+test('search: words that name Object.prototype members are words like any, before and after a JSON round trip', () => {
+  const { ast } = tern.parse('# The constructor {#c}\n\nA constructor, toString and hasOwnProperty; __proto__ too.\n\n## Other {#o}\n\nNothing of the kind.\n');
+  tern.transform(ast);
+  const idx = tern.search.index(tern.search.records(ast, { url: 'a.html' }));
+  for (const q of ['constructor', 'tostring', 'hasownproperty', 'proto']) eq(tern.search.query(idx, q).map((h) => h.entry.id), ['c'], q);
+  const back = JSON.parse(JSON.stringify(idx));
+  eq(tern.search.query(back, 'constructor').map((h) => h.entry.id), ['c'], 'after JSON');
+  eq(tern.search.query(back, 'valueof'), [], 'a prototype member that is not a word in the notes');
+});
+
+test('search.snippet and search.title', () => {
+  const s = tern.search.snippet('Prove Pythagoras theorem using squares on the sides.', ['pythagora']);
+  eq(s, { text: 'Prove Pythagoras theorem using squares on the sides.', marks: [[6, 16]] }, 'a short text whole, the word marked');
+  const long = `${'word '.repeat(60)}Pythagoras ${'more '.repeat(60)}`;
+  const cut = tern.search.snippet(long, ['pythagora'], { width: 60 });
+  if (!/^…word (word )*Pythagoras( more)+…$/.test(cut.text)) throw new Error(`cut: ${JSON.stringify(cut.text)}`);
+  eq(cut.text.slice(cut.marks[0][0], cut.marks[0][1]), 'Pythagoras', 'the mark in the cut text');
+  const { ast } = tern.parse(':::meta\ntitle: From meta\n:::\n\n# First heading\n');
+  eq(tern.search.title('<title>A &amp; B</title>', ast), 'A & B', 'the head title, entities decoded');
+  eq(tern.search.title('', ast), 'From meta', 'the meta title');
+  eq(tern.search.title('', tern.parse('# First heading\n').ast), 'First heading', 'the first heading');
+  eq(tern.search.title('', tern.parse('text\n').ast), '', 'nothing');
+});
+
 console.log(results.join('\n'));
 console.log(`\n${results.length - failed}/${results.length} API checks pass`);
 process.exit(failed ? 1 : 0);

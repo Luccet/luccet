@@ -190,6 +190,7 @@ For $x \in \R$, @eq-pythagoras holds.
 - A `$` pair is math only when it looks like math: the opener followed by a non-space, the closer after a non-space and not before a digit. Prices need no escaping; escape one with `\$` when it shares a sentence with a formula (`math.suspect-price`).
 - Display math: `$$` lines, no blank line inside (`math.unclosed`). An id after the closing `$$` numbers the equation; `@id` reads "(1)".
 - Without a math add-on, formulas show as their TeX source (like a code fence with no `addons/code.js`). Load one to typeset them; for offline use point it at a local copy: `addons/katex.js?base=vendor/katex`.
+- `addons/search.js` gives a `::search` leaf: a box that searches the notes the page links to (`::search{from=index.html}` for another page's links), indexed in the browser, each hit linking to its heading or block. Load the notes' vocabulary add-on on that page too. `tern search QUERY [PATH…]` is the same search on files, printing `FILE:LINE:` and the entry's label; use it to find where a topic is treated before editing.
 
 ## Ids and references
 

@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js"></script>
 
 :::meta
-description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, and diagrams with Mermaid.
+description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, diagrams with Mermaid, and a search box over a set of notes.
 :::
 
 ::site-nav
@@ -39,6 +39,7 @@ From jsDelivr, give each add-on the same tag as `tern.js`: `https://cdn.jsdelivr
 | [`mathml.js`](#mathml) | typesets formulas as native MathML, with Temml, no fonts to load |
 | [`code.js`](#code) | colours code by its language, with highlight.js, in the theme's colours |
 | [`mermaid.js`](#mermaid) | draws `mermaid` fences as diagrams, with Mermaid, in the theme's colours |
+| [`search.js`](#search) | a `::search` box over a set of notes, indexed in the browser, each hit linking to its heading or block |
 :::
 
 ## Code highlighting {#code}
@@ -265,3 +266,27 @@ The version and its hashes live in a table in `addons/katex.js`. To move to anot
 ### A newer Temml {#mathml-updating}
 
 The version and its hashes live in a table in `addons/mathml.js`. To move to another version, run `node tools/temml.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
+
+## Search {#search}
+
+`search.js` declares a `::search` leaf: a search box over a set of notes, built in the browser when the page opens. The notes are fetched and parsed by the engine, with the page's own vocabulary, and split into entries — every heading's section and every named block with an id, an exercise or a theorem — so a hit links straight to its place on its page. Nothing is built ahead and nothing leaves the browser: it suits a wiki of notes published as they are.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/search.js"></script>
+```
+```tern
+::search
+::search{from=index.html}
+::search{notes="algebra/chapter1.html algebra/chapter2.html" limit=10 placeholder="Find an exercise"}
+```
+:::
+
+- **Which notes.** `::search` alone covers the notes this page links to: every same-origin link to an `.html` file, the page itself left out. `from=PAGE` covers the notes another page links to — an index page, so a search page needs no list of its own. `notes="A B"` lists them. A link to something that is not a note (no `tern.js` tag) or cannot be fetched is skipped, with a warning in the console, and counted in the status line.
+- **The vocabulary.** Load the notes' schema add-on on the search page too (`data-use="math.js addons/search.js"`), so their `:::exercise` and `:::theorem` blocks parse as they do on their own pages, with their labels and numbers.
+- **A hit** shows the entry's label and title — "Exercise 3 II.1", a heading's text — the page it is on, and a snippet with the matching words marked. The link lands on the block's id. Enter opens the first hit.
+- **Matching is lexical.** Words are stemmed lightly, so `triangle` finds `triangles`, and a query word stands for every word it begins: `pythag` finds Pythagoras and Pythagorean. Entries are ranked BM25-style; a word in an entry's title counts for more than one in its text. TeX is searched as written: `sqrt` finds `\\sqrt`. A word the notes never use finds nothing.
+- **Options** go on the leaf, on the add-on (`addons/search.js?from=index.html`), or in `window.TERN = {use: {search: {…}}}`; the leaf's win. `limit` caps the results (20); `placeholder` sets the box's. `?q=WORD` in the page's URL fills the box, and typing keeps the URL up to date, so a search can be linked to.
+- **The element** is a `<search role="search">` with the classes `t-search`, `t-search-box`, `t-search-status` and `t-search-results`, styled from the theme's variables; a stylesheet add-on can restyle them.
+- **Privacy.** Only the notes listed or linked are fetched, from the page's own origin; a note that no page links to is never read. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetches.
+- **Without the page.** `tern check` and `tern build` know the leaf and do nothing with it: the box is built when `tern.js` runs. The same search over files, with lines, is [`tern search`](tools.html#search); the pipeline both run is [`tern.search`](api.html#search).

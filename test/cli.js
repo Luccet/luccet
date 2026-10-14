@@ -217,6 +217,42 @@ test('check: file:line:col, severity, code, message, the hint indented; exit 1 o
   ok(/1 note: 1 error, 1 warning, 0 infos/.test(r.err), `summary: ${r.err}`);
 });
 
+test('search: FILE:LINE, the label and id, the passage; file lines; exit 1 on a miss; --json; --limit', () => {
+  write('s/alpha.html', `${FIRST}<title>Alpha</title><script src="tern.js"></script>\n# Triangles {#tri}\n\nThe hypotenuse: $c=\\sqrt{a^2+b^2}$.\n\n:::note[I.1]{#ex-1}\nProve Pythagoras theorem using\\\nsquares.\n:::\n`);
+  write('s/beta.html', `${FIRST}<script src="tern.js"></script>\n# Circles\n\nThe triangles inscribed in a circle on a diameter are right triangles.\n`);
+  write('s/plain.html', 'not a note', { tern: false });
+  let r = run(['search', 'pythag', 's']);
+  exits(r, 0, 'a hit');
+  eq(r.out, 's/alpha.html:6: note I.1 (#ex-1)\n    Prove Pythagoras theorem using squares.\n', 'the hit, at the file line of the block, the hard break a space');
+  ok(/tern search: 2 notes, 3 entries: 1 result\n$/.test(r.err), `summary: ${r.err}`);
+  r = run(['search', 'triangle', 's']);
+  exits(r, 0, 'two hits');
+  eq(r.out.split('\n').filter((l) => /^s\//.test(l)), ['s/alpha.html:2: Triangles (#tri)', 's/beta.html:2: Circles (#circles)'], 'the heading first (a title hit weighs more), then beta');
+  r = run(['search', 'triangle', 's', '--limit=1', '--json']);
+  exits(r, 0, 'json');
+  const hits = JSON.parse(r.out);
+  eq(hits.length, 1, '--limit');
+  eq([hits[0].file, hits[0].line, hits[0].endLine, hits[0].id, hits[0].kind, hits[0].label, hits[0].page, hits[0].snippet], ['s/alpha.html', 2, 10, 'tri', 'heading', 'Triangles', 'Alpha', 'The hypotenuse: c=\\sqrt{a^2+b^2}.'], 'the fields');
+  ok(hits[0].score > 0 && hits[0].marks.length === 0, 'score and marks (the match is in the title, not the text)');
+  r = run(['search', 'nothingofthesort', 's']);
+  exits(r, 1, 'a miss');
+  eq(r.out, '', 'nothing printed');
+  ok(/0 results/.test(r.err), r.err);
+  r = run(['search', 'pythag', 's/plain.html']);
+  exits(r, 1, 'a named non-note');
+  ok(/plain\.html is not a note/.test(r.err), r.err);
+  r = run(['search', 'pythag'], { cwd: path.join(TMP, 's') });
+  exits(r, 0, 'the current folder by default');
+  r = run(['search']);
+  exits(r, 2, 'no query');
+  r = run(['search', '--', 's']);
+  exits(r, 2, 'a query with no word');
+  r = run(['search', 'x', 's', '--limit=0']);
+  exits(r, 2, '--limit=0');
+  r = run(['search', 'x', 'nowhere']);
+  exits(r, 2, 'a missing path');
+});
+
 test('check --fail-on and --quiet', () => {
   write('c/warn.html', `${FIRST}<script src="tern.js"></script>\nSee @nowhere.\n`);
   write('c/info.html', `${FIRST}<script src="tern.js"></script>\nA \\(x\\) here.\n`);
