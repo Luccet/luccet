@@ -52,6 +52,8 @@ $ echo $?
 | `tern check PATH…` | prints the diagnostics of notes; exits 1 on errors | [tern check](#check) |
 | `tern parse FILE` | prints the note's syntax tree as JSON | [tern parse](#parse) |
 | `tern build FILE` | writes a static, pre-rendered page | [tern build](#build) |
+| `tern mv FROM… TO` | moves notes and files, rewriting the links to and from them | [tern mv](#mv) |
+| `tern search QUERY` | searches notes by word, each hit at its file and line | [tern search](#search) |
 | `tern corpus PATH…` | prints documentation pages' live examples as corpus cases | [tern corpus](#corpus) |
 | `tern lsp [--stdio]` | the language server, over stdio | [The language server](#lsp) |
 
@@ -751,6 +753,39 @@ tern mv: notes/linear/maps.html exists; move or remove it first
 $ tern mv notes notes/archive
 tern mv: cannot move notes into itself
 ```
+
+## tern search {#search}
+
+`tern search` finds the places in a folder of notes where words occur: the same lexical search as the [search add-on](addons.html#search), on files, with lines. It is `grep` that knows what a note is: a hit is a heading's section or a named block with an id, an exercise or a theorem, not a line.
+
+:::syntax[tern search]
+```sh
+tern search QUERY [PATH…] [--json] [--limit=N|all] [--no-scripts]
+```
+:::
+
+```sh
+$ tern search contrapositive BookOfProof/ --limit=2
+BookOfProof/chapter5.html:7: Contrapositive Proof (#chapter-5)
+    Contrapositive Proof
+BookOfProof/chapter5.html:9: Exercises (#exercises)
+    A. Use the method of contrapositive proof to prove the following statements. We prove the contrapositive: if n is not odd, then n^2 is not odd. Suppose that n…
+tern search: 13 notes, 310 entries: 2 results
+$ echo $?
+0
+```
+
+Each hit is two lines: `FILE:LINE:` the entry's label and title, with its id in parentheses when it has one, then its passage, the one around the first matching word, indented. Lines are file lines, so an editor can jump to them. The summary goes to stderr. The exit code is 0 with results, 1 without, and 2 for a usage error or an unreadable path.
+
+| Option | What it does |
+|---|---|
+| `QUERY` | One or more words, as one argument (`"strong induction"`). Each word is stemmed and stands for every word it begins: `pythag` finds Pythagoras and Pythagorean; `triangle` finds triangles. TeX is searched as written: `sqrt` finds `\sqrt`. |
+| `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [tern check](#check-folders) does. |
+| `--limit=N` | At most N results (20), or `all`. |
+| `--json` | Prints one JSON array of the hits instead: `file`, `line`, `endLine`, `id`, `kind`, `label`, `title`, `page` (the note's title), `score`, `snippet` and `marks` (the matching words' ranges in it). [tern.nvim](#neovim)'s `:TernSearch` reads this into the quickfix list. |
+| `--no-scripts` | Searches without running the notes' head scripts and add-ons ([Running a note's code](#sandbox)): their vocabulary is unknown, so blocks declared there keep no label. |
+
+The notes are parsed with their own vocabulary, as `tern check` parses them ([Vocabulary under Node](#vocabulary)), so a hit in `:::exercise[10.3]{#ex-10-3}` reads "Exercise 10.3". A remote add-on is not loaded; a note whose vocabulary lives only on a CDN is still searched, with its blocks' names for labels. The ranking is [`tern.search`](api.html#search)'s: a word in a heading or a block's title weighs more than one in the text.
 
 ## tern corpus {#corpus}
 

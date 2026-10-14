@@ -27,6 +27,7 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`tern.check(source, opts)`](#check) | engine | every diagnostic of a note | works |
 | [`tern.visit(tree, type, fn)`](#visit) | engine | walks a tree | works |
 | [`tern.outline(ast)`](#outline) | engine | the editor digest | works |
+| [`tern.search`](#search) | engine | entries, an index and a ranked query over notes | works |
 | [`tern.schema`](#registry) | engine | the vocabulary, as plain data | works |
 | [`tern.block`, `tern.leaf`, `tern.inline`](#registry) | engine | declare a name | works |
 | [`tern.transforms`](#tern-transforms) | engine | the transform order | works |
@@ -499,6 +500,47 @@ tern.outline(ast);
 - Lines are note lines, and columns are UTF-16 columns, both 1-based.
 - A field the tree does not have is left out. On a parse AST there are no slugs, labels, numbers, reference texts or `resolved`; on a transformed AST they are there.
 - Nodes without a position are skipped: the text the transforms copy into references and toc entries is not in the source.
+
+### `tern.search` {#search}
+
+:::syntax
+```js
+tern.search.records(ast, { url, title }) → entries
+tern.search.index(entries) → index
+tern.search.query(index, text, { limit }) → [{ entry, score, matched }]
+tern.search.snippet(text, matched, { width }) → { text, marks }
+tern.search.title(head, ast) → string
+```
+:::
+
+The pipeline behind the [search add-on](addons.html#search) and [`tern search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are stemmed lightly, and a query word stands for every indexed word it begins.
+
+```js
+const { ast } = tern.parse('# Triangles {#tri}
+
+The hypotenuse: $c=\sqrt{a^2+b^2}$.
+
+:::note[I.1]{#ex-1}
+Prove Pythagoras.
+:::
+');
+tern.transform(ast);
+const entries = tern.search.records(ast, { url: 'alpha.html', title: 'Alpha' });
+// → [ { url: 'alpha.html', id: 'tri', line: 1, endLine: 7, kind: 'heading', label: 'Triangles', title: '', text: 'The hypotenuse: c=\sqrt{a^2+b^2}.' },
+//     { url: 'alpha.html', id: 'ex-1', line: 5, endLine: 7, kind: 'note', label: 'note', title: 'I.1', text: 'Prove Pythagoras.' } ]
+const index = tern.search.index(entries);
+tern.search.query(index, 'pythag');
+// → [ { entry: entries[1], score: 0.9…, matched: ['pythagora'] } ]
+tern.search.snippet(entries[1].text, ['pythagora']);
+// → { text: 'Prove Pythagoras.', marks: [[6, 16]] }
+```
+
+- **`records(ast, {url, title})`** splits a transformed AST into entries: one per heading's section and one per named block with an id. A block's text is its own, not its section's; a block without an id gives its text to the entry it is in. `kind` is `'page'` (the text before the first heading), `'heading'`, or the block's name; `label` is the heading's text, the page's title, or the block's label ("Exercise 3"); `title` a block's bracket title. `line` and `endLine` are note lines. An entry with nothing to search is left out.
+- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back. A word in an entry's label or title weighs three times one in its text.
+- **`query(index, text, {limit})`** ranks the entries BM25-style for the words of `text`, best first, at most `limit` (20; `Infinity` for all). `matched` lists the stems the hit matched, for `snippet`.
+- **`snippet(text, matched, {width})`** cuts a passage of about `width` characters (160) around the first matching word, `…` where it is cut, with the `[start, end)` ranges of every matching word in it.
+- **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.
+- **`stem(word)`** and **`tokens(text)`** are the stemmer and the tokeniser the index and the query share.
 
 ### The registry {#registry}
 

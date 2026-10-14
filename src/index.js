@@ -8,6 +8,7 @@ const { createContext, visit } = require('./ast');
 const { sortDiagnostics } = require('./diag');
 const { parseBlocks } = require('./block');
 const { outline } = require('./outline');
+const search = require('./search');
 const registry = require('./schema');
 const pipeline = require('./transform');
 const { emit } = require('./emit');
@@ -62,6 +63,7 @@ module.exports = {
   check,
   visit,
   outline,
+  search,
   schema: registry.schema,
   block: registry.block,
   leaf: registry.leaf,

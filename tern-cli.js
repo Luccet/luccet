@@ -8,13 +8,14 @@
 //   tern parse FILE    print the AST as JSON
 //   tern build FILE    write a static, pre-rendered page
 //   tern mv FROM… TO   move notes and files, rewriting the links to and from them
+//   tern search QUERY  search notes by word, each hit with its file and line
 //   tern corpus PATH…  print documentation examples as corpus cases
 //   tern lsp           the language server, over stdio
 'use strict';
 
 const commands = require('./cli/commands');
 
-const COMMANDS = ['new', 'check', 'parse', 'build', 'mv', 'corpus', 'lsp'];
+const COMMANDS = ['new', 'check', 'parse', 'build', 'mv', 'search', 'corpus', 'lsp'];
 const [name, ...args] = process.argv.slice(2);
 const run = COMMANDS.includes(name) ? commands[name] : null;
 if (name === '--version' || name === '-v' || name === 'version') {

@@ -28,6 +28,7 @@ const SYNOPSIS = {
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
   build: 'tern build FILE [-o OUT] [--math katex|mathml] [--no-scripts]',
   mv: 'tern mv FROM… TO [--root=DIR] [--dry-run]',
+  search: 'tern search QUERY [PATH…] [--json] [--limit=N|all] [--no-scripts]',
   corpus: 'tern corpus PATH… [--out=DIR]',
   lsp: 'tern lsp [--stdio]',
 };
@@ -60,6 +61,13 @@ const usage = () =>
       FROM is in, else the current folder), and the moved notes' own. TO is
       a folder when it ends in / or exists. --dry-run (-n) prints the moves
       and the edits, and changes nothing.
+  ${SYNOPSIS.search}
+      Search notes by word: the notes under each PATH (default: the current
+      folder) are split into entries — every heading's section and every
+      named block with an id — ranked for QUERY, and printed as FILE:LINE:
+      the entry's label and title, then its passage with the matching words.
+      A query word stands for the words it begins. --limit caps the results
+      (20). Exit 1 when nothing matches.
   ${SYNOPSIS.corpus}
       Print the live examples of documentation pages (tern fences with the
       class live) as conformance-corpus cases. A case's spec: line is the
@@ -70,8 +78,9 @@ const usage = () =>
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
 
-Exit codes: 0 done; 1 check found problems, new or mv refused, or corpus
-found an example that does not match its expect; 2 a usage error.
+Exit codes: 0 done; 1 check found problems, new or mv refused, search found
+nothing, or corpus found an example that does not match its expect; 2 a
+usage error.
 `;
 
 class UsageError extends Error {
@@ -278,6 +287,87 @@ function check(args) {
     warn(notes ? `tern check: ${plural(notes, 'note')}: ${found}` : 'tern check: no notes found');
   }
   return broken ? 2 : failed ? 1 : 0;
+}
+
+// ---------------------------------------------------------------- search
+
+// The files a command takes: those named, then those found in directories,
+// each once, in order.
+function filesOf(positionals) {
+  const files = [];
+  const seen = new Set();
+  const add = (p, named) => {
+    const key = path.resolve(p);
+    if (!seen.has(key)) seen.add(key), files.push({ shown: p, named });
+  };
+  for (const p of positionals) {
+    let st;
+    try {
+      st = fs.statSync(p);
+    } catch (e) {
+      throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
+    }
+    if (st.isDirectory()) for (const f of htmlFiles(p)) add(f, false);
+    else add(p, true);
+  }
+  return files;
+}
+
+function search(args) {
+  const { values: o, positionals } = options(args, { json: { type: 'boolean' }, limit: { type: 'string' }, 'no-scripts': { type: 'boolean' } });
+  if (o.help) return help('search');
+  if (!positionals.length) throw new UsageError('QUERY is missing');
+  const [query, ...paths] = positionals;
+  if (!tern.search.tokens(query).length) throw new UsageError('QUERY has no word to search for');
+  let limit = 20;
+  if (o.limit !== undefined) {
+    if (o.limit === 'all') limit = Infinity;
+    else if (/^[1-9]\d*$/.test(o.limit)) limit = Number(o.limit);
+    else throw new UsageError(`--limit is a positive number or all, not "${o.limit}"`);
+  }
+  const files = filesOf(paths.length ? paths : ['.']);
+  const entries = [];
+  const titles = new Map();
+  let notes = 0;
+  let broken = false;
+  for (const f of files) {
+    let text;
+    try {
+      text = fs.readFileSync(f.shown, 'utf8');
+    } catch (e) {
+      warn(`tern search: cannot read ${f.shown}: ${e.message}`);
+      broken = true;
+      continue;
+    }
+    const a = analyse(text, f.shown, { noScripts: o['no-scripts'] });
+    if (!a) {
+      if (f.named) warn(`tern search: ${f.shown} is not a note (${notNote(text)}); skipped`);
+      continue;
+    }
+    notes++;
+    const title = tern.search.title(a.head, a.ast) || path.basename(f.shown);
+    titles.set(f.shown, title);
+    for (const r of tern.search.records(a.ast, { url: f.shown, title })) {
+      const pos = r.line ? a.toFile({ start: { line: r.line, column: 1 }, end: { line: r.endLine || r.line, column: 1 } }) : null;
+      entries.push({ ...r, file: f.shown, fileLine: pos ? pos.start.line : undefined, fileEndLine: pos ? pos.end.line : undefined });
+    }
+  }
+  const hits = tern.search.query(tern.search.index(entries), query, { limit });
+  const out = [];
+  for (const { entry, score, matched } of hits) {
+    const snippet = tern.search.snippet(entry.text || entry.title || entry.label, matched);
+    const heading = [entry.label, entry.title].filter(Boolean).join(' ');
+    if (o.json) {
+      const { file, fileLine, fileEndLine, url, text, line, endLine, ...rest } = entry;
+      out.push({ file, line: fileLine, endLine: fileEndLine, ...rest, page: titles.get(file), score, snippet: snippet.text, marks: snippet.marks });
+    } else {
+      say(`${entry.file}:${entry.fileLine || 1}: ${heading}${entry.id ? ` (#${entry.id})` : ''}`);
+      say(`    ${snippet.text}`);
+    }
+  }
+  if (o.json) say(JSON.stringify(out, null, 2));
+  warn(notes ? `tern search: ${plural(notes, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}: ${plural(hits.length, 'result')}` : 'tern search: no notes found');
+  return broken ? 2 : hits.length ? 0 : 1;
 }
 
 // ---------------------------------------------------------------- parse
@@ -547,6 +637,7 @@ module.exports = {
   parse: command('parse', parse),
   build: command('build', buildPage),
   mv: command('mv', mv),
+  search: command('search', search),
   corpus: command('corpus', corpus),
   lsp: command('lsp', lsp),
 };

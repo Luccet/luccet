@@ -47,7 +47,7 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://oscarac.github.io/tern/docs/schema.html#themes).
 
-**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `katex.js` and `mathml.js` typeset math. List them in `:::use`, one per line. See [add-ons](https://oscarac.github.io/tern/docs/addons.html).
+**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `katex.js` and `mathml.js` typeset math; `search.js` gives a `::search` box over a set of notes, indexed in the browser. List them in `:::use`, one per line. See [add-ons](https://oscarac.github.io/tern/docs/addons.html).
 
 **As a file:** copy `tern.js` next to your notes and load it relatively (`src="tern.js"`, `src="../tern.js"`). Notes then work offline and straight from disk. [Publishing](https://oscarac.github.io/tern/docs/publishing.html) covers static hosts, GitHub Pages, the Content-Security-Policy and offline use.
 
@@ -58,6 +58,7 @@ node tern-cli.js new notes/linear-maps.html     # write the first line
 node tern-cli.js check notes/                    # diagnostics and broken links, with file lines
 node tern-cli.js build notes/linear-maps.html -o out.html   # a static, pre-rendered page
 node tern-cli.js mv notes/linear-maps.html notes/algebra/    # move it, rewriting the links to and from it
+node tern-cli.js search "rank nullity" notes/              # the sections and blocks that use these words, with lines
 node tern-cli.js lsp                              # the language server, over stdio
 ```
 
