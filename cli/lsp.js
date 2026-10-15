@@ -75,7 +75,13 @@ function receive(msg) {
   if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return send({ id: null, error: { code: -32600, message: 'not a JSON-RPC message' } });
   const { id, method } = msg;
   const params = msg.params && typeof msg.params === 'object' ? msg.params : {};
-  if (typeof method !== 'string') return; // a response: the server sends no requests
+  if (typeof method !== 'string') {
+    // A response, which the server never asked for, is dropped. A request
+    // with an id and no method, or one that is not a string, is answered,
+    // so that no client waits forever (JSON-RPC: an invalid request).
+    if (id !== undefined && !('result' in msg) && !('error' in msg)) send({ id, error: { code: -32600, message: 'the request has no method' } });
+    return;
+  }
   if (id === undefined) {
     if (method === 'exit') return exit();
     const fn = phase === 'running' && NOTIFICATIONS[method];
@@ -183,9 +189,19 @@ function didOpen({ textDocument: d }) {
 function didChange({ textDocument: d, contentChanges }) {
   const doc = d && docs.get(d.uri);
   if (!doc) return;
-  const last = contentChanges && contentChanges[contentChanges.length - 1];
-  if (!last) return;
-  doc.text = String(last.text ?? ''); // full sync: each change is the whole text
+  // Full sync (textDocumentSync.change = 1): each change is the whole text.
+  // One with a range is a client's mistake, which applied as the whole text
+  // would replace the note with a fragment: it is logged and ignored.
+  let text = null;
+  let ranged = 0;
+  for (const c of Array.isArray(contentChanges) ? contentChanges : []) {
+    if (!c || typeof c !== 'object') continue;
+    if (c.range) ranged++;
+    else text = String(c.text ?? '');
+  }
+  if (ranged) log(`${d.uri}: ${ranged} change(s) with a range ignored; the server syncs the full text (textDocumentSync.change = 1)`);
+  if (text === null) return;
+  doc.text = text;
   doc.version = d.version;
   clearTimeout(doc.timer);
   doc.timer = setTimeout(() => guard(() => analyse(doc)), DEBOUNCE);

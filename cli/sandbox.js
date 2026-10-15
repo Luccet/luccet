@@ -433,6 +433,12 @@ function readFrame(fd, deadline) {
   return body ? body.toString('utf8') : body;
 }
 
+// What a note's code prints or throws reaches the terminal through the
+// tools: the control characters that would drive it are taken out — ESC and
+// the rest of C0 but tab and newline, DEL, and C1 — so that a note you have
+// not read cannot retitle the terminal, clear it or plant an OSC hyperlink.
+const clean = (s) => String(s).replace(/[\0-\x08\x0b-\x1f\x7f-\x9f]/g, '');
+
 // Run a note's code in the child and return the parsed reply, or {failed} on
 // a timeout, a crash or a spawn that is not possible here.
 function analyse(req) {
@@ -466,7 +472,7 @@ function analyse(req) {
   } catch (e) {
     return { failed: 'error' };
   }
-  if (reply.consoleOut && reply.consoleOut.length) process.stderr.write(reply.consoleOut.join('\n') + '\n');
+  if (reply.consoleOut && reply.consoleOut.length) process.stderr.write(reply.consoleOut.map(clean).join('\n') + '\n');
   return reply;
 }
 
@@ -481,4 +487,4 @@ function shutdown() {
 }
 
 if (require.main === module && process.argv.includes('--sandbox-child')) childMain();
-else module.exports = { analyse, shutdown };
+else module.exports = { analyse, shutdown, clean };

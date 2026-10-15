@@ -3092,17 +3092,22 @@ function query(idx, text, { limit = 20 } = {}) {
 function snippet(text, matched, { width = 160 } = {}) {
   const flat = String(text).replace(/\s+/g, ' ').trim();
   const list = [...matched];
-  const re = list.length ? new RegExp(`[\\p{L}\\p{N}]*(?:${list.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})[\\p{L}\\p{N}]*`, 'giu') : null;
-  const hits = (s) => {
+  // Every word that matches: it begins with a matched stem, or stems to one.
+  // The words are scanned once, so the cost is linear in the text (a regex
+  // with letters around each stem backtracked from every position of a long
+  // token); `first` stops at the first.
+  const matches = (w) => list.some((k) => w.startsWith(k) || stem(w) === k);
+  const hits = (s, first = false) => {
     const out = [];
-    if (!re) return out;
-    for (const m of s.matchAll(re)) {
-      const w = m[0].toLowerCase();
-      if (list.some((k) => stem(w) === k || w.startsWith(k))) out.push([m.index, m.index + m[0].length]);
+    if (!list.length) return out;
+    for (const m of s.matchAll(/[\p{L}\p{N}]+/gu)) {
+      if (!matches(m[0].toLowerCase())) continue;
+      out.push([m.index, m.index + m[0].length]);
+      if (first) break;
     }
     return out;
   };
-  const first = hits(flat)[0];
+  const first = hits(flat, true)[0];
   let start = first ? Math.max(0, first[0] - Math.floor(width / 3)) : 0;
   let end = Math.min(flat.length, start + width);
   if (end - start < width) start = Math.max(0, end - width);
@@ -5288,7 +5293,9 @@ module.exports = { css };
 // leading.
 
 const OPENER = /^[ \t]*:{3,}(meta|use)(?:[ \t\[{].*)?$/;
-const CLOSER = /^[ \t]*:{3,}(?:\/[A-Za-z][\w-]*)?[ \t]*$/;
+// A closer: bare `:::`, or `:::/NAME` naming the open block, as the parser
+// closes a raw container (block.js); `:::/other` is a line of the block.
+const closer = (s, name) => new RegExp(`^[ \\t]*:{3,}(?:\\/${name})?[ \\t]*$`).test(s);
 
 // scanUse(text, {eof}) -> {entries, decided}: the entries of every leading
 // `:::use` block ({url, line, column, offset}, 1-based line and column),
@@ -5305,11 +5312,12 @@ function scanUse(text, { eof = true } = {}) {
     const nl = text.indexOf('\n', i);
     const end = nl < 0 ? text.length : nl;
     const complete = nl >= 0 || eof; // a last line without its newline may still be growing
-    const s = text.slice(i, end);
+    let s = text.slice(i, end);
+    if (s.endsWith('\r')) s = s.slice(0, -1); // a CRLF file: the parser normalises line endings, so does this scan
     line++;
     if (!complete) return { entries, decided: false };
     if (open) {
-      if (CLOSER.test(s)) open = null;
+      if (closer(s, open)) open = null;
       else if (open === 'use') {
         const re = /\S+/g;
         for (let m; (m = re.exec(s)); ) entries.push({ url: m[0], line, column: m.index + 1, offset: i + m.index });

@@ -1,8 +1,12 @@
-# Every test harness runs on every push and pull request.
+# Every test harness runs on every push to a branch and every pull request.
+# A pushed tag runs release.yml instead, which runs the same tests once.
+# The runner image is pinned: the smoke job installs system packages, and
+# ubuntu-latest moves to the next Ubuntu on GitHub's schedule.
 name: ci
 
 on:
   push:
+    branches: ['**']
   pull_request:
 
 permissions:
@@ -11,20 +15,20 @@ permissions:
 jobs:
   corpus-lint:
     name: corpus lint and spec coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node test/run.js --lint
 
   conformance:
     name: conformance corpus and sample notes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node test/run.js
@@ -32,24 +36,24 @@ jobs:
 
   perf:
     name: performance budgets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node test/perf.js
 
   fuzz:
     name: fuzz (30 s)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node test/fuzz.js --seconds=30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: fuzz-failures
@@ -57,23 +61,35 @@ jobs:
 
   smoke:
     name: browser smoke (Chromium, Firefox)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit --omit=dev # the engine has no runtime dependency; the lockfile keeps that checkable
+      # The CDN copies the smoke tests serve (KaTeX, highlight.js, Mermaid,
+      # Temml), keyed on the add-ons' version tables, and Playwright's
+      # browsers; restored after npm ci, which empties node_modules.
+      - uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/tern-smoke
+          key: tern-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium firefox
       - run: sudo apt-get install -y mupdf-tools # mutool, for the PDF text test
       - run: node test/smoke.js
 
   build:
     name: tern.js is the build of src/
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node tools/concat.js --check
@@ -82,10 +98,10 @@ jobs:
 
   cli:
     name: API, command line, language server and documentation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node test/api.js

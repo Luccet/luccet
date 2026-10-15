@@ -59,19 +59,40 @@
     path: () => 0,
   };
 
+  // The catalogue is fetched from http(s), or the page's own scheme when it
+  // is opened from a file. An entry resolves against the catalogue and must
+  // stay on its origin: tern index writes paths, so a crafted file cannot
+  // send a reader to javascript:, data: or another site.
+  const SCHEMES = new Set(['http:', 'https:', location.protocol]);
+  const fetchable = (u) => SCHEMES.has(u.protocol);
+  function linkTo(url, base) {
+    let u = null;
+    try {
+      u = new URL(url, base);
+    } catch {}
+    if (u && fetchable(u) && u.origin === new URL(base).origin) return u.href;
+    console.warn(`Tern notes.js: ${url} in the catalogue is not a page of this site; left out`);
+    return null;
+  }
+
   async function build(host) {
     const attr = (k) => (host.hasAttribute(k) ? host.getAttribute(k) : defaults[k]);
     const o = { from: attr('from') || 'notes.json', in: attr('in') || '', sort: attr('sort') || 'date', limit: Math.max(1, parseInt(attr('limit'), 10) || Infinity) };
     host.classList.add('t-notes');
-    const url = new URL(o.from, location.href).href;
-    let data;
+    let url = null;
     try {
-      const res = await fetch(url, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error(`${res.status}`);
-      data = await res.json();
-    } catch (e) {
-      console.warn(`Tern notes.js: the catalogue ${url} could not be loaded: ${(e && e.message) || e}`);
-      data = null;
+      url = new URL(o.from, location.href);
+    } catch {}
+    let data = null;
+    if (!url || !fetchable(url)) console.warn(`Tern notes.js: from=${o.from} is not an http(s) file`);
+    else {
+      try {
+        const res = await fetch(url.href, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`${res.status}`);
+        data = await res.json();
+      } catch (e) {
+        console.warn(`Tern notes.js: the catalogue ${url.href} could not be loaded: ${(e && e.message) || e}`);
+      }
     }
     if (!data || !Array.isArray(data.notes)) {
       host.replaceChildren(el('p', { class: 't-notes-status', text: `The list of notes could not be loaded (${o.from}).` }));
@@ -82,8 +103,8 @@
     const page = same(location.href);
     let list = data.notes
       .filter((n) => n && typeof n.url === 'string')
-      .map((n) => ({ ...n, href: new URL(n.url, url).href }))
-      .filter((n) => same(n.href) !== page);
+      .map((n) => ({ ...n, href: linkTo(n.url, url.href) }))
+      .filter((n) => n.href && same(n.href) !== page);
     if (o.in) list = list.filter((n) => n.url.startsWith(o.in));
     if (ORDER[o.sort] && o.sort !== 'path') list.sort(ORDER[o.sort]);
     list = list.slice(0, o.limit === Infinity ? undefined : o.limit);
@@ -98,8 +119,14 @@
     host.replaceChildren(ul);
   }
 
+  // A list that cannot be built says so in place and in the console, instead
+  // of staying empty with an unhandled rejection.
   T.define('notes', (host) => {
     if (host.closest('.docs-live-out')) return; // an example's result on the docs stays inert
-    build(host);
+    build(host).catch((e) => {
+      const why = (e && e.message) || String(e);
+      console.warn(`Tern notes.js: the list could not be built: ${why}`);
+      host.replaceChildren(el('p', { class: 't-notes-status', text: `The list of notes could not be built (${why}).` }));
+    });
   });
 })();

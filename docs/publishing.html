@@ -33,7 +33,7 @@ This is the canonical first line, and `tern new` writes it for you (see [tern ne
 **What the tag must be.** A plain, synchronous, classic script, on one line:
 
 - no `async`, `defer` or `type="module"`: `tern.js` must run while the browser is still reading the file, to capture the rest of it;
-- the file it names must be called exactly `tern.js` (any path, any query string). The browser would run a copy called `tern.min.js`, but the command line and editors would not take the file for a note;
+- the file it names must be called exactly `tern.js` (any path, any query string). The browser would run a copy called `tern.min.js`, and jsDelivr serves one on request beside `tern.js` at every tag, minified there, but the command line and editors would not take the file for a note: do not use it;
 - the whole tag on one line, not inside a comment.
 
 The exact rule is [Note detection](tools.html#detection). Other attributes are allowed on the tag, and some configure `tern.js` (see [The tag's attributes](#tag-attributes)).
@@ -545,6 +545,7 @@ Tern katex.js: KaTeX did not load from https://cdn.jsdelivr.net/npm/katex@0.19.0
 
 - **No math add-on is loaded.** The engine renders no math itself, so a formula stays as its TeX until the note loads [`addons/katex.js`](addons.html#katex) or [`addons/mathml.js`](addons.html#mathml) in `data-use`.
 - **The add-on's library did not load:** no network, the CDN blocked by a network filter or a CSP, a wrong `?base=` copy, or a local copy without its files. The add-on then logs a console warning and leaves each formula as its TeX.
+- **KaTeX's stylesheet did not load** while its script did: a `style-src` that omits the CDN, a copy without `katex.min.css`, or a changed file that fails its integrity check. The warning says so (`KaTeX's stylesheet did not load from …`), and the math stays as TeX rather than typeset unstyled.
 
 **Fix.** Load a math add-on, and check the connection, or serve the library yourself with `?base=` (see [Offline use](#offline)). To show no math, leave the add-on out.
 

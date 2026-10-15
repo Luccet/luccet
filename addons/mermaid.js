@@ -230,7 +230,12 @@
     // An author's own Mermaid theme (?theme=forest) has its own colours.
     const mine = typeof opts.theme === 'string' && opts.theme !== 'base';
     const user = opts.themeVariables && typeof opts.themeVariables === 'object' ? opts.themeVariables : null;
-    return Object.assign({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, theme: 'base', fontFamily: p.font }, opts, {
+    // The author's options under the add-on's own: Mermaid draws when asked,
+    // not on load, and securityLevel stays strict whatever the tag says
+    // (docs/addons.html#mermaid-options).
+    return Object.assign({ suppressErrorRendering: true, theme: 'base', fontFamily: p.font }, opts, {
+      startOnLoad: false,
+      securityLevel: 'strict',
       themeVariables: Object.assign(mine ? { fontFamily: p.font } : v, user),
     });
   }

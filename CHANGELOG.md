@@ -2,6 +2,23 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org) with a `0.x` caveat: until 1.0, a minor release may change how an existing note renders or what an add-on receives, and the entry says so when it does. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
+## 0.4.4 (unreleased)
+
+Phase 1 of the [remediation plan](https://github.com/OzkrAC/tern): the confirmed defects that are a few lines and a test each, and the project files a repository is expected to have.
+
+- KaTeX add-on: `?trust=false` and `?strict=false` on the add-on's URL now mean false. They arrived as strings, which KaTeX read as true, so an author who turned trust off turned it on.
+- Notes and search add-ons: an entry of `notes.json` or `search.json` whose URL is not a page on the file's own origin is left out, with a warning; a crafted file could make a `javascript:` or `data:` link. `index=` and `from=` must name `http(s)` URLs, and one that is not a URL at all is reported in place instead of leaving the box at "Indexing…" or the list empty.
+- KaTeX add-on: a stylesheet that fails to load (a 404, an SRI mismatch, a `style-src` that omits the CDN) leaves math as its TeX source, with a warning, as a failed script does; it used to typeset into unstyled markup, each formula shown three times over.
+- Mermaid add-on: `securityLevel` stays strict whatever the add-on's options say.
+- The `:::use` scan (`src/use.js`, what the runtime and the tools read before parsing) handles CRLF text and closes the block only at `:::` or `:::/use`, as the parser does; `:::/meta` inside it used to end it early. The command line and the language server normalise line endings before scanning, so they were not affected by the CRLF part.
+- Search: the snippet's word matching is linear in the text; its regex backtracked on a long unbroken token (about five seconds for 50,000 letters, once per hit in the search add-on and `tern search`). A word that stems to a matched stem (`studies` for `study`) is now marked too.
+- Language server: a request with an id and no method, or a method that is not a string, is answered with `-32600` instead of being dropped, so a client does not wait forever; a `didChange` entry with a `range` is logged and ignored instead of being applied as the whole text (the server syncs full text).
+- `tern index`: a tracked note with changes not yet committed is dated today, the day of the commit a hook is about to make, so that `--check` holds once it is committed; it was dated by its modification day, which could differ. A file git does not track is still dated by its modification time.
+- Command line: output piped to a reader that closes early (`tern parse FILE | head`) ends the command quietly with exit 0; it died with an unhandled `EPIPE` and a stack trace, exit 1.
+- Command line: what a note's add-on throws or logs is printed without terminal control characters (ESC, C1, the rest of C0 but tab and newline), in diagnostics, hints, `--json` and the console relay, so a note you have not read cannot retitle or clear the terminal. `?securityLevel=loose` on the tag used to win over the documented default, which made a `click` with a `javascript:` URL a live link.
+- Project files: `SECURITY.md`, with private vulnerability reporting enabled on GitHub; `CONTRIBUTING.md`; an Editors section in the README. The README and the publishing page say that `tern.min.js` exists on jsDelivr, minified on request, and must not be used: the tools take a note only from a tag whose file is called `tern.js`.
+- CI: the actions run on Node 24, the runner image is pinned to Ubuntu 24.04, and a tag's push no longer runs the CI workflow beside the release one. A lockfile, `npm ci`, `npm audit`, and caches for the smoke tests' CDN copies and browsers.
+
 ## 0.4.3 (2026-10-15)
 
 The first release whose tag, `package.json` and `tern.version` agree, and the first with a changelog and a GitHub Release.

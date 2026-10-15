@@ -35,6 +35,8 @@ const ROOT = path.join(__dirname, '..');
 // `built` places are tools/concat.js's to write.
 const PLACES = [
   ['package.json', '"version": "{v}"'],
+  ['package-lock.json', '"name": "tern",\n  "version": "{v}"'], // the root
+  ['package-lock.json', '"name": "tern",\n      "version": "{v}"'], // packages[""]
   ['src/index.js', "const version = '{v}';"],
   ['tern.js', '// tern.js {v}: built from src/', { built: true }],
   ['tern.js', "const version = '{v}';", { built: true }],

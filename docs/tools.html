@@ -68,7 +68,7 @@ $ echo $?
 | `1` | `tern check` found a diagnostic at or above `--fail-on`, `tern new` refused to write the file, `tern mv` refused to move or a move failed, `tern search` found nothing, `tern index --check` found a file missing or stale, or `tern corpus` left out an example. |
 | `2` | A usage error (a missing argument, an unknown option, a bad value), or a path that cannot be used: a missing or unreadable file, or, for `tern parse` and `tern build`, a file that is not a note. |
 
-Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. Options are strict: an unknown option is a usage error, printed with the synopsis.
+Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. Options are strict: an unknown option is a usage error, printed with the synopsis. When the reader of the output closes before the command is done (`tern parse FILE | head`), the command ends quietly with exit 0.
 
 ```sh
 $ tern new x.html --bogus
@@ -144,7 +144,7 @@ A note's head scripts and script add-ons are the note's own code, not the tool's
 - a **separate process**, started with Node's [permission model](https://nodejs.org/api/permissions.html) and an empty environment, able to read only `tern.js` and the sandbox's own file: it cannot reach your files, run another program, or load a native add-on. The tools read the note's add-on files and send the source in; the code never reads the disk itself;
 - inside it, a **sealed context** for each note: the code sees a fresh global with the engine and the `tern`/`window` shim and nothing of Node, so the usual ways to climb out (`this.constructor.constructor`, and so on) reach no real object. Dynamic `import()` is refused, and the 2-second limit stops a script or transform that never returns.
 
-This is a seat belt for code that misbehaves or that you have not read, not a vault for hostile code; Node's permission model [states as much](https://nodejs.org/api/permissions.html#permission-model). Network access is not among the things it blocks. Pass **`--no-scripts`** to `check`, `build` or `parse` (or set it in the editor) to analyse a note without running its code at all: its own vocabulary is then unknown, so names it declares may get [`name.unknown`](diagnostics.html#name-unknown) and the like, but nothing in it runs.
+This is a seat belt for code that misbehaves or that you have not read, not a vault for hostile code; Node's permission model [states as much](https://nodejs.org/api/permissions.html#permission-model). Network access is not among the things it blocks. What the code throws or prints through `console` is shown with terminal control characters taken out (escape sequences, C1), so it cannot retitle or clear the terminal. Pass **`--no-scripts`** to `check`, `build` or `parse` (or set it in the editor) to analyse a note without running its code at all: its own vocabulary is then unknown, so names it declares may get [`name.unknown`](diagnostics.html#name-unknown) and the like, but nothing in it runs.
 
 A transform that throws is reported like this, and the note is checked without it:
 
@@ -838,7 +838,7 @@ $ echo $?
 
 - **`url`** is the note's path relative to the file, with forward slashes, so a site can be served under any path.
 - **`title`** is the head's `<title>`, else `:::meta`'s `title`, else the first heading's text. **`description`** is the head's `<meta name="description">`, else `:::meta`'s `description`, else empty.
-- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD`, so that lists sort. Without one, in a git repository, it is the day of the note's last commit, or the day it was last modified for a note with changes not yet committed; outside a repository, the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist.
+- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD`, so that lists sort. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist.
 - **`headings`** are every heading of the note, with its depth, its id as the page gives it, and its text. **`links`** are the notes in the catalogue this note links to, as paths like `url`, each once.
 
 **`search.json`** is the search index: `tern`, `notes` (each note's `url` and `title`), and the index [`tern.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The stems in `terms` are the stemmer's, which changes only in a minor release of Tern, so an index serves the readers of its own series (`0.4.x`); a reader from another says so and does without it.
@@ -1047,7 +1047,7 @@ $$ {#eq}
 | Code | When |
 |---|---|
 | `-32002` | a request before `initialize` |
-| `-32600` | a request after `shutdown`; a second `initialize`; a message that is not a JSON-RPC object |
+| `-32600` | a request after `shutdown`; a second `initialize`; a message that is not a JSON-RPC object; a request with an id and no method |
 | `-32601` | a method the server does not support, such as `textDocument/formatting` |
 | `-32602` | a request on a document that was never opened (`unknown document: it was never opened`), or a rename to a name that is not allowed |
 | `-32700` | a body that is not JSON, answered with `id: null` |
@@ -1055,6 +1055,7 @@ $$ {#eq}
 | `-32603` | an exception in the server, also logged to stderr |
 
 - **Notifications** are never answered. Unknown ones are ignored.
+- **Changes** carry the whole text (`textDocumentSync.change` is 1). A `didChange` entry with a `range` is logged to stderr and ignored, so a client that sends one leaves the document as it was.
 - **stdout** carries protocol messages only. The server sends everything that scripts print through `console`, its own and the add-ons', to stderr, where most clients show it in a log.
 
 ### Analysis and the debounce {#lsp-analysis}

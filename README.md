@@ -47,7 +47,8 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 <script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v0.4.3/tern.js"></script>
 ```
 
-- **To follow releases,** use `@0.4` (the newest 0.4.x) or `@latest` (the newest release). 
+- **To follow releases,** use `@0.4` (the newest 0.4.x) or `@latest` (the newest release).
+- **Not `tern.min.js`.** jsDelivr minifies any file on request, so `tern.min.js` exists beside `tern.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `tern.js`.
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://ozkrac.github.io/tern/docs/schema.html#themes).
 
@@ -68,11 +69,18 @@ node tern-cli.js lsp                              # the language server, over st
 
 Named blocks such as `:::theorem` get labels, counters and elements from a schema: an add-on listed in `:::use` (or `data-use`), or `window.TERN = {schema: …}` in a script before the tern.js line ([Vocabulary and behaviour](docs/schema.html)).
 
+## Editors
+
+- **Neovim:** [tern.nvim](https://github.com/OzkrAC/tern.nvim) runs the language server and adds the commands (`:TernCheck`, `:TernBuild`, `:TernSearch` …), with the outline and a preview.
+- **Any editor with a language-server client:** `node tern-cli.js lsp` speaks LSP over stdio: diagnostics as the browser reports them, completion, hover, definition, references, rename, symbols, folding, and link fixes when a file is moved. Setup, and the note-detection rule an editor needs, in [Command line and editors](https://ozkrac.github.io/tern/docs/tools.html#lsp).
+
 ## Agent skills
 
 [`skills/tern-notes`](skills/tern-notes/SKILL.md) teaches coding agents (GitHub Copilot, Claude Code, Codex, Cursor) to write, check and fix notes. Install it in a project with `gh skill install OzkrAC/tern tern-notes`, or copy it into the project's `.github/skills/` ([skills/README.md](skills/README.md)).
 
 ## Development
+
+[CONTRIBUTING.md](CONTRIBUTING.md) says how a change is made and tested; [SECURITY.md](SECURITY.md) how to report a security problem.
 
 ```
 npm run build       # src/ → tern.js and tern.css

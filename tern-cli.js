@@ -16,6 +16,16 @@
 
 const commands = require('./cli/commands');
 
+// A reader that closes early (tern parse FILE | head) ends the command
+// quietly, exit 0, instead of an unhandled EPIPE with a stack trace; the
+// language server exits 1, as it does when its client closes stdin first.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (e) => {
+    if (e && e.code === 'EPIPE') process.exit(process.argv[2] === 'lsp' ? 1 : 0);
+    throw e;
+  });
+}
+
 const COMMANDS = ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'lsp'];
 const [name, ...args] = process.argv.slice(2);
 const run = COMMANDS.includes(name) ? commands[name] : null;

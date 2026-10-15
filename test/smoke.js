@@ -271,8 +271,47 @@ function useLongNote() {
   return ['<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>', '', ':::use', '/addons/katex.js', ':::', '', '# Smoke: a long note with a leading :::use', '', 'A formula $x^2$ near the top.', '', filler, ''].join('\n');
 }
 
+// A catalogue and an index as tern index never writes them: entries whose
+// URLs are not pages of the site, beside one that is, for the notes and
+// search add-ons to leave out. Served as /gen/bad-index/, with the page
+// that reads them.
+function badIndexPage() {
+  return [
+    '<!doctype html><meta charset="utf-8"><title>Smoke: a crafted catalogue</title><script src="/tern.js" data-use="/addons/notes.js /addons/search.js"></script>',
+    '',
+    ':::meta',
+    'robots: noindex',
+    ':::',
+    '',
+    '# Smoke: URLs a catalogue may not hold',
+    '',
+    '::notes{#list}',
+    '',
+    '::search{#box index=search.json}',
+    '',
+    'Two with a URL that is not one:',
+    '',
+    '::search{#bad index="http://[bad"}',
+    '',
+    '::notes{#badfrom from="http://[bad"}',
+    '',
+  ].join('\n');
+}
+function badIndex() {
+  const version = require(TERN_JS).version;
+  const entry = (url, label) => ({ url, id: 'h', kind: 'heading', label, title: '', text: 'alpha text' });
+  const entries = [entry('good.html', 'Alpha good'), entry('javascript:alert(1)//', 'Alpha script'), entry('data:text/html,<script>alert(1)</script>', 'Alpha data'), entry('https://other.example/x.html', 'Alpha elsewhere'), entry('//other.example/y.html', 'Alpha protocol-relative')];
+  return {
+    search: { tern: version, notes: entries.map((e) => ({ url: e.url, title: e.label })), entries, terms: { alpha: entries.map((_, i) => [i, 3]), text: entries.map((_, i) => [i, 1]) }, lengths: entries.map(() => 2), avg: 2 },
+    notes: { tern: version, notes: entries.map((e, i) => ({ url: e.url, title: e.label, date: `2026-01-0${i + 1}`, headings: [], links: [] })) },
+  };
+}
+
 const GENERATED = {
   'big.js': () => ['text/javascript', pad(260) + "window.order = (window.order || []).concat('external');\n"],
+  'bad-index/index.html': () => ['text/html', badIndexPage()],
+  'bad-index/search.json': () => ['application/json', JSON.stringify(badIndex().search)],
+  'bad-index/notes.json': () => ['application/json', JSON.stringify(badIndex().notes)],
   'addon.js': () => ['text/javascript', pad(20) + 'window.__addon = (window.__addon || 0) + 1;\n'],
   'addon.css': () => ['text/css', pad(6) + '.tern { outline-color: currentColor; }\n'],
   'math4000.html': () => ['text/html', mathNote()],
@@ -2030,6 +2069,96 @@ const TESTS = [
       if (r.items.join() !== 'post.html') throw new Error(`the list ${JSON.stringify(r.items)} ${r.status}, expected the post alone: the page itself left out`);
       if (!/^1 note\b/.test(r.search)) throw new Error(`the search status "${r.search}", expected the post alone indexed`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    // KaTeX reads a string 'false' as true, so the add-on must make it a
+    // boolean; with trust off, KaTeX shows an untrusted command's name in its
+    // error colour instead of making the link.
+    name: 'katex add-on: ?trust=false on the add-on reads as false, so \\href is shown as unsupported and no javascript: link is made',
+    url: '/test/smoke/katex-trust.html',
+    async check(page) {
+      await expect(page, () => document.querySelectorAll('main.tern .t-math .katex').length === 2, 'both formulas typeset');
+      const r = await page.evaluate(() => ({
+        math: [...document.querySelectorAll('main.tern .t-math')].map((e) => ({ error: e.classList.contains('t-error'), shown: e.querySelector('.katex-html').textContent, anchors: e.querySelectorAll('a').length })),
+        links: [...document.querySelectorAll('main.tern a')].map((a) => a.getAttribute('href')),
+      }));
+      if (r.math[0].error || r.math[0].anchors || !/\\href/.test(r.math[0].shown) || /javascript/.test(r.math[0].shown)) throw new Error(`the \\href formula ${JSON.stringify(r.math[0])}, expected the command's name shown as unsupported, no link`);
+      if (r.math[1].error || r.math[1].shown.trim() !== 'y2') throw new Error(`the plain formula ${JSON.stringify(r.math[1])}, expected it typeset`);
+      if (r.links.length) throw new Error(`links in the note: ${JSON.stringify(r.links)}, expected none`);
+    },
+  },
+  {
+    name: 'mermaid add-on: ?securityLevel=loose on the add-on does not loosen it: strict, and a click with a javascript: URL makes no such link',
+    url: '/test/smoke/mermaid-loose.html',
+    timeout: 60000,
+    async setup(_context, _page, ctx) {
+      if (!(await mermaidDir(MERMAID_VERSION))) ctx.skip(`no local copy of Mermaid ${MERMAID_VERSION}`);
+    },
+    async check(page) {
+      await page.waitForFunction(() => document.querySelector('.t-mermaid > svg.t-mermaid-screen'), null, { timeout: 40000 });
+      const r = await page.evaluate(() => ({
+        level: window.mermaid.mermaidAPI.getConfig().securityLevel,
+        look: window.mermaid.mermaidAPI.getConfig().look,
+        hrefs: [...document.querySelectorAll('.t-mermaid a')].map((a) => a.getAttribute('href') || a.getAttribute('xlink:href') || ''),
+      }));
+      if (r.level !== 'strict') throw new Error(`securityLevel ${r.level}, expected strict whatever the tag says`);
+      if (r.look !== 'classic') throw new Error(`look ${r.look}: the other options still reach Mermaid`);
+      if (r.hrefs.some((h) => /^\s*javascript:/i.test(h))) throw new Error(`a javascript: link in the diagram: ${JSON.stringify(r.hrefs)}`);
+    },
+  },
+  {
+    name: 'notes and search add-ons: an entry whose URL is javascript:, data:, another site or a protocol-relative one is left out with a warning; the site\'s own page stays',
+    url: '/gen/bad-index/index.html',
+    allowConsole: /Failed to load resource/, // Enter opens good.html, which the server does not have
+    async check(page, ctx) {
+      await expect(page, () => document.querySelector('#list .t-notes-list, #list .t-notes-status') && /note/.test(document.querySelector('#box .t-search-status').textContent), 'the list and the box to settle');
+      await page.fill('#box .t-search-box', 'alpha');
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => ({
+        list: [...document.querySelectorAll('#list .t-notes-list a')].map((a) => a.getAttribute('href').replace(/^.*\/bad-index\//, '')),
+        status: document.querySelector('#box .t-search-status').textContent,
+        hits: [...document.querySelectorAll('#box .t-search-results a')].map((a) => a.getAttribute('href').replace(/^.*\/bad-index\//, '')),
+        anchors: [...document.querySelectorAll('main.tern a')].map((a) => a.getAttribute('href')).filter((h) => !/good\.html/.test(h)),
+      }));
+      if (r.list.join() !== 'good.html') throw new Error(`the list ${JSON.stringify(r.list)}, expected good.html alone`);
+      if (r.hits.join() !== 'good.html#h' || r.status !== '1 result') throw new Error(`"alpha": ${JSON.stringify(r.hits)} (${r.status}), expected good.html#h alone`);
+      if (r.anchors.length) throw new Error(`other links on the page: ${JSON.stringify(r.anchors)}`);
+      const warned = ctx.console.filter((m) => m.type === 'warning' && /left out/.test(m.text)).length;
+      if (warned !== 8) throw new Error(`${warned} warnings, expected one per refused URL: four in each file`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+      await page.focus('#box .t-search-box');
+      await page.keyboard.press('Enter');
+      await page.waitForURL(/\/gen\/bad-index\/good\.html#h$/, { timeout: 5000 });
+    },
+  },
+  {
+    name: 'notes and search add-ons: a malformed index= or from= is reported in place, not left at Indexing… or empty with an unhandled rejection',
+    url: '/gen/bad-index/index.html',
+    async check(page, ctx) {
+      await expect(page, () => document.querySelector('#bad .t-search-status') && !/Indexing/.test(document.querySelector('#bad .t-search-status').textContent) && document.querySelector('#badfrom .t-notes-status'), 'both leaves to settle');
+      const r = await page.evaluate(() => ({ search: document.querySelector('#bad .t-search-status').textContent, notes: document.querySelector('#badfrom .t-notes-status').textContent }));
+      if (!/^The search could not be set up \(.+\)\.$/.test(r.search)) throw new Error(`the box's status "${r.search}"`);
+      if (!/^The list of notes could not be loaded \(http:\/\/\[bad\)\.$/.test(r.notes)) throw new Error(`the list's status "${r.notes}"`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /search box could not be set up/.test(m.text))) throw new Error(`no warning for the box; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /from=http:\/\/\[bad is not an http\(s\) file/.test(m.text))) throw new Error(`no warning for the list; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    name: "katex add-on: a stylesheet that fails to load leaves math as its source, with a warning, instead of typesetting it unstyled",
+    url: '/test/smoke/katex-unavailable.html',
+    allowConsole: /Failed to load resource|katex\.min\.css|stylesheet/i,
+    async setup(context) {
+      // Registered after the KaTeX cache route, so it wins: the stylesheet alone is refused.
+      await context.route((url) => /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@[^/]+\/dist\/katex\.min\.css/.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
+    },
+    async check(page, ctx) {
+      await expect(page, () => window.katex && typeof window.katex.render === 'function', 'KaTeX itself to have loaded');
+      await page.waitForTimeout(300);
+      const math = await page.evaluate(() => [...document.querySelectorAll('main.tern .t-math')].map((e) => ({ text: e.textContent, katex: !!e.querySelector('.katex') })));
+      if (math.length !== 1 || math[0].katex || math[0].text !== 'x^2 + 1') throw new Error(`math ${JSON.stringify(math)}, expected its source "x^2 + 1"`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /stylesheet did not load/.test(m.text))) throw new Error(`no "stylesheet did not load" warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
     },
   },
 ];
