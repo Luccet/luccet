@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // search.js, Tern's search add-on (docs/addons.html#search). A `::search` leaf
-// becomes a search box over a set of notes, indexed in the browser: the notes
-// are fetched, parsed by the engine with the page's own vocabulary, and split
-// into entries — every heading's section and every named block with an id
-// (an exercise, a theorem …) — so a hit links straight to its place. The
-// pipeline is the engine's `tern.search` (docs/api.html#search), which
+// becomes a search box over a set of notes. Indexed in the browser, the
+// notes are fetched, parsed by the engine with the page's own vocabulary,
+// and split into entries — every heading's section and every named block
+// with an id (an exercise, a theorem …) — so a hit links straight to its
+// place. With `index=`, the same index is read from the search.json that
+// `tern index` wrote (docs/tools.html#index): one file, no note fetched.
+// The pipeline is the engine's `tern.search` (docs/api.html#search), which
 // `tern search` runs on files; this file fetches and draws.
 //
 //   <script src="tern.js" data-use="addons/search.js"></script>
@@ -12,11 +14,15 @@
 //   ::search                        the notes this page links to
 //   ::search{from=index.html}       the notes that page links to
 //   ::search{notes="a.html b.html"} these notes
+//   ::search{index=search.json}     the notes that index holds
 //
 // `limit` caps the results (20), `placeholder` sets the box's. The same
 // options go on the add-on (`?from=index.html`) or in window.TERN = {use:
 // {search: {…}}}; an attribute on the leaf wins. `?q=` in the page's URL
-// fills the box, and typing keeps it up to date.
+// fills the box, and typing keeps it up to date. An index that cannot be
+// loaded, or was written by another version series of tern.js (its stems
+// are the stemmer's), is reported in the console and the notes are indexed
+// here instead, from `notes`, `from` or the page's links.
 //
 // Matching is lexical: words are stemmed lightly and a query word matches
 // the words it begins (`pythag` finds Pythagoras and Pythagorean), scored
@@ -118,12 +124,33 @@
       console.warn(`Tern search.js: ${url} could not be parsed: ${(e && e.message) || e}`);
       return null;
     }
-    const title = S.title(head, ast) || url.replace(/^.*\//, '');
-    const links = [];
-    T.visit(ast, (n) => {
-      if (n.type === 'link' && typeof n.url === 'string') links.push(n.url);
-    });
-    return { url, title, links, records: S.records(ast, { url, title }) };
+    const d = S.describe(head, ast);
+    const title = d.title || url.replace(/^.*\//, '');
+    return { url, title, links: d.links, records: S.records(ast, { url, title }) };
+  }
+
+  // A search.json `tern index` wrote, read: {notes, entries, terms, lengths,
+  // avg}, or null when it cannot be used, with the reason in the console.
+  const series = (v) => String(v).split('.').slice(0, 2).join('.');
+  async function loadIndex(url) {
+    let data;
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`${res.status}`);
+      data = await res.json();
+    } catch (e) {
+      console.warn(`Tern search.js: the index ${url} could not be loaded (${(e && e.message) || e}); indexing the notes here`);
+      return null;
+    }
+    if (!data || !Array.isArray(data.entries) || !data.terms || typeof data.terms !== 'object' || !Array.isArray(data.lengths)) {
+      console.warn(`Tern search.js: ${url} is not a search index written by tern index; indexing the notes here`);
+      return null;
+    }
+    if (series(data.tern) !== series(T.version)) {
+      console.warn(`Tern search.js: ${url} was written by tern ${data.tern} and this page runs ${T.version}: run tern index again; indexing the notes here`);
+      return null;
+    }
+    return data;
   }
 
   // ---------------------------------------------------------------- the widget
@@ -156,29 +183,44 @@
 
   async function build(host) {
     const attr = (k) => (host.hasAttribute(k) ? host.getAttribute(k) : defaults[k]);
-    const o = { notes: attr('notes'), from: attr('from'), limit: Math.max(1, parseInt(attr('limit'), 10) || 20), placeholder: attr('placeholder') || 'Search the notes' };
+    const o = { notes: attr('notes'), from: attr('from'), index: attr('index'), limit: Math.max(1, parseInt(attr('limit'), 10) || 20), placeholder: attr('placeholder') || 'Search the notes' };
     host.classList.add('t-search');
     const box = el('input', { type: 'search', class: 't-search-box', placeholder: o.placeholder, 'aria-label': o.placeholder, autocomplete: 'off' });
     const status = el('p', { class: 't-search-status', role: 'status', text: 'Indexing…' });
     const results = el('ol', { class: 't-search-results', 'aria-live': 'polite' });
     host.replaceChildren(box, status, results);
 
-    const urls = await noteList(host, o);
-    const notes = (await Promise.all(urls.map(load))).filter(Boolean);
-    const entries = notes.flatMap((n) => n.records);
-    const idx = S.index(entries);
-    const skipped = urls.length - notes.length;
-    const ready = `${notes.length} note${notes.length === 1 ? '' : 's'}, ${entries.length} entries${skipped ? `; ${skipped} could not be read` : ''}`;
+    // The index: the file `index=` names, else built here from the notes.
+    let idx = null;
+    let base = location.href; // what the entries' URLs are relative to
+    let ready;
+    const indexURL = o.index ? new URL(o.index, location.href).href : null;
+    const data = indexURL ? await loadIndex(indexURL) : null;
+    let titleOf;
+    if (data) {
+      idx = data;
+      base = indexURL;
+      titleOf = new Map((data.notes || []).map((n) => [n.url, n.title]));
+      const n = (data.notes || []).length;
+      ready = `${n} note${n === 1 ? '' : 's'}, ${idx.entries.length} entries`;
+    } else {
+      const urls = await noteList(host, o);
+      const notes = (await Promise.all(urls.map(load))).filter(Boolean);
+      const entries = notes.flatMap((n) => n.records);
+      idx = S.index(entries);
+      const skipped = urls.length - notes.length;
+      ready = `${notes.length} note${notes.length === 1 ? '' : 's'}, ${entries.length} entries${skipped ? `; ${skipped} could not be read` : ''}`;
+      titleOf = new Map(notes.map((n) => [n.url, n.title]));
+    }
     status.textContent = ready;
 
-    const titleOf = new Map(notes.map((n) => [n.url, n.title]));
     const show = (q) => {
       results.replaceChildren();
       if (!q.trim()) return void (status.textContent = ready);
       const hits = S.query(idx, q, { limit: o.limit });
       status.textContent = hits.length ? `${hits.length} result${hits.length === 1 ? '' : 's'}` : 'No results';
       for (const { entry, matched } of hits) {
-        const href = entry.id ? `${entry.url}#${entry.id}` : entry.url;
+        const href = `${new URL(entry.url, base).href}${entry.id ? `#${entry.id}` : ''}`;
         const title = [entry.label, entry.title].filter(Boolean).join(' ');
         const link = el('a', { href }, el('span', { class: 't-search-label t-search-title', text: title }), el('span', { class: 't-search-page', text: titleOf.get(entry.url) || '' }));
         results.append(el('li', null, link, snippet(entry.text || entry.title || entry.label, matched)));

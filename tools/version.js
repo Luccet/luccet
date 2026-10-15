@@ -36,6 +36,7 @@ const PLACES = [
   ['docs/publishing.html', '```text\ntern {v}: '],
   ['docs/tools.html', '$ tern --version\n{v}\n'],
   ['docs/tools.html', '"serverInfo": { "name": "tern", "version": "{v}" }'],
+  ['docs/tools.html', '"tern": "{v}",'],
 ];
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;

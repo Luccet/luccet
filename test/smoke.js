@@ -20,6 +20,9 @@
 //                        note-config.html, addon-throws.html and
 //                        poster.html built
 //   /gen/poster.png      a 1-pixel PNG, poster.html's poster
+//   /gen/indexed/…       a copy of test/smoke/search/ after `tern index`
+//                        ran in it: notes.json and search.json beside the
+//                        notes, for the notes add-on and ::search{index=}
 //   {{CDN}}              in test/smoke/*.html: a second, slow origin (a "CDN")
 //   /test/samples/…      tern.js and tern.css resolve to the
 //                        repository's; images, videos and component scripts
@@ -147,6 +150,8 @@ function staticHandler(cdnOrigin) {
     if (url.startsWith('/vendor/highlightjs/')) file = path.join(CACHE, `highlightjs-${HLJS_VERSION}`, path.normalize(url.slice('/vendor/highlightjs/'.length)));
     if (url.startsWith('/vendor/mermaid/')) file = path.join(CACHE, `mermaid-${MERMAID_VERSION}`, 'dist', path.normalize(url.slice('/vendor/mermaid/'.length)));
     if (url.startsWith('/vendor/temml/')) file = path.join(CACHE, `temml-${TEMML_VERSION}`, 'dist', path.normalize(url.slice('/vendor/temml/'.length)));
+    // The search fixtures with the files `tern index` writes beside them.
+    if (url.startsWith('/gen/indexed/')) file = path.join(indexedDir(), path.normalize(url.slice('/gen/indexed/'.length)));
     // A sample's add-ons (addons/katex.js …) resolve to the repository's, as tern.js does.
     if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
     const missing = !file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory();
@@ -165,7 +170,7 @@ function staticHandler(cdnOrigin) {
       }
     }
     if (file === path.join(ROOT, 'tern.js')) file = TERN_JS;
-    if ((file !== TERN_JS && !file.startsWith(ROOT)) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    if ((file !== TERN_JS && !file.startsWith(ROOT) && !(INDEXED && file.startsWith(INDEXED))) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);
       res.end('not found');
       return;
@@ -293,6 +298,21 @@ const CLI = path.join(ROOT, 'tern-cli.js');
 const KATEX_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8'))[1];
 const GUARDED_NOTE = '# Smoke: a guarded note\n\nRendered by tern.js, or shown as its source when tern.js does not load.\n';
 const cliPages = new Map();
+
+// test/smoke/search/ copied to a temporary folder and indexed there with
+// `tern index`, so notes.json and search.json sit beside the notes without
+// being written into the repository; served as /gen/indexed/. Once.
+let INDEXED = null;
+function indexedDir() {
+  if (INDEXED) return INDEXED;
+  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tern-smoke-indexed-')), 'search');
+  fs.cpSync(path.join(ROOT, 'test', 'smoke', 'search'), dir, { recursive: true });
+  const r = spawnSync(process.execPath, [CLI, 'index', dir], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
+  if (r.status !== 0) throw new Error(`tern index exited ${r.status}: ${r.stderr.trim()}`);
+  INDEXED = dir;
+  return dir;
+}
+
 function cliPage(name) {
   if (cliPages.has(name)) return cliPages.get(name);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-smoke-cli-'));
@@ -1934,6 +1954,63 @@ const TESTS = [
       await page.focus('.t-search-box');
       await page.keyboard.press('Enter');
       await page.waitForURL(/beta\.html#circ$/, { timeout: 5000 });
+    },
+  },
+  {
+    name: 'search add-on: index= reads the search.json tern index wrote, fetching no note, hits resolving from the file; an index that cannot be loaded falls back to indexing here',
+    url: '/gen/indexed/indexed.html',
+    allowConsole: /Failed to load resource/,
+    async setup(_context, page, ctx) {
+      ctx.fetched = [];
+      page.on('request', (r) => r.resourceType() !== 'document' && /\/gen\/indexed\//.test(r.url()) && ctx.fetched.push(r.url().replace(/^.*\/indexed\//, '')));
+    },
+    async check(page, ctx) {
+      const status = (sel) => page.evaluate((sel) => document.querySelector(`${sel} .t-search-status`).textContent, sel);
+      await expect(page, () => ['#pre', '#live'].every((s) => document.querySelector(`${s} .t-search-status`) && !/Indexing/.test(document.querySelector(`${s} .t-search-status`).textContent)), 'both boxes to be ready');
+      if ((await status('#pre')) !== '3 notes, 6 entries') throw new Error(`status "${await status('#pre')}", expected the index's three notes, the noindex pages left out`);
+      if ((await status('#live')) !== '1 note, 3 entries') throw new Error(`the fallback's status "${await status('#live')}", expected alpha.html indexed here`);
+      await page.fill('#pre .t-search-box', 'pythag');
+      await page.waitForTimeout(250);
+      const hits = await page.evaluate(() => [...document.querySelectorAll('#pre .t-search-results > li')].map((li) => ({
+        title: li.querySelector('.t-search-title').textContent,
+        page: li.querySelector('.t-search-page').textContent,
+        href: li.querySelector('a').getAttribute('href').replace(/^.*\/indexed\//, ''),
+        marks: [...li.querySelectorAll('mark')].map((m) => m.textContent),
+      })));
+      if (hits.length !== 2 || hits[0].href !== 'alpha.html#ex-1' || hits[1].href !== 'hidden.html#no') throw new Error(`"pythag": ${JSON.stringify(hits)}, expected the exercise then the hidden note's section`);
+      if (hits[0].title !== 'Exercise 1 I.1' || hits[0].page !== 'Alpha: triangles' || hits[0].marks.join() !== 'Pythagoras') throw new Error(`the first hit ${JSON.stringify(hits[0])}`);
+      const fetched = [...new Set(ctx.fetched)].sort();
+      if (fetched.join() !== 'alpha.html,missing.json,search.json,vocab.js') throw new Error(`fetched ${fetched.join(', ')}: expected the index, the missing index, and alpha.html for the fallback box only`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+      await page.focus('#pre .t-search-box');
+      await page.keyboard.press('Enter');
+      await page.waitForURL(/\/gen\/indexed\/alpha\.html#ex-1$/, { timeout: 5000 });
+    },
+  },
+  {
+    name: 'notes add-on: lists the catalogue tern index wrote, newest first, with dates and descriptions; sort=title and limit; a catalogue that cannot be loaded says so',
+    url: '/gen/indexed/notes.html',
+    allowConsole: /Failed to load resource/,
+    async check(page, ctx) {
+      await expect(page, () => document.querySelectorAll('.t-notes').length === 3 && [...document.querySelectorAll('.t-notes')].every((n) => n.querySelector('.t-notes-list, .t-notes-status')), 'the three lists to settle');
+      const r = await page.evaluate(() => [...document.querySelectorAll('.t-notes')].map((n) => ({
+        label: n.getAttribute('aria-label'),
+        tag: n.tagName,
+        items: [...n.querySelectorAll('li')].map((li) => [li.querySelector('.t-notes-title').textContent, li.querySelector('.t-notes-title').getAttribute('href').replace(/^.*\/indexed\//, ''), (li.querySelector('.t-notes-date') || {}).textContent || '', (li.querySelector('.t-notes-desc') || {}).textContent || '']),
+        status: (n.querySelector('.t-notes-status') || {}).textContent || '',
+      })));
+      const want = [
+        ['Beta: circles', 'beta.html', '2026-03-01', 'Circles and what is inscribed in them.'],
+        ['Alpha: triangles', 'alpha.html', '2026-02-01', 'Right triangles and their hypotenuse.'],
+        ['Hidden', 'hidden.html', '2025-12-31', ''],
+      ];
+      if (JSON.stringify(r[0].items) !== JSON.stringify(want)) throw new Error(`the default list ${JSON.stringify(r[0].items)}, expected newest first, the noindex pages and this page left out`);
+      if (JSON.stringify(r[1].items.map((i) => i[0])) !== JSON.stringify(['Alpha: triangles', 'Beta: circles'])) throw new Error(`sort=title limit=2: ${JSON.stringify(r[1].items)}`);
+      if (r[2].items.length || !/could not be loaded \(missing\.json\)/.test(r[2].status)) throw new Error(`the missing catalogue: ${JSON.stringify(r[2])}`);
+      if (r.some((n) => n.label !== 'Notes' || n.tag !== 'NAV')) throw new Error(`the element: ${JSON.stringify(r.map((n) => [n.tag, n.label]))}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },
   },
 ];
