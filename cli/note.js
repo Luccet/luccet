@@ -331,4 +331,4 @@ function repository(dir) {
   }
 }
 
-module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, htmlFiles, repository, tern, shutdown: sandbox.shutdown };
+module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, htmlFiles, repository, tern, shutdown: sandbox.shutdown, clean: sandbox.clean };

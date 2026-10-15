@@ -150,3 +150,22 @@ a.js
 ````diagnostics
 1:1 error block.unclosed
 ````
+
+## use/crlf
+
+spec: syntax-blocks#use syntax-blocks#normalisation
+options: escaped
+
+Windows line endings: the block is read all the same, by the parser and by the scan of the text that loads the add-ons before parsing (src/use.js).
+
+````tern
+:::use\r\na.js\r\n:::\r\n\r\nText.
+````
+
+````json ast
+{"data":{"tern":{"use":[{"url":"a.js"}]}}}
+````
+
+````html
+<p>Text.</p>
+````

@@ -812,6 +812,21 @@ check('malformed input and unknown documents get errors, not a crash', async () 
   assert.ok((await c.send('textDocument/definition', null)).error);
   assert.ok((await c.send('textDocument/rename', { ...doc(refs.uri), position: { line: 9999, character: 0 } })).result === null);
   assert.ok((await c.call('textDocument/documentSymbol', doc(refs.uri))).length, 'still serving');
+  // A request with an id and no method, or a method that is not a string,
+  // is answered -32600, so a client does not wait forever; a response, which
+  // the server never asked for, is dropped.
+  c.write(JSON.stringify({ jsonrpc: '2.0', id: 777 }));
+  assert.strictEqual((await c.next((m) => m.id === 777)).error.code, -32600);
+  c.write(JSON.stringify({ jsonrpc: '2.0', id: 778, method: 5 }));
+  assert.strictEqual((await c.next((m) => m.id === 778)).error.code, -32600);
+  c.write(JSON.stringify({ jsonrpc: '2.0', id: 779, result: null }));
+  // A didChange with a range, where the server asked for the full text, is
+  // logged and ignored: the document keeps its text.
+  const before = await c.call('textDocument/documentSymbol', doc(refs.uri));
+  c.notify('textDocument/didChange', { textDocument: { uri: refs.uri, version: 99 }, contentChanges: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, rangeLength: 1, text: 'x' }] });
+  await new Promise((r) => setTimeout(r, 250));
+  assert.deepStrictEqual(await c.call('textDocument/documentSymbol', doc(refs.uri)), before, 'the text unchanged');
+  assert.ok(/1 change\(s\) with a range ignored/.test(c.stderr), 'the range change logged');
 });
 
 check('stdout carries only protocol messages', async () => {

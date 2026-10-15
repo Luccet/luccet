@@ -356,9 +356,15 @@ test('index: in a git repository, tracked files only; the date is the last commi
   exits(r, 0, 'index after a commit');
   eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', '2024-05-06']], 'the day of the last commit');
   write('gi/t.html', `${FIRST}<title>Tracked</title><script src="tern.js"></script>\n# T\n\nTracked, and changed.\n`);
+  const old = new Date('2020-01-02T12:00:00Z');
+  fs.utimesSync(at('gi/t.html'), old, old); // not the modification day: the commit to come is today's
   r = run(['index', 'gi']);
   exits(r, 0, 'index with a change');
-  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', TODAY]], 'a changed file is dated today');
+  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', TODAY]], 'a changed tracked file is dated today, whatever its modification time');
+  fs.utimesSync(at('gi/u.html'), old, old);
+  r = run(['index', 'gi/u.html', 'gi']);
+  exits(r, 0, 'an untracked file named');
+  eq(JSON.parse(read('gi/notes.json')).notes.find((n) => n.url === 'u.html').date, '2020-01-02', 'a file git does not know is dated by its modification time');
 });
 
 test('check --fail-on and --quiet', () => {
@@ -446,6 +452,27 @@ test('check: a missing or failing add-on is addon.failed at the tern.js line', (
   ok(/^a\/throws\.html:1:1: error addon\.failed: the add-on throws\.js did not load: it threw: boom/.test(lines[1]), `line 2: ${lines[1]}`);
 });
 
+// What a note's code throws or logs reaches the terminal through the tools:
+// the control characters that would drive it (ESC, C1, the rest of C0 but
+// tab and newline) are taken out on every path, so a note you have not read
+// cannot retitle or clear the terminal.
+test('check, parse, build: terminal control characters in what an add-on throws or logs are stripped from messages, the console relay and --json', () => {
+  write('esc/evil.js', "console.log('title \\x1b]0;OWNED\\x07 end');\nthrow new Error('clear \\x1b[2J\\x9b31m\\x00 done');\n");
+  write('esc/n.html', `${FIRST}<script src="tern.js" data-use="evil.js"></script>\n# x\n`);
+  const bad = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/;
+  const r = run(['check', 'esc/n.html']);
+  exits(r, 1, 'check');
+  ok(!bad.test(r.out + r.err), `control characters in the output: ${JSON.stringify(r.out + r.err)}`);
+  ok(/it threw: clear \[2J31m done/.test(r.out), `the message, cleaned: ${r.out}`);
+  ok(/^title \]0;OWNED end$/m.test(r.err), `the console line, cleaned: ${r.err}`);
+  const j = run(['check', 'esc/n.html', '--json']);
+  ok(/clear \[2J31m done/.test(JSON.parse(j.out)[0].message), `--json: ${j.out}`);
+  for (const args of [['parse', 'esc/n.html'], ['build', 'esc/n.html']]) {
+    const p = run(args);
+    ok(!bad.test(p.err) && /clear \[2J31m done/.test(p.err), `${args[0]}: ${JSON.stringify(p.err)}`);
+  }
+});
+
 // A note's own code runs in the sandbox (cli/sandbox.js): a sealed context
 // inside a --permission child. It sees no Node, cannot touch the disk, and a
 // script or transform that never returns is cut off.
@@ -479,6 +506,30 @@ test('check, build: a leading :::use block lists add-ons like data-use; a missin
   const mv = run(['mv', 'u/box.js', 'u/lib/box.js']);
   exits(mv, 0, 'mv');
   ok(/^u\/m\.html:3:1: box\.js → lib\/box\.js/m.test(mv.out) && /^:::use\nlib\/box\.js\?x=1\n:::$/m.test(read('u/m.html')), `mv: ${mv.out}\n${read('u/m.html')}`);
+});
+
+// src/use.js scans the text for the leading :::use block before the parse,
+// as the browser does: a CRLF file and the closer rule must read as the
+// parser's (block.js), or the tools silently lose the note's vocabulary.
+test('check, build: a :::use block in a CRLF note loads its add-ons; only ::: or :::/use closes it, as the parser reads it', () => {
+  write('crlf/box.js', "tern.block('box', { label: 'Box' });\n");
+  write('crlf/n.html', `${FIRST}<script src="tern.js"></script>\r\n:::meta\r\ntitle: CRLF\r\n:::\r\n:::use\r\nbox.js\r\n:::\r\n\r\n:::box[T]\r\nx\r\n:::\r\n`);
+  const r = run(['check', 'crlf/n.html']);
+  exits(r, 0, 'check');
+  ok(/0 errors, 0 warnings/.test(r.err), `clean: ${r.out}${r.err}`);
+  ok(/<span class="t-label">Box<\/span>/.test(run(['build', 'crlf/n.html']).out), 'the add-on applied');
+  // `:::/meta` does not close `:::use`: the line is an entry, as the parser
+  // records it, reported as an add-on that cannot be read, and box.js after it loads.
+  write('crlf/m.html', `${FIRST}<script src="tern.js"></script>\n:::use\n:::/meta\nbox.js\n:::\n\n:::box[T]\nx\n:::\n`);
+  const m = run(['check', 'crlf/m.html']);
+  exits(m, 1, 'check');
+  ok(/^crlf\/m\.html:3:1: error addon\.failed: the add-on :::\/meta did not load: cannot read /m.test(m.out), `another block's closer is an entry: ${m.out}`);
+  ok(/<span class="t-label">Box<\/span>/.test(run(['build', 'crlf/m.html']).out), 'box.js after it is loaded');
+  // The scan itself, on text with its CR kept (the tools normalise line
+  // endings before they scan; another caller may not).
+  const { scanUse } = require(path.join(ROOT, 'src', 'use.js'));
+  eq(scanUse(':::use\r\na.js b.js\r\n:::\r\n\r\nText.\r\n').entries.map((e) => [e.url, e.line, e.column]), [['a.js', 2, 1], ['b.js', 2, 6]], 'CRLF entries');
+  eq(scanUse(':::use\n:::/meta\nc.js\n:::/use\nText.\n').entries.map((e) => e.url), [':::/meta', 'c.js'], 'only ::: or :::/use closes the block');
 });
 
 test('check: a transform that never returns is addon.failed, not a hang', () => {
@@ -1222,6 +1273,21 @@ test('corpus: an example that does not match its expect, or has no schema, is re
   exits(run(['corpus', 'c/bad/page.html', '--bogus']), 2, 'an unknown option');
 });
 
+// Output piped to a reader that closes early (tern parse big.html | head):
+// the command ends quietly, exit 0, no trace, instead of an unhandled EPIPE.
+test('parse | head: a reader that closes early ends the command quietly, exit 0, nothing on stderr', async () => {
+  const { spawn } = require('child_process');
+  write('pipe/big.html', `${FIRST}<script src="tern.js"></script>\n${'A paragraph of text, repeated so that the AST is many pipe buffers long.\n\n'.repeat(20000)}`);
+  const child = spawn(process.execPath, [CLI, 'parse', 'pipe/big.html'], { cwd: TMP, env: { ...process.env, NODE_PATH: '' } });
+  let err = '';
+  child.stderr.on('data', (c) => (err += c));
+  await new Promise((resolve) => child.stdout.once('data', resolve));
+  child.stdout.destroy(); // the reader is gone: the next write gets EPIPE
+  const code = await new Promise((resolve) => child.on('close', resolve));
+  eq(code, 0, `exit code; stderr: ${err.slice(0, 200)}`);
+  eq(err, '', 'stderr');
+});
+
 test('usage: help, unknown commands, --help, --version', () => {
   const h = run(['help']);
   exits(h, 0, 'help');
@@ -1245,25 +1311,29 @@ test('usage: help, unknown commands, --help, --version', () => {
 
 // ---------------------------------------------------------------- run
 
-let failed = 0;
-let skipped = 0;
-let ran = 0;
-for (const t of tests) {
-  if (FILTER && !t.name.includes(FILTER)) continue;
-  ran++;
-  try {
-    t.fn();
-    console.log(`✓ ${t.name}`);
-  } catch (e) {
-    if (e instanceof Skip) {
-      skipped++;
-      console.log(`- ${t.name} (skipped: ${e.message})`);
-      continue;
+// Tests run in order; one that must wait on a child (a pipe closed early)
+// returns a promise.
+(async () => {
+  let failed = 0;
+  let skipped = 0;
+  let ran = 0;
+  for (const t of tests) {
+    if (FILTER && !t.name.includes(FILTER)) continue;
+    ran++;
+    try {
+      await t.fn();
+      console.log(`✓ ${t.name}`);
+    } catch (e) {
+      if (e instanceof Skip) {
+        skipped++;
+        console.log(`- ${t.name} (skipped: ${e.message})`);
+        continue;
+      }
+      failed++;
+      console.log(`✗ ${t.name}\n    ${e.message}`);
     }
-    failed++;
-    console.log(`✗ ${t.name}\n    ${e.message}`);
   }
-}
-fs.rmSync(TMP, { recursive: true, force: true });
-console.log(`\n${ran - failed - skipped}/${ran} CLI tests pass${skipped ? `; ${skipped} skipped` : ''}`);
-process.exit(failed ? 1 : 0);
+  fs.rmSync(TMP, { recursive: true, force: true });
+  console.log(`\n${ran - failed - skipped}/${ran} CLI tests pass${skipped ? `; ${skipped} skipped` : ''}`);
+  process.exit(failed ? 1 : 0);
+})();

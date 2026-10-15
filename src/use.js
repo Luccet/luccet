@@ -9,7 +9,9 @@
 'use strict';
 
 const OPENER = /^[ \t]*:{3,}(meta|use)(?:[ \t\[{].*)?$/;
-const CLOSER = /^[ \t]*:{3,}(?:\/[A-Za-z][\w-]*)?[ \t]*$/;
+// A closer: bare `:::`, or `:::/NAME` naming the open block, as the parser
+// closes a raw container (block.js); `:::/other` is a line of the block.
+const closer = (s, name) => new RegExp(`^[ \\t]*:{3,}(?:\\/${name})?[ \\t]*$`).test(s);
 
 // scanUse(text, {eof}) -> {entries, decided}: the entries of every leading
 // `:::use` block ({url, line, column, offset}, 1-based line and column),
@@ -26,11 +28,12 @@ function scanUse(text, { eof = true } = {}) {
     const nl = text.indexOf('\n', i);
     const end = nl < 0 ? text.length : nl;
     const complete = nl >= 0 || eof; // a last line without its newline may still be growing
-    const s = text.slice(i, end);
+    let s = text.slice(i, end);
+    if (s.endsWith('\r')) s = s.slice(0, -1); // a CRLF file: the parser normalises line endings, so does this scan
     line++;
     if (!complete) return { entries, decided: false };
     if (open) {
-      if (CLOSER.test(s)) open = null;
+      if (closer(s, open)) open = null;
       else if (open === 'use') {
         const re = /\S+/g;
         for (let m; (m = re.exec(s)); ) entries.push({ url: m[0], line, column: m.index + 1, offset: i + m.index });

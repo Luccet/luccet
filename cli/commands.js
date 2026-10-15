@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
 const { spawnSync } = require('child_process');
-const { split, notNote, attributes, analyse, htmlFiles, repository, tern } = require('./note');
+const { split, notNote, attributes, analyse, htmlFiles, repository, tern, clean } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
 const examples = require('./examples');
@@ -149,9 +149,11 @@ function read(file) {
   }
 }
 
+// A diagnostic as printed. A message or hint may quote a note's own code (an
+// add-on's error), so terminal control characters are taken out (cli/sandbox.js clean).
 function format(file, d) {
   const p = d.filePosition.start;
-  return `${file}:${p.line}:${p.column}: ${d.severity} ${d.code}: ${d.message}${d.hint ? `\n    ${d.hint}` : ''}`;
+  return `${file}:${p.line}:${p.column}: ${d.severity} ${d.code}: ${clean(d.message)}${d.hint ? `\n    ${clean(d.hint)}` : ''}`;
 }
 
 // ---------------------------------------------------------------- new
@@ -293,7 +295,7 @@ function check(args) {
       const over = RANK[d.severity] >= RANK[level];
       failed = failed || over;
       if (o.quiet && !over) continue;
-      if (o.json) out.push({ file: f.shown, ...d });
+      if (o.json) out.push({ file: f.shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) });
       else say(format(f.shown, d));
     }
   }
@@ -475,12 +477,14 @@ function repoInfo(root) {
   return info;
 }
 
-// A file's day, YYYY-MM-DD, local time.
-function dayOf(file) {
-  const d = new Date(fs.statSync(file).mtimeMs);
+// A day as YYYY-MM-DD, local time: a file's modification day, or today.
+const day = (ms) => {
+  const d = new Date(ms);
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
+};
+const dayOf = (file) => day(fs.statSync(file).mtimeMs);
+const today = () => day(Date.now());
 
 // JSON with one item per line for the top-level arrays and objects, so the
 // file diffs by note, entry and term; `sorted` keys sort an object's keys.
@@ -568,7 +572,12 @@ function index(args) {
     if (!date) {
       const root = repository(path.dirname(abs));
       const info = root ? repoInfo(root) : null;
-      date = info && info.changed !== null && !info.changed.has(abs) && info.dates.get(abs) ? info.dates.get(abs) : dayOf(abs);
+      // The day of the last commit; for a tracked file with changes, or with
+      // no commit yet, today, the day of the commit a hook is about to make,
+      // so that --check holds once it is committed; the modification day for
+      // a file git does not know.
+      const committed = info && info.changed !== null && !info.changed.has(abs) ? info.dates.get(abs) : null;
+      date = committed || (info && (info.changed === null || info.changed.has(abs)) ? today() : dayOf(abs));
     }
     const links = [];
     for (const u of d.links) {
@@ -631,7 +640,7 @@ function parse(args) {
   const a = analyse(text, file, { transform: !!o.transformed, noScripts: o['no-scripts'] });
   if (!a) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
   // The vocabulary problems (no note position) as `tern parse` prints them.
-  for (const d of a.diagnostics) if (!d.position) warn(`tern parse: ${d.message}`);
+  for (const d of a.diagnostics) if (!d.position) warn(`tern parse: ${clean(d.message)}`);
   say(JSON.stringify(a.ast, null, o.compact ? 0 : 2));
   return 0;
 }
@@ -665,7 +674,7 @@ function buildPage(args) {
   const text = read(file);
   const r = build(text, file, { math, noScripts: o['no-scripts'] });
   if (!r) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
-  for (const w of r.warnings) warn(`tern build: ${w}`);
+  for (const w of r.warnings) warn(`tern build: ${clean(w)}`);
   for (const d of r.diagnostics) warn(format(file, d));
   for (const f of r.failures) warn(format(file, { severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) }));
   if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file)))

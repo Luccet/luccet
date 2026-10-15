@@ -191,7 +191,7 @@ The add-on sets Mermaid's `base` theme from the page's [custom properties](schem
 
 - **Mermaid's settings.** Every option but `base` goes to `mermaid.initialize`: `?look=classic` for Mermaid's earlier look, or `?layout=dagre` for the layout before ELK, Mermaid 12's default. Nested settings go in `window.TERN = {use: {mermaid: {…}}}`.
 - **One diagram's settings:** a diagram's own `config` front matter, or a `%%{init: …}%%` line, applies to that diagram alone.
-- **Strict security.** Mermaid runs with `securityLevel: 'strict'`: labels cannot hold HTML or scripts, and clicking a node runs no JavaScript.
+- **Strict security.** Mermaid runs with `securityLevel: 'strict'`, whatever the add-on's options say: labels cannot hold HTML or scripts, and clicking a node runs no JavaScript.
 
 ### How it loads {#mermaid-loading}
 
@@ -218,7 +218,7 @@ The version and its hash live in a table in `addons/mermaid.js`. To move to anot
 :::
 
 - **Without a math add-on, formulas stay as TeX.** The engine renders no math itself; this add-on (or [`mathml.js`](#mathml)) typesets it. The TeX is kept in each formula's `data-tex`, so a typeset formula still copies as `$tex$`.
-- **Options** go in `window.TERN = {use: {katex: {macros: {…}, strict: false, …}}}` — anything KaTeX takes but `displayMode` and `throwOnError`. A `:::macros` block fills one shared macro table first.
+- **Options** go in `window.TERN = {use: {katex: {macros: {…}, strict: false, …}}}` — anything KaTeX takes but `displayMode` and `throwOnError` — or on the add-on's URL, `addons/katex.js?strict=false`, where `true` and `false` read as the booleans they spell. A `:::macros` block fills one shared macro table first. `trust` applies to every formula on the page, those of a [`safe` render](api.html#render) included.
 - **Long notes stay smooth.** Formulas are typeset in time slices, so no task runs long; a note's off-screen blocks get `content-visibility` while they are, and a formula in a closed `<details>` is typeset when it opens. Everything pending is typeset before printing or a fragment scroll.
 
 ### How it loads {#katex-loading}
@@ -227,7 +227,7 @@ The version and its hash live in a table in `addons/mermaid.js`. To move to anot
 - **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `katex.min.js` and `katex.min.css`, the `dist/` folder of the npm package `katex`. A copy is loaded without SRI. A `window.katex` already on the page is used as it is.
 - **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src` and `style-src`, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's script and stylesheet carry the nonce; KaTeX writes its styles through the CSSOM, so its formulas need no inline-style exception.
 - **A formula KaTeX cannot parse** stays as its TeX source, marked `t-error`, with the reason in the console.
-- **If KaTeX does not load,** each formula stays as its TeX source, and the console shows a warning.
+- **If KaTeX or its stylesheet does not load,** each formula stays as its TeX source, and the console shows a warning: a formula typeset without the stylesheet would show three times over.
 - **Without the page.** `tern check` and `tern build` (without `--math`) do nothing with it: a note shows its math when `tern.js` runs. `tern build --math=katex` ([Command line](tools.html#build)) pre-renders it instead, so no script loads at view time.
 
 ### A newer KaTeX {#katex-updating}
@@ -285,13 +285,13 @@ The version and its hashes live in a table in `addons/mathml.js`. To move to ano
 :::
 
 - **Which notes.** `::search` alone covers the notes this page links to: every same-origin link to an `.html` file, the page itself left out (a folder's address, `blog/`, is its `index.html`). `from=PAGE` covers the notes another page links to — an index page, so a search page needs no list of its own. `notes="A B"` lists them. A link to something that is not a note (no `tern.js` tag) or cannot be fetched is skipped, with a warning in the console, and counted in the status line.
-- **A prebuilt index.** `index=search.json` loads the [`search.json`](tools.html#index-files) that [`tern index`](tools.html#index) wrote, relative to the page: one request and no parsing, with the same ranking, and the hits resolve from the file's folder. An index that cannot be loaded, is not one, or was written by another version series of Tern (its stems are the stemmer's) is reported in the console, and the notes are indexed here instead, from `notes`, `from` or the page's links. Write the file again when the notes change ([Keeping the files current](tools.html#index-hook)).
+- **A prebuilt index.** `index=search.json` loads the [`search.json`](tools.html#index-files) that [`tern index`](tools.html#index) wrote, relative to the page: one request and no parsing, with the same ranking, and the hits resolve from the file's folder. An index that cannot be loaded, is not one, or was written by another version series of Tern (its stems are the stemmer's) is reported in the console, and the notes are indexed here instead, from `notes`, `from` or the page's links. An entry's URL resolves against the file and must be a page on its origin, as `tern index` writes them; any other, a `javascript:` or `data:` URL or another site, is left out, with a warning in the console. Write the file again when the notes change ([Keeping the files current](tools.html#index-hook)).
 - **The vocabulary.** Load the notes' schema add-on on the search page too (`data-use="math.js addons/search.js"`), so their `:::exercise` and `:::theorem` blocks parse as they do on their own pages, with their labels and numbers. An index written by `tern index` was built with it already.
 - **A hit** shows the entry's label and title — "Exercise 3 II.1", a heading's text — the page it is on, and a snippet with the matching words marked. The link lands on the block's id. Enter opens the first hit.
 - **Matching is lexical.** Words are stemmed lightly, so `triangle` finds `triangles`, and a query word stands for every word it begins: `pythag` finds Pythagoras and Pythagorean. Entries are ranked BM25-style; a word in an entry's title counts for more than one in its text. TeX is searched as written: `sqrt` finds `\\sqrt`. A word the notes never use finds nothing.
 - **Options** go on the leaf, on the add-on (`addons/search.js?from=index.html`), or in `window.TERN = {use: {search: {…}}}`; the leaf's win. `limit` caps the results (20); `placeholder` sets the box's. `?q=WORD` in the page's URL fills the box, and typing keeps the URL up to date, so a search can be linked to.
 - **The element** is a `<search role="search">` with the classes `t-search`, `t-search-box`, `t-search-status` and `t-search-results`, styled from the theme's variables; a stylesheet add-on can restyle them.
-- **Privacy.** Only the notes listed or linked are fetched, from the page's own origin; a note that no page links to is never read. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetches.
+- **Privacy.** Only the notes listed or linked are fetched, from the page's own origin; a note that no page links to is never read. `index=` and `from=` name `http(s)` URLs; anything else is refused, and a box that cannot be set up says so in place. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetches.
 - **Without the page.** `tern check` and `tern build` know the leaf and do nothing with it: the box is built when `tern.js` runs. The same search over files, with lines, is [`tern search`](tools.html#search); the pipeline both run is [`tern.search`](api.html#search).
 
 ## Notes {#notes}
@@ -308,10 +308,10 @@ The version and its hashes live in a table in `addons/mathml.js`. To move to ano
 ```
 :::
 
-- **Which notes.** `::notes` alone reads `notes.json` next to the page; `from=PATH` names the catalogue. The page itself is left out, also when it is reached as its folder (`blog/` for `blog/index.html`). `in=FOLDER` keeps the notes under a folder, a prefix of their path in the catalogue.
+- **Which notes.** `::notes` alone reads `notes.json` next to the page; `from=PATH` names the catalogue, an `http(s)` URL. The page itself is left out, also when it is reached as its folder (`blog/` for `blog/index.html`). `in=FOLDER` keeps the notes under a folder, a prefix of their path in the catalogue. An entry's URL resolves against the catalogue and must be a page on its origin, as `tern index` writes them; any other, a `javascript:` or `data:` URL or another site, is left out, with a warning in the console.
 - **The order.** `sort=date`, the default, puts the newest first and undated notes last; `sort=title` sorts by title; `sort=path` keeps the catalogue's order, the folder's. `limit=N` caps the list.
 - **What a note shows:** its title, linked, its date in a `<time>`, and its description, as [`tern index`](tools.html#index-files) found them in the head and the `:::meta` of each note.
 - **Options** go on the leaf, on the add-on (`addons/notes.js?from=notes.json`), or in `window.TERN = {use: {notes: {…}}}`; the leaf's win.
 - **The element** is a `<nav aria-label="Notes">` with the classes `t-notes`, `t-notes-list`, `t-notes-title`, `t-notes-date`, `t-notes-desc` and `t-notes-status`, styled from the theme's variables; a stylesheet add-on can restyle them.
-- **When the catalogue cannot be loaded,** the leaf says so in place, with the reason in the console. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
+- **When the catalogue cannot be loaded,** or `from=` is not a URL, the leaf says so in place, with the reason in the console. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
 - **Without the page.** `tern check` and `tern build` know the leaf and do nothing with it: the list is built when `tern.js` runs.

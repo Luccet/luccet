@@ -51,6 +51,10 @@
   const own = typeof opts.base === 'string' && opts.base.trim() !== '';
   const base = own ? opts.base.trim().replace(/\/+$/, '') : `https://cdn.jsdelivr.net/npm/katex@${KATEX.version}/dist`;
   delete opts.base;
+  // Options from the add-on's query string arrive as strings, and KaTeX reads
+  // its booleans with Boolean(), so 'false' would turn trust and strict on:
+  // 'true' and 'false' are the booleans they spell, as mermaid.js reads them.
+  for (const k of Object.keys(opts)) if (opts[k] === 'true' || opts[k] === 'false') opts[k] = opts[k] === 'true';
 
   const SLICE_MS = 10; // one typeset slice; a frame holds a few
   const HOLD_OVER = 100; // over this many visible formulas, hold off-screen blocks
@@ -70,19 +74,29 @@
     if (T.config && T.config.nonce) link.nonce = T.config.nonce;
     if (!own) (link.integrity = KATEX.css), (link.crossOrigin = 'anonymous');
     link.fetchPriority = 'low';
-    document.head.append(link);
-    katexP = new Promise((resolve) => {
-      const js = document.createElement('script');
-      js.src = `${base}/katex.min.js`;
-      js.async = true;
-      js.fetchPriority = 'low';
-      if (T.config && T.config.nonce) js.nonce = T.config.nonce;
-      if (!own) (js.integrity = KATEX.js), (js.crossOrigin = 'anonymous');
-      js.onload = () => resolve(found());
-      js.onerror = () => resolve(null);
-      document.head.append(js);
+    // The stylesheet's load is awaited as the script's is: typeset without
+    // it, each formula would show three times over, unstyled.
+    const css = new Promise((resolve) => {
+      link.onload = () => resolve(true);
+      link.onerror = () => resolve(false);
     });
-    katexP.then((K) => K || console.warn(`Tern katex.js: KaTeX did not load from ${base}, so math stays as TeX source`));
+    document.head.append(link);
+    const js = new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = `${base}/katex.min.js`;
+      s.async = true;
+      s.fetchPriority = 'low';
+      if (T.config && T.config.nonce) s.nonce = T.config.nonce;
+      if (!own) (s.integrity = KATEX.js), (s.crossOrigin = 'anonymous');
+      s.onload = () => resolve(found());
+      s.onerror = () => resolve(null);
+      document.head.append(s);
+    });
+    katexP = Promise.all([js, css]).then(([K, styled]) => {
+      if (!K) warn(`KaTeX did not load from ${base}, so math stays as TeX source`);
+      else if (!styled) warn(`KaTeX's stylesheet did not load from ${base}, so math stays as TeX source`);
+      return K && styled ? K : null;
+    });
     return katexP;
   }
 

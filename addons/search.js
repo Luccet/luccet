@@ -69,6 +69,24 @@
   const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html');
   const page = () => same(location.href);
 
+  // A URL the add-on fetches or links to is http(s), or the page's own
+  // scheme when it is opened from a file. An entry of an index resolves
+  // against the index file and must stay on its origin: tern index writes
+  // paths, so a crafted file cannot send a reader to javascript:, data: or
+  // another site. Each URL refused is said once in the console.
+  const SCHEMES = new Set(['http:', 'https:', location.protocol]);
+  const fetchable = (u) => SCHEMES.has(u.protocol);
+  const refused = new Set();
+  function linkTo(url, base) {
+    let u = null;
+    try {
+      u = new URL(url, base);
+    } catch {}
+    if (u && fetchable(u) && u.origin === new URL(base).origin) return u.href;
+    if (!refused.has(url)) refused.add(url), console.warn(`Tern search.js: ${url} in the index is not a page of this site; left out`);
+    return null;
+  }
+
   // The note URLs an element asks for: its `notes`, else the links of `from`
   // (a page parsed as a note), else the links of this page.
   async function noteList(el, o) {
@@ -88,9 +106,13 @@
     if (o.notes) {
       for (const n of String(o.notes).split(/[\s,]+/).filter(Boolean)) add(n, location.href);
     } else if (o.from) {
-      const base = new URL(o.from, location.href).href;
-      const got = await load(base);
-      if (got) for (const url of got.links) add(url, base);
+      const base = new URL(o.from, location.href);
+      if (!fetchable(base)) {
+        console.warn(`Tern search.js: from=${o.from} is not an http(s) page; no note indexed`);
+        return [];
+      }
+      const got = await load(base.href);
+      if (got) for (const url of got.links) add(url, base.href);
     } else {
       const main = el.closest('.tern') || document;
       for (const a of main.querySelectorAll('a[href]')) if (!el.contains(a)) add(a.getAttribute('href'), location.href);
@@ -196,12 +218,14 @@
     let idx = null;
     let base = location.href; // what the entries' URLs are relative to
     let ready;
-    const indexURL = o.index ? new URL(o.index, location.href).href : null;
-    const data = indexURL ? await loadIndex(indexURL) : null;
+    const indexURL = o.index ? new URL(o.index, location.href) : null;
+    let data = null;
+    if (indexURL && !fetchable(indexURL)) console.warn(`Tern search.js: index=${o.index} is not an http(s) file; indexing the notes here`);
+    else if (indexURL) data = await loadIndex(indexURL.href);
     let titleOf;
     if (data) {
       idx = data;
-      base = indexURL;
+      base = indexURL.href;
       titleOf = new Map((data.notes || []).map((n) => [n.url, n.title]));
       const n = (data.notes || []).length;
       ready = `${n} note${n === 1 ? '' : 's'}, ${idx.entries.length} entries`;
@@ -219,12 +243,13 @@
     const show = (q) => {
       results.replaceChildren();
       if (!q.trim()) return void (status.textContent = ready);
-      const hits = S.query(idx, q, { limit: o.limit });
+      const hits = S.query(idx, q, { limit: o.limit })
+        .map((h) => ({ ...h, href: linkTo(h.entry.url, base) }))
+        .filter((h) => h.href);
       status.textContent = hits.length ? `${hits.length} result${hits.length === 1 ? '' : 's'}` : 'No results';
-      for (const { entry, matched } of hits) {
-        const href = `${new URL(entry.url, base).href}${entry.id ? `#${entry.id}` : ''}`;
+      for (const { entry, matched, href } of hits) {
         const title = [entry.label, entry.title].filter(Boolean).join(' ');
-        const link = el('a', { href }, el('span', { class: 't-search-label t-search-title', text: title }), el('span', { class: 't-search-page', text: titleOf.get(entry.url) || '' }));
+        const link = el('a', { href: `${href}${entry.id ? `#${entry.id}` : ''}` }, el('span', { class: 't-search-label t-search-title', text: title }), el('span', { class: 't-search-page', text: titleOf.get(entry.url) || '' }));
         results.append(el('li', null, link, snippet(entry.text || entry.title || entry.label, matched)));
       }
     };
@@ -248,8 +273,16 @@
     if (q) (box.value = q), show(q);
   }
 
+  // A box that cannot be built (a malformed index= or from=, an index that
+  // throws while it is read) says so in place and in the console, instead
+  // of staying at "Indexing…" with an unhandled rejection.
   T.define('search', (host) => {
     if (host.closest('.docs-live-out')) return; // an example's result on the docs stays inert
-    build(host);
+    build(host).catch((e) => {
+      const why = (e && e.message) || String(e);
+      console.warn(`Tern search.js: the search box could not be set up: ${why}`);
+      const status = host.querySelector('.t-search-status') || host.appendChild(el('p', { class: 't-search-status', role: 'status' }));
+      status.textContent = `The search could not be set up (${why}).`;
+    });
   });
 })();

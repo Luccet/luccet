@@ -19,10 +19,10 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: the tag matches tern.version and package.json
@@ -34,27 +34,37 @@ jobs:
           test "$tag" = "$engine" && test "$tag" = "$pkg"
       - run: node tools/version.js --check # and so do the README and the docs
       - run: npm test
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/tern-smoke
+          key: tern-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium firefox
       - run: sudo apt-get install -y mupdf-tools
       - run: node test/smoke.js
 
   pages:
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      # A site deployed from an artifact is served as it is (no Jekyll), so
+      # .nojekyll is not copied; upload-pages-artifact leaves dotfiles out anyway.
       - name: the site
         run: |
           mkdir -p _site
-          cp -r index.html docs examples themes addons tern.js tern.css LICENSE .nojekyll _site/
+          cp -r index.html docs examples themes addons tern.js tern.css LICENSE _site/
           rm -f _site/docs/README.md
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

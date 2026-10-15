@@ -195,6 +195,16 @@ test('search.snippet and search.title', () => {
   eq(tern.search.title('', tern.parse('text\n').ast), '', 'nothing');
 });
 
+test('search.snippet: a long unbroken token costs linear time; a word that stems to a matched stem is marked', () => {
+  const long = `${'a'.repeat(50000)} rank nullity ${'b'.repeat(50000)}`;
+  const t = process.hrtime.bigint();
+  const s = tern.search.snippet(long, ['rank']);
+  const ms = Number(process.hrtime.bigint() - t) / 1e6;
+  if (ms > 100) throw new Error(`${ms.toFixed(0)} ms for 100,000 letters, expected well under 100 (the old regex took seconds)`);
+  eq(s.text.slice(s.marks[0][0], s.marks[0][1]), 'rank', 'the mark in the cut text');
+  eq(tern.search.snippet('The studies of study.', ['study']).marks, [[4, 11], [15, 20]], 'studies (stem study) and study both marked');
+});
+
 console.log(results.join('\n'));
 console.log(`\n${results.length - failed}/${results.length} API checks pass`);
 process.exit(failed ? 1 : 0);
