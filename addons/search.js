@@ -65,7 +65,9 @@
   // ---------------------------------------------------------------- the notes
 
   const isNote = (url) => /\.html?$/i.test(url.pathname);
-  const page = () => location.href.replace(/[?#].*$/, '');
+  // This page's URL, as a link to it reads: a folder's address (blog/) is its index.html.
+  const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html');
+  const page = () => same(location.href);
 
   // The note URLs an element asks for: its `notes`, else the links of `from`
   // (a page parsed as a note), else the links of this page.
@@ -80,7 +82,7 @@
       }
       if (u.origin !== location.origin || !isNote(u)) return;
       const key = u.href.replace(/[?#].*$/, '');
-      if (key === page() || seen.has(key)) return;
+      if (same(key) === page() || seen.has(key)) return;
       seen.add(key);
     };
     if (o.notes) {

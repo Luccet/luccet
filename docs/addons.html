@@ -284,7 +284,7 @@ The version and its hashes live in a table in `addons/mathml.js`. To move to ano
 ```
 :::
 
-- **Which notes.** `::search` alone covers the notes this page links to: every same-origin link to an `.html` file, the page itself left out. `from=PAGE` covers the notes another page links to — an index page, so a search page needs no list of its own. `notes="A B"` lists them. A link to something that is not a note (no `tern.js` tag) or cannot be fetched is skipped, with a warning in the console, and counted in the status line.
+- **Which notes.** `::search` alone covers the notes this page links to: every same-origin link to an `.html` file, the page itself left out (a folder's address, `blog/`, is its `index.html`). `from=PAGE` covers the notes another page links to — an index page, so a search page needs no list of its own. `notes="A B"` lists them. A link to something that is not a note (no `tern.js` tag) or cannot be fetched is skipped, with a warning in the console, and counted in the status line.
 - **A prebuilt index.** `index=search.json` loads the [`search.json`](tools.html#index-files) that [`tern index`](tools.html#index) wrote, relative to the page: one request and no parsing, with the same ranking, and the hits resolve from the file's folder. An index that cannot be loaded, is not one, or was written by another version series of Tern (its stems are the stemmer's) is reported in the console, and the notes are indexed here instead, from `notes`, `from` or the page's links. Write the file again when the notes change ([Keeping the files current](tools.html#index-hook)).
 - **The vocabulary.** Load the notes' schema add-on on the search page too (`data-use="math.js addons/search.js"`), so their `:::exercise` and `:::theorem` blocks parse as they do on their own pages, with their labels and numbers. An index written by `tern index` was built with it already.
 - **A hit** shows the entry's label and title — "Exercise 3 II.1", a heading's text — the page it is on, and a snippet with the matching words marked. The link lands on the block's id. Enter opens the first hit.
@@ -308,7 +308,7 @@ The version and its hashes live in a table in `addons/mathml.js`. To move to ano
 ```
 :::
 
-- **Which notes.** `::notes` alone reads `notes.json` next to the page; `from=PATH` names the catalogue. The page itself is left out. `in=FOLDER` keeps the notes under a folder, a prefix of their path in the catalogue.
+- **Which notes.** `::notes` alone reads `notes.json` next to the page; `from=PATH` names the catalogue. The page itself is left out, also when it is reached as its folder (`blog/` for `blog/index.html`). `in=FOLDER` keeps the notes under a folder, a prefix of their path in the catalogue.
 - **The order.** `sort=date`, the default, puts the newest first and undated notes last; `sort=title` sorts by title; `sort=path` keeps the catalogue's order, the folder's. `limit=N` caps the list.
 - **What a note shows:** its title, linked, its date in a `<time>`, and its description, as [`tern index`](tools.html#index-files) found them in the head and the `:::meta` of each note.
 - **Options** go on the leaf, on the add-on (`addons/notes.js?from=notes.json`), or in `window.TERN = {use: {notes: {…}}}`; the leaf's win.

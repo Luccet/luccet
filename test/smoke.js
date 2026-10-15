@@ -154,6 +154,8 @@ function staticHandler(cdnOrigin) {
     if (url.startsWith('/gen/indexed/')) file = path.join(indexedDir(), path.normalize(url.slice('/gen/indexed/'.length)));
     // A sample's add-ons (addons/katex.js …) resolve to the repository's, as tern.js does.
     if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
+    // A folder's address is its index.html, as GitHub Pages and most servers serve it.
+    if (url.endsWith('/') && fs.existsSync(path.join(file, 'index.html'))) file = path.join(file, 'index.html');
     const missing = !file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory();
     const docs = missing && file.startsWith(ROOT + path.sep) && docsReferer(req);
     if (missing && (file.startsWith(SAMPLES + path.sep) || docs)) {
@@ -2010,6 +2012,23 @@ const TESTS = [
       if (r[2].items.length || !/could not be loaded \(missing\.json\)/.test(r[2].status)) throw new Error(`the missing catalogue: ${JSON.stringify(r[2])}`);
       if (r.some((n) => n.label !== 'Notes' || n.tag !== 'NAV')) throw new Error(`the element: ${JSON.stringify(r.map((n) => [n.tag, n.label]))}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    name: 'notes and search add-ons: a page reached as its folder (folder/) is the index.html the catalogue and its links name, and is left out',
+    url: '/test/smoke/folder/',
+    async check(page, ctx) {
+      await expect(page, () => document.querySelector('.t-notes-list, .t-notes-status') && document.querySelector('.t-search-status') && !/Indexing/.test(document.querySelector('.t-search-status').textContent), 'the list and the search box to settle');
+      const r = await page.evaluate(() => ({
+        href: location.href,
+        items: [...document.querySelectorAll('.t-notes-list a')].map((a) => a.getAttribute('href').replace(/^.*\/folder\//, '')),
+        status: (document.querySelector('.t-notes-status') || {}).textContent || '',
+        search: document.querySelector('.t-search-status').textContent,
+      }));
+      if (!/\/folder\/$/.test(r.href)) throw new Error(`the page is at ${r.href}, expected the folder's address`);
+      if (r.items.join() !== 'post.html') throw new Error(`the list ${JSON.stringify(r.items)} ${r.status}, expected the post alone: the page itself left out`);
+      if (!/^1 note\b/.test(r.search)) throw new Error(`the search status "${r.search}", expected the post alone indexed`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },
   },

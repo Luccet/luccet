@@ -77,11 +77,13 @@
       host.replaceChildren(el('p', { class: 't-notes-status', text: `The list of notes could not be loaded (${o.from}).` }));
       return;
     }
-    const page = location.href.replace(/[?#].*$/, '');
+    // The page itself is left out: a folder's address (blog/) is its index.html.
+    const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html');
+    const page = same(location.href);
     let list = data.notes
       .filter((n) => n && typeof n.url === 'string')
       .map((n) => ({ ...n, href: new URL(n.url, url).href }))
-      .filter((n) => n.href.replace(/[?#].*$/, '') !== page);
+      .filter((n) => same(n.href) !== page);
     if (o.in) list = list.filter((n) => n.url.startsWith(o.in));
     if (ORDER[o.sort] && o.sort !== 'path') list.sort(ORDER[o.sort]);
     list = list.slice(0, o.limit === Infinity ? undefined : o.limit);
