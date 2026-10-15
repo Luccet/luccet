@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Search over notes (docs/api.html#search): the pipeline behind the search
-// add-on (addons/search.js) and `tern search`. records() splits a
-// transformed AST into entries — one per heading's section and one per
-// named block with an id — index() builds a lexical index over the entries
-// of any number of notes, query() ranks them BM25-style, snippet() cuts a
-// passage around the first hit. Pure functions over the tree and plain
-// data: the add-on fetches and draws, the command line reads files.
+// add-on (addons/search.js), `tern search` and `tern index`. records()
+// splits a transformed AST into entries — one per heading's section and one
+// per named block with an id — index() builds a lexical index over the
+// entries of any number of notes, query() ranks them BM25-style, snippet()
+// cuts a passage around the first hit; describe() is what a catalogue of
+// notes holds for one. Pure functions over the tree and plain data: the
+// add-ons fetch and draw, the command line reads and writes files.
+//
+// An index is written out by `tern index` and read back by the add-on and
+// `tern search --index`, so its stems must be the reader's: the stemmer
+// changes only in a minor release, and an index records the version that
+// wrote it (its `tern`); a reader of the same major and minor can use it.
 'use strict';
 
 const { decode } = require('./entities');
@@ -45,6 +51,47 @@ function title(head, ast) {
   if (meta.title) return String(meta.title);
   const h = ((ast && ast.children) || []).find((n) => n.type === 'heading');
   return h ? plain(h) : '';
+}
+
+// headMeta(head) -> the head's <meta name="…" content="…"> pairs, the names
+// in lower case, the first of a name winning, entities decoded.
+function headMeta(head) {
+  const out = Object.create(null);
+  for (const tag of String(head || '').match(/<meta\b[^>]*>/gi) || []) {
+    const attr = (name) => {
+      const m = new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
+      return m ? [m[1], m[2], m[3]].find((x) => x !== undefined) : undefined;
+    };
+    const n = attr('name');
+    const c = attr('content');
+    if (n !== undefined && c !== undefined && !(n.toLowerCase() in out)) out[n.toLowerCase()] = entities(c);
+  }
+  return out;
+}
+
+// describe(head, ast) -> {title, description, meta, headings, links}: what a
+// catalogue of notes holds for one (`tern index`, docs/tools.html#index).
+// `title` is title()'s; `description` the head's <meta name="description">,
+// else `:::meta`'s, else ''; `meta` the `:::meta` keys with the head's
+// <meta> names over them (the head wins, as the engine resolves a conflict),
+// a plain object; `headings` every heading, [{depth, id, text}], in order;
+// `links` the URLs the note's links name, as written, each once, in order,
+// a link to a fragment of the note itself left out.
+function describe(head, ast) {
+  const block = (ast && ast.data && ast.data.tern && ast.data.tern.meta) || {};
+  const meta = Object.assign({}, block, headMeta(head));
+  const headings = [];
+  const links = [];
+  const seen = new Set();
+  const walk = (node) => {
+    for (const c of node.children || []) {
+      if (c.type === 'heading') headings.push({ depth: c.depth, id: (c.attributes && c.attributes.id) || '', text: plain(c) });
+      else if (c.type === 'link' && typeof c.url === 'string' && c.url && !c.url.startsWith('#') && !seen.has(c.url)) (seen.add(c.url), links.push(c.url));
+      if (c.children) walk(c);
+    }
+  };
+  walk(ast || {});
+  return { title: title(head, ast), description: String(meta.description || '').trim(), meta, headings, links };
 }
 
 const lineOf = (n) => (n.position && n.position.start ? n.position.start.line : undefined);
@@ -218,4 +265,4 @@ function snippet(text, matched, { width = 160 } = {}) {
   return { text: `${pre}${piece}${end < flat.length ? '…' : ''}`, marks };
 }
 
-module.exports = { plain, title, records, stem, tokens, index, query, snippet };
+module.exports = { plain, title, describe, records, stem, tokens, index, query, snippet };

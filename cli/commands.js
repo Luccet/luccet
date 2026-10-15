@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
-// tern new, check, parse, build, mv and corpus, and the arguments of tern lsp.
+// tern new, check, parse, build, mv, search, index and corpus, and the
+// arguments of tern lsp.
 // Each command takes its arguments and returns the exit code (tern lsp: none,
 // it runs until its client exits it):
 //   0  done
 //   1  check: a diagnostic at or above --fail-on; new: it refused (the file
 //      exists, or the line it would write is not detected); mv: it refused
 //      (a destination exists, a folder into itself) or a move failed;
+//      search: nothing matched; index --check: a file is missing or stale;
 //      corpus: an example whose diagnostics differ from its expect, or a
 //      bad schema=
 //   2  a usage error, or a path that cannot be used
@@ -16,6 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
+const { spawnSync } = require('child_process');
 const { split, notNote, attributes, analyse, htmlFiles, repository, tern } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
@@ -28,7 +31,8 @@ const SYNOPSIS = {
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
   build: 'tern build FILE [-o OUT] [--math katex|mathml] [--no-scripts]',
   mv: 'tern mv FROM… TO [--root=DIR] [--dry-run]',
-  search: 'tern search QUERY [PATH…] [--json] [--limit=N|all] [--no-scripts]',
+  search: 'tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
+  index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--no-scripts]',
   corpus: 'tern corpus PATH… [--out=DIR]',
   lsp: 'tern lsp [--stdio]',
 };
@@ -67,7 +71,19 @@ const usage = () =>
       named block with an id — ranked for QUERY, and printed as FILE:LINE:
       the entry's label and title, then its passage with the matching words.
       A query word stands for the words it begins. --limit caps the results
-      (20). Exit 1 when nothing matches.
+      (20). --index searches a search.json that tern index wrote instead of
+      reading the notes. Exit 1 when nothing matches.
+  ${SYNOPSIS.index}
+      Write what a site's add-ons read about the notes under each PATH
+      (default: the current folder): DIR/notes.json, a catalogue — each
+      note's path, title, description, date, headings and links — for the
+      ::notes list, and DIR/search.json, the index ::search{index=…} loads
+      instead of fetching every note. DIR is -o, else the first PATH's
+      folder; the paths in both files are relative to it. In a git
+      repository only tracked files are indexed, so a private note is never
+      published (--all indexes every file); a note whose meta says
+      robots: noindex is left out. --check writes nothing and exits 1 when
+      a file is missing or differs from what would be written.
   ${SYNOPSIS.corpus}
       Print the live examples of documentation pages (tern fences with the
       class live) as conformance-corpus cases. A case's spec: line is the
@@ -79,8 +95,8 @@ const usage = () =>
       accepted and changes nothing).
 
 Exit codes: 0 done; 1 check found problems, new or mv refused, search found
-nothing, or corpus found an example that does not match its expect; 2 a
-usage error.
+nothing, index --check found a file missing or stale, or corpus found an
+example that does not match its expect; 2 a usage error.
 `;
 
 class UsageError extends Error {
@@ -313,8 +329,29 @@ function filesOf(positionals) {
   return files;
 }
 
+// The version series an index must share with this tern.js: its stems are
+// the stemmer's, which changes only in a minor release (src/search.js).
+const series = (v) => String(v).split('.').slice(0, 2).join('.');
+
+// A search.json `tern index` wrote, read back: its entries' URLs are
+// relative to the file's folder, and its lines are file lines.
+function readIndex(file) {
+  let data;
+  try {
+    data = JSON.parse(read(file));
+  } catch (e) {
+    if (e instanceof UsageError) throw e;
+    throw new UsageError(`${file} is not JSON: ${e.message}`, false);
+  }
+  if (!data || typeof data !== 'object' || !Array.isArray(data.entries) || !data.terms || typeof data.terms !== 'object' || !Array.isArray(data.lengths)) {
+    throw new UsageError(`${file} is not a search index written by tern index`, false);
+  }
+  if (series(data.tern) !== series(tern.version)) throw new UsageError(`${file} was written by tern ${data.tern || '?'} and this is ${tern.version}: run tern index again`, false);
+  return data;
+}
+
 function search(args) {
-  const { values: o, positionals } = options(args, { json: { type: 'boolean' }, limit: { type: 'string' }, 'no-scripts': { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { index: { type: 'string' }, json: { type: 'boolean' }, limit: { type: 'string' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('search');
   if (!positionals.length) throw new UsageError('QUERY is missing');
   const [query, ...paths] = positionals;
@@ -324,6 +361,11 @@ function search(args) {
     if (o.limit === 'all') limit = Infinity;
     else if (/^[1-9]\d*$/.test(o.limit)) limit = Number(o.limit);
     else throw new UsageError(`--limit is a positive number or all, not "${o.limit}"`);
+  }
+  if (o.index !== undefined) {
+    if (!o.index) throw new UsageError('--index is empty');
+    if (paths.length) throw new UsageError('--index takes no PATH: the index names the notes');
+    return searchIndex(o.index, query, limit, !!o.json);
   }
   const files = filesOf(paths.length ? paths : ['.']);
   const entries = [];
@@ -368,6 +410,214 @@ function search(args) {
   if (o.json) say(JSON.stringify(out, null, 2));
   warn(notes ? `tern search: ${plural(notes, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}: ${plural(hits.length, 'result')}` : 'tern search: no notes found');
   return broken ? 2 : hits.length ? 0 : 1;
+}
+
+// tern search --index FILE: the same hits from a search.json, no note read.
+// Files print relative to the current folder, as the live search prints
+// the paths it was given.
+function searchIndex(file, query, limit, json) {
+  const idx = readIndex(file);
+  const base = path.dirname(path.resolve(file));
+  const shown = (url) => path.relative(process.cwd(), path.resolve(base, url)) || '.';
+  const titles = new Map((idx.notes || []).map((n) => [n.url, n.title]));
+  const hits = tern.search.query(idx, query, { limit });
+  const out = [];
+  for (const { entry, score, matched } of hits) {
+    const snippet = tern.search.snippet(entry.text || entry.title || entry.label, matched);
+    const heading = [entry.label, entry.title].filter(Boolean).join(' ');
+    if (json) {
+      const { url, text, ...rest } = entry;
+      out.push({ file: shown(url), ...rest, page: titles.get(url), score, snippet: snippet.text, marks: snippet.marks });
+    } else {
+      say(`${shown(entry.url)}:${entry.line || 1}: ${heading}${entry.id ? ` (#${entry.id})` : ''}`);
+      say(`    ${snippet.text}`);
+    }
+  }
+  if (json) say(JSON.stringify(out, null, 2));
+  const n = (idx.notes || []).length;
+  warn(`tern search: ${plural(n, 'note')}, ${idx.entries.length} ${idx.entries.length === 1 ? 'entry' : 'entries'} in ${file}: ${plural(hits.length, 'result')}`);
+  return hits.length ? 0 : 1;
+}
+
+// ---------------------------------------------------------------- index
+
+const NOTES_JSON = 'notes.json';
+const SEARCH_JSON = 'search.json';
+
+// git, run in a repository: its stdout, or null when it fails or is not there.
+function git(root, args) {
+  const r = spawnSync('git', ['-C', root, '-c', 'core.quotePath=false', ...args], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  return r.error || r.status !== 0 ? null : r.stdout;
+}
+
+// What git knows about a repository's files, for the index: the tracked
+// files (absolute paths), the day each was last committed, and the files
+// with changes not yet committed. null when git is not available.
+const repos = new Map();
+function repoInfo(root) {
+  if (repos.has(root)) return repos.get(root);
+  let info = null;
+  const ls = git(root, ['ls-files', '-z']);
+  if (ls !== null) {
+    info = { tracked: new Set(ls.split('\0').filter(Boolean).map((f) => path.resolve(root, f))), dates: new Map(), changed: new Set() };
+    const log = git(root, ['log', '--format=%x01%as', '--name-only']) || '';
+    let day = '';
+    for (const line of log.split('\n')) {
+      if (line.startsWith('\x01')) day = line.slice(1).trim();
+      else if (line.trim() && day && !info.dates.has(path.resolve(root, line))) info.dates.set(path.resolve(root, line), day);
+    }
+    // No HEAD yet (no commit): every file counts as changed.
+    const diff = git(root, ['diff', '--name-only', '-z', 'HEAD']);
+    if (diff === null) info.changed = null;
+    else for (const f of diff.split('\0').filter(Boolean)) info.changed.add(path.resolve(root, f));
+  }
+  repos.set(root, info);
+  return info;
+}
+
+// A file's day, YYYY-MM-DD, local time.
+function dayOf(file) {
+  const d = new Date(fs.statSync(file).mtimeMs);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// JSON with one item per line for the top-level arrays and objects, so the
+// file diffs by note, entry and term; `sorted` keys sort an object's keys.
+function lineJSON(obj, sorted = []) {
+  const parts = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (Array.isArray(v) && v.length) parts.push(`${JSON.stringify(k)}: [\n${v.map((x) => ` ${JSON.stringify(x)}`).join(',\n')}\n]`);
+    else if (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length) {
+      const keys = sorted.includes(k) ? Object.keys(v).sort() : Object.keys(v);
+      parts.push(`${JSON.stringify(k)}: {\n${keys.map((x) => ` ${JSON.stringify(x)}: ${JSON.stringify(v[x])}`).join(',\n')}\n}`);
+    } else parts.push(`${JSON.stringify(k)}: ${JSON.stringify(v)}`);
+  }
+  return `{\n${parts.join(',\n')}\n}\n`;
+}
+
+// A relative URL as written in a note, as the file it names, or null for
+// one that is not a relative path (a scheme, //host, /root-relative).
+function linkFile(dir, url) {
+  const plain = url.replace(/[?#].*$/, '');
+  if (!plain || /^[a-z][a-z0-9+.-]*:|^\/\/|^\//i.test(plain)) return null;
+  try {
+    return path.resolve(dir, decodeURIComponent(plain));
+  } catch {
+    return path.resolve(dir, plain);
+  }
+}
+
+function index(args) {
+  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, check: { type: 'boolean' }, all: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
+  if (o.help) return help('index');
+  const paths = positionals.length ? positionals : ['.'];
+  const files = filesOf(paths);
+  let dir = o.output;
+  if (dir === undefined) dir = fs.statSync(paths[0]).isDirectory() ? paths[0] : path.dirname(paths[0]);
+  if (!dir) throw new UsageError('-o is empty');
+  const outDir = path.resolve(dir);
+  const stat = fs.statSync(outDir, { throwIfNoEntry: false });
+  if (stat && !stat.isDirectory()) throw new UsageError(`-o ${dir} is not a folder`, false);
+  const rel = (file) => path.relative(outDir, file).split(path.sep).join('/');
+
+  // Tracked files only, in a repository: a note git ignores or does not
+  // know is not published. A file named on the command line is always in.
+  let left = 0;
+  let noGit = false;
+  const kept = files.filter((f) => {
+    if (o.all || f.named) return true;
+    const abs = path.resolve(f.shown);
+    const root = repository(path.dirname(abs));
+    if (!root) return true;
+    const info = repoInfo(root);
+    if (!info) return (noGit = true);
+    if (info.tracked.has(abs)) return true;
+    left++;
+    return false;
+  });
+  if (noGit) warn('tern index: git is not available, so untracked and ignored files are indexed too');
+
+  const notes = [];
+  const entries = [];
+  let robots = 0;
+  let broken = false;
+  for (const f of kept) {
+    let text;
+    try {
+      text = fs.readFileSync(f.shown, 'utf8');
+    } catch (e) {
+      warn(`tern index: cannot read ${f.shown}: ${e.message}`);
+      broken = true;
+      continue;
+    }
+    const a = analyse(text, f.shown, { noScripts: o['no-scripts'] });
+    if (!a) {
+      if (f.named) warn(`tern index: ${f.shown} is not a note (${notNote(text)}); skipped`);
+      continue;
+    }
+    const d = tern.search.describe(a.head, a.ast);
+    if (/\bnoindex\b/i.test(String(d.meta.robots || ''))) {
+      robots++;
+      continue;
+    }
+    const abs = path.resolve(f.shown);
+    const url = rel(abs);
+    const title = d.title || path.basename(f.shown);
+    let date = String(d.meta.date || '').trim();
+    if (!date) {
+      const root = repository(path.dirname(abs));
+      const info = root ? repoInfo(root) : null;
+      date = info && info.changed !== null && !info.changed.has(abs) && info.dates.get(abs) ? info.dates.get(abs) : dayOf(abs);
+    }
+    const links = [];
+    for (const u of d.links) {
+      const file = linkFile(path.dirname(abs), u);
+      if (file && file !== abs && !links.includes(file)) links.push(file);
+    }
+    notes.push({ url, title, description: d.description, date, headings: d.headings, links, abs });
+    for (const r of tern.search.records(a.ast, { url, title })) {
+      const pos = r.line ? a.toFile({ start: { line: r.line, column: 1 }, end: { line: r.endLine || r.line, column: 1 } }) : null;
+      const e = { ...r, url };
+      if (pos) (e.line = pos.start.line), (e.endLine = pos.end.line);
+      entries.push(e);
+    }
+  }
+  // A link counts when it names a note in the catalogue, as a path like the note's.
+  const known = new Map(notes.map((n) => [n.abs, n.url]));
+  for (const n of notes) {
+    n.links = n.links.map((f) => known.get(f)).filter(Boolean);
+    delete n.abs;
+  }
+  const idx = tern.search.index(entries);
+  const outputs = [
+    [NOTES_JSON, `${JSON.stringify({ tern: tern.version, notes }, null, 2)}\n`],
+    [SEARCH_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
+  ];
+  const where = (name) => path.join(dir, name);
+  const summary = `${plural(notes.length, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${left ? `; ${left} left out (not tracked by git)` : ''}${robots ? `; ${robots} noindex` : ''}`;
+  if (o.check) {
+    let stale = 0;
+    for (const [name, text] of outputs) {
+      let have = null;
+      try {
+        have = fs.readFileSync(path.join(outDir, name), 'utf8');
+      } catch {}
+      if (have === text) continue;
+      stale++;
+      warn(`tern index: ${where(name)} is ${have === null ? 'missing' : 'stale'}: run tern index${o.output !== undefined ? ` -o ${o.output}` : ''} ${paths.join(' ')}`);
+    }
+    warn(`tern index: ${summary}; ${stale ? `${stale} of 2 files to write` : 'both files are up to date'}`);
+    return broken ? 2 : stale ? 1 : 0;
+  }
+  try {
+    fs.mkdirSync(outDir, { recursive: true });
+    for (const [name, text] of outputs) fs.writeFileSync(path.join(outDir, name), text);
+  } catch (e) {
+    throw new UsageError(`cannot write ${dir}: ${e.message}`, false);
+  }
+  warn(`tern index: ${summary} → ${where(NOTES_JSON)}, ${where(SEARCH_JSON)}`);
+  return broken ? 2 : 0;
 }
 
 // ---------------------------------------------------------------- parse
@@ -638,6 +888,7 @@ module.exports = {
   build: command('build', buildPage),
   mv: command('mv', mv),
   search: command('search', search),
+  index: command('index', index),
   corpus: command('corpus', corpus),
   lsp: command('lsp', lsp),
 };

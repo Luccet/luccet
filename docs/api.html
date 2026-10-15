@@ -27,7 +27,7 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`tern.check(source, opts)`](#check) | engine | every diagnostic of a note | works |
 | [`tern.visit(tree, type, fn)`](#visit) | engine | walks a tree | works |
 | [`tern.outline(ast)`](#outline) | engine | the editor digest | works |
-| [`tern.search`](#search) | engine | entries, an index and a ranked query over notes | works |
+| [`tern.search`](#search) | engine | entries, an index and a ranked query over notes; a note's description for a catalogue | works |
 | [`tern.schema`](#registry) | engine | the vocabulary, as plain data | works |
 | [`tern.block`, `tern.leaf`, `tern.inline`](#registry) | engine | declare a name | works |
 | [`tern.transforms`](#tern-transforms) | engine | the transform order | works |
@@ -510,6 +510,7 @@ tern.search.index(entries) → index
 tern.search.query(index, text, { limit }) → [{ entry, score, matched }]
 tern.search.snippet(text, matched, { width }) → { text, marks }
 tern.search.title(head, ast) → string
+tern.search.describe(head, ast) → { title, description, meta, headings, links }
 ```
 :::
 
@@ -536,10 +537,11 @@ tern.search.snippet(entries[1].text, ['pythagora']);
 ```
 
 - **`records(ast, {url, title})`** splits a transformed AST into entries: one per heading's section and one per named block with an id. A block's text is its own, not its section's; a block without an id gives its text to the entry it is in. `kind` is `'page'` (the text before the first heading), `'heading'`, or the block's name; `label` is the heading's text, the page's title, or the block's label ("Exercise 3"); `title` a block's bracket title. `line` and `endLine` are note lines. An entry with nothing to search is left out.
-- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back. A word in an entry's label or title weighs three times one in its text.
+- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`tern index`](tools.html#index-files) writes as `search.json`. Its stems are `stem`'s, which changes only in a minor release, so an index serves the readers of its own version series. A word in an entry's label or title weighs three times one in its text.
 - **`query(index, text, {limit})`** ranks the entries BM25-style for the words of `text`, best first, at most `limit` (20; `Infinity` for all). `matched` lists the stems the hit matched, for `snippet`.
 - **`snippet(text, matched, {width})`** cuts a passage of about `width` characters (160) around the first matching word, `…` where it is cut, with the `[start, end)` ranges of every matching word in it.
 - **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.
+- **`describe(head, ast)`** is what a catalogue holds for a note ([`tern index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
 - **`stem(word)`** and **`tokens(text)`** are the stemmer and the tokeniser the index and the query share.
 
 ### The registry {#registry}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// The command line: `node tern-cli.js` new, check, parse, build and corpus,
-// spawned in a temporary directory, and the note-detection regex against
+// The command line: `node tern-cli.js` new, check, parse, build, mv, search,
+// index and corpus, spawned in a temporary directory, and the note-detection regex against
 // test/fixtures/detect.json. Zero dependencies.
 // `build --katex` is tested when the smoke tests' KaTeX copy exists
 // (node_modules/.cache/tern-smoke/katex-*/dist), through a `katex` package
@@ -251,6 +251,114 @@ test('search: FILE:LINE, the label and id, the passage; file lines; exit 1 on a 
   exits(r, 2, '--limit=0');
   r = run(['search', 'x', 'nowhere']);
   exits(r, 2, 'a missing path');
+});
+
+// Today, as tern index dates a file outside a repository: YYYY-MM-DD, local time.
+const TODAY = (() => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+})();
+
+test('index: notes.json and search.json, paths relative to -o, titles, descriptions and dates from the head and :::meta, links to notes in the catalogue, noindex left out; --check; search --index', () => {
+  write('i/a.html', `${FIRST}<title>A note</title><meta name="description" content="About A &amp; B"><script src="tern.js"></script>\n:::meta\ndate: 2026-01-02\n:::\n\n# Alpha {#alpha}\n\nSee [b](sub/b.html), [c](c.html#secret), [the readme](README.md), [b again](sub/b.html?x) and [nowhere](https://example.com/x.html).\n\n:::note[I.1]{#ex-1}\nProve Pythagoras theorem.\n:::\n`);
+  write('i/sub/b.html', `${FIRST}<script src="../tern.js"></script>\n:::meta\ntitle: Bee\ndescription: From meta\n:::\n\n# Bee\n\nBack to [a](../a.html).\n`);
+  write('i/c.html', `${FIRST}<title>Private</title><meta name="robots" content="noindex, follow"><script src="tern.js"></script>\n# Secret {#secret}\n\nNot listed.\n`);
+  write('i/plain.html', 'not a note', { tern: false });
+  let r = run(['index', 'i']);
+  exits(r, 0, 'index');
+  eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex → i/notes.json, i/search.json\n', 'the summary');
+  const notes = JSON.parse(read('i/notes.json'));
+  eq(notes.tern, tern.version, 'the version that wrote it');
+  eq(notes.notes.map((n) => [n.url, n.title, n.description, n.date, n.links]), [['a.html', 'A note', 'About A & B', '2026-01-02', ['sub/b.html']], ['sub/b.html', 'Bee', 'From meta', TODAY, ['a.html']]], 'the catalogue: the head\'s title and description, else :::meta\'s; the meta date, else the file\'s day; links to notes in the catalogue only, as paths like the notes\', each once');
+  eq(notes.notes[0].headings, [{ depth: 1, id: 'alpha', text: 'Alpha' }], 'the headings');
+  ok(read('i/notes.json').endsWith('}\n') && read('i/notes.json').includes('\n  "notes": [\n    {\n      "url": "a.html",'), 'notes.json is pretty-printed');
+  const idx = JSON.parse(read('i/search.json'));
+  eq([idx.tern, idx.notes], [tern.version, [{ url: 'a.html', title: 'A note' }, { url: 'sub/b.html', title: 'Bee' }]], 'the index names its notes');
+  eq(idx.entries.map((e) => [e.url, e.id, e.line, e.endLine, e.kind, e.label]), [['a.html', 'alpha', 6, 13, 'heading', 'Alpha'], ['a.html', 'ex-1', 10, 12, 'note', 'note'], ['sub/b.html', 'bee', 7, 10, 'heading', 'Bee']], 'the entries, at file lines (a section ends on the line after the final newline, as tern search prints it)');
+  eq(Object.keys(idx.terms), Object.keys(idx.terms).slice().sort(), 'the terms are sorted');
+  ok(Array.isArray(idx.lengths) && idx.lengths.length === 3 && idx.avg > 0, 'lengths and avg');
+  ok(/\n "pythagora": \[\[1,1\]\],?\n/.test(read('i/search.json')), `one term per line: ${read('i/search.json').slice(0, 200)}`);
+  r = run(['index', 'i', '--check']);
+  exits(r, 0, '--check, up to date');
+  eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex; both files are up to date\n', 'the check\'s summary');
+  write('i/sub/b.html', `${FIRST}<script src="../tern.js"></script>\n:::meta\ntitle: Bee\ndescription: From meta\n:::\n\n# Bee\n\nBack to [a](../a.html), and a new word: quux.\n`);
+  r = run(['index', 'i', '--check']);
+  exits(r, 1, '--check, stale');
+  eq(r.err, 'tern index: i/search.json is stale: run tern index i\ntern index: 2 notes, 3 entries; 1 noindex; 1 of 2 files to write\n', 'the stale file named (the catalogue did not change)');
+  fs.rmSync(at('i/notes.json'));
+  r = run(['index', 'i', '--check']);
+  exits(r, 1, '--check, missing');
+  ok(/tern index: i\/notes\.json is missing: run tern index i\n/.test(r.err) && /2 of 2 files to write/.test(r.err), r.err);
+  ok(!fs.existsSync(at('i/notes.json')), '--check wrote nothing');
+  r = run(['index', 'i/a.html', 'i/sub', '-o', 'i/out']);
+  exits(r, 0, '-o');
+  eq(JSON.parse(read('i/out/notes.json')).notes.map((n) => [n.url, n.links]), [['../a.html', ['../sub/b.html']], ['../sub/b.html', ['../a.html']]], 'paths relative to -o, which is created');
+  r = run(['index', 'i/plain.html']);
+  exits(r, 0, 'a named non-note');
+  ok(/plain\.html is not a note/.test(r.err) && /0 notes, 0 entries/.test(r.err), r.err);
+  r = run(['index', 'i', '-o', 'i/a.html']);
+  exits(r, 2, '-o a file');
+  r = run(['index', 'nowhere']);
+  exits(r, 2, 'a missing path');
+  // tern search --index: the same hits from the file, no note read.
+  r = run(['index', 'i']);
+  exits(r, 0, 'index again');
+  fs.rmSync(at('i/a.html'));
+  r = run(['search', 'pythag', '--index=i/search.json']);
+  exits(r, 0, 'a hit from the index, the note gone');
+  eq(r.out, 'i/a.html:10: note I.1 (#ex-1)\n    Prove Pythagoras theorem.\n', 'the hit, at its file line, the path relative to the current folder');
+  eq(r.err, 'tern search: 2 notes, 3 entries in i/search.json: 1 result\n', 'the summary');
+  r = run(['search', 'bee', '--index=search.json', '--json'], { cwd: path.join(TMP, 'i') });
+  exits(r, 0, 'json');
+  const hits = JSON.parse(r.out);
+  eq([hits[0].file, hits[0].line, hits[0].endLine, hits[0].id, hits[0].label, hits[0].page, hits[0].snippet], ['sub/b.html', 7, 10, 'bee', 'Bee', 'Bee', 'Back to a, and a new word: quux.'], 'the fields');
+  r = run(['search', 'nothingofthesort', '--index=i/search.json']);
+  exits(r, 1, 'a miss');
+  r = run(['search', 'quux', 'i', '--index=i/search.json']);
+  exits(r, 2, '--index with a PATH');
+  write('i/old.json', JSON.stringify({ tern: '0.1.0', notes: [], entries: [], terms: {}, lengths: [], avg: 0 }), { tern: false });
+  r = run(['search', 'quux', '--index=i/old.json']);
+  exits(r, 2, 'another version series');
+  ok(/old\.json was written by tern 0\.1\.0 and this is /.test(r.err), r.err);
+  write('i/notes.txt', '{"a": 1}', { tern: false });
+  r = run(['search', 'quux', '--index=i/notes.txt']);
+  exits(r, 2, 'not an index');
+  ok(/is not a search index/.test(r.err), r.err);
+  r = run(['search', 'quux', '--index=i/plain.html']);
+  exits(r, 2, 'not JSON');
+  r = run(['search', 'quux', '--index=i/none.json']);
+  exits(r, 2, 'a missing index');
+});
+
+test('index: in a git repository, tracked files only; the date is the last commit\'s day, or today for a file with changes; --all', () => {
+  const git = (...args) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=', ...args], { cwd: at('gi'), encoding: 'utf8' });
+  fs.mkdirSync(at('gi'), { recursive: true });
+  const init = git('init', '-q');
+  if (init.error || init.status !== 0) throw new Skip('git is not available');
+  write('gi/t.html', `${FIRST}<title>Tracked</title><script src="tern.js"></script>\n# T\n\nTracked.\n`);
+  write('gi/u.html', `${FIRST}<title>Untracked</title><script src="tern.js"></script>\n# U\n\nNot added.\n`);
+  write('gi/secret.html', `${FIRST}<title>Ignored</title><script src="tern.js"></script>\n# S\n\nIgnored.\n`);
+  write('gi/.gitignore', 'secret.html\n', { tern: false });
+  ok(git('add', 't.html', 'tern.js', '.gitignore').status === 0, 'git add');
+  let r = run(['index', 'gi']);
+  exits(r, 0, 'index, staged but not committed');
+  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', TODAY]], 'the tracked note alone, dated today (no commit yet)');
+  eq(r.err, 'tern index: 1 note, 1 entry; 2 left out (not tracked by git) → gi/notes.json, gi/search.json\n', 'the summary counts the files left out');
+  r = run(['index', 'gi', '--all']);
+  exits(r, 0, '--all');
+  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => n.url), ['secret.html', 't.html', 'u.html'], '--all indexes every file');
+  r = run(['index', 'gi/u.html', 'gi']);
+  exits(r, 0, 'a file named');
+  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => n.url), ['u.html', 't.html'], 'a file named on the command line is indexed, tracked or not');
+  ok(git('commit', '-q', '-m', 'one', '--date=2024-05-06T12:00:00+00:00').status === 0, 'git commit');
+  r = run(['index', 'gi']);
+  exits(r, 0, 'index after a commit');
+  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', '2024-05-06']], 'the day of the last commit');
+  write('gi/t.html', `${FIRST}<title>Tracked</title><script src="tern.js"></script>\n# T\n\nTracked, and changed.\n`);
+  r = run(['index', 'gi']);
+  exits(r, 0, 'index with a change');
+  eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', TODAY]], 'a changed file is dated today');
 });
 
 test('check --fail-on and --quiet', () => {
@@ -1121,7 +1229,7 @@ test('usage: help, unknown commands, --help, --version', () => {
   exits(run([]), 0, 'no command');
   exits(run(['bogus']), 2, 'an unknown command');
   exits(run(['usage']), 2, 'usage is not a command');
-  for (const c of ['new', 'check', 'parse', 'build', 'corpus', 'lsp']) {
+  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'lsp']) {
     const r = run([c, '--help']);
     exits(r, 0, `${c} --help`);
     ok(r.out.startsWith(`usage: tern ${c}`), `${c} --help prints its synopsis`);

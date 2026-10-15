@@ -171,6 +171,16 @@ test('search: words that name Object.prototype members are words like any, befor
   eq(tern.search.query(back, 'valueof'), [], 'a prototype member that is not a word in the notes');
 });
 
+test('search.describe: the title, the description from the head else :::meta, the meta with the head over the block, every heading, the links each once', () => {
+  const head = '<title>A &amp; B</title><meta name="description" content="Desc &amp; more"><meta name="robots" content="noindex">';
+  const { ast } = tern.parse(':::meta\ndate: 2026-10-01\ndescription: from meta\n:::\n\n# One {#one}\n\nSee [x](x.html) and [y](x.html#y) and [x again](x.html) and [self](#one).\n\n:::note\n## Inner\n:::\n', { head });
+  tern.transform(ast, { head });
+  eq(tern.search.describe(head, ast), { title: 'A & B', description: 'Desc & more', meta: { date: '2026-10-01', description: 'Desc & more', robots: 'noindex' }, headings: [{ depth: 1, id: 'one', text: 'One' }, { depth: 2, id: 'inner', text: 'Inner' }], links: ['x.html', 'x.html#y'] }, 'with a head');
+  const bare = tern.parse(':::meta\ndescription: from meta\n:::\n\n# T\n\nA [l](a.html).\n').ast;
+  eq(tern.search.describe('', bare), { title: 'T', description: 'from meta', meta: { description: 'from meta' }, headings: [{ depth: 1, id: '', text: 'T' }], links: ['a.html'] }, 'no head, no transform: ids only where written');
+  eq(tern.search.describe('', tern.parse('text\n').ast), { title: '', description: '', meta: {}, headings: [], links: [] }, 'nothing');
+});
+
 test('search.snippet and search.title', () => {
   const s = tern.search.snippet('Prove Pythagoras theorem using squares on the sides.', ['pythagora']);
   eq(s, { text: 'Prove Pythagoras theorem using squares on the sides.', marks: [[6, 16]] }, 'a short text whole, the word marked');
