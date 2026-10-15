@@ -44,7 +44,7 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v0.4.0/tern.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v0.4.3/tern.js"></script>
 ```
 
 - **To follow releases,** use `@0.4` (the newest 0.4.x) or `@latest` (the newest release). 
@@ -79,6 +79,8 @@ npm run build       # src/ → tern.js and tern.css
 npm test            # build check, corpus, samples, perf, fuzz, API, CLI, LSP, documentation
 npm run smoke       # Chromium and Firefox (Playwright)
 ```
+
+**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `tern.version`, the README's jsDelivr tag and the docs' examples. It rebuilds `tern.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test and publishes the site. Then create the GitHub Release from the changelog section. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
 
 
 MIT licensed.

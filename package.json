@@ -1,6 +1,6 @@
 {
   "name": "tern",
-  "version": "0.4.0",
+  "version": "0.4.3",
   "description": "Documents with the full power of HTML, CSS and JS.",
   "license": "MIT",
   "private": true,
@@ -15,6 +15,7 @@
   "scripts": {
     "build": "node tools/concat.js",
     "bump": "node tools/version.js",
+    "tag": "node tools/version.js --tag",
     "themes": "node tools/themes.js",
     "hljs": "node tools/hljs.js",
     "mermaid": "node tools/mermaid.js",

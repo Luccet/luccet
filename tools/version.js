@@ -9,10 +9,20 @@
 //   node tools/version.js X.Y.Z              set the version everywhere, rebuild tern.js
 //   node tools/version.js patch|minor|major  the same, with the next version
 //   node tools/version.js --check            exit 1 if a place disagrees with package.json (CI)
+//   node tools/version.js --tag              tag the release: vX.Y.Z on a clean main that passes --check
 //
 // The check also reads every file git tracks: one that names the version
 // outside a place fails it, so a new mention is added to PLACES and the
-// next bump cannot miss it.
+// next bump cannot miss it. CHANGELOG.md is the exception, since it names
+// every version; it must hold a section for the current one instead, and a
+// bump starts that section.
+//
+// --tag is the guard against a tag that does not match the version (which
+// the release workflow would refuse, while jsDelivr serves the tag anyway,
+// forever): it refuses a branch other than main, a working tree with
+// changes, a place that disagrees, a missing changelog section, and a tag
+// that already exists here or on origin. It creates an annotated tag and
+// prints the push that starts the release.
 'use strict';
 
 const fs = require('fs');
@@ -39,6 +49,7 @@ const PLACES = [
   ['docs/tools.html', '"tern": "{v}",'],
 ];
 
+const CHANGELOG = 'CHANGELOG.md';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 const series = (v) => v.split('.').slice(0, 2).join('.');
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -106,8 +117,10 @@ function problems(v) {
       }
     }
   }
+  if (fs.existsSync(path.join(ROOT, CHANGELOG)) && !changelogHas(v)) out.push(`${CHANGELOG}: no section for ${v}; add "## ${v}" with what the release changes`);
   const token = new RegExp(`(?<![\\d.])${esc(v)}(?!\\.?\\d)`, 'g');
   for (const file of tracked()) {
+    if (file === CHANGELOG) continue; // names every version, by design
     let body;
     try {
       body = fs.readFileSync(path.join(ROOT, file));
@@ -122,6 +135,51 @@ function problems(v) {
     }
   }
   return out;
+}
+
+// Whether CHANGELOG.md has a section for `v` (a "## v" heading).
+function changelogHas(v) {
+  return new RegExp(`^## v?${esc(v)}(?=\\s|$)`, 'm').test(read(CHANGELOG));
+}
+
+// Starts the changelog's section for `v`, dated today, above the first
+// section, so the release notes have a place before the bump is committed.
+function changelogStart(v) {
+  const text = read(CHANGELOG);
+  const at = text.search(/^## /m);
+  const today = new Date().toISOString().slice(0, 10);
+  const section = `## ${v} (${today})\n\n- \n\n`;
+  fs.writeFileSync(path.join(ROOT, CHANGELOG), at < 0 ? `${text.replace(/\s*$/, '\n\n')}${section}` : text.slice(0, at) + section + text.slice(at));
+}
+
+// git, here: its stdout, or null when it fails.
+function git(args) {
+  const r = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+  return r.status === 0 ? r.stdout : null;
+}
+
+// --tag: the annotated tag vX.Y.Z for the version everything says, once
+// nothing can make the release workflow refuse it.
+function tag(current) {
+  const name = `v${current}`;
+  const branch = (git(['rev-parse', '--abbrev-ref', 'HEAD']) || '').trim();
+  if (branch !== 'main') fail([`on ${branch || 'no branch'}, not main; a release is tagged on main`]);
+  const status = git(['status', '--porcelain']);
+  if (status === null) fail(['git status failed; is this a repository?']);
+  if (status.trim()) fail([`the working tree has changes; commit or stash them first:\n${status.trimEnd()}`]);
+  const p = problems(current);
+  if (p.length) fail(p, `Run node tools/version.js ${current} (or npm run bump) and commit, then tag.`);
+  if ((git(['tag', '-l', name]) || '').trim()) fail([`${name} already exists here; bump the version first`]);
+  const remote = git(['ls-remote', '--tags', 'origin', `refs/tags/${name}`]);
+  if (remote === null) console.log(`(origin could not be reached; ${name} was not checked there)`);
+  else if (remote.trim()) fail([`${name} already exists on origin; bump the version first`]);
+  const built = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'concat.js'), '--check'], { cwd: ROOT, encoding: 'utf8' });
+  if (built.status !== 0) fail([`tern.js is not the build of src/: ${(built.stdout + built.stderr).trim()}`]);
+  const made = spawnSync('git', ['tag', '-a', name, '-m', name], { cwd: ROOT, encoding: 'utf8' });
+  if (made.status !== 0) fail([`git tag failed: ${(made.stdout + made.stderr).trim()}`]);
+  console.log(`✓ tagged ${name} on main (${(git(['rev-parse', '--short', 'HEAD']) || '').trim()})`);
+  console.log(`Next: git push origin ${name}`);
+  console.log('The release workflow runs every test and publishes the site; then write the GitHub Release from CHANGELOG.md.');
 }
 
 // The version after `v`: a keyword, or one given.
@@ -161,6 +219,11 @@ function main() {
     return;
   }
 
+  if (args.includes('--tag')) {
+    tag(current);
+    return;
+  }
+
   if (!args.length) {
     console.log(`tern ${current} (package.json)`);
     for (const p of places()) {
@@ -175,6 +238,7 @@ function main() {
   const want = next(current, args[0]);
   if (!SEMVER.test(want)) fail([`"${args[0]}" is not a version (X.Y.Z or X.Y.Z-pre) or patch, minor, major`]);
   if (compare(want, current) <= 0) fail([`${want} is not after ${current}`]);
+  if ((git(['tag', '-l', `v${want}`]) || '').trim()) fail([`v${want} is already a tag; give the next free version instead (git tag -l)`]);
   const before = problems(current);
   if (before.length) fail(before, `Fix these first, so that the bump leaves no ${current} behind.`);
 
@@ -195,12 +259,14 @@ function main() {
   }
   const build = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'concat.js')], { cwd: ROOT, encoding: 'utf8' });
   if (build.status !== 0) fail([`tools/concat.js failed: ${build.stdout}${build.stderr}`]);
+  const log = fs.existsSync(path.join(ROOT, CHANGELOG)) && !changelogHas(want);
+  if (log) changelogStart(want);
   const after = problems(want);
   if (after.length) fail(after);
 
-  console.log(`tern ${current} → ${want}: ${[...edits.keys(), 'tern.js'].join(', ')}`);
-  console.log(`Next: npm test, commit, and once it is on main, tag it: git tag v${want} && git push origin v${want}`);
-  console.log('The release workflow checks the tag against tern.version and package.json.');
+  console.log(`tern ${current} → ${want}: ${[...edits.keys(), 'tern.js'].join(', ')}${log ? `; ${CHANGELOG} has a new section to fill` : ''}`);
+  console.log(`Next: ${log ? `write the ${want} section of ${CHANGELOG}, ` : ''}npm test, commit, and once it is on main: npm run tag, then git push origin v${want}`);
+  console.log('npm run tag refuses a tag the release workflow would: a dirty tree, a place that disagrees, a tag that exists.');
 }
 
 main();
