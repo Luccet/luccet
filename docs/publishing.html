@@ -33,7 +33,7 @@ This is the canonical first line, and `tern new` writes it for you (see [tern ne
 **What the tag must be.** A plain, synchronous, classic script, on one line:
 
 - no `async`, `defer` or `type="module"`: `tern.js` must run while the browser is still reading the file, to capture the rest of it;
-- the file it names must be called exactly `tern.js` (any path, any query string). The browser would run a copy called `tern.min.js`, but the command line and editors would not take the file for a note;
+- the file it names must be called exactly `tern.js` (any path, any query string). The browser would run a copy called `tern.min.js`, and jsDelivr serves one on request beside `tern.js` at every tag, minified there, but the command line and editors would not take the file for a note: do not use it;
 - the whole tag on one line, not inside a comment.
 
 The exact rule is [Note detection](tools.html#detection). Other attributes are allowed on the tag, and some configure `tern.js` (see [The tag's attributes](#tag-attributes)).

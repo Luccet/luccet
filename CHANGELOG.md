@@ -16,6 +16,7 @@ Phase 1 of the [remediation plan](https://github.com/OzkrAC/tern): the confirmed
 - `tern index`: a tracked note with changes not yet committed is dated today, the day of the commit a hook is about to make, so that `--check` holds once it is committed; it was dated by its modification day, which could differ. A file git does not track is still dated by its modification time.
 - Command line: output piped to a reader that closes early (`tern parse FILE | head`) ends the command quietly with exit 0; it died with an unhandled `EPIPE` and a stack trace, exit 1.
 - Command line: what a note's add-on throws or logs is printed without terminal control characters (ESC, C1, the rest of C0 but tab and newline), in diagnostics, hints, `--json` and the console relay, so a note you have not read cannot retitle or clear the terminal. `?securityLevel=loose` on the tag used to win over the documented default, which made a `click` with a `javascript:` URL a live link.
+- Project files: `SECURITY.md`, with private vulnerability reporting enabled on GitHub; `CONTRIBUTING.md`; an Editors section in the README. The README and the publishing page say that `tern.min.js` exists on jsDelivr, minified on request, and must not be used: the tools take a note only from a tag whose file is called `tern.js`.
 - CI: the actions run on Node 24, the runner image is pinned to Ubuntu 24.04, and a tag's push no longer runs the CI workflow beside the release one. A lockfile, `npm ci`, `npm audit`, and caches for the smoke tests' CDN copies and browsers.
 
 ## 0.4.3 (2026-10-15)
