@@ -139,6 +139,7 @@ function staticHandler(cdnOrigin) {
       url = url.slice('/csp-nonce'.length);
       headers['Content-Security-Policy'] = CSP_NONCE;
     }
+    if (url === '/gen/never.js') return; // the add-on that never loads (the deadline test): no answer, ever
     if (url.startsWith('/gen/') && GENERATED[url.slice(5)]) {
       const [type, body] = GENERATED[url.slice(5)]();
       res.writeHead(200, { 'Content-Type': /^text\/|javascript/.test(type) ? `${type}; charset=utf-8` : type });
@@ -480,7 +481,7 @@ async function routeKatex(context, ctx) {
 const SLOW_3G = { latency: 400, bytesPerSecond: (400 * 1000) / 8 };
 const STAGE_TOL = 25; // ms
 
-// Serial stages: a page loads in three, HTML → tern.js ∥ add-ons ∥ KaTeX
+// Serial stages: a page loads in three, HTML → tern.js → add-ons ∥ KaTeX (the add-ons are named by tern.js, so they follow it)
 // preload → mount. The document is stage 1.
 // Every other request is one stage later than the latest-staged request that
 // had already finished when it started, and at least stage 2, since
@@ -1324,10 +1325,12 @@ const TESTS = [
           columns: cs && cs.gridTemplateColumns,
           script: window.__noteScript === true,
           base: getComputedStyle(document.querySelector('main.tern')).maxWidth,
+          nonceGone: !document.querySelector('script[data-nonce]'),
         };
       });
       const problems = [];
       if (r.csp.length) problems.push(`${r.csp.length} CSP violation(s): ${[...new Set(r.csp)].join('; ')}`);
+      if (!r.nonceGone) problems.push('data-nonce is still readable on the tag after tern.js read it');
       const bad = r.cells.flatMap((row, i) => row.map((a, j) => [i, j, a])).filter(([, j, a]) => a !== ['left', 'right'][j]);
       if (bad.length || r.cells.length !== 3) problems.push(`text-align by row: ${JSON.stringify(r.cells)}, expected left, right in each of 3 rows`);
       const tracks = String(r.columns || '').split(/\s+/).map(parseFloat);
@@ -2244,6 +2247,105 @@ const TESTS = [
         return { typeset: box.querySelectorAll('.t-math math').length, after: [...own.querySelectorAll('.t-math')].map((e) => (e.classList.contains('t-error') ? 'error' : 'ok')) };
       });
       if (r.typeset !== 1 || r.after.join() !== 'error,error') throw new Error(`${JSON.stringify(r)}: expected the box's formula typeset and both of the page's undefined`);
+    },
+  },
+  // ---- runtime robustness (the remediation plan's Phase 3)
+  {
+    // A note script that renders a source holding a script runs a nested
+    // runScripts; its end must leave the document.write guard in place for
+    // the outer scripts still to come, or a later write wipes the page.
+    name: 'note scripts: a nested tern.render with a script keeps the document.write guard, so a later write is reported, not applied',
+    url: '/test/smoke/reentry-write.html',
+    async check(page, ctx) {
+      await expect(page, () => !!document.getElementById('after'), 'the paragraph after the scripts');
+      const r = await page.evaluate(() => ({ nested: window.__nested === true, wiped: !!document.getElementById('wiped'), main: !!document.querySelector('main.tern h1') }));
+      if (!r.nested) throw new Error('the nested render did not run its script');
+      if (r.wiped || !r.main) throw new Error(`the later document.write reached the page (wiped ${r.wiped}, main ${r.main})`);
+      const writes = ctx.diagnostics.filter((d) => d.code === 'script.document-write');
+      if (writes.length !== 1) throw new Error(`${writes.length} script.document-write diagnostics, expected 1`);
+    },
+  },
+  {
+    // Rendering a root again from a source retires what its scripts
+    // registered, so a live preview does not stack a registration per edit;
+    // {scripts: false} runs none.
+    name: 'tern.render again: the previous render\'s define, on and style registrations are retired; {scripts: false} runs no script',
+    url: '/test/smoke/rerender.html',
+    async check(page) {
+      const r = await page.evaluate(async () => {
+        const main = document.querySelector('main.tern');
+        const src = (await (await fetch(location.href)).text()).replace(/^[^\n]*\n/, ''); // the note: the file after its first line
+        const count = () => ({ runs: window.__runs, applied: window.__applied, renders: window.__renders, styles: [...document.querySelectorAll('style')].filter((s) => s.textContent.includes('.probe')).length });
+        const out = [count()];
+        for (let i = 0; i < 3; i++) {
+          await tern.render(main, src);
+          out.push(count());
+        }
+        await tern.render(main, src, { scripts: false });
+        out.push(count());
+        return out;
+      });
+      const want = [[1, 1, 1, 1], [2, 2, 2, 1], [3, 3, 3, 1], [4, 4, 4, 1], [4, 4, 4, 0]];
+      const got = r.map((c) => [c.runs, c.applied, c.renders, c.styles]);
+      if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`[runs, applied, renders, styles] per render: ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+    },
+  },
+  {
+    // An add-on that never answers no longer leaves a blank page: after the
+    // deadline (tern.config.addonTimeout, 12 s by default) the note mounts
+    // with addon.failed, and the console says what is still awaited at 2 s.
+    name: 'an add-on that never loads: the note mounts at the deadline with addon.failed, after a console line at 2 s; aria-busy until then',
+    url: '/test/smoke/addon-slow.html',
+    waitUntil: 'domcontentloaded', // the pending add-on holds the load event back
+    readyTimeout: 15000,
+    timeout: 40000,
+    init: () => {
+      // Sample aria-busy while the add-on is awaited.
+      document.addEventListener('DOMContentLoaded', () => setTimeout(() => (window.__busy = document.documentElement.getAttribute('aria-busy')), 500));
+    },
+    async check(page, ctx) {
+      const r = await page.evaluate(() => ({ h1: !!document.querySelector('main.tern h1'), busy: window.__busy, busyNow: document.documentElement.getAttribute('aria-busy') }));
+      if (!r.h1) throw new Error('the note did not mount');
+      if (r.busy !== 'true' || r.busyNow !== null) throw new Error(`aria-busy was ${JSON.stringify(r.busy)} while waiting and is ${JSON.stringify(r.busyNow)} after the mount`);
+      const failed = ctx.diagnostics.filter((d) => d.code === 'addon.failed');
+      if (failed.length !== 1 || !/never\.js did not load in 3 s/.test(failed[0].message)) throw new Error(`addon.failed: ${JSON.stringify(failed.map((d) => d.message))}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /still waiting for 1 add-on to load: \/gen\/never\.js/.test(m.text))) throw new Error(`no "still waiting" line; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+    },
+  },
+  {
+    name: 'an add-on listed in data-use twice and in :::use loads and runs once',
+    url: '/test/smoke/addon-twice.html',
+    async check(page, ctx) {
+      const r = await page.evaluate(() => ({ ran: window.__addon, scripts: document.querySelectorAll('script[src$="/gen/addon.js"]').length }));
+      if (r.ran !== 1 || r.scripts !== 1) throw new Error(`the add-on ran ${r.ran} time(s) from ${r.scripts} script element(s), expected once from one`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    name: 'a data-css stylesheet that fails to load is addon.failed; the note still mounts',
+    url: '/test/smoke/css-missing.html',
+    allowConsole: /Failed to load resource|MIME type/,
+    async check(page, ctx) {
+      await expect(page, () => !!document.querySelector('main.tern h1'), 'mounted');
+      const failed = ctx.diagnostics.filter((d) => d.code === 'addon.failed');
+      if (failed.length !== 1 || !/\/nope\/tern\.css \(data-css\) did not load/.test(failed[0].message)) throw new Error(`addon.failed: ${JSON.stringify(failed.map((d) => d.message))}`);
+    },
+  },
+  {
+    // The support floor: a browser without what the runtime needs gets the
+    // source, readable, with a line that says why, instead of a half-rendered
+    // page and an uncaught error.
+    name: 'a browser below the support floor is shown the source with a message, and no error',
+    url: '/test/smoke/basic.html',
+    noTern: true,
+    init: () => {
+      delete Element.prototype.replaceChildren;
+    },
+    async check(page, ctx) {
+      await page.waitForLoadState('load');
+      const r = await page.evaluate(() => ({ plaintext: !!document.querySelector('plaintext'), main: !!document.querySelector('main.tern'), message: /too old for tern\.js/.test(document.body.textContent), source: /Smoke: basic/.test(document.querySelector('plaintext') ? document.querySelector('plaintext').textContent : '') }));
+      if (!r.plaintext || r.main || !r.message || !r.source) throw new Error(JSON.stringify(r));
+      if (!ctx.console.some((m) => m.type === 'warning' && /lacks what tern\.js needs/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
     },
   },
 ];

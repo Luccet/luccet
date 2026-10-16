@@ -2,7 +2,18 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org) with a `0.x` caveat: until 1.0, a minor release may change how an existing note renders or what an add-on receives, and the entry says so when it does. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 0.5.0 (unreleased)
+## 0.5.1 (unreleased)
+
+Phase 3 of the remediation plan: the runtime's robustness.
+
+- A note script that calls `tern.render(el, source)` with a script in the source no longer disarms the `document.write` guard for the scripts after it; a later `document.write` wiped the page.
+- An add-on that never loads no longer leaves a blank page: 12 seconds after the note has arrived (`tern.config.addonTimeout`, in milliseconds) the note mounts without it, with `addon.failed`; the console says what is still awaited after 2 seconds; the document carries `aria-busy` until the mount.
+- Rendering a root again from a source retires what its scripts registered with `tern.define`, `tern.on` and `tern.style`, so a live preview does not stack a behaviour, a listener and a stylesheet per edit; `tern.render` takes `scripts: false` to leave the scripts inert.
+- An add-on listed twice (`data-use` and `:::use`) loads once; a `<script` inside a note script's text no longer shifts the positions of `script.document-write` diagnostics; a `data-css` stylesheet that fails to load is `addon.failed`; a capture write refused by a Trusted Types policy is said in the console.
+- `data-nonce` is taken off the tag once read, and the tag's own `nonce` is used when `data-nonce` is absent.
+- The support floor is stated (Chrome 86, Firefox 78, Safari 14) and guarded: an older browser is shown the source with a line saying why.
+
+## 0.5.0 (2026-10-16)
 
 Phase 2 of the remediation plan: the trust boundary and the engine's limits. A minor release: `render` listeners now receive a second argument, and a root rendered with `safe` stays untrusted for behaviours and the add-ons.
 

@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>
+
+# Smoke: a nested render keeps the write guard
+
+<script>
+  const box = document.createElement('div');
+  box.id = 'nested';
+  document.currentScript.after(box);
+  tern.render(box, '<script>window.__nested = true;<\/script>\n');
+</script>
+
+<script>
+  document.write('<p id="wiped">this would wipe the page</p>');
+</script>
+
+{#after}
+The paragraph after the scripts.

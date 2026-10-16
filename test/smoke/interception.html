@@ -4,6 +4,7 @@
 
 <script>
   window.__dcl = { document: 0, window: 0 };
+  const notATag = '<script>'; // a tag-like string in the code must not shift the positions
   document.write('<p id="written">written by document.write</p>');
   document.addEventListener('DOMContentLoaded', () => window.__dcl.document++);
   window.addEventListener('DOMContentLoaded', () => window.__dcl.window++);
