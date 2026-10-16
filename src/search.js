@@ -21,22 +21,45 @@ const { decode } = require('./entities');
 // space.
 function plain(node) {
   if (!node) return '';
-  switch (node.type) {
-    case 'text':
-    case 'inlineCode':
-    case 'inlineMath':
-    case 'code':
-    case 'math':
-      return node.value || '';
-    case 'image':
-      return node.alt || '';
-    case 'break':
-      return ' ';
-    case 'html':
-    case 'footnoteReference':
-      return '';
-    default:
-      return (node.children || []).map(plain).join(node.type === 'paragraph' || node.type === 'heading' ? '' : ' ');
+  // A node's own text, or null for one whose text is its children's, joined
+  // by the separator (none in a paragraph or heading, a space elsewhere).
+  const own = (n) => {
+    switch (n.type) {
+      case 'text':
+      case 'inlineCode':
+      case 'inlineMath':
+      case 'code':
+      case 'math':
+        return n.value || '';
+      case 'image':
+        return n.alt || '';
+      case 'break':
+        return ' ';
+      case 'html':
+      case 'footnoteReference':
+        return '';
+      default:
+        return n.children && n.children.length ? null : '';
+    }
+  };
+  const top = own(node);
+  if (top !== null) return top;
+  // Explicit frames, so a deep tree cannot overflow the call stack.
+  const frames = [{ n: node, i: 0, parts: [] }];
+  for (;;) {
+    const f = frames[frames.length - 1];
+    const kids = f.n.children;
+    if (f.i < kids.length) {
+      const c = kids[f.i++];
+      const s = c && typeof c === 'object' ? own(c) : '';
+      if (s !== null) f.parts.push(s);
+      else frames.push({ n: c, i: 0, parts: [] });
+      continue;
+    }
+    frames.pop();
+    const s = f.parts.join(f.n.type === 'paragraph' || f.n.type === 'heading' ? '' : ' ');
+    if (!frames.length) return s;
+    frames[frames.length - 1].parts.push(s);
   }
 }
 
@@ -83,14 +106,21 @@ function describe(head, ast) {
   const headings = [];
   const links = [];
   const seen = new Set();
-  const walk = (node) => {
-    for (const c of node.children || []) {
-      if (c.type === 'heading') headings.push({ depth: c.depth, id: (c.attributes && c.attributes.id) || '', text: plain(c) });
-      else if (c.type === 'link' && typeof c.url === 'string' && c.url && !c.url.startsWith('#') && !seen.has(c.url)) (seen.add(c.url), links.push(c.url));
-      if (c.children) walk(c);
+  const lists = [(ast && ast.children) || []]; // the child lists being read, with the index of each
+  const at = [0];
+  while (lists.length) {
+    const k = lists.length - 1;
+    const list = lists[k];
+    const i = at[k]++;
+    if (i >= list.length) {
+      lists.pop(), at.pop();
+      continue;
     }
-  };
-  walk(ast || {});
+    const c = list[i];
+    if (c.type === 'heading') headings.push({ depth: c.depth, id: (c.attributes && c.attributes.id) || '', text: plain(c) });
+    else if (c.type === 'link' && typeof c.url === 'string' && c.url && !c.url.startsWith('#') && !seen.has(c.url)) (seen.add(c.url), links.push(c.url));
+    if (c.children) lists.push(c.children), at.push(0);
+  }
   return { title: title(head, ast), description: String(meta.description || '').trim(), meta, headings, links };
 }
 
@@ -113,33 +143,39 @@ function records(ast, { url = '', title: pageTitle = '' } = {}) {
     return r;
   };
   let current = entry('', 1, endLineOf(ast), 'page', pageTitle, '');
-  const walk = (node) => {
-    for (const c of node.children || []) {
-      if (c.type === 'heading') {
-        current = entry((c.attributes && c.attributes.id) || '', lineOf(c), undefined, 'heading', plain(c), '');
-        continue;
-      }
-      if (c.type === 'containerDirective' && c.attributes && c.attributes.id) {
-        const tern = (c.data && c.data.tern) || {};
-        const titleNode = (c.children || []).find((k) => k.type === 'paragraph' && k.data && k.data.directiveLabel);
-        const r = entry(c.attributes.id, lineOf(c), endLineOf(c), c.name, tern.text || c.name, titleNode ? plain(titleNode) : '');
-        const outer = current;
-        current = r;
-        walk({ children: (c.children || []).filter((k) => k !== titleNode) });
-        current = outer;
-        continue;
-      }
-      if (c.type === 'paragraph' && c.data && c.data.directiveLabel) continue;
-      if (c.type === 'footnoteDefinition' || c.type === 'html') continue;
-      if (c.children && !['paragraph', 'heading', 'tableCell'].includes(c.type)) {
-        walk(c);
-        continue;
-      }
-      const s = plain(c).trim();
-      if (s) current.text.push(s);
+  // Explicit frames, so a deep tree cannot overflow the call stack: each
+  // holds a child list, the index in it, and the entry to come back to when
+  // the list ends (a named block's content is its own entry's).
+  const frames = [{ list: (ast && ast.children) || [], i: 0, back: null }];
+  while (frames.length) {
+    const f = frames[frames.length - 1];
+    if (f.i >= f.list.length) {
+      frames.pop();
+      if (f.back) current = f.back;
+      continue;
     }
-  };
-  walk(ast);
+    const c = f.list[f.i++];
+    if (c.type === 'heading') {
+      current = entry((c.attributes && c.attributes.id) || '', lineOf(c), undefined, 'heading', plain(c), '');
+      continue;
+    }
+    if (c.type === 'containerDirective' && c.attributes && c.attributes.id) {
+      const tern = (c.data && c.data.tern) || {};
+      const titleNode = (c.children || []).find((k) => k.type === 'paragraph' && k.data && k.data.directiveLabel);
+      const r = entry(c.attributes.id, lineOf(c), endLineOf(c), c.name, tern.text || c.name, titleNode ? plain(titleNode) : '');
+      frames.push({ list: (c.children || []).filter((k) => k !== titleNode), i: 0, back: current });
+      current = r;
+      continue;
+    }
+    if (c.type === 'paragraph' && c.data && c.data.directiveLabel) continue;
+    if (c.type === 'footnoteDefinition' || c.type === 'html') continue;
+    if (c.children && !['paragraph', 'heading', 'tableCell'].includes(c.type)) {
+      frames.push({ list: c.children, i: 0, back: null });
+      continue;
+    }
+    const s = plain(c).trim();
+    if (s) current.text.push(s);
+  }
   // A heading's section ends where the next entry at the top level starts.
   for (let i = 0; i < out.length; i++) {
     if (out[i].kind === 'heading' && out[i].endLine === undefined) {

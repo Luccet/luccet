@@ -179,3 +179,24 @@ B.
 <div class="t-cell"><p>B.</p></div>
 </div>
 ````
+
+## safe/host-driving-attributes-dropped
+
+spec: elements#safe
+options: safe
+
+Attributes that drive the host page's own elements or clobber its names — `form`, `popovertarget`, `popovertargetaction`, `usemap` and `name` — are dropped with the handlers; `title` stays.
+
+````tern
+[s]{form=f popovertarget=p popovertargetaction=show usemap="#m" name=n title=ok}
+
+:::box{form=f popovertarget=p name=n}
+x
+:::
+````
+
+````html
+<p><span title="ok">s</span></p>
+<div class="t-block box" data-t="box"><p>x</p>
+</div>
+````

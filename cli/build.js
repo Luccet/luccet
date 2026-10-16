@@ -288,6 +288,8 @@ function build(text, file, opts = {}) {
     if (pre) pre.restore();
   }
   if (pre) body = pre.fill(body);
+  // The emitter's own diagnostic (output.limit), found only now: on the page and the console like the others.
+  for (const d of (a.ast.data && a.ast.data.tern && a.ast.data.tern.diagnostics) || []) if (d.code === 'output.limit') notes.push(Object.assign({ filePosition: a.toFile(d.position) }, d));
   const total = (body.match(/\bclass="(?:[^"]*\s)?t-math[\s"]/g) || []).length;
   const prerendered = pre ? pre.count : 0;
   if (pre && !pre.count) sheet = null;

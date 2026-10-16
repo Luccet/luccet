@@ -45,6 +45,7 @@ The panel shows on pages opened from `file:`, `localhost`, `127.0.0.1` or `[::1]
 | `doc.quirks`, `script.document-write`, `script.domcontentloaded` | the browser's panel only |
 | `addon.failed` | the browser, `tern check` and the language server |
 | `math.error` | `tern build --math` only (a warning); a math add-on also logs a formula it rejects to the browser console, but it is not a panel diagnostic |
+| `output.limit` | the browser and `tern build`, which emit; not `tern check` |
 | `head.script`, `addon.remote`, `link.missing`, `link.dangling` | `tern check` and the language server only |
 
 So a clean `tern check` does not prove that every formula typesets, that the file starts with `<!doctype html>`, or that note scripts behave. Check those by eye, or ask the user to open the note in a browser and read the panel. `tern build --math=katex` or `--math=mathml` (with the `katex` or `temml` package installed) reports the formulas it cannot pre-render as `math.error` warnings.
@@ -514,8 +515,13 @@ violets are blue.
 
 ### `nesting.limit` · error
 
-An opener that would nest blocks more than 64 deep (blocks, list items, quotes and footnote definitions count) becomes text. In practice: a long run of `>` markers, or generated content gone wrong.
+An opener that would nest blocks more than 64 deep (blocks, list items, quotes and footnote definitions count) becomes text; inline, a construct (emphasis, a span, a link, an inline element) nested more than 1,000 deep is shown as its source text, once per paragraph. In practice: a long run of `>` markers, or generated content gone wrong.
 **Fix:** flatten the structure.
+
+### `output.limit` · error
+
+The note's HTML is longer than the emitter's budget (64 million characters, or `maxOutput` where the emitter is called) and was cut short there. Reported by the browser and `tern build`, never by `tern check`, which does not emit. A reference copies at most 200 characters of its target and a toc entry as much of a heading, so a normal note never reaches it: it takes something huge repeated.
+**Fix:** shorten what repeats.
 
 ### `doc.frontmatter` · info
 

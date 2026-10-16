@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 54 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `math.error` from `tern build --math`.
+The first 54 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, `math.error` from `tern build --math`, and `output.limit` from the emitter, wherever it runs.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -88,6 +88,7 @@ The first 54 codes come from the parser and the transforms, so `tern.check`, `te
 | [`script.domcontentloaded`](#script-domcontentloaded) | error | A note script listens for `DOMContentLoaded`. |
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
 | [`math.error`](#math-error) | warning | `tern build --math` cannot pre-render a formula. |
+| [`output.limit`](#output-limit) | error | The note's HTML is longer than the emitter's budget and was cut short. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
 | [`addon.remote`](#addon-remote) | info | A remote add-on was not loaded under node. |
 | [`link.missing`](#link-missing) | error or warning | A link names a file that does not exist. |
@@ -2041,11 +2042,11 @@ violets are blue.
 
 ### `nesting.limit` {#nesting-limit}
 
-**Error.** Blocks nest more than 64 deep.
+**Error.** Blocks nest more than 64 deep, or inline constructs more than 1,000 deep.
 
-- **Trigger.** An opener that would make the stack of open blocks deeper than 64. Containers, list items, quotes and footnote definitions count; the note itself and lists do not ([the line algorithm](syntax-blocks.html#line-algorithm)).
-- **Position.** The opener: the colons and name, the `>` or the list marker.
-- **Content.** The opener becomes paragraph text, inside the 64th block.
+- **Trigger.** An opener that would make the stack of open blocks deeper than 64. Containers, list items, quotes and footnote definitions count; the note itself and lists do not ([the line algorithm](syntax-blocks.html#line-algorithm)). Inline, a construct (emphasis, a span, a link, an inline element) nested more than 1,000 deep, which a reader of the tree such as `JSON.stringify` could not walk.
+- **Position.** The opener: the colons and name, the `>` or the list marker. Inline, the whole construct past the limit.
+- **Content.** The opener becomes paragraph text, inside the 64th block. An inline construct past the limit is shown as its source text, what it holds included; the diagnostic is reported once per paragraph.
 
 This line has 65 `>` markers. The 65th, at column 129, would open the 65th level:
 
@@ -2659,7 +2660,8 @@ The engine renders no math itself, so a formula a [math add-on](addons.html#kate
   - **In the browser:**
     - a script or stylesheet listed in `data-use` fails to load. The note waits for every add-on to load or fail, then renders without the ones that failed. On a page written by `tern build`, only script add-ons are reported;
     - a script add-on throws while it runs;
-    - a transform registered with `tern.transform(name, fn)` throws. The engine reports this one, so `tern.check` and the command line do too.
+    - a transform registered with `tern.transform(name, fn)` throws. The engine reports this one, so `tern.check` and the command line do too;
+    - a schema's `label` function throws, once per element, which then keeps no label. The engine reports this one too.
   - **On the command line and in the language server,** which run a note's script add-ons under node to learn its vocabulary (every `data-use` entry that is not a `.css` file):
     - an add-on file that cannot be read, or is a directory;
     - one that does not parse as a classic script, which is how tern.js runs an add-on;
@@ -2827,6 +2829,19 @@ A `:::macros` block that does not parse reads `the :::macros block does not pars
 **Fix.** Correct the TeX, such as `$\frac{a}{b}$`, or leave the formula to a math add-on in the browser.
 
 **Related.** [`math.opener-tail`](#math-opener-tail), [`addon.failed`](#addon-failed).
+
+### `output.limit` {#output-limit}
+
+**Error.** The note's HTML is longer than the emitter's budget, and was cut short there.
+
+- **Trigger.** The emitter writes more than `maxOutput` characters ([`tern.emit`](api.html#emit)), 64 million by default. A note that reaches it repeats something very large. A reference copies its target's title and a toc entry a heading's text, each at most 200 characters, so a long title referenced many times stays small; it takes a note built for it, such as a huge raw HTML block or tens of megabytes of text.
+- **Position.** Line 1, column 1: the note as a whole.
+- **Content.** The HTML stops at the budget, which may be inside an element, and the diagnostic says so. The engine used to throw a `RangeError` and render nothing.
+- **Where.** `tern.emit`, `tern.toHTML`, the runtime and `tern build`, which report it with the transforms' diagnostics. `tern.check` and `tern check` do not emit, so they never report it.
+
+**Fix.** Shorten what repeats, or raise `maxOutput` where you call the emitter.
+
+**Related.** [`nesting.limit`](#nesting-limit).
 
 ### `head.script` {#head-script}
 

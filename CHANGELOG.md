@@ -2,7 +2,18 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org) with a `0.x` caveat: until 1.0, a minor release may change how an existing note renders or what an add-on receives, and the entry says so when it does. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 0.4.4 (unreleased)
+## 0.5.0 (unreleased)
+
+Phase 2 of the remediation plan: the trust boundary and the engine's limits. A minor release: `render` listeners now receive a second argument, and a root rendered with `safe` stays untrusted for behaviours and the add-ons.
+
+- Inline constructs nest at most 1,000 deep; one past that is shown as its source text with `nesting.limit`. Ten thousand nested `**` used to parse into a tree that `JSON.stringify`, `tern.visit`, `tern.outline` and `tern.search` could not walk (a `RangeError`); those readers now keep their own stacks too.
+- A reference's text and a toc entry copy at most 200 characters of their target, with an ellipsis; a 60 KB heading referenced 10,000 times used to make 600 MB of HTML and a `RangeError`. The emitter has an output budget too, `maxOutput` (64 M characters), past which the HTML stops with an `output.limit` diagnostic.
+- Under `safe`, the attributes that drive the host page (`form`, `popovertarget`, `popovertargetaction`, `usemap`, `name`) are dropped too, attribute names are checked without case (a schema's `Href` passed), and a new `idPrefix` option of `tern.emit` and `tern.toHTML` keeps an untrusted root's ids and fragment links apart from the page's.
+- `maxDepth` that is not a finite number of 1 or more means 64 (`'abc'` and `Infinity` used to lift the limit); a schema `label` function that throws is `addon.failed`, once per element, instead of escaping `tern.check` and `tern.toHTML`.
+- A root rendered with `tern.render(el, text, {safe: true})` stays untrusted: it is marked `data-t-safe`, and a `tern.define` registered later, a later render of it without a source and a render of a root that holds it run no behaviour on it; a trusted source rendered into it makes it trusted again. `render` and `math` listeners get `{safe}` as a second argument. `tern.render` takes `idPrefix`.
+- The KaTeX and MathML add-ons typeset an untrusted root with trust off whatever the page sets, with a copy of the macro table, and ignore its `:::macros`: with `trust: true` set for the page, a safe render of `\href{javascript:…}` used to make a live link, and a `\gdef` in it reached every later formula.
+
+## 0.4.4 (2026-10-15)
 
 Phase 1 of the [remediation plan](https://github.com/OzkrAC/tern): the confirmed defects that are a few lines and a test each, and the project files a repository is expected to have.
 

@@ -205,6 +205,111 @@ test('search.snippet: a long unbroken token costs linear time; a word that stems
   eq(tern.search.snippet('The studies of study.', ['study']).marks, [[4, 11], [15, 20]], 'studies (stem study) and study both marked');
 });
 
+// ---------------------------------------------------------------- limits
+
+// Inline constructs nest at most 1,000 deep: past that, a construct is its
+// source text with nesting.limit, so the tree stays one that recursive
+// readers (JSON.stringify, visit, outline, search) can walk.
+test('nesting: 10,000 nested emphasis, spans and inline elements parse with one nesting.limit, and every reader walks the tree', () => {
+  const inputs = { strong: '**'.repeat(10000) + 'x' + '**'.repeat(10000), spans: '['.repeat(5000) + 'x' + ']{.c}'.repeat(5000), elements: ':a['.repeat(3000) + 'x' + ']'.repeat(3000) };
+  for (const [name, src] of Object.entries(inputs)) {
+    const { ast, diagnostics } = tern.parse(`${src}\n`);
+    eq(diagnostics.map((d) => d.code), ['nesting.limit'], `${name}: the diagnostic, once`);
+    JSON.stringify(ast); // the documented promise: serialisable
+    let deepest = 0;
+    const stack = [[ast, 0]];
+    while (stack.length) {
+      const [n, k] = stack.pop();
+      deepest = Math.max(deepest, k);
+      for (const c of n.children || []) stack.push([c, k + 1]);
+    }
+    if (deepest < 1000 || deepest > 1010) throw new Error(`${name}: the tree is ${deepest} deep, expected about 1,000`);
+    let visited = 0;
+    tern.visit(ast, () => visited++);
+    if (visited < 1000) throw new Error(`${name}: visit saw ${visited} nodes`);
+    tern.outline(ast);
+    tern.transform(ast);
+    const recs = tern.search.records(ast, { url: 'a.html' });
+    tern.search.describe('', ast);
+    if (!recs.length || !/x/.test(recs[0].text)) throw new Error(`${name}: records ${JSON.stringify(recs).slice(0, 100)}`);
+    const html = tern.toHTML(`${src}\n`, { positions: false });
+    if (!html.includes('x')) throw new Error(`${name}: the content is gone`);
+  }
+  // A long paragraph with many sequential constructs is not nesting: no limit.
+  eq(tern.parse('*a* '.repeat(3000)).diagnostics, [], 'sequential emphasis');
+});
+
+// A reference copies its target's title, a toc entry a heading's text: at
+// most 200 characters each, so a 60 KB heading referenced 10,000 times
+// cannot amplify into output no browser can hold.
+test('limits: a reference or toc entry copies at most 200 characters of its target, with an ellipsis', () => {
+  const big = 'word '.repeat(12000).trim();
+  const src = `## ${big} {#h}\n\n::toc\n\n${'@h '.repeat(10000)}\n`;
+  const t0 = Date.now();
+  const html = tern.toHTML(src, { positions: false, schema: { leaf: { toc: { transform: 'toc', depth: '2-3' } } } });
+  const ms = Date.now() - t0;
+  if (html.length > 5e6 || ms > 5000) throw new Error(`${html.length} characters in ${ms} ms`);
+  const ref = /<a class="t-ref" href="#h">([^<]*)<\/a>/.exec(html)[1];
+  const toc = /<li><a href="#h">([^<]*)<\/a>/.exec(html)[1];
+  eq([ref.length, ref.endsWith('…'), toc.length, toc.endsWith('…')], [201, true, 201, true], 'the copies: 200 characters and an ellipsis');
+  eq(tern.toHTML('## Short {#s}\n\nSee @s.\n', { positions: false }), '<h2 id="s">Short</h2>\n<p>See <a class="t-ref" href="#s">Short</a>.</p>\n', 'a short title whole');
+  // Code and an image's alt in a copied title count too.
+  const code = tern.toHTML(`## \`${'c'.repeat(300)}\` {#c}\n\nSee @c.\n`, { positions: false });
+  eq(/<a class="t-ref" href="#c"><code>([^<]*)<\/code>/.exec(code)[1].length, 201, 'a code span cut');
+});
+
+// The emitter has an output budget, 64 M characters unless maxOutput says
+// otherwise: past it the HTML stops and the tree carries output.limit.
+test('limits: emit stops at maxOutput with output.limit on the tree, where it used to throw a RangeError', () => {
+  const { ast } = tern.parse(`${'x'.repeat(5000)}\n`);
+  tern.transform(ast);
+  const html = tern.emit(ast, { maxOutput: 1000 });
+  eq(html.length, 1000, 'cut at the budget');
+  eq(ast.data.tern.diagnostics.map((d) => [d.code, d.severity, d.position.start.line]), [['output.limit', 'error', 1]], 'the diagnostic');
+  eq(tern.emit(tern.transform(tern.parse('x\n').ast), { maxOutput: 1000 }), '<p>x</p>\n', 'under the budget: as always');
+  eq(tern.toHTML(`${'y'.repeat(5000)}\n`, { maxOutput: 100 }).length, 100, 'through toHTML');
+  eq(tern.toHTML('z\n', { maxOutput: 'no' }), '<p>z</p>\n', 'a value that is not a number means the default');
+});
+
+test('safe: attributes that drive the host page are dropped, attribute names are read without case, and idPrefix keeps ids and fragment links apart', () => {
+  const html = tern.toHTML(':::x\ny\n:::\n', { safe: true, positions: false, schema: { block: { x: { attrs: { Href: 'javascript:alert(1)', title: 'ok', ONCLICK: 'go()', Form: 'f' } } } } });
+  eq(html, '<div class="t-block x" data-t="x" title="ok"><p>y</p>\n</div>\n', 'Href, ONCLICK and Form dropped, title kept');
+  const p = tern.toHTML('## A {#a}\n\nSee @a, [b](#a) and [c](x.html#a)[^f].\n\n[^f]: note\n', { safe: true, idPrefix: 'c1-', positions: false });
+  eq(
+    p,
+    '<h2 id="c1-a">A</h2>\n<p>See <a class="t-ref" href="#c1-a">A</a>, <a href="#c1-a">b</a> and <a href="x.html#a">c</a><sup class="t-fnref"><a id="c1-fnref-f" href="#c1-fn-f">1</a></sup>.</p>\n<section class="t-footnotes"><ol>\n<li id="c1-fn-f"><p>note <a class="t-fnback" href="#c1-fnref-f">↩</a></p>\n</li>\n</ol></section>\n',
+    "every id and fragment link prefixed; another page's fragment untouched",
+  );
+  eq(tern.toHTML('x\n', { idPrefix: 7 }), '<p>x</p>\n', 'a prefix that is not a string is none');
+});
+
+test('parse: maxDepth is a finite number of 1 or more, else 64; a schema label function that throws is addon.failed once per element', () => {
+  for (const v of ['abc', Infinity, 0, -1, true, null]) eq(tern.parse('> > > x', { maxDepth: v }).diagnostics, [], `maxDepth ${String(v)}: the default`);
+  for (const v of [2, '2', 2.7]) eq(tern.parse('> > > x', { maxDepth: v }).diagnostics.map((d) => d.code), ['nesting.limit'], `maxDepth ${String(v)}: two`);
+  const schema = { block: { thm: { counter: 'thm', label: () => { throw new Error('kaput'); } } } };
+  const src = ':::thm\nx\n:::\n\nSee @k.\n\n:::thm{#k}\ny\n:::\n';
+  const ds = tern.check(src, { schema });
+  eq(ds.map((d) => [d.code, d.severity, d.position.start.line]), [['addon.failed', 'error', 1], ['addon.failed', 'error', 7]], 'once per element, at the element');
+  eq(ds[0].message, 'the label function of "thm" threw: kaput; the element has no label', 'the message');
+  eq(tern.toHTML(src, { schema, positions: false }).includes('href="#k">2</a>'), true, 'the reference falls back to the number');
+});
+
+test('visit: an explicit stack, pre-order with (node, index, parent), false skips the children, and a child list read live', () => {
+  const { ast } = tern.parse('# A\n\n> ## B\n>\n> C *d*\n\nE\n');
+  const seen = [];
+  tern.visit(ast, (n, i, p) => {
+    seen.push(`${n.type}${i === null ? '' : `[${i}]`}${p ? `<${p.type}` : ''}`);
+    if (n.type === 'blockquote') return false;
+  });
+  eq(seen, ['root', 'heading[0]<root', 'text[0]<heading', 'blockquote[1]<root', 'paragraph[2]<root', 'text[0]<paragraph'], 'order, indices, parents, skip');
+  const names = [];
+  tern.visit(ast, 'paragraph', (n, i, p) => {
+    names.push(i);
+    if (i === 2) p.children.push({ type: 'paragraph', children: [{ type: 'text', value: 'late' }] }); // a sibling added while visiting is visited
+  });
+  eq(names, [1, 2, 3], 'the paragraph inside the quote, then the two at the root');
+});
+
 console.log(results.join('\n'));
 console.log(`\n${results.length - failed}/${results.length} API checks pass`);
 process.exit(failed ? 1 : 0);

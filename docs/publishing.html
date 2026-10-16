@@ -428,7 +428,7 @@ A note is a web page, and Tern does not sandbox it.
 - **A note runs its own scripts.** `<script>` blocks in the note are re-created and run in document order, with the page's full privileges, as are scripts in the head and add-ons in `data-use`. Opening someone's note is opening their web page.
 - **Raw HTML is the author's.** HTML written in the note reaches the page byte for byte: event-handler attributes, `<iframe>`s, forms. Links keep their destinations, including `javascript:` URLs.
 - **`safe: true` exists for untrusted input.** The engine's `safe` option escapes raw HTML (a raw block is shown in a `<pre>`, an inline tag as text), neutralises dangerous elements (a frame, a form, a custom element) to a plain container, drops `on…` handlers and other running or navigating attributes, and drops URLs that are not `http(s)`, `mailto` or relative. See [Safe rendering](elements.html#safe) and [tern.toHTML](api.html#tohtml).
-- **The page's own note is rendered without it.** A note you publish is trusted like any page you write. To show text you do **not** trust, such as comments posted by others, render it with `safe`: either render into an element (scripts and behaviours are then skipped too, and math is typeset),
+- **The page's own note is rendered without it.** A note you publish is trusted like any page you write. To show text you do **not** trust, such as comments posted by others, render it with `safe`: either render into an element (its scripts do not run, its behaviours are skipped, then and later, and its math is typeset with trust off),
 
   ```js
   await tern.render(box, untrustedText, { safe: true });
@@ -439,7 +439,8 @@ A note is a web page, and Tern does not sandbox it.
   ```js
   element.innerHTML = tern.toHTML(untrustedText, { safe: true });
   ```
-- **KaTeX**, when the [`katex.js` add-on](addons.html#katex) is loaded, comes from the CDN under an integrity hash (see [KaTeX](#katex)). Its `trust` option, which allows commands such as `\href` and `\includegraphics`, keeps KaTeX's default unless you set it in `window.TERN.use.katex`.
+- **KaTeX**, when the [`katex.js` add-on](addons.html#katex) is loaded, comes from the CDN under an integrity hash (see [KaTeX](#katex)). Its `trust` option, which allows commands such as `\href` and `\includegraphics`, keeps KaTeX's default unless you set it in `window.TERN.use.katex`; a root rendered with `safe` is typeset with trust off whatever you set.
+- **What `safe` does not promise.** It scopes the untrusted text, not the page: the page's own scripts, add-ons and behaviours still run on the page's own content, a trusted root rendered later still gets its behaviours, and the untrusted text is still parsed and typeset, so a note built to be huge ends in [`output.limit`](diagnostics.html#output-limit) rather than in a crash. It is the whole list in [Safe rendering](elements.html#safe); anything not on it, `safe` does not do.
 - **Readers do not see diagnostics.** The panel shows only on your machine, unless the tag has `data-diagnostics`.
 - **The tools run a note's code in a sandbox.** In the browser a note has the page's full privileges, above; but `tern check`, `tern build`, `tern parse` and the language server run its head scripts and add-ons confined, so checking a note you have not read does not hand it your machine ([Running a note's code](tools.html#sandbox)). `--no-scripts` skips running it at all.
 
