@@ -5613,10 +5613,12 @@ function on(event, fn) {
   if (!EVENTS.includes(event)) throw new TypeError(`tern.on: "${event}" is not one of ${EVENTS.join(', ')}`);
   if (typeof fn !== 'function') throw new TypeError(`tern.on("${event}", fn): fn must be a function`);
   listeners[event].push(fn);
-  return () => {
+  const off = () => {
     const i = listeners[event].indexOf(fn);
     if (i >= 0) listeners[event].splice(i, 1);
   };
+  registered(off);
+  return off;
 }
 
 // `info` is the event's second argument: {safe} for 'render' and 'math'.
@@ -5669,11 +5671,13 @@ function define(name, fn) {
       for (const el of root.querySelectorAll(`[data-t="${CSS.escape(name)}"]`)) if (!inSafe(el)) apply(rec, el, name);
     }
   }
-  return () => {
+  const off = () => {
     const list = defined.get(name);
     const i = list ? list.indexOf(rec) : -1;
     if (i >= 0) list.splice(i, 1);
   };
+  registered(off);
+  return off;
 }
 
 function undefine(name) {
@@ -5687,14 +5691,38 @@ function undefine(name) {
 // diagnostics, which replace tern.diagnostics when root is the page's main.
 function render(root, source, opts) {
   if (!BROWSER) return Promise.resolve([]);
-  return renderRoot(root, source, !!(opts && opts.safe), opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '');
+  return renderRoot(root, source, !!(opts && opts.safe), opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '', !(opts && opts.scripts === false));
 }
 
-async function renderRoot(root, source, safe, idPrefix) {
+// What a root's note scripts registered (tern.define, tern.on, tern.style),
+// as undo functions: rendered again from a source, the root first retires
+// them, so a live preview does not stack a registration per edit.
+const registrations = new WeakMap(); // root -> [undo]
+let scriptRoot = null; // the root whose note scripts are running
+function registered(undo) {
+  if (!scriptRoot) return;
+  let list = registrations.get(scriptRoot);
+  if (!list) registrations.set(scriptRoot, (list = []));
+  list.push(undo);
+}
+function retire(root) {
+  const list = registrations.get(root);
+  if (!list) return;
+  for (const undo of list.splice(0)) {
+    try {
+      undo();
+    } catch (e) {
+      console.error('tern: retiring a registration failed', e);
+    }
+  }
+}
+
+async function renderRoot(root, source, safe, idPrefix, scripts) {
   root = root || main || document.querySelector('main.tern');
   if (!root || root.nodeType !== 1) throw new TypeError('tern.render(root, source): root must be an element');
   let list = [];
   if (source !== undefined) {
+    retire(root);
     const r = compile(String(source), safe, idPrefix);
     list = r.list;
     const tpl = document.createElement('template');
@@ -5721,7 +5749,7 @@ async function renderRoot(root, source, safe, idPrefix) {
     } else {
       safeRoots.delete(root);
       root.removeAttribute('data-t-safe');
-      await runScripts(root, r.ast);
+      if (scripts) await runScripts(root, r.ast); // {scripts: false}: the note's scripts stay inert
     }
   }
   await process(root, safe || safeRoots.has(root));
@@ -5736,6 +5764,13 @@ function style(text) {
   if (!BROWSER || !document.head) return;
   const el = document.createElement('style');
   el.textContent = css;
+  registered(() => {
+    el.remove();
+    for (const slot of slots) {
+      const i = slot.els.indexOf(el); // out of its slot too, or the next sheet would anchor on a detached element
+      if (i >= 0) slot.els.splice(i, 1);
+    }
+  });
   return insert(nonce(el), currentSlot());
 }
 
@@ -5826,6 +5861,25 @@ function rebuildPanel() {
 
 // ---------------------------------------------------------------- capture
 
+// What the runtime needs of the browser: replaceChildren, CSS.escape and
+// `:is()` (Chrome 86, Firefox 78, Safari 14), nonce as a property, and
+// MutationObserver.
+function supported() {
+  try {
+    return (
+      typeof Element.prototype.replaceChildren === 'function' &&
+      typeof MutationObserver === 'function' &&
+      !!window.CSS &&
+      typeof CSS.escape === 'function' &&
+      typeof CSS.supports === 'function' &&
+      CSS.supports('selector(:is(a))') &&
+      'nonce' in HTMLScriptElement.prototype
+    );
+  } catch {
+    return false;
+  }
+}
+
 function start() {
   const script = document.currentScript;
   if (script && script.hasAttribute('data-built')) return startBuilt(script);
@@ -5834,6 +5888,15 @@ function start() {
     return; // loaded by a page or an app: tern.render works, nothing starts
   }
   if (document.querySelector('main.tern')) return void console.warn('tern: the page already has a main.tern; tern.js does nothing');
+  // The support floor (docs/publishing.html#browsers): without these the
+  // runtime would fail half-way, so the note is shown as its source instead.
+  if (!supported()) {
+    console.warn('tern: this browser lacks what tern.js needs (Chrome 86, Firefox 78, Safari 14 or newer); the note is shown as its source');
+    try {
+      document.write('<p>This browser is too old for tern.js (it needs Chrome 86, Firefox 78, Safari 14 or newer); the note follows as its source.</p><plaintext>');
+    } catch {}
+    return;
+  }
 
   const addons = readConfig(script);
   page = { head: headString(), lines: linesBefore(), source: null, quirks: document.compatMode === 'BackCompat' };
@@ -5857,17 +5920,20 @@ function start() {
   for (const a of addons) if (!a.css) w += `<link rel="preload" as="script" href="${escAttr(a.url)}"${n}>`;
   try {
     document.write(`${w}<plaintext id="tern-source" hidden>`);
-  } catch {
+  } catch (e) {
+    console.warn('tern: the capture write was refused (a Trusted Types policy, perhaps); the note is shown as it is', e);
     return;
   }
   const holder = document.getElementById('tern-source');
   if (!holder) return; // the write was ignored: not a parser-inserted script
+  document.documentElement.setAttribute('aria-busy', 'true'); // until the mount
 
   // The tag's add-ons (data-use) load now; mount waits for each.
   const waits = [];
   let unwatch = watchAddons(addons); // one that loads but throws while it runs
   loadAddons(addons, waits);
-  if (config.css && !BASE_SLOT.els.length) waits.push(loaded(insert(sheet(config.css), BASE_SLOT)));
+  if (config.css && !BASE_SLOT.els.length)
+    waits.push(loaded(insert(sheet(config.css), BASE_SLOT)).then((ok) => ok || report('addon.failed', HEAD, `the stylesheet ${config.css} (data-css) did not load; the note renders without its base stylesheet`, 'check the path in data-css')));
   baseStyle();
 
   // `:::use`: the add-ons the note's leading block lists are found in the
@@ -5893,7 +5959,7 @@ function start() {
       const extra = [];
       for (const e of r.entries) {
         const a = addonEntry(e.url);
-        if (a) extra.push(a);
+        if (a && !addonList.some((x) => x.abs === a.abs) && !extra.some((x) => x.abs === a.abs)) extra.push(a); // once, however often it is listed
       }
       if (!extra.length) return resolve();
       slots.splice(slots.length - 1, 0, ...extra.map((a) => a.slot));
@@ -5924,7 +5990,20 @@ function start() {
       { once: true },
     ),
   );
-  Promise.all([parsed, useP, ...waits]).then(() => {
+  // The mount waits for the note and every add-on, but not forever: once the
+  // note has arrived, an add-on still loading after the deadline (12 s, or
+  // tern.config.addonTimeout in ms) is addon.failed and the note mounts
+  // without it; a console line after 2 s says what is still awaited.
+  const deadline = parsed.then(() => new Promise((resolve) => setTimeout(() => resolve('late'), addonTimeout())));
+  setTimeout(() => {
+    if (!mounted && pending.size) console.warn(`tern: still waiting for ${plural(pending.size, 'add-on')} to load: ${[...pending].map((a) => a.url).join(', ')}`);
+  }, NAG_MS);
+  Promise.race([Promise.all([parsed, useP, ...waits]), deadline]).then((r) => {
+    if (r === 'late')
+      for (const a of pending) {
+        timedOut.add(a);
+        report('addon.failed', HEAD, `the add-on ${a.url} did not load in ${Math.round(addonTimeout() / 1000)} s; the note renders without it`, 'check the network, or host the add-on where it loads fast');
+      }
     unwatch();
     return mount();
   });
@@ -5969,14 +6048,20 @@ function readConfig(script) {
   ownSchema = given.schema;
   config.use = Object.assign(Object.create(null), given.use && typeof given.use === 'object' ? given.use : null);
   if (attr('data-css') !== null) config.css = attr('data-css');
-  if (attr('data-nonce') !== null) config.nonce = attr('data-nonce');
+  // The nonce: data-nonce, taken off the tag once read, so a style-src that
+  // allows attribute selectors cannot read it back; else the tag's own
+  // nonce, which the browser hides from the DOM already.
+  if (attr('data-nonce') !== null) {
+    config.nonce = attr('data-nonce');
+    script.removeAttribute('data-nonce');
+  } else if (script.nonce) config.nonce = script.nonce;
   if (attr('data-lang') !== null) config.lang = attr('data-lang');
   config.diagnostics = flag('data-diagnostics', config.diagnostics);
   config.quiet = flag('data-quiet', config.quiet);
   const addons = [];
   for (const url of (attr('data-use') || '').split(/\s+/)) {
     const a = addonEntry(url);
-    if (a) addons.push(a);
+    if (a && !addons.some((x) => x.abs === a.abs)) addons.push(a); // listed twice: loaded once
   }
   slots = [BASE_SLOT, ...addons.map((a) => a.slot), STYLE_SLOT];
   return (addonList = addons);
@@ -6006,9 +6091,22 @@ function addonEntry(url) {
 // in parallel but run in order (an inserted script is async by default); CSS
 // as links, each in its slot. A failure is addon.failed; the promises pushed
 // to `waits` settle when each has loaded or failed, with no timeout.
+const ADDON_MS = 12000; // the deadline, after DOMContentLoaded, for an add-on still loading
+const NAG_MS = 2000; // when the console says what is still awaited
+const pending = new Set(); // add-ons not yet loaded or failed
+const timedOut = new Set(); // reported at the deadline: not again when they fail
+const addonTimeout = () => {
+  const v = Number(config.addonTimeout);
+  return Number.isFinite(v) && v >= 0 ? v : ADDON_MS;
+};
+
 function loadAddons(list, waits) {
-  const failed = (a) => (ok) => ok || report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check its path in data-use or `:::use`');
+  const failed = (a) => (ok) => {
+    pending.delete(a);
+    if (!ok && !timedOut.has(a)) report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check its path in data-use or `:::use`');
+  };
   for (const a of list) {
+    pending.add(a);
     if (a.css) {
       waits.push(loaded(insert(sheet(a.url), a.slot)).then(failed(a)));
       continue;
@@ -6264,6 +6362,7 @@ async function mount() {
     console.error('tern: the runtime failed', e);
   } finally {
     taskStart = 0;
+    document.documentElement.removeAttribute('aria-busy');
     logGroup(times);
     fire('ready', main);
     settle();
@@ -6372,6 +6471,8 @@ async function runScripts(root, ast) {
   const all = [...root.querySelectorAll('script')].filter((s) => s instanceof HTMLScriptElement);
   if (!all.length) return;
   const at = scriptPositions(ast);
+  const outer = scriptRoot;
+  scriptRoot = root; // what they register is the root's, to retire on its next render
   intercept(true);
   try {
     for (let i = 0; i < all.length; i++) {
@@ -6395,11 +6496,14 @@ async function runScripts(root, ast) {
       }
     }
   } finally {
+    scriptRoot = outer;
     intercept(false);
   }
 }
 
-// Where each <script> tag is written: only raw HTML blocks hold them.
+// Where each <script> tag is written: only raw HTML blocks hold them. A
+// `<script` inside a script's own text (a string in its code) is not a tag:
+// the scan skips to the end tag.
 function scriptPositions(ast) {
   const out = [];
   if (!ast) return out;
@@ -6414,17 +6518,27 @@ function scriptPositions(ast) {
       const nl = before.lastIndexOf('\n');
       const pt = { line: p.line + (before.match(/\n/g) || []).length, column: nl < 0 ? p.column + m.index : m.index - nl, offset: p.offset + m.index };
       out.push({ start: pt, end: pt });
+      const close = v.toLowerCase().indexOf('</script', m.index + 7);
+      re.lastIndex = close < 0 ? v.length : close + 8;
     }
   });
   return out;
 }
 
+// The guard is installed for the outermost runScripts and removed when it
+// ends: a note script that calls tern.render(el, source) with a script in
+// the source runs a nested runScripts, whose end must not disarm the guard
+// for the scripts still to come (a later document.write would wipe the page).
+let intercepting = 0;
 function intercept(on) {
   if (!on) {
+    if (--intercepting > 0) return;
+    intercepting = 0;
     for (const k of ['write', 'writeln', 'addEventListener']) delete document[k];
     delete window.addEventListener;
     return;
   }
+  if (intercepting++ > 0) return;
   const at = () => scriptAt.get(document.currentScript) || null;
   document.write = document.writeln = function (...args) {
     const text = args.join('').replace(/\s+/g, ' ').trim();

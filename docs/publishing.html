@@ -287,7 +287,7 @@ A policy can allow inline styles and scripts that carry a nonce, a random value 
 Content-Security-Policy: default-src 'self'; script-src 'nonce-r4nd0m'; style-src 'nonce-r4nd0m'; font-src https://cdn.jsdelivr.net
 ```
 
-With `data-nonce`, `tern.js` puts the nonce on everything it adds: the base `<style>`, add-on scripts and stylesheets, `tern.style` sheets, and every note script it re-creates. A [math add-on](addons.html#katex) uses the same nonce for the library script and stylesheet it loads. The page above renders under that policy with no violation, its add-on, its math and its inline note script included.
+`tern.js` takes `data-nonce` off the tag once it has read it, so a stylesheet allowed by the policy cannot read the value back through an attribute selector; without `data-nonce`, the tag's own `nonce` is used, which the browser already hides from the DOM. With a nonce, `tern.js` puts it on everything it adds: the base `<style>`, add-on scripts and stylesheets, `tern.style` sheets, and every note script it re-creates. A [math add-on](addons.html#katex) uses the same nonce for the library script and stylesheet it loads. The page above renders under that policy with no violation, its add-on, its math and its inline note script included.
 
 :::warning
 A nonce protects only when it is new and unguessable for every response. A static file holds the same value every time, so a host that sends a fixed nonce gives no more protection than `'unsafe-inline'`. On a static host, prefer `'self'` and `tern.css`, as in [A policy that works](#csp-policy).
@@ -381,6 +381,8 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 - built pages (with `tern.js` blocked, with a missing add-on, with `--math`) and the guard of `tern new --guarded`;
 - copying formulas, printing to PDF, the network waterfall on a slow connection, and long tasks on a 4,000-formula note (the last four in Chromium; copying also in Firefox).
 
+**Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property and `MutationObserver`: Chrome 86, Firefox 78 and Safari 14, or newer. In an older browser `tern.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page.
+
 **Safari is not verified.** No test runs in Safari or WebKit, and nothing on these pages has been checked there.
 
 **Known differences** between the tested browsers:
@@ -396,7 +398,7 @@ The engine and the runtime have budgets, checked by the test suite:
 | Budget | How it is checked |
 |---|---|
 | Parse, transform and emit take at most 100 ms for a 10,000-line note. | `test/perf.js`, with the engine under Node |
-| At most three serial steps before the note shows: the HTML, then `tern.js` and the add-ons in parallel, then the mount. | a Slow-3G network waterfall, in Chromium |
+| At most three serial network steps before the note shows: the HTML, then `tern.js`, then the add-ons it names (requested as it runs, before the note has finished arriving), then the mount. | a Slow-3G network waterfall, in Chromium |
 | No main-thread task over 50 ms caused by math, on a note with 4,000 formulas, and no white flash. | long-task measurement, in Chromium |
 
 **Reading the timings.** The console group's first line gives them for each note:
@@ -416,7 +418,7 @@ tern 0.5.0: 301 lines; parse, transform and emit 9 ms, mount 1 ms, then scripts,
 **What you can do:**
 
 - Not loading a math add-on on notes without math skips the library's download and parse.
-- The note waits for every add-on to load or fail, with no timeout: host add-ons where they load fast.
+- The note waits for every add-on to load or fail, up to 12 seconds after the note has arrived (`tern.config.addonTimeout`): host add-ons where they load fast.
 - Very long notes are fine; split them for readers, not for Tern.
 
 **A limit.** A full-page screenshot tool (Playwright's, or a browser's own) shows the held blocks of a long note as blank space, because they are not in view when it captures. Printing is not affected.

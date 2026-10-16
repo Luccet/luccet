@@ -727,14 +727,14 @@ tern.ready.then(() => log.push('tern.ready'));
 
 :::syntax
 ```js
-tern.render(root = main.tern, source?, { safe = false, idPrefix = '' }?) → Promise<diagnostics>
+tern.render(root = main.tern, source?, { safe = false, idPrefix = '', scripts = true }?) → Promise<diagnostics>
 ```
 :::
 
 Renders, or re-renders, a root element.
 
 - **Without a source**, it runs behaviours on the elements under `root` that have not had them, and typesets the formulas not yet typeset. A second call changes nothing. It fires `render` and `math` with `root`.
-- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `tern.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)). Then it goes on as without a source.
+- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `tern.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without a source. What the previous render's scripts registered on `tern.define`, `tern.on` and `tern.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.tern`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
 - **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `tern.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `tern.define` registered afterwards, a later `tern.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument, and the math add-ons that come with Tern typeset such a root with KaTeX's `trust` off whatever the page sets, with a copy of the macro table, ignoring its `:::macros`. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`tern.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `tern.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
 - **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
 - **The page's own root.** When `root` is the page's `main.tern`, the new diagnostics replace those in [`tern.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `tern.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
@@ -842,6 +842,7 @@ tern.config;
 
 - **When.** `tern.config` is filled once, when tern.js starts. So `window.TERN` must be set by a script in the head, before the tern.js line; setting it later does nothing.
 - **What is copied.** Every key of `window.TERN` is copied into `tern.config`, including keys Tern does not use. An add-on can read its own settings from there.
+- **`addonTimeout`** (milliseconds, 12 000 by default) is how long the mount waits for an add-on still loading once the note has arrived ([Waiting](#capture)).
 - **Booleans.** For `data-diagnostics` and `data-quiet`, the values `false`, `0`, `off` and `no` (in any case) mean false; any other value, or none, means true. Without the attribute, the `window.TERN` value counts, and false when it has none.
 
 | `window.TERN` | Attribute | `tern.config` | Value |
@@ -919,7 +920,7 @@ tern.js runs from its `<script src>` tag while the HTML parser is still reading 
    - the base stylesheet goes in, so the empty page already has its colours.
 
    The engine requests no KaTeX itself: a [math add-on](addons.html#katex) in `data-use` fetches its library when it meets the first formula.
-5. **Waiting.** The runtime waits for `DOMContentLoaded`, which means the whole note has arrived, and for each add-on to load or fail. There is no timeout. An add-on that fails to load is [`addon.failed`](diagnostics.html#addon-failed), and so is a script add-on that throws while it runs: the note still mounts, with whatever the add-on registered before the error.
+5. **Waiting.** The runtime waits for `DOMContentLoaded`, which means the whole note has arrived, and for each add-on to load or fail, with `aria-busy` on the document meanwhile. An add-on still loading 12 seconds after the note arrived (`tern.config.addonTimeout`, in milliseconds) is given up: the note mounts without it, with [`addon.failed`](diagnostics.html#addon-failed) saying it did not load in time, and after 2 seconds the console says what is still awaited. An add-on that fails to load is `addon.failed` too, and so is a script add-on that throws while it runs: the note still mounts, with whatever the add-on registered before the error. An add-on listed more than once (`data-use` and `:::use`) loads once.
 
 ### Mount {#mount}
 

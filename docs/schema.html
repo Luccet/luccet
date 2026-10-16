@@ -799,7 +799,7 @@ A `:::use` entry takes the same query string, `lib/callout.min.js?collapse=all&a
 ### How they load {#addon-loading}
 
 1. When tern.js starts, it adds a preload for every script add-on, then appends them all at once: they **download in parallel** and **run in the order listed**. Stylesheets are added as links, in order.
-2. The note is rendered once the document is parsed and **every add-on has loaded or failed**. There is no timeout.
+2. The note is rendered once the document is parsed and **every add-on has loaded or failed**, or 12 seconds after the document was parsed, whichever comes first ([the lifecycle](api.html#capture)).
 3. So an add-on runs **before the mount**. `window.tern` exists; `window.TERN.schema` is not applied yet; the note's elements do not exist yet.
 
 An add-on therefore registers things, for the runtime to apply when the note is rendered:

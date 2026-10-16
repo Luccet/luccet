@@ -2658,7 +2658,8 @@ The engine renders no math itself, so a formula a [math add-on](addons.html#kate
 
 - **Trigger.**
   - **In the browser:**
-    - a script or stylesheet listed in `data-use` fails to load. The note waits for every add-on to load or fail, then renders without the ones that failed. On a page written by `tern build`, only script add-ons are reported;
+    - a script or stylesheet listed in `data-use` fails to load, or is still loading 12 seconds after the note arrived (`tern.config.addonTimeout`): the note renders without the ones that failed, and the message says which it was. On a page written by `tern build`, only script add-ons are reported;
+    - the stylesheet `data-css` names fails to load: the note renders without its base stylesheet;
     - a script add-on throws while it runs;
     - a transform registered with `tern.transform(name, fn)` throws. The engine reports this one, so `tern.check` and the command line do too;
     - a schema's `label` function throws, once per element, which then keeps no label. The engine reports this one too.
