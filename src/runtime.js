@@ -123,10 +123,11 @@ function on(event, fn) {
   };
 }
 
-function fire(event, arg) {
+// `info` is the event's second argument: {safe} for 'render' and 'math'.
+function fire(event, arg, info) {
   for (const fn of listeners[event].slice()) {
     try {
-      fn(arg);
+      fn(arg, info);
     } catch (e) {
       console.error(`tern: a "${event}" listener failed`, e);
     }
@@ -137,11 +138,11 @@ function fire(event, arg) {
 // so a synchronous listener (one logging the event, say) is not held up by an
 // async one. The lifecycle awaits 'render' this way: a math add-on renders the
 // formulas there, so 'math' fires only once they are typeset.
-async function fireAsync(event, arg) {
+async function fireAsync(event, arg, info) {
   await Promise.all(
     listeners[event].slice().map(async (fn) => {
       try {
-        await fn(arg);
+        await fn(arg, info);
       } catch (e) {
         console.error(`tern: a "${event}" listener failed`, e);
       }
@@ -149,8 +150,17 @@ async function fireAsync(event, arg) {
   );
 }
 
+// The roots rendered with `safe`: untrusted content, which no behaviour may
+// touch, then or later. Each carries data-t-safe too, so an add-on can tell
+// from any element (el.closest('[data-t-safe]')) and a root that holds one
+// can skip it.
+const safeRoots = new WeakSet();
+let anySafe = false; // a safe root was made: elements must be checked
+const inSafe = (el) => anySafe && !!el.closest('[data-t-safe]');
+
 // tern.define(name, fn): additive, in registration order. Defined after the
-// behaviours ran, it runs at once on the elements already there.
+// behaviours ran, it runs at once on the elements already there, the safe
+// roots' left out.
 function define(name, fn) {
   if (typeof name !== 'string' || !name) throw new TypeError('tern.define(name, fn): name must be a non-empty string');
   if (typeof fn !== 'function') throw new TypeError(`tern.define("${name}", fn): fn must be a function`);
@@ -159,7 +169,8 @@ function define(name, fn) {
   defined.get(name).push(rec);
   if (behavioursRan) {
     for (const root of roots) {
-      if (root.isConnected) for (const el of root.querySelectorAll(`[data-t="${CSS.escape(name)}"]`)) apply(rec, el, name);
+      if (!root.isConnected || safeRoots.has(root)) continue;
+      for (const el of root.querySelectorAll(`[data-t="${CSS.escape(name)}"]`)) if (!inSafe(el)) apply(rec, el, name);
     }
   }
   return () => {
@@ -173,22 +184,22 @@ function undefine(name) {
   defined.delete(name);
 }
 
-// tern.render(root, source): with a source, root's content is replaced by
-// the note's HTML and its scripts run. Then behaviours run on elements that
-// have not had them and formulas not yet typeset are typeset, so a second
-// call with no source changes nothing. Resolves to the source's
+// tern.render(root, source, {safe, idPrefix}): with a source, root's content
+// is replaced by the note's HTML and its scripts run. Then behaviours run on
+// elements that have not had them and formulas not yet typeset are typeset,
+// so a second call with no source changes nothing. Resolves to the source's
 // diagnostics, which replace tern.diagnostics when root is the page's main.
 function render(root, source, opts) {
   if (!BROWSER) return Promise.resolve([]);
-  return renderRoot(root, source, !!(opts && opts.safe));
+  return renderRoot(root, source, !!(opts && opts.safe), opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '');
 }
 
-async function renderRoot(root, source, safe) {
+async function renderRoot(root, source, safe, idPrefix) {
   root = root || main || document.querySelector('main.tern');
   if (!root || root.nodeType !== 1) throw new TypeError('tern.render(root, source): root must be an element');
   let list = [];
   if (source !== undefined) {
-    const r = compile(String(source), safe);
+    const r = compile(String(source), safe, idPrefix);
     list = r.list;
     const tpl = document.createElement('template');
     tpl.innerHTML = r.html;
@@ -203,11 +214,21 @@ async function renderRoot(root, source, safe) {
     }
     // Under `safe` the note is untrusted: its scripts do not run, and
     // behaviours (schema `dom`, tern.define — host code acting on untrusted
-    // content) are skipped. Its raw HTML is escaped and risky attributes
-    // dropped by emit; math still typesets (KaTeX, trust off).
-    if (!safe) await runScripts(root, r.ast);
+    // content) are skipped, now and later: the root is remembered and marked.
+    // Its raw HTML is escaped and risky attributes dropped by emit; math
+    // still typesets, with trust off (the add-ons read the mark). A trusted
+    // source rendered into the same root makes it trusted again.
+    if (safe) {
+      safeRoots.add(root);
+      root.setAttribute('data-t-safe', '');
+      anySafe = true;
+    } else {
+      safeRoots.delete(root);
+      root.removeAttribute('data-t-safe');
+      await runScripts(root, r.ast);
+    }
   }
-  await process(root, safe);
+  await process(root, safe || safeRoots.has(root));
   return list;
 }
 
@@ -665,11 +686,11 @@ function writeMeta(m) {
 // ---------------------------------------------------------------- mount
 
 // parse → transform → emit, with every diagnostic in document order.
-function compile(source, safe) {
+function compile(source, safe, idPrefix) {
   const opts = { head: page ? page.head : '', lang: config.lang || undefined };
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
-  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '' }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
 }
 
 // Tern's own presentational styles, a column's alignment and a grid's
@@ -934,14 +955,16 @@ async function process(root, safe) {
   lineNumbers(root);
   if (!safe) behaviours(root);
   // A math add-on renders the formulas in its 'render' listener; the listener
-  // is awaited, so a listener on 'math' sees them typeset.
-  await fireAsync('render', root);
-  fire('math', root);
+  // is awaited, so a listener on 'math' sees them typeset. Both get {safe}.
+  const info = { safe: !!safe };
+  await fireAsync('render', root, info);
+  fire('math', root, info);
 }
 
 // schema `dom` and tern.define, once per element and function, in document
 // order, keyed on data-t. A `t-block` element is a container, so its block
-// entry comes first; otherwise the leaf, then the inline one.
+// entry comes first; otherwise the leaf, then the inline one. An element
+// inside a safe root (one rendered with `safe` inside this root) gets none.
 const domRecs = new WeakMap(); // a schema dom function -> {fn, done}
 function behaviours(root) {
   behavioursRan = true;
@@ -949,6 +972,7 @@ function behaviours(root) {
   const list = root.querySelectorAll('[data-t]');
   for (let i = root.hasAttribute('data-t') ? -1 : 0; i < list.length; i++) {
     const el = i < 0 ? root : list[i];
+    if (inSafe(el)) continue;
     const name = el.getAttribute('data-t');
     const levels = el.classList.contains('t-block') ? ['block', 'leaf', 'inline'] : ['leaf', 'inline', 'block'];
     for (const level of levels) {

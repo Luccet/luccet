@@ -104,18 +104,32 @@ function spanPosition(ctx, span, a, b) {
 // ---------------------------------------------------------------- trees
 
 // unist-util-visit, the subset tern needs: visit(tree, [type,] fn), with
-// fn(node, index, parent). Returning false skips the node's children.
+// fn(node, index, parent). Returning false skips the node's children. The
+// walk keeps its own stack, so a deep tree cannot overflow the call stack;
+// a child list is read live, as a loop would, so fn may change it.
 function visit(tree, type, fn) {
   if (typeof type === 'function') {
     fn = type;
     type = null;
   }
-  const walk = (node, index, parent) => {
+  const frames = []; // [node, next child index] for each node whose children are being visited
+  const enter = (node, index, parent) => {
     const r = !type || node.type === type ? fn(node, index, parent) : undefined;
-    if (r === false || !node.children) return;
-    for (let i = 0; i < node.children.length; i++) walk(node.children[i], i, node);
+    if (r !== false && node.children) frames.push(node, 0);
   };
-  walk(tree, null, null);
+  enter(tree, null, null);
+  while (frames.length) {
+    const k = frames.length - 2;
+    const node = frames[k];
+    const i = frames[k + 1];
+    const kids = node.children;
+    if (!kids || i >= kids.length) {
+      frames.length = k;
+      continue;
+    }
+    frames[k + 1] = i + 1;
+    enter(kids[i], i, node);
+  }
 }
 
 module.exports = { createContext, createSpan, spanAdd, spanStart, spanEnd, spanPosition, visit };

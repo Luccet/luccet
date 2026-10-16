@@ -1251,11 +1251,18 @@ function headValue(key) {
 
 // ------------------------------------------------------------ the pass
 
+// opts.maxDepth as a limit: a finite number of 1 or more (a numeric string
+// counts), rounded down; anything else, Infinity included, means 64.
+function depthLimit(v) {
+  const d = typeof v === 'number' || typeof v === 'string' ? Number(v) : NaN;
+  return Number.isFinite(d) && d >= 1 ? Math.floor(d) : 64;
+}
+
 // Each row kind's handler, (r, fi, te).
 const ACT = { para: (r, fi, te) => paraLine(fi, te, r, false), closer, opener, fence, html, heading, hr, table, delim: table, cell, leaf: leafLine, math, math1, attrs: attrLine };
 
 function parseBlocks(c) {
-  (ctx = c), (src = c.src), (N = src.length), (MAX = c.opts.maxDepth || 64);
+  (ctx = c), (src = c.src), (N = src.length), (MAX = depthLimit(c.opts.maxDepth));
   root = { type: 'root', children: [] };
   stack = [{ kind: 'root', node: root, start: 0, end: 0, fn: 0 }];
   leaf = unclosedWhat = meta = use = head = front = null;

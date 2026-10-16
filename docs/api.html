@@ -172,12 +172,14 @@ diagnostics.map((d) => d.code);   // → ['meta.conflict']
 ast.data.tern.meta;               // → { title: 'B' }
 ```
 
-**`opts.maxDepth`.** Quotes, list items, footnote definitions and containers nest at most `maxDepth` deep, 64 by default. An opener past the limit is shown as text, with [`nesting.limit`](diagnostics.html#nesting-limit):
+**`opts.maxDepth`.** Quotes, list items, footnote definitions and containers nest at most `maxDepth` deep, 64 by default; a value that is not a finite number of 1 or more (`'abc'`, `Infinity`, `0`) means 64. An opener past the limit is shown as text, with [`nesting.limit`](diagnostics.html#nesting-limit):
 
 ```js
 tern.parse('> > > x', { maxDepth: 2 }).diagnostics.map((d) => d.message);
 // → ['blocks nest at most 2 deep; this opener is shown as text']
 ```
+
+Inline constructs (emphasis, spans, links, inline elements) nest at most 1,000 deep, whatever `maxDepth` says: one past that is shown as its source text, with the same diagnostic. So a tree the parser returns is always one that `JSON.stringify`, [`tern.visit`](#visit) and the other readers can walk.
 
 ### `tern.transform` {#transform}
 
@@ -295,7 +297,7 @@ An add-on's transforms run wherever the note is processed. In the browser they r
 
 :::syntax
 ```js
-tern.emit(ast, { positions = true, safe = false }) → string
+tern.emit(ast, { positions = true, safe = false, maxOutput = 67108864, idPrefix = '' }) → string
 ```
 :::
 
@@ -326,7 +328,7 @@ tern.emit(ast, { positions: false });
 **`safe`** (default `false`) is the [raw HTML scoping](elements.html#safe):
 
 - raw HTML is escaped: a raw block becomes a plain `<pre>`, an inline tag becomes text;
-- `on*`, `srcdoc`, `formaction` and `style` attributes are dropped;
+- `on*`, `srcdoc`, `formaction`, `style`, `form`, `popovertarget`, `usemap`, `name` and the other attributes that run, navigate or reach the host page are dropped ([the list](elements.html#safe));
 - URLs other than `http:`, `https:`, `mailto:` and relative ones are dropped from links, images and URL attributes;
 - Tern's own grid style (`--t-cols`) is kept when its value holds only numbers, words and `(),.%/+*-`.
 
@@ -342,6 +344,10 @@ tern.toHTML(src, { safe: true });
 tern.toHTML('<div onclick="go()">\nHi\n</div>', { safe: true });
 // → '<pre>&lt;div onclick=&quot;go()&quot;&gt;\nHi\n&lt;/div&gt;</pre>\n'
 ```
+
+**`maxOutput`** (default 64 M characters) is the output budget. Past it the HTML stops, cut at that length, and the tree gets an [`output.limit`](diagnostics.html#output-limit) diagnostic in `ast.data.tern.diagnostics`, beside the transforms'; it used to be a `RangeError`. A reference copies at most 200 characters of its target's title and a toc entry as much of a heading, so an ordinary note never comes near the budget.
+
+**`idPrefix`** (default `''`) goes in front of every `id` in the output and every fragment link to one (`[x](#id)`, a reference, footnotes, a toc), so a root rendered from text you do not trust cannot clash with the page's ids or point at them: with `idPrefix: 'c1-'`, `{#top}` emits `id="c1-top"` and `@top` emits `href="#c1-top"`. A link to another page's fragment is left alone.
 
 :::note
 The runtime emits with one more option, `cssom`. It writes Tern's own column alignment and grid columns as `data-t-align` and `data-t-cols` instead of `style`, and the runtime then sets them through the CSSOM, which a strict Content-Security-Policy allows ([CSP](publishing.html#csp)). The result needs the runtime to look right, so it is not for other callers: `tern.toHTML` and `tern build` write `style`.
@@ -690,8 +696,8 @@ Listens for one of the runtime's four events. There are no others.
 
 | Event | When | `fn` gets |
 |---|---|---|
-| `render` | the note is in the page, its scripts have run and its behaviours have run; math is not typeset yet | the root, `main.tern` |
-| `math` | the formulas in view are typeset; again for a `<details>`, after the formulas inside it are typeset when it opens | the root, or the `<details>` element |
+| `render` | the note is in the page, its scripts have run and its behaviours have run; math is not typeset yet | the root, `main.tern`, and `{ safe }`: true for a root rendered with `safe` |
+| `math` | the formulas in view are typeset; again for a `<details>`, after the formulas inside it are typeset when it opens | the root, or the `<details>` element, and `{ safe }` |
 | `ready` | everything is done, once: math, the scroll to the URL's fragment, the console group | the root, `main.tern` |
 | `diagnostic` | the runtime reports a problem of its own: a failed add-on, a note script's `document.write` … Never for the diagnostics of the parse and the transforms, a throwing transform's `addon.failed` included | the [diagnostic](#check) |
 
@@ -721,7 +727,7 @@ tern.ready.then(() => log.push('tern.ready'));
 
 :::syntax
 ```js
-tern.render(root = main.tern, source?, { safe = false }?) → Promise<diagnostics>
+tern.render(root = main.tern, source?, { safe = false, idPrefix = '' }?) → Promise<diagnostics>
 ```
 :::
 
@@ -729,7 +735,7 @@ Renders, or re-renders, a root element.
 
 - **Without a source**, it runs behaviours on the elements under `root` that have not had them, and typesets the formulas not yet typeset. A second call changes nothing. It fires `render` and `math` with `root`.
 - **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `tern.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)). Then it goes on as without a source.
-- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `tern.define`) are not applied to it. Math still typesets. Use it wherever you render text from others, such as `tern.render(box, comment, { safe: true })`.
+- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `tern.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `tern.define` registered afterwards, a later `tern.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument, and the math add-ons that come with Tern typeset such a root with KaTeX's `trust` off whatever the page sets, with a copy of the macro table, ignoring its `:::macros`. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`tern.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `tern.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
 - **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
 - **The page's own root.** When `root` is the page's `main.tern`, the new diagnostics replace those in [`tern.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `tern.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
 - **`root`** defaults to the page's `main.tern`. Anything other than an element rejects the Promise with `TypeError: tern.render(root, source): root must be an element`.

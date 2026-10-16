@@ -441,18 +441,32 @@ function spanPosition(ctx, span, a, b) {
 // ---------------------------------------------------------------- trees
 
 // unist-util-visit, the subset tern needs: visit(tree, [type,] fn), with
-// fn(node, index, parent). Returning false skips the node's children.
+// fn(node, index, parent). Returning false skips the node's children. The
+// walk keeps its own stack, so a deep tree cannot overflow the call stack;
+// a child list is read live, as a loop would, so fn may change it.
 function visit(tree, type, fn) {
   if (typeof type === 'function') {
     fn = type;
     type = null;
   }
-  const walk = (node, index, parent) => {
+  const frames = []; // [node, next child index] for each node whose children are being visited
+  const enter = (node, index, parent) => {
     const r = !type || node.type === type ? fn(node, index, parent) : undefined;
-    if (r === false || !node.children) return;
-    for (let i = 0; i < node.children.length; i++) walk(node.children[i], i, node);
+    if (r !== false && node.children) frames.push(node, 0);
   };
-  walk(tree, null, null);
+  enter(tree, null, null);
+  while (frames.length) {
+    const k = frames.length - 2;
+    const node = frames[k];
+    const i = frames[k + 1];
+    const kids = node.children;
+    if (!kids || i >= kids.length) {
+      frames.length = k;
+      continue;
+    }
+    frames[k + 1] = i + 1;
+    enter(kids[i], i, node);
+  }
 }
 
 module.exports = { createContext, createSpan, spanAdd, spanStart, spanEnd, spanPosition, visit };
@@ -1447,6 +1461,11 @@ function scanAll() {
 // text and soft breaks merge
 const stackIt = [];
 const stackOut = [];
+// Inline constructs nest at most this deep. The scan never recurses, but the
+// tree it builds is read by recursive code (JSON.stringify, for one), so past
+// the limit a construct is its source text, children and all, with
+// nesting.limit once per run (docs/diagnostics.html#nesting-limit).
+const NEST = 1000;
 const textNode = (ts, te, parts) => ({ type: 'text', value: parts ? parts.join('') : text.slice(ts, te), position: pos(ts, te) });
 function build() {
   const root = [];
@@ -1455,6 +1474,7 @@ function build() {
   let ts = -1; // the pending text runs from ts to te; it is that slice of
   let te = -1; // the source while parts is null
   let parts = null;
+  let deep = false; // nesting.limit reported
   for (;;) {
     const it = next;
     if (!it) {
@@ -1478,6 +1498,14 @@ function build() {
     }
     if (ts >= 0) out.push(textNode(ts, te, parts));
     ts = -1;
+    if (it.k === PARENT && stackIt.length >= NEST) {
+      if (!deep) {
+        deep = true;
+        rep('nesting.limit', it.s, it.e, `inline constructs nest at most ${NEST} deep; this one is shown as text`, 'flatten the structure');
+      }
+      (ts = it.s), (te = it.e), (parts = null); // its source, as pending text
+      continue;
+    }
     const node = it.k === ENT ? { type: 'text', value: it.v, data: { tern: { entity: it.n } }, position: null } : it.n;
     node.position = pos(it.s, it.e);
     out.push(node);
@@ -2747,11 +2775,18 @@ function headValue(key) {
 
 // ------------------------------------------------------------ the pass
 
+// opts.maxDepth as a limit: a finite number of 1 or more (a numeric string
+// counts), rounded down; anything else, Infinity included, means 64.
+function depthLimit(v) {
+  const d = typeof v === 'number' || typeof v === 'string' ? Number(v) : NaN;
+  return Number.isFinite(d) && d >= 1 ? Math.floor(d) : 64;
+}
+
 // Each row kind's handler, (r, fi, te).
 const ACT = { para: (r, fi, te) => paraLine(fi, te, r, false), closer, opener, fence, html, heading, hr, table, delim: table, cell, leaf: leafLine, math, math1, attrs: attrLine };
 
 function parseBlocks(c) {
-  (ctx = c), (src = c.src), (N = src.length), (MAX = c.opts.maxDepth || 64);
+  (ctx = c), (src = c.src), (N = src.length), (MAX = depthLimit(c.opts.maxDepth));
   root = { type: 'root', children: [] };
   stack = [{ kind: 'root', node: root, start: 0, end: 0, fn: 0 }];
   leaf = unclosedWhat = meta = use = head = front = null;
@@ -2790,15 +2825,22 @@ const { visit } = require('./ast');
 // dropped. Entities give their decoded value.
 function plainText(nodes) {
   let out = '';
-  const walk = (list) => {
-    for (const n of list || []) {
-      if (n.type === 'text' || n.type === 'inlineCode' || n.type === 'inlineMath') out += n.value;
-      else if (n.type === 'image') out += n.alt || '';
-      else if (n.type === 'break') out += '\n';
-      else if (n.children) walk(n.children);
+  const lists = [nodes || []]; // the child lists being read, with the index of each
+  const at = [0];
+  while (lists.length) {
+    const k = lists.length - 1;
+    const list = lists[k];
+    const i = at[k]++;
+    if (i >= list.length) {
+      lists.pop(), at.pop();
+      continue;
     }
-  };
-  walk(nodes);
+    const n = list[i];
+    if (n.type === 'text' || n.type === 'inlineCode' || n.type === 'inlineMath') out += n.value;
+    else if (n.type === 'image') out += n.alt || '';
+    else if (n.type === 'break') out += '\n';
+    else if (n.children) lists.push(n.children), at.push(0);
+  }
   return out;
 }
 
@@ -2877,22 +2919,45 @@ const { decode } = require('./entities');
 // space.
 function plain(node) {
   if (!node) return '';
-  switch (node.type) {
-    case 'text':
-    case 'inlineCode':
-    case 'inlineMath':
-    case 'code':
-    case 'math':
-      return node.value || '';
-    case 'image':
-      return node.alt || '';
-    case 'break':
-      return ' ';
-    case 'html':
-    case 'footnoteReference':
-      return '';
-    default:
-      return (node.children || []).map(plain).join(node.type === 'paragraph' || node.type === 'heading' ? '' : ' ');
+  // A node's own text, or null for one whose text is its children's, joined
+  // by the separator (none in a paragraph or heading, a space elsewhere).
+  const own = (n) => {
+    switch (n.type) {
+      case 'text':
+      case 'inlineCode':
+      case 'inlineMath':
+      case 'code':
+      case 'math':
+        return n.value || '';
+      case 'image':
+        return n.alt || '';
+      case 'break':
+        return ' ';
+      case 'html':
+      case 'footnoteReference':
+        return '';
+      default:
+        return n.children && n.children.length ? null : '';
+    }
+  };
+  const top = own(node);
+  if (top !== null) return top;
+  // Explicit frames, so a deep tree cannot overflow the call stack.
+  const frames = [{ n: node, i: 0, parts: [] }];
+  for (;;) {
+    const f = frames[frames.length - 1];
+    const kids = f.n.children;
+    if (f.i < kids.length) {
+      const c = kids[f.i++];
+      const s = c && typeof c === 'object' ? own(c) : '';
+      if (s !== null) f.parts.push(s);
+      else frames.push({ n: c, i: 0, parts: [] });
+      continue;
+    }
+    frames.pop();
+    const s = f.parts.join(f.n.type === 'paragraph' || f.n.type === 'heading' ? '' : ' ');
+    if (!frames.length) return s;
+    frames[frames.length - 1].parts.push(s);
   }
 }
 
@@ -2939,14 +3004,21 @@ function describe(head, ast) {
   const headings = [];
   const links = [];
   const seen = new Set();
-  const walk = (node) => {
-    for (const c of node.children || []) {
-      if (c.type === 'heading') headings.push({ depth: c.depth, id: (c.attributes && c.attributes.id) || '', text: plain(c) });
-      else if (c.type === 'link' && typeof c.url === 'string' && c.url && !c.url.startsWith('#') && !seen.has(c.url)) (seen.add(c.url), links.push(c.url));
-      if (c.children) walk(c);
+  const lists = [(ast && ast.children) || []]; // the child lists being read, with the index of each
+  const at = [0];
+  while (lists.length) {
+    const k = lists.length - 1;
+    const list = lists[k];
+    const i = at[k]++;
+    if (i >= list.length) {
+      lists.pop(), at.pop();
+      continue;
     }
-  };
-  walk(ast || {});
+    const c = list[i];
+    if (c.type === 'heading') headings.push({ depth: c.depth, id: (c.attributes && c.attributes.id) || '', text: plain(c) });
+    else if (c.type === 'link' && typeof c.url === 'string' && c.url && !c.url.startsWith('#') && !seen.has(c.url)) (seen.add(c.url), links.push(c.url));
+    if (c.children) lists.push(c.children), at.push(0);
+  }
   return { title: title(head, ast), description: String(meta.description || '').trim(), meta, headings, links };
 }
 
@@ -2969,33 +3041,39 @@ function records(ast, { url = '', title: pageTitle = '' } = {}) {
     return r;
   };
   let current = entry('', 1, endLineOf(ast), 'page', pageTitle, '');
-  const walk = (node) => {
-    for (const c of node.children || []) {
-      if (c.type === 'heading') {
-        current = entry((c.attributes && c.attributes.id) || '', lineOf(c), undefined, 'heading', plain(c), '');
-        continue;
-      }
-      if (c.type === 'containerDirective' && c.attributes && c.attributes.id) {
-        const tern = (c.data && c.data.tern) || {};
-        const titleNode = (c.children || []).find((k) => k.type === 'paragraph' && k.data && k.data.directiveLabel);
-        const r = entry(c.attributes.id, lineOf(c), endLineOf(c), c.name, tern.text || c.name, titleNode ? plain(titleNode) : '');
-        const outer = current;
-        current = r;
-        walk({ children: (c.children || []).filter((k) => k !== titleNode) });
-        current = outer;
-        continue;
-      }
-      if (c.type === 'paragraph' && c.data && c.data.directiveLabel) continue;
-      if (c.type === 'footnoteDefinition' || c.type === 'html') continue;
-      if (c.children && !['paragraph', 'heading', 'tableCell'].includes(c.type)) {
-        walk(c);
-        continue;
-      }
-      const s = plain(c).trim();
-      if (s) current.text.push(s);
+  // Explicit frames, so a deep tree cannot overflow the call stack: each
+  // holds a child list, the index in it, and the entry to come back to when
+  // the list ends (a named block's content is its own entry's).
+  const frames = [{ list: (ast && ast.children) || [], i: 0, back: null }];
+  while (frames.length) {
+    const f = frames[frames.length - 1];
+    if (f.i >= f.list.length) {
+      frames.pop();
+      if (f.back) current = f.back;
+      continue;
     }
-  };
-  walk(ast);
+    const c = f.list[f.i++];
+    if (c.type === 'heading') {
+      current = entry((c.attributes && c.attributes.id) || '', lineOf(c), undefined, 'heading', plain(c), '');
+      continue;
+    }
+    if (c.type === 'containerDirective' && c.attributes && c.attributes.id) {
+      const tern = (c.data && c.data.tern) || {};
+      const titleNode = (c.children || []).find((k) => k.type === 'paragraph' && k.data && k.data.directiveLabel);
+      const r = entry(c.attributes.id, lineOf(c), endLineOf(c), c.name, tern.text || c.name, titleNode ? plain(titleNode) : '');
+      frames.push({ list: (c.children || []).filter((k) => k !== titleNode), i: 0, back: current });
+      current = r;
+      continue;
+    }
+    if (c.type === 'paragraph' && c.data && c.data.directiveLabel) continue;
+    if (c.type === 'footnoteDefinition' || c.type === 'html') continue;
+    if (c.children && !['paragraph', 'heading', 'tableCell'].includes(c.type)) {
+      frames.push({ list: c.children, i: 0, back: null });
+      continue;
+    }
+    const s = plain(c).trim();
+    if (s) current.text.push(s);
+  }
   // A heading's section ends where the next entry at the top level starts.
   for (let i = 0; i < out.length; i++) {
     if (out[i].kind === 'heading' && out[i].endLine === undefined) {
@@ -4091,7 +4169,7 @@ function numbering(ast, ctx) {
     const t = tern(n);
     let k;
     if (spec.counter != null && spec.counter !== '') k = next(t, String(spec.counter));
-    const { text } = S.label(spec, k, n, ctx.lang);
+    const { text } = labelOf(spec, k, n, ctx);
     if (text) t.text = text;
   }
 }
@@ -4152,9 +4230,26 @@ function info(T, ctx) {
     const k = T.type === 'containerDirective' && T.children && T.children[0];
     if (isLabel(k) && k.children.length) I.title = k.children;
   }
-  if (I.spec) I.word = S.label(I.spec, I.number, T, ctx.lang).word;
+  if (I.spec) I.word = labelOf(I.spec, I.number, T, ctx).word;
   if (I.title && !I.title.length) I.title = null;
   return I;
+}
+
+// A schema's label, through S.label. A label function is an add-on's code:
+// one that throws is addon.failed, as a throwing transform is, and the
+// element keeps no label.
+function labelOf(spec, n, node, ctx) {
+  try {
+    return S.label(spec, n, node, ctx.lang);
+  } catch (e) {
+    const seen = ctx.labelFailed || (ctx.labelFailed = new Set()); // once per element: a reference asks again
+    if (!seen.has(node)) {
+      seen.add(node);
+      const what = node.type === 'code' ? 'a listing' : `"${node.name}"`;
+      ctx.report('addon.failed', node, `the label function of ${what} threw: ${(e && e.message) || e}; the element has no label`, "fix the schema entry's label function", 'error');
+    }
+    return { word: '', text: '' };
+  }
 }
 
 // A reference's text. `ref=` chooses a part, and a part the target lacks
@@ -4213,17 +4308,35 @@ function add(out, n) {
   return out;
 }
 
+// At most this much text is copied for one reference or toc entry. A
+// reference copies its target's title, so a long title referenced many
+// times would amplify a small note into output no browser can hold; past
+// the budget the copy ends with an ellipsis (docs/elements.html#refs).
+const COPY_MAX = 200;
+const cut = (s) => (s.length > COPY_MAX ? `${s.slice(0, COPY_MAX)}…` : s);
+
 // A copy of inline content to put inside a link (a reference's text, a toc
 // entry): positions and ids dropped, links unwrapped, footnote references
 // left out. A reference inside becomes its target's plain text, never a link
 // in a link, so copies never nest; ref text and toc entries flatten alike.
 function copy(nodes, ctx) {
   const one = nodes.length === 1 && nodes[0].type === 'text' && !nodes[0].data ? nodes[0] : null;
-  if (one) return [{ type: 'text', value: one.value }]; // the usual title
+  if (one) return [{ type: 'text', value: cut(one.value) }]; // the usual title
   const root = [];
   const src = [nodes];
   const at = [0];
   const dst = [root];
+  let left = COPY_MAX; // the text still allowed
+  let ended = false; // the ellipsis written
+  // Text into the copy, within the budget; `s` is a string field of a node.
+  const take = (s) => {
+    if (left <= 0) return ended ? '' : ((ended = true), '…');
+    if (s.length <= left) return (left -= s.length), s;
+    ended = true;
+    const t = `${s.slice(0, left)}…`;
+    left = 0;
+    return t;
+  };
   while (src.length) {
     const k = src.length - 1;
     const list = src[k];
@@ -4239,10 +4352,12 @@ function copy(nodes, ctx) {
       src.push(n.children || []), at.push(0), dst.push(out);
       continue;
     }
-    if (n.type === 'ref') add(out, { type: 'text', value: shortText(n, ctx) });
-    else if (n.type === 'text' && !(n.data && n.data.tern && n.data.tern.entity)) add(out, { type: 'text', value: n.value });
+    if (n.type === 'ref') add(out, { type: 'text', value: take(shortText(n, ctx)) });
+    else if (n.type === 'text' && !(n.data && n.data.tern && n.data.tern.entity)) add(out, { type: 'text', value: take(n.value) });
     else {
       const c = clone(n);
+      if (typeof c.value === 'string') c.value = take(c.value); // code, math
+      if (typeof c.alt === 'string') c.alt = take(c.alt); // an image
       out.push(c);
       if (n.children) (c.children = []), src.push(n.children), at.push(0), dst.push(c.children);
     }
@@ -4275,7 +4390,7 @@ function shortText(n, ctx) {
   if (!e) return `@${n.id}`;
   const I = info(e, ctx);
   if (I.number != null) return I.text || String(I.number);
-  return (I.title && plain(I.title, false)) || I.text || n.id;
+  return (I.title && cut(plain(I.title, false))) || I.text || n.id;
 }
 
 // ---------------------------------------------------------------- toc
@@ -4453,9 +4568,10 @@ const SAFE_SCHEME = /^(?:https?|mailto)$/i;
 const UNSAFE_TAG = new Set('iframe object embed frame frameset base form meta link portal fencedframe applet'.split(' '));
 const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
 // Under `safe`, attributes dropped from every element whatever their value:
-// event handlers (on*, caught by the regex), ones that run or submit, and
-// ones that steer navigation or focus.
-const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style'.split(' '));
+// event handlers (on*, caught by the regex), ones that run or submit, ones
+// that steer navigation or focus, and ones that drive the host page's own
+// elements (its forms, popovers and image maps) or clobber its names.
+const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popovertarget popovertargetaction usemap name'.split(' '));
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -4498,6 +4614,7 @@ let work = null; // the stack of pending nodes and strings
 let positions = true;
 let safe = false;
 let cssom = false;
+let prefix = ''; // opts.idPrefix: before every id and fragment link, so an untrusted root cannot clash with the page's ids
 let section = false; // true once the footnote section is being written
 let inToc = 0; // inside a toc entry: no nested links, no ids
 let fnDefs = null; // identifier -> footnoteDefinition
@@ -4509,11 +4626,27 @@ let fnBack = '';
 let taskPara = null; // … and the one that starts with a task checkbox
 let taskBox = '';
 
+// The output budget: opts.maxOutput, else 64 M characters. Past it the
+// walk stops and the note gets an output.limit diagnostic, where a note
+// built to amplify (something huge repeated) used to end in a RangeError.
+const MAX_OUTPUT = 64 * 1024 * 1024;
+const OVER = { type: '#over' }; // thrown by write past the budget
+let total = 0; // characters written so far
+let limit = MAX_OUTPUT;
+const ORIGIN = { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } };
+
 // Appends to the current chunk. A full chunk is flattened (a regexp test
 // flattens its subject) and set aside, so the output under construction is a
 // few flat strings, not a graph of small ones that every young-generation
 // collection would copy.
 const write = (s) => {
+  const room = limit - total;
+  if (s.length > room) {
+    buf += s.slice(0, room); // exactly the budget, then the cut
+    total = limit;
+    throw OVER;
+  }
+  total += s.length;
   if ((buf += s).length > 16384) FLAT.test(buf), out.push(buf), (buf = '');
 };
 const tern = (node) => (node.data && node.data.tern) || {};
@@ -4603,7 +4736,7 @@ function attrs(a, pre, post, extra, skip, fence) {
     return extra ? c + extra : c;
   }
   let s = '';
-  if (a.id != null && a.id !== '' && !inToc) s += ` id="${escAttr(String(a.id))}"`;
+  if (a.id != null && a.id !== '' && !inToc) s += ` id="${escAttr(prefix + String(a.id))}"`;
   let cls = pre || '';
   if (a.class) cls = cls ? `${cls} ${a.class}` : String(a.class);
   if (post) cls = cls ? `${cls} ${post}` : post;
@@ -4612,7 +4745,9 @@ function attrs(a, pre, post, extra, skip, fence) {
   for (const k in a) {
     if (k === 'id' || k === 'class' || k === skip || RESERVED_KEYS.has(k) || (fence && FENCE_KEYS.has(k)) || !ATTR_NAME.test(k)) continue;
     const v = a[k] == null ? '' : String(a[k]);
-    if (safe && (/^on/i.test(k) || UNSAFE_ATTR.has(k.toLowerCase()) || (URL_KEYS.has(k) && !safeSet(k, v)))) continue;
+    // HTML reads attribute names without case, so does the check (a schema's `attrs` may spell one as it likes).
+    const lower = k.toLowerCase();
+    if (safe && (/^on/.test(lower) || UNSAFE_ATTR.has(lower) || (URL_KEYS.has(lower) && !safeSet(lower, v)))) continue;
     s += v === '' ? ` ${k}` : ` ${k}="${escAttr(v)}"`;
   }
   return s;
@@ -4628,6 +4763,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
+  prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;
   fnDefs = new Map();
@@ -4635,15 +4771,23 @@ function emit(ast, opts) {
   inlineNames = new Map();
   classes = new Map();
   fnPara = taskPara = null;
+  total = 0;
+  const max = opts && opts.maxOutput;
+  limit = typeof max === 'number' && Number.isFinite(max) && max > 0 ? Math.floor(max) : MAX_OUTPUT;
   try {
-    while (work.length) {
-      const it = work.pop();
-      if (typeof it === 'string') write(it);
-      else if (it instanceof Cursor) next(it);
-      else if (it === FOOTNOTES) footnotes(ast);
-      else if (it === TOC_IN) inToc++;
-      else if (it === TOC_OUT) inToc--;
-      else if (it && typeof it === 'object') node(it);
+    try {
+      while (work.length) {
+        const it = work.pop();
+        if (typeof it === 'string') write(it);
+        else if (it instanceof Cursor) next(it);
+        else if (it === FOOTNOTES) footnotes(ast);
+        else if (it === TOC_IN) inToc++;
+        else if (it === TOC_OUT) inToc--;
+        else if (it && typeof it === 'object') node(it);
+      }
+    } catch (e) {
+      if (e !== OVER) throw e;
+      overflow(ast);
     }
     // The flat chunks as one string. Concatenated, not joined: whoever uses
     // the HTML (the mount's `<main>` wrapper and innerHTML, a file write)
@@ -4655,6 +4799,20 @@ function emit(ast, opts) {
     out = work = fnDefs = names = inlineNames = classes = fnPara = taskPara = null; // keep nothing of this note alive
     buf = '';
   }
+}
+
+// Past the budget: the HTML written so far is returned as it is, and the
+// tree carries the diagnostic (ast.data.tern.diagnostics, where the
+// transforms put theirs, which the runtime and tern build read after emit).
+function overflow(ast) {
+  const t = (ast.data || (ast.data = {})).tern || (ast.data.tern = {});
+  (t.diagnostics || (t.diagnostics = [])).push({
+    code: 'output.limit',
+    severity: 'error',
+    message: `the note's HTML is longer than ${limit.toLocaleString('en')} characters, so it is cut short there`,
+    hint: 'something very large is repeated: shorten it, or raise maxOutput',
+    position: ORIGIN,
+  });
 }
 
 // Writes a cursor's nodes until one pushes work; the cursor, when it has
@@ -5031,7 +5189,7 @@ function tocNext(t) {
       if (d > levels[levels.length - 1]) (s += '<ol><li><a href="#'), levels.push(d);
       else s += '</li><li><a href="#';
     }
-    s += escAttr(String(e.id));
+    s += escAttr(prefix + String(e.id));
     s += '">';
     const list = e.children || [];
     for (let j = 0; j < list.length; j++) {
@@ -5062,7 +5220,8 @@ function inlineElement(n, a) {
 
 function link(n, a) {
   if (inToc) return kids(n.children);
-  const url = n.url == null ? '' : String(n.url);
+  let url = n.url == null ? '' : String(n.url);
+  if (prefix && url[0] === '#') url = `#${prefix}${url.slice(1)}`; // a fragment link stays within the root
   const href = safe && !safeUrl(url, false) ? '' : ` href="${escValue(url)}"`;
   const title = n.title != null && !(a && 'title' in a) ? ` title="${escValue(String(n.title))}"` : '';
   wrapped(`<a${href}${title}${attrs(a, '', '', '', 'href')}>`, n.children, '</a>');
@@ -5083,7 +5242,7 @@ function ref(n, a) {
     const h = atom(n); // its literal text
     return h !== null ? void write(h) : kids(n.children);
   }
-  wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(String(n.id))}"`, 'href')}>`, n.children, '</a>');
+  wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(prefix + String(n.id))}"`, 'href')}>`, n.children, '</a>');
 }
 
 // A footnote reference: `sup.t-fnref > a`, or the literal text when it did
@@ -5093,9 +5252,9 @@ function footnoteReference(n, a) {
   if (inToc) return '';
   if (t.resolved === false || t.target == null || t.number == null) return esc(`[^${n.label}]`);
   const open = a ? `<sup${attrs(a, 't-fnref')}><a` : '<sup class="t-fnref"><a';
-  const id = t.id != null ? ` id="${escAttr(String(t.id))}"` : '';
+  const id = t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : '';
   const num = typeof t.number === 'number' ? t.number : esc(String(t.number));
-  return `${open}${id} href="#${escAttr(String(t.target))}">${num}</a></sup>`;
+  return `${open}${id} href="#${escAttr(prefix + String(t.target))}">${num}</a></sup>`;
 }
 
 // ---------------------------------------------------------------- footnotes
@@ -5110,8 +5269,8 @@ function footnoteDefinition(n) {
     return;
   }
   const list = n.children || [];
-  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(String(t.backref))}">↩</a>` : '';
-  write(`<li${t.id != null ? ` id="${escAttr(String(t.id))}"` : ''}>`);
+  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(prefix + String(t.backref))}">↩</a>` : '';
+  write(`<li${t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : ''}>`);
   work.push('</li>\n');
   const last = list[list.length - 1];
   if (back && last && last.type === 'paragraph') (fnPara = last), (fnBack = ` ${back}`);
@@ -5460,10 +5619,11 @@ function on(event, fn) {
   };
 }
 
-function fire(event, arg) {
+// `info` is the event's second argument: {safe} for 'render' and 'math'.
+function fire(event, arg, info) {
   for (const fn of listeners[event].slice()) {
     try {
-      fn(arg);
+      fn(arg, info);
     } catch (e) {
       console.error(`tern: a "${event}" listener failed`, e);
     }
@@ -5474,11 +5634,11 @@ function fire(event, arg) {
 // so a synchronous listener (one logging the event, say) is not held up by an
 // async one. The lifecycle awaits 'render' this way: a math add-on renders the
 // formulas there, so 'math' fires only once they are typeset.
-async function fireAsync(event, arg) {
+async function fireAsync(event, arg, info) {
   await Promise.all(
     listeners[event].slice().map(async (fn) => {
       try {
-        await fn(arg);
+        await fn(arg, info);
       } catch (e) {
         console.error(`tern: a "${event}" listener failed`, e);
       }
@@ -5486,8 +5646,17 @@ async function fireAsync(event, arg) {
   );
 }
 
+// The roots rendered with `safe`: untrusted content, which no behaviour may
+// touch, then or later. Each carries data-t-safe too, so an add-on can tell
+// from any element (el.closest('[data-t-safe]')) and a root that holds one
+// can skip it.
+const safeRoots = new WeakSet();
+let anySafe = false; // a safe root was made: elements must be checked
+const inSafe = (el) => anySafe && !!el.closest('[data-t-safe]');
+
 // tern.define(name, fn): additive, in registration order. Defined after the
-// behaviours ran, it runs at once on the elements already there.
+// behaviours ran, it runs at once on the elements already there, the safe
+// roots' left out.
 function define(name, fn) {
   if (typeof name !== 'string' || !name) throw new TypeError('tern.define(name, fn): name must be a non-empty string');
   if (typeof fn !== 'function') throw new TypeError(`tern.define("${name}", fn): fn must be a function`);
@@ -5496,7 +5665,8 @@ function define(name, fn) {
   defined.get(name).push(rec);
   if (behavioursRan) {
     for (const root of roots) {
-      if (root.isConnected) for (const el of root.querySelectorAll(`[data-t="${CSS.escape(name)}"]`)) apply(rec, el, name);
+      if (!root.isConnected || safeRoots.has(root)) continue;
+      for (const el of root.querySelectorAll(`[data-t="${CSS.escape(name)}"]`)) if (!inSafe(el)) apply(rec, el, name);
     }
   }
   return () => {
@@ -5510,22 +5680,22 @@ function undefine(name) {
   defined.delete(name);
 }
 
-// tern.render(root, source): with a source, root's content is replaced by
-// the note's HTML and its scripts run. Then behaviours run on elements that
-// have not had them and formulas not yet typeset are typeset, so a second
-// call with no source changes nothing. Resolves to the source's
+// tern.render(root, source, {safe, idPrefix}): with a source, root's content
+// is replaced by the note's HTML and its scripts run. Then behaviours run on
+// elements that have not had them and formulas not yet typeset are typeset,
+// so a second call with no source changes nothing. Resolves to the source's
 // diagnostics, which replace tern.diagnostics when root is the page's main.
 function render(root, source, opts) {
   if (!BROWSER) return Promise.resolve([]);
-  return renderRoot(root, source, !!(opts && opts.safe));
+  return renderRoot(root, source, !!(opts && opts.safe), opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '');
 }
 
-async function renderRoot(root, source, safe) {
+async function renderRoot(root, source, safe, idPrefix) {
   root = root || main || document.querySelector('main.tern');
   if (!root || root.nodeType !== 1) throw new TypeError('tern.render(root, source): root must be an element');
   let list = [];
   if (source !== undefined) {
-    const r = compile(String(source), safe);
+    const r = compile(String(source), safe, idPrefix);
     list = r.list;
     const tpl = document.createElement('template');
     tpl.innerHTML = r.html;
@@ -5540,11 +5710,21 @@ async function renderRoot(root, source, safe) {
     }
     // Under `safe` the note is untrusted: its scripts do not run, and
     // behaviours (schema `dom`, tern.define — host code acting on untrusted
-    // content) are skipped. Its raw HTML is escaped and risky attributes
-    // dropped by emit; math still typesets (KaTeX, trust off).
-    if (!safe) await runScripts(root, r.ast);
+    // content) are skipped, now and later: the root is remembered and marked.
+    // Its raw HTML is escaped and risky attributes dropped by emit; math
+    // still typesets, with trust off (the add-ons read the mark). A trusted
+    // source rendered into the same root makes it trusted again.
+    if (safe) {
+      safeRoots.add(root);
+      root.setAttribute('data-t-safe', '');
+      anySafe = true;
+    } else {
+      safeRoots.delete(root);
+      root.removeAttribute('data-t-safe');
+      await runScripts(root, r.ast);
+    }
   }
-  await process(root, safe);
+  await process(root, safe || safeRoots.has(root));
   return list;
 }
 
@@ -6002,11 +6182,11 @@ function writeMeta(m) {
 // ---------------------------------------------------------------- mount
 
 // parse → transform → emit, with every diagnostic in document order.
-function compile(source, safe) {
+function compile(source, safe, idPrefix) {
   const opts = { head: page ? page.head : '', lang: config.lang || undefined };
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
-  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '' }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
 }
 
 // Tern's own presentational styles, a column's alignment and a grid's
@@ -6271,14 +6451,16 @@ async function process(root, safe) {
   lineNumbers(root);
   if (!safe) behaviours(root);
   // A math add-on renders the formulas in its 'render' listener; the listener
-  // is awaited, so a listener on 'math' sees them typeset.
-  await fireAsync('render', root);
-  fire('math', root);
+  // is awaited, so a listener on 'math' sees them typeset. Both get {safe}.
+  const info = { safe: !!safe };
+  await fireAsync('render', root, info);
+  fire('math', root, info);
 }
 
 // schema `dom` and tern.define, once per element and function, in document
 // order, keyed on data-t. A `t-block` element is a container, so its block
-// entry comes first; otherwise the leaf, then the inline one.
+// entry comes first; otherwise the leaf, then the inline one. An element
+// inside a safe root (one rendered with `safe` inside this root) gets none.
 const domRecs = new WeakMap(); // a schema dom function -> {fn, done}
 function behaviours(root) {
   behavioursRan = true;
@@ -6286,6 +6468,7 @@ function behaviours(root) {
   const list = root.querySelectorAll('[data-t]');
   for (let i = root.hasAttribute('data-t') ? -1 : 0; i < list.length; i++) {
     const el = i < 0 ? root : list[i];
+    if (inSafe(el)) continue;
     const name = el.getAttribute('data-t');
     const levels = el.classList.contains('t-block') ? ['block', 'leaf', 'inline'] : ['leaf', 'inline', 'block'];
     for (const level of levels) {

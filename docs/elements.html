@@ -1092,7 +1092,7 @@ Elements inside a dropped duplicate footnote definition take no number: that con
 
 ## References {#references}
 
-`@id` is a link to the element with that id, whose text the engine fills from the target ([the reference syntax](syntax-inline.html#reference)). The `refs` transform writes it as `<a class="t-ref" href="#id">`.
+`@id` is a link to the element with that id, whose text the engine fills from the target ([the reference syntax](syntax-inline.html#reference)). The `refs` transform writes it as `<a class="t-ref" href="#id">`. The text is a copy of the target's, at most 200 characters, with an ellipsis where it is cut: a title referenced a thousand times cannot swell the page.
 
 ### The default text {#default-ref-text}
 
@@ -1389,7 +1389,7 @@ To put Tern inside an element, use a container with that name, `:::details` … 
 
 ### Safe rendering {#safe}
 
-`safe: true` renders a note you do not trust, such as a comment someone posted. It is an option of [`tern.toHTML`](api.html#tohtml) and [`tern.emit`](api.html#emit), and of [`tern.render`](api.html#render) in the browser, where it also means the note's scripts do not run and its behaviours (a schema's `dom`, `tern.define`) are not applied. The page's own note is never rendered with `safe`: a note you publish is trusted like any page you write ([Trust](publishing.html#trust)).
+`safe: true` renders a note you do not trust, such as a comment someone posted. It is an option of [`tern.toHTML`](api.html#tohtml) and [`tern.emit`](api.html#emit), and of [`tern.render`](api.html#render) in the browser, where it also means the note's scripts do not run and its behaviours (a schema's `dom`, `tern.define`) are not applied, then or later: the root stays untrusted ([`tern.render`](api.html#render)). The page's own note is never rendered with `safe`: a note you publish is trusted like any page you write ([Trust](publishing.html#trust)).
 
 ```js
 const html = tern.toHTML(source, { safe: true });
@@ -1399,8 +1399,9 @@ Under `safe`:
 
 - **Raw HTML is escaped.** A raw block or an `=html` fence is shown as escaped source in a plain `<pre>`; an inline tag or comment becomes escaped text in its paragraph. An unclosed comment or raw-text block is the same `pre.t-error` as always.
 - **Dangerous elements are neutralised.** A named element that resolves to one that loads, runs or navigates — a frame, `<object>`, `<embed>`, `<form>`, `<base>`, `<meta>`, `<link>` — or to a custom element (a hyphen in its name, which the host page might define) is emitted as a plain `<div>` (a `<span>` inline), keeping its id, class, `data-t` and content. So `::iframe` and `:::x{tag=form}` cannot reach the page's origin or the host's custom elements.
-- **Risky attributes are dropped**, on every element, whether written as `{…}` or set by a schema: every attribute whose name starts with `on` (in any case), the ones that run or submit (`srcdoc`, `formaction`, `formtarget`, `formmethod`, `formenctype`, `style`, `is`, `nonce`), and the ones that steer navigation or focus (`target`, `ping`, `autofocus`, `http-equiv`).
+- **Risky attributes are dropped**, on every element, whether written as `{…}` or set by a schema: every attribute whose name starts with `on` (in any case), the ones that run or submit (`srcdoc`, `formaction`, `formtarget`, `formmethod`, `formenctype`, `style`, `is`, `nonce`), the ones that steer navigation or focus (`target`, `ping`, `autofocus`, `http-equiv`), and the ones that drive the host page's own elements or clobber its names (`form`, `popovertarget`, `popovertargetaction`, `usemap`, `name`). Names are read without case, as HTML reads them, so a schema's `Href` is checked as `href`.
 - **URLs are checked.** Link destinations, image sources and every URL attribute (`href`, `src`, `action`, `poster`, `cite`, `data`, `srcset` and the rest) keep only http, https, mailto and relative URLs. Any other scheme, `javascript:` and `data:` included, is dropped with its attribute. Entities, tabs, newlines and leading control characters are taken into account first, as the browser does, so `&#106;avascript:` is caught.
+- **Ids can be prefixed.** `idPrefix: 'c1-'` puts the prefix on every id in the output and on every fragment link to one (a reference, `[x](#id)`, footnotes, a toc), so the ids of an untrusted root cannot clash with the page's or be aimed at by it ([`tern.emit`](api.html#emit)).
 - **Tern's own grid survives.** The `--t-cols` style of a `cols` grid is tern's, not the author's, so it is kept when its value holds only numbers, words and `(),.%/+*-`; any other value is dropped. An author's `style` is still dropped, so it is not joined to the grid.
 
 ```tern
@@ -1433,6 +1434,8 @@ renders under `safe: true` as:
 ```
 
 `id`, `class`, `data-*` and the other attributes are kept, and every Tern construct renders as usual. The `::iframe` became an inert `<div>`, so its `src` no longer loads.
+
+That list is the whole contract: `safe` escapes, neutralises and drops what is named above, in the browser also keeps the root's scripts from running and its behaviours from ever applying, and has the math add-ons that come with Tern typeset the root with trust off and a private macro table. It does not sandbox the page's own code, and it does not limit what the untrusted text may cost to parse beyond the engine's own limits ([`nesting.limit`](diagnostics.html#nesting-limit), [`output.limit`](diagnostics.html#output-limit)).
 
 ## Metadata {#metadata}
 

@@ -933,6 +933,11 @@ function scanAll() {
 // text and soft breaks merge
 const stackIt = [];
 const stackOut = [];
+// Inline constructs nest at most this deep. The scan never recurses, but the
+// tree it builds is read by recursive code (JSON.stringify, for one), so past
+// the limit a construct is its source text, children and all, with
+// nesting.limit once per run (docs/diagnostics.html#nesting-limit).
+const NEST = 1000;
 const textNode = (ts, te, parts) => ({ type: 'text', value: parts ? parts.join('') : text.slice(ts, te), position: pos(ts, te) });
 function build() {
   const root = [];
@@ -941,6 +946,7 @@ function build() {
   let ts = -1; // the pending text runs from ts to te; it is that slice of
   let te = -1; // the source while parts is null
   let parts = null;
+  let deep = false; // nesting.limit reported
   for (;;) {
     const it = next;
     if (!it) {
@@ -964,6 +970,14 @@ function build() {
     }
     if (ts >= 0) out.push(textNode(ts, te, parts));
     ts = -1;
+    if (it.k === PARENT && stackIt.length >= NEST) {
+      if (!deep) {
+        deep = true;
+        rep('nesting.limit', it.s, it.e, `inline constructs nest at most ${NEST} deep; this one is shown as text`, 'flatten the structure');
+      }
+      (ts = it.s), (te = it.e), (parts = null); // its source, as pending text
+      continue;
+    }
     const node = it.k === ENT ? { type: 'text', value: it.v, data: { tern: { entity: it.n } }, position: null } : it.n;
     node.position = pos(it.s, it.e);
     out.push(node);

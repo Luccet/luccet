@@ -760,7 +760,7 @@ function numbering(ast, ctx) {
     const t = tern(n);
     let k;
     if (spec.counter != null && spec.counter !== '') k = next(t, String(spec.counter));
-    const { text } = S.label(spec, k, n, ctx.lang);
+    const { text } = labelOf(spec, k, n, ctx);
     if (text) t.text = text;
   }
 }
@@ -821,9 +821,26 @@ function info(T, ctx) {
     const k = T.type === 'containerDirective' && T.children && T.children[0];
     if (isLabel(k) && k.children.length) I.title = k.children;
   }
-  if (I.spec) I.word = S.label(I.spec, I.number, T, ctx.lang).word;
+  if (I.spec) I.word = labelOf(I.spec, I.number, T, ctx).word;
   if (I.title && !I.title.length) I.title = null;
   return I;
+}
+
+// A schema's label, through S.label. A label function is an add-on's code:
+// one that throws is addon.failed, as a throwing transform is, and the
+// element keeps no label.
+function labelOf(spec, n, node, ctx) {
+  try {
+    return S.label(spec, n, node, ctx.lang);
+  } catch (e) {
+    const seen = ctx.labelFailed || (ctx.labelFailed = new Set()); // once per element: a reference asks again
+    if (!seen.has(node)) {
+      seen.add(node);
+      const what = node.type === 'code' ? 'a listing' : `"${node.name}"`;
+      ctx.report('addon.failed', node, `the label function of ${what} threw: ${(e && e.message) || e}; the element has no label`, "fix the schema entry's label function", 'error');
+    }
+    return { word: '', text: '' };
+  }
 }
 
 // A reference's text. `ref=` chooses a part, and a part the target lacks
@@ -882,17 +899,35 @@ function add(out, n) {
   return out;
 }
 
+// At most this much text is copied for one reference or toc entry. A
+// reference copies its target's title, so a long title referenced many
+// times would amplify a small note into output no browser can hold; past
+// the budget the copy ends with an ellipsis (docs/elements.html#refs).
+const COPY_MAX = 200;
+const cut = (s) => (s.length > COPY_MAX ? `${s.slice(0, COPY_MAX)}…` : s);
+
 // A copy of inline content to put inside a link (a reference's text, a toc
 // entry): positions and ids dropped, links unwrapped, footnote references
 // left out. A reference inside becomes its target's plain text, never a link
 // in a link, so copies never nest; ref text and toc entries flatten alike.
 function copy(nodes, ctx) {
   const one = nodes.length === 1 && nodes[0].type === 'text' && !nodes[0].data ? nodes[0] : null;
-  if (one) return [{ type: 'text', value: one.value }]; // the usual title
+  if (one) return [{ type: 'text', value: cut(one.value) }]; // the usual title
   const root = [];
   const src = [nodes];
   const at = [0];
   const dst = [root];
+  let left = COPY_MAX; // the text still allowed
+  let ended = false; // the ellipsis written
+  // Text into the copy, within the budget; `s` is a string field of a node.
+  const take = (s) => {
+    if (left <= 0) return ended ? '' : ((ended = true), '…');
+    if (s.length <= left) return (left -= s.length), s;
+    ended = true;
+    const t = `${s.slice(0, left)}…`;
+    left = 0;
+    return t;
+  };
   while (src.length) {
     const k = src.length - 1;
     const list = src[k];
@@ -908,10 +943,12 @@ function copy(nodes, ctx) {
       src.push(n.children || []), at.push(0), dst.push(out);
       continue;
     }
-    if (n.type === 'ref') add(out, { type: 'text', value: shortText(n, ctx) });
-    else if (n.type === 'text' && !(n.data && n.data.tern && n.data.tern.entity)) add(out, { type: 'text', value: n.value });
+    if (n.type === 'ref') add(out, { type: 'text', value: take(shortText(n, ctx)) });
+    else if (n.type === 'text' && !(n.data && n.data.tern && n.data.tern.entity)) add(out, { type: 'text', value: take(n.value) });
     else {
       const c = clone(n);
+      if (typeof c.value === 'string') c.value = take(c.value); // code, math
+      if (typeof c.alt === 'string') c.alt = take(c.alt); // an image
       out.push(c);
       if (n.children) (c.children = []), src.push(n.children), at.push(0), dst.push(c.children);
     }
@@ -944,7 +981,7 @@ function shortText(n, ctx) {
   if (!e) return `@${n.id}`;
   const I = info(e, ctx);
   if (I.number != null) return I.text || String(I.number);
-  return (I.title && plain(I.title, false)) || I.text || n.id;
+  return (I.title && cut(plain(I.title, false))) || I.text || n.id;
 }
 
 // ---------------------------------------------------------------- toc

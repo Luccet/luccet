@@ -198,6 +198,7 @@ The add-on sets Mermaid's `base` theme from the page's [custom properties](schem
 - **Only where it is needed.** The add-on asks for Mermaid 12.1.0 when a note has a `mermaid` fence. It is one file from jsDelivr, pinned with [SRI](publishing.html#csp): 1.5 MB compressed, 5.5 MB as JavaScript. Each fence shows its source until Mermaid arrives.
 - **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `mermaid.min.js`, the `dist/` folder of the npm package `mermaid`. A copy is loaded without SRI. A `window.mermaid` already on the page is used as it is.
 - **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, or use a copy. Mermaid writes inline styles as it draws. With [`data-nonce`](publishing.html#csp), the add-on sets them through the CSSOM and gives its `<style>` elements the nonce, so a `style-src` without `'unsafe-inline'` works. Without `data-nonce`, a policy that blocks inline styles puts the labels out of place.
+- **Not in an untrusted root.** A fence in a root rendered with [`safe`](api.html#render) stays as its source: behaviours do not run there.
 - **A diagram Mermaid cannot read** stays as its source, followed by Mermaid's message, which the console shows too. `tern check` does not read diagrams, so it reports nothing for them.
 - **If Mermaid does not load,** each fence stays as its source, and the console shows a warning.
 - **Without the page.** `tern check` and `tern build` run the add-on but draw nothing: a built page draws its diagrams when `tern.js` runs on it, and without JavaScript each fence shows its source.
@@ -218,7 +219,7 @@ The version and its hash live in a table in `addons/mermaid.js`. To move to anot
 :::
 
 - **Without a math add-on, formulas stay as TeX.** The engine renders no math itself; this add-on (or [`mathml.js`](#mathml)) typesets it. The TeX is kept in each formula's `data-tex`, so a typeset formula still copies as `$tex$`.
-- **Options** go in `window.TERN = {use: {katex: {macros: {…}, strict: false, …}}}` — anything KaTeX takes but `displayMode` and `throwOnError` — or on the add-on's URL, `addons/katex.js?strict=false`, where `true` and `false` read as the booleans they spell. A `:::macros` block fills one shared macro table first. `trust` applies to every formula on the page, those of a [`safe` render](api.html#render) included.
+- **Options** go in `window.TERN = {use: {katex: {macros: {…}, strict: false, …}}}` — anything KaTeX takes but `displayMode` and `throwOnError` — or on the add-on's URL, `addons/katex.js?strict=false`, where `true` and `false` read as the booleans they spell. A `:::macros` block fills one shared macro table first. `trust` applies to the page's own formulas; a root rendered with [`safe`](api.html#render) is typeset with trust off whatever the page sets, with a copy of the macro table, and its `:::macros` blocks define nothing.
 - **Long notes stay smooth.** Formulas are typeset in time slices, so no task runs long; a note's off-screen blocks get `content-visibility` while they are, and a formula in a closed `<details>` is typeset when it opens. Everything pending is typeset before printing or a fragment scroll.
 
 ### How it loads {#katex-loading}
@@ -248,6 +249,7 @@ The version and its hashes live in a table in `addons/katex.js`. To move to anot
 - **One math add-on, not two.** Load `mathml.js` or [`katex.js`](#katex), not both. The engine renders no math itself, so they never clash.
 - **The same TeX, the same places.** `$x$`, `$$…$$` and `:::macros` work exactly as they do with KaTeX ([Math](guide.html#math)). The add-on reads each formula's TeX, so the [dollar rules](syntax-inline.html#inline-math) are unchanged.
 - **The TeX is kept.** Each formula keeps its TeX in a MathML `<annotation>` and in `data-tex`, so it still copies as `$tex$`.
+- **An untrusted root** (one rendered with [`safe`](api.html#render)) is typeset with a copy of the macro table, and its `:::macros` blocks define nothing for the page.
 
 ### MathML or KaTeX {#mathml-why}
 

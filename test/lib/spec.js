@@ -19,7 +19,7 @@ const anchors = require('./anchors');
 // `tern build --math` warning), head.script/addon.remote (loading, under node),
 // and the CLI's link checks. KaTeX is an add-on now, so there is no
 // katex.unavailable.
-const RUNTIME_CODES = ['math.error', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'doc.quirks', 'head.script', 'addon.remote', 'link.missing', 'link.dangling'];
+const RUNTIME_CODES = ['math.error', 'output.limit', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'doc.quirks', 'head.script', 'addon.remote', 'link.missing', 'link.dangling'];
 
 // Coverage: every level-2 section of the three reference pages, and each of
 // the eight rules on its own (they share one level-2 section). A section is

@@ -2161,6 +2161,91 @@ const TESTS = [
       if (!ctx.console.some((m) => m.type === 'warning' && /stylesheet did not load/.test(m.text))) throw new Error(`no "stylesheet did not load" warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
     },
   },
+  {
+    // A root rendered with safe stays untrusted: a tern.define registered
+    // later, a later render of it without a source, and a render of the page
+    // root that holds it run no behaviour on it; a trusted source rendered
+    // into it makes it trusted again; listeners get {safe}.
+    name: 'safe roots: a late tern.define, a later render without a source and a render of the page root skip them; render and math listeners get {safe}',
+    url: '/test/smoke/basic.html',
+    async check(page) {
+      const r = await page.evaluate(async () => {
+        const calls = [];
+        const events = [];
+        tern.on('render', (root, info) => events.push(`${root.id || root.localName}:${info && info.safe}`));
+        tern.on('math', (root, info) => events.push(`math ${root.id || root.localName}:${info && info.safe}`));
+        const main = document.querySelector('main.tern');
+        const mk = (id, where) => {
+          const d = document.createElement('div');
+          d.id = id;
+          where.append(d);
+          return d;
+        };
+        const inside = mk('in', main);
+        const outside = mk('out', document.body);
+        const src = ':::widget{#w data-src=https://evil.example/x}\nx\n:::\n';
+        await tern.render(inside, src, { safe: true, idPrefix: 'u-' });
+        await tern.render(outside, src, { safe: true });
+        tern.define('widget', (el) => calls.push(el.parentElement.id)); // late: the safe roots are skipped
+        await tern.render(inside); // no source: still untrusted
+        await tern.render(main); // the page's root, holding the safe box
+        const trusted = mk('ok', document.body);
+        await tern.render(trusted, src);
+        await tern.render(outside, src); // a trusted source makes the root trusted again
+        return { calls, events, marked: [...document.querySelectorAll('[data-t-safe]')].map((e) => e.id), prefixed: !!document.getElementById('u-w') };
+      });
+      if (r.calls.join() !== 'ok,out') throw new Error(`behaviours ran on ${JSON.stringify(r.calls)}, expected the trusted root, then the box rendered again from a trusted source`);
+      if (r.marked.join() !== 'in' || !r.prefixed) throw new Error(`marked ${JSON.stringify(r.marked)}, prefixed ${r.prefixed}: expected the box inside main alone, with its id prefixed`);
+      const want = ['in:true', 'math in:true', 'out:true', 'math out:true', 'in:true', 'math in:true', 'main:false', 'math main:false', 'ok:false', 'math ok:false', 'out:false', 'math out:false'];
+      if (r.events.join() !== want.join()) throw new Error(`events ${JSON.stringify(r.events)}`);
+    },
+  },
+  {
+    name: 'safe roots: KaTeX typesets them with trust off whatever the page sets, and a \\gdef or :::macros in them reaches no other formula',
+    url: '/test/smoke/katex-safe.html',
+    async check(page) {
+      await expect(page, () => document.querySelector('main.tern .t-math a[href="https://example.org/"]'), "the page's own \\href, trusted");
+      const r = await page.evaluate(async () => {
+        const box = document.createElement('div');
+        box.className = 'tern';
+        document.body.append(box);
+        await tern.render(box, ':::macros\n\\gdef\\evil{E}\n:::\n\n$\\href{javascript:alert(1)}{z}$ and $\\gdef\\worse{W}\\worse$.\n', { safe: true });
+        const own = document.createElement('div');
+        own.className = 'tern';
+        document.body.append(own);
+        await tern.render(own, 'Trusted again: $\\evil$ and $\\worse$.\n');
+        return {
+          typeset: box.querySelectorAll('.t-math .katex').length,
+          anchors: box.querySelectorAll('a').length,
+          shown: box.querySelector('.t-math .katex-html').textContent,
+          after: [...own.querySelectorAll('.t-math')].map((e) => (e.classList.contains('t-error') ? 'error' : e.textContent.replace(/\s+/g, ''))),
+        };
+      });
+      if (r.typeset !== 2 || r.anchors || !/\\href/.test(r.shown)) throw new Error(`the untrusted box ${JSON.stringify(r)}: expected both formulas typeset, \\href shown as unsupported, no link`);
+      if (r.after.join() !== 'error,error') throw new Error(`the page's formulas after the box: ${JSON.stringify(r.after)}, expected both undefined (nothing leaked)`);
+    },
+  },
+  {
+    name: 'safe roots: Temml typesets them with a copy of the macro table, and their :::macros define nothing for the page',
+    url: '/test/smoke/mathml.html',
+    async setup(_context, _page, ctx) {
+      if (!(await temmlDir(TEMML_VERSION))) ctx.skip(`no local copy of Temml ${TEMML_VERSION}`);
+    },
+    async check(page) {
+      const r = await page.evaluate(async () => {
+        const box = document.createElement('div');
+        box.className = 'tern';
+        document.body.append(box);
+        await tern.render(box, ':::macros\n\\gdef\\evil{E}\n:::\n\n$\\gdef\\worse{W}\\worse$\n', { safe: true });
+        const own = document.createElement('div');
+        own.className = 'tern';
+        document.body.append(own);
+        await tern.render(own, '$\\evil$ and $\\worse$\n');
+        return { typeset: box.querySelectorAll('.t-math math').length, after: [...own.querySelectorAll('.t-math')].map((e) => (e.classList.contains('t-error') ? 'error' : 'ok')) };
+      });
+      if (r.typeset !== 1 || r.after.join() !== 'error,error') throw new Error(`${JSON.stringify(r)}: expected the box's formula typeset and both of the page's undefined`);
+    },
+  },
 ];
 
 async function expect(page, fn, what, timeout = 8000, arg) {

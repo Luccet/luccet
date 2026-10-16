@@ -502,3 +502,17 @@ Strong groups glued to `==` and `~~` closers attach to `<mark>` and `<del>`.
 ````html
 <p><mark class="x">k</mark> and <del id="d">g</del></p>
 ````
+
+## emphasis/nesting-limit
+
+spec: syntax-inline#emphasis diagnostics#nesting-limit
+
+Inline constructs nest at most 1,000 deep. A run of 2,002 asterisks closed by another nests strong 1,001 times; the construct past the limit, the innermost but one, is shown as its source text with `nesting.limit`, once, and the rest of the tree is as usual. A tree deeper than that would break the readers of the tree (`JSON.stringify`, `tern.visit`, the outline, search).
+
+````tern js
+'*'.repeat(2002) + 'x' + '*'.repeat(2002) + '\n'
+````
+
+````diagnostics
+1:2001-1:2006 error nesting.limit
+````

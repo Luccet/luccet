@@ -85,11 +85,16 @@
 
   // One formula to MathML, into a detached template, then its nodes in. A
   // failure keeps the TeX (already the element's text), marked t-error.
+  // A formula in a root rendered with `safe` (data-t-safe, src/runtime.js) is
+  // untrusted: trust stays off and it gets a copy of the macro table, so a
+  // \gdef in it reaches no other formula.
+  const untrusted = (el) => !!el.closest('[data-t-safe]');
   function one(M, el, macros) {
     const tex = el.getAttribute('data-tex') || '';
+    const safe = untrusted(el);
     let mml;
     try {
-      mml = M.renderToString(tex, { displayMode: el.hasAttribute('data-display'), annotate: true, throwOnError: true, macros });
+      mml = M.renderToString(tex, Object.assign({ displayMode: el.hasAttribute('data-display'), annotate: true, throwOnError: true, macros: safe ? Object.assign({}, macros) : macros }, safe ? { trust: false } : null));
     } catch (e) {
       el.classList.add('t-error');
       el.title = (e && e.message) || String(e);
@@ -123,7 +128,8 @@
       for (const el of maths) done.delete(el); // left as TeX; a later root may still load it
       return;
     }
-    const preamble = [...root.querySelectorAll('.t-macros')].map((m) => m.textContent).join('\n');
+    // A :::macros block in a safe root is untrusted and defines nothing.
+    const preamble = [...root.querySelectorAll('.t-macros')].filter((m) => !untrusted(m)).map((m) => m.textContent).join('\n');
     let macros = {};
     if (preamble.trim()) {
       try {

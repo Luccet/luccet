@@ -114,6 +114,12 @@
     macroOpts = Object.assign({}, base, { displayMode: false, globalGroup: true });
     return k;
   }
+  // A formula in a root rendered with `safe` (data-t-safe, src/runtime.js) is
+  // untrusted: KaTeX's trust is off whatever the page sets, so \href and
+  // \includegraphics stay errors, and it gets a copy of the macro table, so
+  // a \gdef in it reaches no other formula.
+  const safeOpts = (display) => Object.assign({}, display ? displayOpts : inlineOpts, { trust: false, macros: Object.assign({}, inlineOpts.macros) });
+  const untrusted = (el) => !!el.closest('[data-t-safe]');
 
   // ---------------------------------------------------------------- the formulas
 
@@ -141,7 +147,8 @@
     }
     // Macros matter only to a formula typeset here; a page whose formulas are
     // all pre-rendered (tern build --katex) needs no KaTeX, not even for them.
-    const macros = !visible.length && !deferred.size ? [] : root.querySelectorAll('.t-macros');
+    // A :::macros block in a safe root is untrusted and fills no table.
+    const macros = !visible.length && !deferred.size ? [] : [...root.querySelectorAll('.t-macros')].filter((m) => !untrusted(m));
     if (!visible.length && !deferred.size && !macros.length) return;
     if (visible.length > HOLD_OVER) hold(root);
     if (!(K || (await katex()))) return; // left as TeX
@@ -186,8 +193,9 @@
     done.add(el);
     if (!el.isConnected) return;
     box = box || document.createElement('span');
+    const display = el.hasAttribute('data-display');
     try {
-      K.render(el.getAttribute('data-tex') || '', box, el.hasAttribute('data-display') ? displayOpts : inlineOpts);
+      K.render(el.getAttribute('data-tex') || '', box, untrusted(el) ? safeOpts(display) : display ? displayOpts : inlineOpts);
     } catch (e) {
       box.textContent = '';
       el.classList.add('t-error');

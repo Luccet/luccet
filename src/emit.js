@@ -42,9 +42,10 @@ const SAFE_SCHEME = /^(?:https?|mailto)$/i;
 const UNSAFE_TAG = new Set('iframe object embed frame frameset base form meta link portal fencedframe applet'.split(' '));
 const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
 // Under `safe`, attributes dropped from every element whatever their value:
-// event handlers (on*, caught by the regex), ones that run or submit, and
-// ones that steer navigation or focus.
-const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style'.split(' '));
+// event handlers (on*, caught by the regex), ones that run or submit, ones
+// that steer navigation or focus, and ones that drive the host page's own
+// elements (its forms, popovers and image maps) or clobber its names.
+const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popovertarget popovertargetaction usemap name'.split(' '));
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -87,6 +88,7 @@ let work = null; // the stack of pending nodes and strings
 let positions = true;
 let safe = false;
 let cssom = false;
+let prefix = ''; // opts.idPrefix: before every id and fragment link, so an untrusted root cannot clash with the page's ids
 let section = false; // true once the footnote section is being written
 let inToc = 0; // inside a toc entry: no nested links, no ids
 let fnDefs = null; // identifier -> footnoteDefinition
@@ -98,11 +100,27 @@ let fnBack = '';
 let taskPara = null; // … and the one that starts with a task checkbox
 let taskBox = '';
 
+// The output budget: opts.maxOutput, else 64 M characters. Past it the
+// walk stops and the note gets an output.limit diagnostic, where a note
+// built to amplify (something huge repeated) used to end in a RangeError.
+const MAX_OUTPUT = 64 * 1024 * 1024;
+const OVER = { type: '#over' }; // thrown by write past the budget
+let total = 0; // characters written so far
+let limit = MAX_OUTPUT;
+const ORIGIN = { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } };
+
 // Appends to the current chunk. A full chunk is flattened (a regexp test
 // flattens its subject) and set aside, so the output under construction is a
 // few flat strings, not a graph of small ones that every young-generation
 // collection would copy.
 const write = (s) => {
+  const room = limit - total;
+  if (s.length > room) {
+    buf += s.slice(0, room); // exactly the budget, then the cut
+    total = limit;
+    throw OVER;
+  }
+  total += s.length;
   if ((buf += s).length > 16384) FLAT.test(buf), out.push(buf), (buf = '');
 };
 const tern = (node) => (node.data && node.data.tern) || {};
@@ -192,7 +210,7 @@ function attrs(a, pre, post, extra, skip, fence) {
     return extra ? c + extra : c;
   }
   let s = '';
-  if (a.id != null && a.id !== '' && !inToc) s += ` id="${escAttr(String(a.id))}"`;
+  if (a.id != null && a.id !== '' && !inToc) s += ` id="${escAttr(prefix + String(a.id))}"`;
   let cls = pre || '';
   if (a.class) cls = cls ? `${cls} ${a.class}` : String(a.class);
   if (post) cls = cls ? `${cls} ${post}` : post;
@@ -201,7 +219,9 @@ function attrs(a, pre, post, extra, skip, fence) {
   for (const k in a) {
     if (k === 'id' || k === 'class' || k === skip || RESERVED_KEYS.has(k) || (fence && FENCE_KEYS.has(k)) || !ATTR_NAME.test(k)) continue;
     const v = a[k] == null ? '' : String(a[k]);
-    if (safe && (/^on/i.test(k) || UNSAFE_ATTR.has(k.toLowerCase()) || (URL_KEYS.has(k) && !safeSet(k, v)))) continue;
+    // HTML reads attribute names without case, so does the check (a schema's `attrs` may spell one as it likes).
+    const lower = k.toLowerCase();
+    if (safe && (/^on/.test(lower) || UNSAFE_ATTR.has(lower) || (URL_KEYS.has(lower) && !safeSet(lower, v)))) continue;
     s += v === '' ? ` ${k}` : ` ${k}="${escAttr(v)}"`;
   }
   return s;
@@ -217,6 +237,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
+  prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;
   fnDefs = new Map();
@@ -224,15 +245,23 @@ function emit(ast, opts) {
   inlineNames = new Map();
   classes = new Map();
   fnPara = taskPara = null;
+  total = 0;
+  const max = opts && opts.maxOutput;
+  limit = typeof max === 'number' && Number.isFinite(max) && max > 0 ? Math.floor(max) : MAX_OUTPUT;
   try {
-    while (work.length) {
-      const it = work.pop();
-      if (typeof it === 'string') write(it);
-      else if (it instanceof Cursor) next(it);
-      else if (it === FOOTNOTES) footnotes(ast);
-      else if (it === TOC_IN) inToc++;
-      else if (it === TOC_OUT) inToc--;
-      else if (it && typeof it === 'object') node(it);
+    try {
+      while (work.length) {
+        const it = work.pop();
+        if (typeof it === 'string') write(it);
+        else if (it instanceof Cursor) next(it);
+        else if (it === FOOTNOTES) footnotes(ast);
+        else if (it === TOC_IN) inToc++;
+        else if (it === TOC_OUT) inToc--;
+        else if (it && typeof it === 'object') node(it);
+      }
+    } catch (e) {
+      if (e !== OVER) throw e;
+      overflow(ast);
     }
     // The flat chunks as one string. Concatenated, not joined: whoever uses
     // the HTML (the mount's `<main>` wrapper and innerHTML, a file write)
@@ -244,6 +273,20 @@ function emit(ast, opts) {
     out = work = fnDefs = names = inlineNames = classes = fnPara = taskPara = null; // keep nothing of this note alive
     buf = '';
   }
+}
+
+// Past the budget: the HTML written so far is returned as it is, and the
+// tree carries the diagnostic (ast.data.tern.diagnostics, where the
+// transforms put theirs, which the runtime and tern build read after emit).
+function overflow(ast) {
+  const t = (ast.data || (ast.data = {})).tern || (ast.data.tern = {});
+  (t.diagnostics || (t.diagnostics = [])).push({
+    code: 'output.limit',
+    severity: 'error',
+    message: `the note's HTML is longer than ${limit.toLocaleString('en')} characters, so it is cut short there`,
+    hint: 'something very large is repeated: shorten it, or raise maxOutput',
+    position: ORIGIN,
+  });
 }
 
 // Writes a cursor's nodes until one pushes work; the cursor, when it has
@@ -620,7 +663,7 @@ function tocNext(t) {
       if (d > levels[levels.length - 1]) (s += '<ol><li><a href="#'), levels.push(d);
       else s += '</li><li><a href="#';
     }
-    s += escAttr(String(e.id));
+    s += escAttr(prefix + String(e.id));
     s += '">';
     const list = e.children || [];
     for (let j = 0; j < list.length; j++) {
@@ -651,7 +694,8 @@ function inlineElement(n, a) {
 
 function link(n, a) {
   if (inToc) return kids(n.children);
-  const url = n.url == null ? '' : String(n.url);
+  let url = n.url == null ? '' : String(n.url);
+  if (prefix && url[0] === '#') url = `#${prefix}${url.slice(1)}`; // a fragment link stays within the root
   const href = safe && !safeUrl(url, false) ? '' : ` href="${escValue(url)}"`;
   const title = n.title != null && !(a && 'title' in a) ? ` title="${escValue(String(n.title))}"` : '';
   wrapped(`<a${href}${title}${attrs(a, '', '', '', 'href')}>`, n.children, '</a>');
@@ -672,7 +716,7 @@ function ref(n, a) {
     const h = atom(n); // its literal text
     return h !== null ? void write(h) : kids(n.children);
   }
-  wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(String(n.id))}"`, 'href')}>`, n.children, '</a>');
+  wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(prefix + String(n.id))}"`, 'href')}>`, n.children, '</a>');
 }
 
 // A footnote reference: `sup.t-fnref > a`, or the literal text when it did
@@ -682,9 +726,9 @@ function footnoteReference(n, a) {
   if (inToc) return '';
   if (t.resolved === false || t.target == null || t.number == null) return esc(`[^${n.label}]`);
   const open = a ? `<sup${attrs(a, 't-fnref')}><a` : '<sup class="t-fnref"><a';
-  const id = t.id != null ? ` id="${escAttr(String(t.id))}"` : '';
+  const id = t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : '';
   const num = typeof t.number === 'number' ? t.number : esc(String(t.number));
-  return `${open}${id} href="#${escAttr(String(t.target))}">${num}</a></sup>`;
+  return `${open}${id} href="#${escAttr(prefix + String(t.target))}">${num}</a></sup>`;
 }
 
 // ---------------------------------------------------------------- footnotes
@@ -699,8 +743,8 @@ function footnoteDefinition(n) {
     return;
   }
   const list = n.children || [];
-  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(String(t.backref))}">↩</a>` : '';
-  write(`<li${t.id != null ? ` id="${escAttr(String(t.id))}"` : ''}>`);
+  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(prefix + String(t.backref))}">↩</a>` : '';
+  write(`<li${t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : ''}>`);
   work.push('</li>\n');
   const last = list[list.length - 1];
   if (back && last && last.type === 'paragraph') (fnPara = last), (fnBack = ` ${back}`);

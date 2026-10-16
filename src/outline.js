@@ -12,15 +12,22 @@ const { visit } = require('./ast');
 // dropped. Entities give their decoded value.
 function plainText(nodes) {
   let out = '';
-  const walk = (list) => {
-    for (const n of list || []) {
-      if (n.type === 'text' || n.type === 'inlineCode' || n.type === 'inlineMath') out += n.value;
-      else if (n.type === 'image') out += n.alt || '';
-      else if (n.type === 'break') out += '\n';
-      else if (n.children) walk(n.children);
+  const lists = [nodes || []]; // the child lists being read, with the index of each
+  const at = [0];
+  while (lists.length) {
+    const k = lists.length - 1;
+    const list = lists[k];
+    const i = at[k]++;
+    if (i >= list.length) {
+      lists.pop(), at.pop();
+      continue;
     }
-  };
-  walk(nodes);
+    const n = list[i];
+    if (n.type === 'text' || n.type === 'inlineCode' || n.type === 'inlineMath') out += n.value;
+    else if (n.type === 'image') out += n.alt || '';
+    else if (n.type === 'break') out += '\n';
+    else if (n.children) lists.push(n.children), at.push(0);
+  }
   return out;
 }
 
