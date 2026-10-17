@@ -24,7 +24,10 @@
   const T = window.tern;
   if (!T) return;
 
-  T.leaf('notes', { tag: 'nav', attrs: { 'aria-label': 'Notes' } });
+  // The list's words: window.TERN.strings[key] over these (tern.string; the
+  // command line's shim has the fallback alone).
+  const str = (key, params, fallback) => (T.string ? T.string(key, params, fallback) : fallback);
+  T.leaf('notes', { tag: 'nav', attrs: { 'aria-label': str('notes', {}, 'Notes') } });
   T.style(
     [
       '.tern .t-notes { margin-block: 0 1rem; }',
@@ -101,7 +104,7 @@
       }
     }
     if (!data || !Array.isArray(data.notes)) {
-      host.replaceChildren(el('p', { class: 't-notes-status', text: `The list of notes could not be loaded (${o.from}).` }));
+      host.replaceChildren(el('p', { class: 't-notes-status', text: str('notesFailed', { from: o.from }, 'The list of notes could not be loaded ({from}).') }));
       return;
     }
     // The page itself is left out: a folder's address (blog/) is its
@@ -115,7 +118,7 @@
     if (o.in) list = list.filter((n) => n.url.startsWith(o.in));
     if (ORDER[o.sort] && o.sort !== 'path') list.sort(ORDER[o.sort]);
     list = list.slice(0, o.limit === Infinity ? undefined : o.limit);
-    if (!list.length) return void host.replaceChildren(el('p', { class: 't-notes-status', text: 'No notes.' }));
+    if (!list.length) return void host.replaceChildren(el('p', { class: 't-notes-status', text: str('noNotes', {}, 'No notes.') }));
     const ul = el('ul', { class: 't-notes-list', role: 'list' }); // no bullets, so it says it is a list
     for (const n of list) {
       const li = el('li', null, el('a', { class: 't-notes-title', href: n.href, text: n.title || n.url }));
@@ -133,7 +136,7 @@
     build(host).catch((e) => {
       const why = (e && e.message) || String(e);
       console.warn(`Tern notes.js: the list could not be built: ${why}`);
-      host.replaceChildren(el('p', { class: 't-notes-status', text: `The list of notes could not be built (${why}).` }));
+      host.replaceChildren(el('p', { class: 't-notes-status', text: str('notesFailed', { from: why }, 'The list of notes could not be built ({from}).') }));
     });
   });
 })();

@@ -4761,14 +4761,15 @@ const safeSet = (k, v) => (k === 'srcset' ? v.split(',').every((c) => safeUrl(c.
 // The few words the emitter writes itself, for assistive technology: the
 // footnote section's name, a back link's, a task checkbox's state. Picked by
 // the note's label language as a schema label map is (src/schema.js pick),
-// English when the language has none.
+// English when the language has none; opts.strings (window.TERN.strings in
+// the browser) overrides a key with a string of its own.
 const WORDS = {
   footnotes: { en: 'Footnotes', de: 'Fußnoten', fr: 'Notes de bas de page', es: 'Notas al pie', pt: 'Notas de rodapé', it: 'Note a piè di pagina', nl: 'Voetnoten' },
   back: { en: 'Back to the text', de: 'Zurück zum Text', fr: 'Retour au texte', es: 'Volver al texto', pt: 'Voltar ao texto', it: 'Torna al testo', nl: 'Terug naar de tekst' },
   done: { en: 'Done', de: 'Erledigt', fr: 'Fait', es: 'Hecho', pt: 'Feito', it: 'Fatto', nl: 'Gedaan' },
   todo: { en: 'Not done', de: 'Offen', fr: 'À faire', es: 'Pendiente', pt: 'Pendente', it: 'Da fare', nl: 'Te doen' },
 };
-const words = (lang) => Object.fromEntries(Object.keys(WORDS).map((k) => [k, escAttr(pick(WORDS[k], lang))]));
+const words = (lang, given) => Object.fromEntries(Object.keys(WORDS).map((k) => [k, escAttr(given && typeof given[k] === 'string' ? given[k] : pick(WORDS[k], lang))]));
 
 // ---------------------------------------------------------------- the walk
 
@@ -4779,7 +4780,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
-  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '');
+  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '', opts && opts.strings && typeof opts.strings === 'object' ? opts.strings : null);
   prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;
@@ -5611,6 +5612,19 @@ const now = () => performance.now();
 const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const escText = (s) => String(s).replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'));
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+// The runtime's own words, and the add-ons' (tern.string): each a key with
+// an English fallback, overridden by window.TERN.strings[key]. A string
+// holds `{name}` fields; one with a `|` is `singular|plural`, picked by
+// params.n. The emitter's words (Footnotes …) take the same keys.
+const STRINGS = { problems: '{n} problem|{n} problems', errors: '{n} error|{n} errors', warnings: '{n} warning|{n} warnings', infos: '{n} info|{n} infos' };
+function string(key, params, fallback) {
+  const given = config.strings && typeof config.strings === 'object' && typeof config.strings[key] === 'string' ? config.strings[key] : null;
+  let s = given !== null ? given : fallback !== undefined ? String(fallback) : STRINGS[key] || key;
+  const p = params && typeof params === 'object' ? params : {};
+  if (s.includes('|')) s = s.split('|')[p.n === 1 ? 0 : 1];
+  return s.replace(/\{(\w+)\}/g, (m, k) => (k in p ? String(p[k]) : m));
+}
 const append = (to, list) => {
   for (const x of list) to.push(x);
 };
@@ -5627,6 +5641,7 @@ function attach(api) {
   api.on = on;
   api.render = render;
   api.style = style;
+  api.string = string;
   // A schema entry's `css` is queued like tern.style.
   for (const level of ['block', 'leaf', 'inline']) {
     const add = api[level];
@@ -5849,7 +5864,7 @@ const describe = (d) => `${d.severity} ${d.code} at ${where(d)}: ${d.message}${d
 // The console group, always printed once; later problems get a line each.
 function logGroup(times) {
   logged = true;
-  console.groupCollapsed(`tern: ${plural(diagnostics.length, 'problem')}`);
+  console.groupCollapsed(`tern: ${string('problems', { n: diagnostics.length })}`);
   if (times) console.log(`tern ${T.version}: ${times}`);
   for (const d of diagnostics) (d.severity === 'info' ? console.info : console.warn)(describe(d));
   console.groupEnd();
@@ -5890,8 +5905,8 @@ function panelAdd(d) {
   panel.list.append(li);
   const n = panel.n;
   n[d.severity] = (n[d.severity] || 0) + 1;
-  const parts = [n.error && plural(n.error, 'error'), n.warning && plural(n.warning, 'warning'), n.info && plural(n.info, 'info')].filter(Boolean);
-  panel.sum.textContent = `tern: ${plural(n.error + n.warning + n.info, 'problem')} (${parts.join(', ')})`;
+  const parts = [n.error && string('errors', { n: n.error }), n.warning && string('warnings', { n: n.warning }), n.info && string('infos', { n: n.info })].filter(Boolean);
+  panel.sum.textContent = `tern: ${string('problems', { n: n.error + n.warning + n.info })} (${parts.join(', ')})`;
   if (n.error) panel.box.open = true;
 }
 function rebuildPanel() {
@@ -6325,7 +6340,7 @@ function compile(source, safe, idPrefix) {
   const opts = { head: page ? page.head : '', lang: config.lang || undefined };
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
-  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '' }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
 }
 
 // Tern's own presentational styles, a column's alignment and a grid's

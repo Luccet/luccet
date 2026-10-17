@@ -61,6 +61,8 @@
 
   const S = T.search;
   const defaults = Object.assign({}, T.config && T.config.use && T.config.use.search);
+  // The box's words: window.TERN.strings[key] over these (tern.string).
+  const str = (key, params, fallback) => T.string(key, params, fallback);
 
   // ---------------------------------------------------------------- the notes
 
@@ -209,12 +211,12 @@
   async function build(host) {
     const attr = (k) => (host.hasAttribute(k) ? host.getAttribute(k) : defaults[k]);
     const given = parseInt(attr('limit'), 10);
-    const o = { notes: attr('notes'), from: attr('from'), index: attr('index'), limit: Number.isFinite(given) && given >= 0 ? given : 20, placeholder: attr('placeholder') || 'Search the notes' };
+    const o = { notes: attr('notes'), from: attr('from'), index: attr('index'), limit: Number.isFinite(given) && given >= 0 ? given : 20, placeholder: attr('placeholder') || str('searchPlaceholder', {}, 'Search the notes') };
     host.classList.add('t-search');
     const box = el('input', { type: 'search', class: 't-search-box', placeholder: o.placeholder, 'aria-label': o.placeholder, autocomplete: 'off' });
     // The status line is the one live region: a second on the list would read
     // every hit twice. The list has no bullets, so it says it is a list.
-    const status = el('p', { class: 't-search-status', role: 'status', text: 'Indexing…' });
+    const status = el('p', { class: 't-search-status', role: 'status', text: str('indexing', {}, 'Indexing…') });
     const results = el('ol', { class: 't-search-results', role: 'list' });
     host.replaceChildren(box, status, results);
 
@@ -232,14 +234,14 @@
       base = indexURL.href;
       titleOf = new Map((data.notes || []).map((n) => [n.url, n.title]));
       const n = (data.notes || []).length;
-      ready = `${n} note${n === 1 ? '' : 's'}, ${idx.entries.length} entries`;
+      ready = `${str('notesCount', { n }, '{n} note|{n} notes')}, ${str('entriesCount', { n: idx.entries.length }, '{n} entry|{n} entries')}`;
     } else {
       const urls = await noteList(host, o);
       const notes = (await Promise.all(urls.map(load))).filter(Boolean);
       const entries = notes.flatMap((n) => n.records);
       idx = S.index(entries);
       const skipped = urls.length - notes.length;
-      ready = `${notes.length} note${notes.length === 1 ? '' : 's'}, ${entries.length} entries${skipped ? `; ${skipped} could not be read` : ''}`;
+      ready = `${str('notesCount', { n: notes.length }, '{n} note|{n} notes')}, ${str('entriesCount', { n: entries.length }, '{n} entry|{n} entries')}${skipped ? str('unreadable', { n: skipped }, '; {n} could not be read') : ''}`;
       titleOf = new Map(notes.map((n) => [n.url, n.title]));
     }
     status.textContent = ready;
@@ -251,7 +253,7 @@
         .map((h) => ({ ...h, href: linkTo(h.entry.url, base) }))
         .filter((h) => h.href);
       const hits = o.limit ? found : []; // limit=0: the count, and nothing listed
-      status.textContent = found.length ? `${found.length} result${found.length === 1 ? '' : 's'}${hits.length ? '' : ', none listed'}` : 'No results';
+      status.textContent = found.length ? `${str('results', { n: found.length }, '{n} result|{n} results')}${hits.length ? '' : str('noneListed', {}, ', none listed')}` : str('noResults', {}, 'No results');
       for (const { entry, matched, href } of hits) {
         const title = [entry.label, entry.title].filter(Boolean).join(' ');
         const link = el('a', { href: `${href}${entry.id ? `#${entry.id}` : ''}` }, el('span', { class: 't-search-label t-search-title', text: title }), el('span', { class: 't-search-page', text: titleOf.get(entry.url) || '' }));
@@ -290,7 +292,7 @@
       const why = (e && e.message) || String(e);
       console.warn(`Tern search.js: the search box could not be set up: ${why}`);
       const status = host.querySelector('.t-search-status') || host.appendChild(el('p', { class: 't-search-status', role: 'status' }));
-      status.textContent = `The search could not be set up (${why}).`;
+      status.textContent = str('searchFailed', { why }, 'The search could not be set up ({why}).');
     });
   });
 })();

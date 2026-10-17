@@ -34,6 +34,7 @@ const SYNOPSIS = {
   search: 'tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
   corpus: 'tern corpus PATH… [--out=DIR]',
+  vendor: 'tern vendor DIR [--katex] [--code] [--mermaid] [--mathml]',
   lsp: 'tern lsp [--stdio]',
 };
 
@@ -93,6 +94,12 @@ const usage = () =>
       fence's spec=, else PAGE#ID, the section of docs/PAGE.html it is in
       (PAGE#top before any heading; guide#top for a page outside docs/).
       --out writes DIR/docs-PAGE.txt.
+  ${SYNOPSIS.vendor}
+      Write local copies of the libraries the add-ons load from jsDelivr —
+      KaTeX, highlight.js, Mermaid, Temml — in the layout their ?base= option
+      takes, under DIR/katex, DIR/highlight, DIR/mermaid and DIR/temml, from
+      the pinned packages (downloaded once, checked against the registry's
+      hash). Without a flag, all four. For offline notes and strict policies.
   ${SYNOPSIS.lsp}
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
@@ -118,14 +125,19 @@ function options(args, spec) {
   }
 }
 
-// A command: usage errors print with the synopsis and exit 2.
+// A command: usage errors print with the synopsis and exit 2; a command
+// that returns a promise (vendor) has its rejections read the same way.
 const command = (name, fn) => (args) => {
-  try {
-    return fn(args || []);
-  } catch (e) {
+  const usage = (e) => {
     if (!(e instanceof UsageError)) throw e;
     process.stderr.write(`tern ${name}: ${e.message}\n${e.synopsis ? `usage: ${SYNOPSIS[name]}\n` : ''}`);
     return 2;
+  };
+  try {
+    const r = fn(args || []);
+    return r && typeof r.then === 'function' ? r.catch(usage) : r;
+  } catch (e) {
+    return usage(e);
   }
 };
 
@@ -946,6 +958,84 @@ function corpus(args) {
   return failed ? 1 : 0;
 }
 
+// ---------------------------------------------------------------- vendor
+
+// The layout each add-on's `?base=` takes (docs/addons.html), from the
+// package the add-on pins (its version table; tools/*.js fetch the package
+// once into the cache, checked against the registry's hash): the files to
+// copy, as [from, to] relative to the package folder and to DIR/FOLDER.
+const VENDOR = {
+  katex: { flag: 'katex', addon: 'katex.js', folder: 'katex', tool: 'katex', root: 'dist', files: [['katex.min.js'], ['katex.min.css'], ['fonts']] },
+  code: { flag: 'code', addon: 'code.js', folder: 'highlight', tool: 'hljs', root: '', files: [['highlight.min.js'], ['languages']] },
+  mermaid: { flag: 'mermaid', addon: 'mermaid.js', folder: 'mermaid', tool: 'mermaid', root: 'dist', files: [['mermaid.min.js']] },
+  mathml: { flag: 'mathml', addon: 'mathml.js', folder: 'temml', tool: 'temml', root: 'dist', files: [['temml.min.js'], ['Temml-Local.css'], ['Temml.woff2']] },
+};
+
+// The version an add-on pins, from its table.
+function pinned(addon) {
+  const m = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(__dirname, '..', 'addons', addon), 'utf8'));
+  if (!m) throw new Error(`addons/${addon} pins no version`);
+  return m[1];
+}
+
+async function vendor(args) {
+  const { values: o, positionals } = options(args, { katex: { type: 'boolean' }, code: { type: 'boolean' }, mermaid: { type: 'boolean' }, mathml: { type: 'boolean' } });
+  if (o.help) return help('vendor');
+  if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one DIR' : 'DIR is missing');
+  const dir = positionals[0];
+  if (!dir.trim()) throw new UsageError('DIR is empty');
+  const st = fs.statSync(dir, { throwIfNoEntry: false });
+  if (st && !st.isDirectory()) throw new UsageError(`${dir} is not a folder`, false);
+  const chosen = Object.values(VENDOR).filter((v) => o[v.flag]);
+  const list = chosen.length ? chosen : Object.values(VENDOR);
+  const shown = (p) => path.relative(process.cwd(), p).split(path.sep).join('/') || '.';
+  const lines = [];
+  let files = 0;
+  let bytes = 0;
+  let failed = false;
+  for (const v of list) {
+    const version = pinned(v.addon);
+    let pkg;
+    try {
+      pkg = await require(`../tools/${v.tool}`).packageDir(version);
+    } catch (e) {
+      warn(`tern vendor: ${v.addon.replace(/\.js$/, '')} ${version} could not be fetched (${clean((e && e.message) || e)}); is the network there?`);
+      failed = true;
+      continue;
+    }
+    const from = path.join(pkg, v.root);
+    const to = path.join(dir, v.folder);
+    fs.mkdirSync(to, { recursive: true });
+    let n = 0;
+    const copy = (src, dest) => {
+      const s = fs.statSync(src);
+      if (s.isDirectory()) {
+        fs.mkdirSync(dest, { recursive: true });
+        for (const name of fs.readdirSync(src).sort()) copy(path.join(src, name), path.join(dest, name));
+        return;
+      }
+      fs.copyFileSync(src, dest);
+      n++;
+      bytes += s.size;
+      say(shown(dest));
+    };
+    for (const [rel] of v.files) {
+      const src = path.join(from, rel);
+      if (!fs.existsSync(src)) {
+        warn(`tern vendor: ${v.addon}: the package has no ${rel}; the layout the add-on expects has changed`);
+        failed = true;
+        continue;
+      }
+      copy(src, path.join(to, rel));
+    }
+    files += n;
+    lines.push(`${v.addon.replace(/\.js$/, '')} ${version} → ${shown(to)} (${plural(n, 'file')}); load it with addons/${v.addon}?base=${shown(to)}`);
+  }
+  for (const l of lines) warn(`tern vendor: ${l}`);
+  warn(`tern vendor: ${plural(lines.length, 'package')}, ${plural(files, 'file')}, ${(bytes / 1048576).toFixed(1)} MB; a ?base= resolves from the note's folder, so write the path from there`);
+  return failed ? 1 : 0;
+}
+
 // ---------------------------------------------------------------- lsp
 
 // The language server (cli/lsp.js): it runs until the client exits it.
@@ -967,5 +1057,6 @@ module.exports = {
   search: command('search', search),
   index: command('index', index),
   corpus: command('corpus', corpus),
+  vendor: command('vendor', vendor),
   lsp: command('lsp', lsp),
 };

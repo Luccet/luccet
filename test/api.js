@@ -260,6 +260,13 @@ test('limits: a reference or toc entry copies at most 200 characters of its targ
 
 // The emitter has an output budget, 64 M characters unless maxOutput says
 // otherwise: past it the HTML stops and the tree carries output.limit.
+test('emit: opts.strings overrides the emitter\'s words, whatever the language', () => {
+  const html = tern.toHTML('Text.[^a]\n\n- [ ] x\n\n[^a]: Note.\n', { positions: false, strings: { footnotes: 'Notes', back: 'Up', todo: 'Open' } });
+  eq(html.includes('aria-label="Notes"') && html.includes('aria-label="Up"') && html.includes('aria-label="Open"'), true, `the words given: ${html}`);
+  const de = tern.toHTML('Text.[^a]\n\n[^a]: Note.\n', { positions: false, lang: 'de', strings: { back: 'Hoch' } });
+  eq(de.includes('aria-label="Fußnoten"') && de.includes('aria-label="Hoch"'), true, `one word given, the rest in German: ${de}`);
+});
+
 test('limits: emit stops at maxOutput with output.limit on the tree, where it used to throw a RangeError', () => {
   const { ast } = tern.parse(`${'x'.repeat(5000)}\n`);
   tern.transform(ast);

@@ -1675,6 +1675,36 @@ const TESTS = [
     },
   },
   {
+    name: 'window.TERN.strings: the panel, the emitter\'s labels, the search box and the notes list speak the page\'s words',
+    url: '/test/smoke/strings.html',
+    allowConsole: /Failed to load resource/,
+    async check(page) {
+      await expect(page, () => document.querySelector('.t-search-status') && !/Indizieren/.test(document.querySelector('.t-search-status').textContent) && document.querySelector('.t-notes-status'), 'the box and the list to settle');
+      await page.fill('.t-search-box', 'zzzz');
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => ({
+        panel: document.querySelector('.t-diagnostics summary').textContent,
+        footnotes: document.querySelector('.t-footnotes').getAttribute('aria-label'),
+        back: document.querySelector('.t-fnback').getAttribute('aria-label'),
+        task: document.querySelector('.t-task input').getAttribute('aria-label'),
+        placeholder: document.querySelector('.t-search-box').placeholder,
+        status: document.querySelector('.t-search-status').textContent,
+        notes: document.querySelector('.t-notes').getAttribute('aria-label'),
+        missing: document.querySelector('.t-notes-status').textContent,
+        api: window.tern.string('results', { n: 1 }) + ' / ' + window.tern.string('nothing', { n: 2 }, '{n} thing|{n} things'),
+      }));
+      if (r.panel !== 'tern: 1 Problem (1 Warnung)') throw new Error(`the panel: ${r.panel}`);
+      if (r.footnotes !== 'Anmerkungen' || r.back !== 'Zurück' || r.task !== 'Fertig') throw new Error(`the emitter's labels: ${JSON.stringify([r.footnotes, r.back, r.task])}`);
+      if (r.placeholder !== 'Notizen durchsuchen' || r.status !== 'Keine Treffer') throw new Error(`the search box: ${JSON.stringify([r.placeholder, r.status])}`);
+      if (r.notes !== 'Notizen' || r.missing !== 'Die Liste (missing.json) fehlt.') throw new Error(`the notes list: ${JSON.stringify([r.notes, r.missing])}`);
+      if (r.api !== '1 Treffer / 2 things') throw new Error(`tern.string: ${r.api}`);
+      await page.fill('.t-search-box', '');
+      await page.waitForTimeout(250);
+      const ready = await page.evaluate(() => document.querySelector('.t-search-status').textContent);
+      if (ready !== '1 Notiz, 3 Einträge') throw new Error(`the ready line: ${ready}`);
+    },
+  },
+  {
     // axe-core over one page per theme family (its NAME.css, light and dark;
     // a one-mode theme as it is) and tern.css alone: WCAG 2.0/2.1 A and AA
     // rules, no violation. The page holds every construct the emitter writes.

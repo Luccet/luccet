@@ -2,7 +2,16 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org) with a `0.x` caveat: until 1.0, a minor release may change how an existing note renders or what an add-on receives, and the entry says so when it does. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 0.6.0 (unreleased)
+## 0.7.0 (unreleased)
+
+- The home page's Status section tells the syntax version (1.0, what the pages describe) from the engine's (`tern.version`, 0.x), and states the 0.x policy: until 1.0 a minor release may change what a note renders or an add-on receives, and the changelog says so when it does; a construct or an API is deprecated for one minor release before it goes. README and the home page say what the AI assistance covers and how every change is reviewed.
+- `tern vendor DIR` writes local copies of KaTeX, highlight.js, Mermaid and Temml, the versions the add-ons pin, in the layout their `?base=` option takes, for offline notes and strict policies.
+- The engine is an npm package, `@ozkrac/tern`, installed from this repository at a tag (`npm install github:OzkrAC/tern#vX.Y.Z`; it is not on the npm registry): `tern.js` with `tern.css`, the add-ons, the themes, the skill, the `tern` command and type declarations (`tern.d.ts`), with an `exports` map for `@ozkrac/tern/cli/language.js` and the rest the documentation requires. The release carries `tern.css` and a zip of the distribution beside the minified `tern.js`. `test/package.js` keeps the package honest.
+- `window.TERN.strings` gives the runtime's and the add-ons' words in another language: the diagnostics panel's counts, the search box's placeholder and status lines, the notes list's label and messages, and the emitter's ARIA labels (`tern.emit` takes them as `opts.strings`). `tern.string(key, params, fallback)` is the hook add-ons use.
+- CI gains a Windows job for the command line and the language server and a WebKit smoke job, both advisory (reported, not blocking) until they are green, and a coverage report of the Node suites (c8) as a run artifact; the tests and the publishing page say so.
+- CI runs one workflow per branch at a time (a push cancels the one before it), seeds the fuzz run from the run id so every run tries new inputs, and on a pull request checks that `CHANGELOG.md` changed, as CONTRIBUTING asks.
+
+## 0.6.0 (2026-10-17)
 
 - `tern.css` and the themes: a new `--t-line-strong` (3:1 against the page) borders `kbd`, the diagnostics panel and the search box; text in a highlight is `--t-fg`, so muted text and links stay readable on it; `prefers-contrast: more` puts muted text in the text colour and rules in the strong line; under `forced-colors` every property takes the system's colour; `--t-size` is `1.125rem`, so a reader's own font-size setting holds. The themes are regenerated with the new property and the two media blocks, and `test/themes.js` checks them.
 - The smoke suite runs axe-core (WCAG 2.0 and 2.1, A and AA) over a page of every construct in tern.css and in every theme, light and dark, and finds no violation; the one it found, a link inside a highlight in its link colour, is fixed: text in a highlight is the text colour, a link's too.

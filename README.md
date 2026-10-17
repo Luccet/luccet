@@ -55,13 +55,18 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 **Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `katex.js` and `mathml.js` typeset math; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `tern index` writes; `notes.js` lists the notes of a folder from the same command's catalogue. List them in `:::use`, one per line. See [add-ons](https://ozkrac.github.io/tern/docs/addons.html).
 
 
+**With npm, from this repository:** `npm install github:OzkrAC/tern#vX.Y.Z` (a tag) puts the same `tern.js`, `tern.css`, the add-ons and the themes under `node_modules/@ozkrac/tern/`, with type declarations and the `tern` command ([Under node](https://ozkr.ac/tern/docs/api.html#under-node)). The package is not on the npm registry.
+
 ## Using the CLI tool
+
+`npm install -g github:OzkrAC/tern#vX.Y.Z` installs the `tern` command from a tag; `npx github:OzkrAC/tern#vX.Y.Z …` runs it without installing; in a checkout, `node tern-cli.js …`:
 
 ```
 node tern-cli.js new notes/linear-maps.html     # write the first line
 node tern-cli.js check notes/                    # diagnostics and broken links, with file lines
 node tern-cli.js build notes/linear-maps.html -o out.html   # a static, pre-rendered page
 node tern-cli.js mv notes/linear-maps.html notes/algebra/    # move it, rewriting the links to and from it
+node tern-cli.js vendor vendor/                  # local copies of KaTeX, highlight.js, Mermaid and Temml, for ?base=
 node tern-cli.js search "rank nullity" notes/              # the sections and blocks that use these words, with lines
 node tern-cli.js index notes/                    # notes.json and search.json, what ::notes and ::search read
 node tern-cli.js lsp                              # the language server, over stdio
@@ -88,11 +93,11 @@ npm test            # build check, corpus, samples, perf, fuzz, API, CLI, LSP, d
 npm run smoke       # Chromium and Firefox (Playwright)
 ```
 
-**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `tern.version`, the README's jsDelivr tag and the docs' examples. It rebuilds `tern.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test, publishes the site, and drafts the GitHub Release with the changelog section as its notes and a minified `tern.js` attached (built with a pinned terser, checked to be the same version). Publish the draft. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
+**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `tern.version`, the README's jsDelivr tag and the docs' examples. It rebuilds `tern.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test, publishes the site, drafts the GitHub Release with the changelog section as its notes and three assets (a minified `tern.js`, built with a pinned terser and checked to be the same version; `tern.css`; `tern-vX.Y.Z.zip` holding `tern.js`, `tern.css`, `tern.d.ts`, the add-ons and the themes), Publish the draft. The package is not published to the npm registry; `npm install github:OzkrAC/tern#vX.Y.Z` installs the tag. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
 
 
 MIT licensed.
 
 ## AI assistance
 
-This project was developed with assistance from AI. 
+Tern is developed with the help of an AI coding assistant. 

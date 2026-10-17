@@ -36,8 +36,8 @@ const ROOT = path.join(__dirname, '..');
 // `built` places are tools/concat.js's to write.
 const PLACES = [
   ['package.json', '"version": "{v}"'],
-  ['package-lock.json', '"name": "tern",\n  "version": "{v}"'], // the root
-  ['package-lock.json', '"name": "tern",\n      "version": "{v}"'], // packages[""]
+  ['package-lock.json', '"name": "@ozkrac/tern",\n  "version": "{v}"'], // the root
+  ['package-lock.json', '"name": "@ozkrac/tern",\n      "version": "{v}"'], // packages[""]
   ['src/index.js', "const version = '{v}';"],
   ['tern.js', '// tern.js {v}: built from src/', { built: true }],
   ['tern.js', "const version = '{v}';", { built: true }],
@@ -50,6 +50,8 @@ const PLACES = [
   ['docs/tools.html', '$ tern --version\n{v}\n'],
   ['docs/tools.html', '"serverInfo": { "name": "tern", "version": "{v}" }'],
   ['docs/tools.html', '"tern": "{v}",'],
+  ['index.html', 'is at version {v} (`tern.version`'],
+  ['index.html', 'Pin a release (`@v{v}`) to be sure; `@{xy}` follows the fixes of a series.'],
 ];
 
 const CHANGELOG = 'CHANGELOG.md';
