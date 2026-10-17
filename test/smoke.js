@@ -18,9 +18,9 @@
 //                        built-katex.html with --katex; guarded.html from
 //                        `tern new --guarded`; built-own-schema.html,
 //                        built-note-config.html, built-addon-throws.html
-//                        and built-poster.html are test/smoke/own-schema.html,
-//                        note-config.html, addon-throws.html and
-//                        poster.html built
+//                        built-poster.html and built-cite.html are
+//                        test/smoke/own-schema.html, note-config.html,
+//                        addon-throws.html, poster.html and cite.html built
 //   /gen/poster.png      a 1-pixel PNG, poster.html's poster
 //   /gen/indexed/…       a copy of test/smoke/search/ after `tern index`
 //                        ran in it: notes.json and search.json beside the
@@ -428,6 +428,7 @@ const GENERATED = {
   'built-note-config.html': () => ['text/html', cliPage('built-note-config')],
   'built-addon-throws.html': () => ['text/html', cliPage('built-addon-throws')],
   'built-poster.html': () => ['text/html', cliPage('built-poster')],
+  'built-cite.html': () => ['text/html', cliPage('built-cite')],
   'poster.png': () => ['image/png', PNG_1PX],
   'guarded.html': () => ['text/html', cliPage('guarded')],
 };
@@ -468,7 +469,7 @@ function cliPage(name) {
   try {
     let html;
     if (name === 'built') html = cli(['build', 'test/smoke/built.html']);
-    else if (/^built-(?:own-schema|note-config|addon-throws|poster)$/.test(name)) html = cli(['build', `test/smoke/${name.slice(6)}.html`]);
+    else if (/^built-(?:own-schema|note-config|addon-throws|poster|cite)$/.test(name)) html = cli(['build', `test/smoke/${name.slice(6)}.html`]);
     else if (name === 'built-missing') {
       const file = path.join(tmp, 'missing.html');
       fs.writeFileSync(file, '<!doctype html><meta charset="utf-8"><script src="/tern.js" data-use="/test/smoke/missing-addon.js /test/smoke/missing-addon.css"></script>\n# Smoke: a built page whose add-ons are missing\n');
@@ -2385,6 +2386,46 @@ const TESTS = [
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },
   },
+  // cite.js: the page and its built form show the same list and citations.
+  ...[
+    ['cite add-on: @key cites a BibTeX or CSL-JSON source as [n] or (Author, Year), the block lists the cited ones, formatted and numbered in order, with the shared window.TERN.bib', '/test/smoke/cite.html'],
+    ['tern build: the built page carries the bibliography and the citations, and tern.js leaves them as they are', '/gen/built-cite.html'],
+  ].map(([name, url]) => ({
+    name,
+    url,
+    async check(page, ctx) {
+      await expect(page, () => document.querySelectorAll('main.tern .bibliography').length === 2, 'two bibliography blocks');
+      const got = await page.evaluate(() => ({
+        cites: [...document.querySelectorAll('a.t-ref.cite')].map((a) => `${a.getAttribute('href')} ${a.textContent}`),
+        lists: [...document.querySelectorAll('.bibliography')].map((b) => ({
+          title: b.querySelector('.t-title').textContent,
+          role: b.getAttribute('role'),
+          entries: [...b.querySelectorAll('.bib-list > li')].map((li) => ({ id: li.id, label: li.querySelector('.t-label')?.textContent ?? null, text: li.textContent, link: li.querySelector('a')?.getAttribute('href') ?? null, indent: parseFloat(getComputedStyle(li).textIndent) })),
+        })),
+        dangling: document.body.textContent.includes('@nothing'),
+      }));
+      const want = ['#knuth84 [1]', '#lamport94 2', '#shared [3]', '#knuth84 Literate Programming', '#abel00 (Abel and Borel, 1900)', '#abel00 Abel and Borel (1900)', '#zed Zed et al. (n.d.). Three authors'];
+      if (got.cites.join('|') !== want.join('|')) throw new Error(`citations ${JSON.stringify(got.cites)}`);
+      const [num, ay] = got.lists;
+      if (num.title !== 'References' || ay.title !== 'Sources' || num.role !== 'doc-bibliography') throw new Error(`headings ${num.title} / ${ay.title}, role ${num.role}`);
+      if (num.entries.map((e) => `${e.id}${e.label}`).join() !== 'knuth84[1],lamport94[2],shared[3]') throw new Error(`numeric entries ${JSON.stringify(num.entries.map((e) => [e.id, e.label]))}: expected the cited three in citation order, uncited left out`);
+      if (num.entries[0].text !== '[1] Knuth, D. E. (1984). Literate Programming. The Computer Journal, 27(2), 97–111. https://doi.org/10.1093/comjnl/27.2.97' || num.entries[0].link !== 'https://doi.org/10.1093/comjnl/27.2.97') throw new Error(`Knuth's entry ${JSON.stringify(num.entries[0])}`);
+      if (num.entries[1].text !== '[2] Lamport, L. (1994). LaTeX: A Document Preparation System (2nd ed.). Addison-Wesley.') throw new Error(`Lamport's entry ${JSON.stringify(num.entries[1].text)}`);
+      if (num.entries[2].text !== '[3] Lovelace, A. (1843). Notes on the Analytical Engine. Taylor.') throw new Error(`the shared entry ${JSON.stringify(num.entries[2].text)}`);
+      if (ay.entries.map((e) => `${e.id}${e.label}`).join() !== 'abel00null,zednull') throw new Error(`author-year entries ${JSON.stringify(ay.entries.map((e) => [e.id, e.label]))}: no number labels, author order`);
+      if (ay.entries[0].text !== 'Abel, N. and Borel, É. (1900). Two authors.') throw new Error(`Abel's entry ${JSON.stringify(ay.entries[0].text)}`);
+      if (!(num.entries[0].indent < 0) || !(ay.entries[0].indent < 0)) throw new Error(`no hanging indent: text-indent ${num.entries[0].indent}, ${ay.entries[0].indent} (the add-on's stylesheet)`);
+      if (!got.dangling) throw new Error('@nothing, no source, should stay as text');
+      const codes = ctx.diagnostics.map((d) => d.code);
+      if (codes.join() !== 'ref.dangling') throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics.map((d) => `${d.code} ${d.message}`))}: expected ref.dangling for @nothing alone`);
+      if (url.startsWith('/gen/')) {
+        const raw = await (await page.request.get(ctx.origin + url)).text();
+        if (!/<li id="knuth84" class="bib numeric" data-t="bib"[^>]*><span class="t-label">\[1\]<\/span> Knuth/.test(raw) || !/href="#abel00">\(Abel and Borel, 1900\)<\/a>/.test(raw)) throw new Error('the built HTML lacks the list or the citations');
+        if ((raw.match(/<li id="knuth84"/g) || []).length !== 1 || (await page.evaluate(() => document.querySelectorAll('#knuth84').length)) !== 1) throw new Error('the entry is written or mounted more than once');
+      }
+      ctx.note(`${got.cites.length} citations, ${num.entries.length + ay.entries.length} entries in two styles`);
+    },
+  })),
   {
     // KaTeX reads a string 'false' as true, so the add-on must make it a
     // boolean; with trust off, KaTeX shows an untrusted command's name in its
