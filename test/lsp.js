@@ -289,11 +289,52 @@ check('initialize: UTF-16 positions, full sync, the features', async () => {
   const k = r.capabilities;
   assert.strictEqual(k.positionEncoding, 'utf-16');
   assert.strictEqual(k.textDocumentSync.change, 1);
-  for (const f of ['hoverProvider', 'definitionProvider', 'referencesProvider', 'documentSymbolProvider', 'foldingRangeProvider']) assert.ok(k[f], f);
+  for (const f of ['hoverProvider', 'definitionProvider', 'referencesProvider', 'documentSymbolProvider', 'foldingRangeProvider', 'workspaceSymbolProvider']) assert.ok(k[f], f);
+  assert.deepStrictEqual(k.documentLinkProvider, { resolveProvider: false });
+  assert.deepStrictEqual(k.codeActionProvider, { codeActionKinds: ['quickfix'] });
   assert.ok(k.renameProvider.prepareProvider);
-  assert.ok(k.completionProvider.triggerCharacters.includes('@'));
+  assert.deepStrictEqual(k.completionProvider.triggerCharacters, [':', '@'], 'the triggers: a name or an id starts; / and # are typed inside one');
   for (const op of ['willRename', 'didRename', 'didCreate', 'didDelete']) assert.deepStrictEqual(k.workspace.fileOperations[op], { filters: [{ scheme: 'file', pattern: { glob: '**' } }] }, op);
+  assert.deepStrictEqual(k.workspace.workspaceFolders, { supported: true, changeNotifications: true });
   c.notify('initialized', {});
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(!c.inbox.some((m) => m.method === 'client/registerCapability'), 'a client that cannot watch files is not asked to');
+});
+
+// A client that can watch files is asked to watch notes, what they link to
+// and what they load; a change to an add-on on disk then re-analyses the
+// notes that load it, without a change to them. The workspace folders can
+// change after initialize.
+check('watched files: the registration, an add-on changed on disk; workspace folders added and removed', async () => {
+  const F = path.join(DIR, 'watch');
+  fs.mkdirSync(F, { recursive: true });
+  fs.writeFileSync(path.join(F, 'tern.js'), '');
+  fs.writeFileSync(path.join(F, 'vocab.js'), "tern.block('claim', { label: 'Claim' });\n");
+  const T = '<script src="tern.js" data-use="vocab.js"></script>\n:::claim[C]{#c}\nx\n:::\n\nSee @c.\n';
+  const w = new Client();
+  await w.call('initialize', { processId: process.pid, rootUri: null, capabilities: { workspace: { didChangeWatchedFiles: { dynamicRegistration: true } } } });
+  w.notify('initialized', {});
+  const reg = await w.next((m) => m.method === 'client/registerCapability');
+  assert.deepStrictEqual(reg.params, { registrations: [{ id: 'tern-watch', method: 'workspace/didChangeWatchedFiles', registerOptions: { watchers: [{ globPattern: '**/*.{html,htm,md,markdown,js,mjs,css}' }] } }] });
+  w.write(JSON.stringify({ jsonrpc: '2.0', id: reg.id, result: null }));
+  const file = path.join(F, 'note.html');
+  const { uri } = await w.open(file, T);
+  const hover = async () => (await w.call('textDocument/hover', { ...doc(uri), position: locate(T, '@c', { plus: 1 }) })).contents.value;
+  assert.ok((await hover()).includes('Claim — C'));
+  fs.writeFileSync(path.join(F, 'vocab.js'), "tern.block('claim', { label: 'Lemma' });\n");
+  w.notify('workspace/didChangeWatchedFiles', { changes: [{ uri: pathToFileURL(path.join(F, 'vocab.js')).href, type: 2 }] });
+  const again = await w.published(uri);
+  assert.strictEqual(again.version, 1, 'the note analysed again, unchanged');
+  assert.ok((await hover()).includes('Lemma — C'), 'with the add-on as it is on disk');
+  // The folders: none at initialize; one added is searched, removed it is not.
+  const names = async () => (await w.call('workspace/symbol', { query: '' })).map((s) => s.containerName);
+  assert.deepStrictEqual(await names(), [file], 'only the open note, by its path: no workspace folder');
+  fs.writeFileSync(path.join(F, 'other.html'), '<script src="tern.js"></script>\n# Other\n');
+  w.notify('workspace/didChangeWorkspaceFolders', { event: { added: [{ uri: pathToFileURL(F).href, name: 'f' }], removed: [] } });
+  assert.deepStrictEqual((await names()).sort(), ['note.html', 'other.html']);
+  w.notify('workspace/didChangeWorkspaceFolders', { event: { added: [], removed: [{ uri: pathToFileURL(F).href, name: 'f' }] } });
+  assert.deepStrictEqual(await names(), [file]);
+  w.proc.kill();
 });
 
 check('published diagnostics and outlines equal the engine’s', async () => {
@@ -588,7 +629,82 @@ check('add-ons are cached by mtime and reloaded when they change', async () => {
   const t = new Date(Date.now() + 5000);
   fs.utimesSync(ADDON, t, t);
   c.notify('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: COMPLETE }] });
+  await c.published(uri); // the answer comes from the last analysis, so wait for the change's
   assert.ok((await c.call('textDocument/completion', at)).some((i) => i.label === 'remark'));
+});
+
+// The sandbox's asynchronous bridge: a note whose script never returns does
+// not stop the server answering, from its last analysis; the vocabulary of
+// that analysis stands in for the stuck one, until the head or an add-on
+// changes; a change made while an analysis runs is analysed after it.
+check('a stuck script: requests are answered meanwhile, the last vocabulary is kept until the head or add-ons change, a change during the analysis is analysed after it', async () => {
+  fs.writeFileSync(path.join(DIR, 'slow.js'), "tern.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' });\ntern.transform('slow', function (ast) { if (JSON.stringify(ast).includes('SLOW')) for (;;) {} });\n");
+  const HEAD = '<script src="tern.js" data-use="slow.js"></script>\n';
+  const A = `${HEAD}:::theorem[T]{#t1}\nx\n:::\n\nSee @t1.\n:::\n`;
+  const B = `${A}SLOW\n`;
+  const C = `<title>changed head</title>\n${B}`;
+  const file = path.join(DIR, 'slow.html');
+  const { uri, diagnostics } = await c.open(file, A);
+  assert.deepStrictEqual(diagnostics.map((d) => d.code), ['block.stray-closer']);
+  const hover = async (text) => (await c.call('textDocument/hover', { ...doc(uri), position: locate(text, '@t1', { plus: 1 }) })).contents.value;
+  const names = async (text) => (await c.call('textDocument/completion', { ...doc(uri), position: locate(text, '\n:::\n', { plus: 4 }) })).filter((i) => i.label === 'theorem').map((i) => i.detail);
+  assert.ok((await hover(A)).includes('Theorem 1 — T'));
+  assert.deepStrictEqual(await names(A), ['schema → <section>']);
+
+  // B's transform spins until the sandbox cuts it off (2 s): hover answers
+  // at once meanwhile, from A's analysis.
+  c.notify('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: B }] });
+  await new Promise((r) => setTimeout(r, 200)); // past the debounce: the analysis runs
+  const t0 = Date.now();
+  assert.ok((await hover(B)).includes('Theorem 1 — T'), 'answered from the last analysis');
+  assert.ok(Date.now() - t0 < 1000, `answered while the script ran (${Date.now() - t0} ms)`);
+  // C, sent while B's analysis runs, is analysed after it: B's publication
+  // keeps A's vocabulary (the head and the add-on are the same), C's does
+  // not (its head changed).
+  c.notify('textDocument/didChange', { textDocument: { uri, version: 3 }, contentChanges: [{ text: C }] });
+  const b = await c.published(uri);
+  assert.strictEqual(b.version, 2);
+  assert.deepStrictEqual(b.diagnostics.map((d) => d.code), ['addon.failed', 'block.stray-closer']);
+  assert.ok(b.diagnostics[0].message.includes('did not finish in 2 s') && b.diagnostics[0].message.includes('its vocabulary is kept from its last analysis'), b.diagnostics[0].message);
+  assert.deepStrictEqual(await names(C), ['schema → <section>'], 'the vocabulary kept: the names are known (the trigger read from the text as it is, C)');
+  const cc = await c.published(uri);
+  assert.strictEqual(cc.version, 3);
+  assert.ok(cc.diagnostics[0].code === 'addon.failed' && cc.diagnostics[0].message.includes('its vocabulary and transforms are missing'), cc.diagnostics[0].message);
+  assert.deepStrictEqual(await names(C), [], 'the head changed: nothing stands in');
+  // Back to a note that runs: the vocabulary is its own again.
+  c.notify('textDocument/didChange', { textDocument: { uri, version: 4 }, contentChanges: [{ text: A }] });
+  assert.deepStrictEqual((await c.published(uri)).diagnostics.map((d) => d.code), ['block.stray-closer']);
+  assert.deepStrictEqual(await names(A), ['schema → <section>']);
+  c.notify('textDocument/didClose', doc(uri));
+  await c.published(uri);
+});
+
+// Between a keystroke and the next analysis, completion reads the trigger
+// from the text as it is and answers from the last analysis; a rename waits
+// for the analysis, since its edits must match the text.
+check('during the debounce: completion from the text as it is, a rename after the analysis', async () => {
+  const file = path.join(DIR, 'typing.html');
+  const A = '<script src="tern.js" data-use="addon.js"></script>\n:::theorem[T]{#t1}\nx\n:::\n\nSee @t1.\n';
+  const { uri } = await c.open(file, A);
+  await c.outline(uri);
+  // Two lines typed at the top, then `@` on a new last line: the ids come
+  // from the last analysis, the range from the text as it is.
+  const B = `Intro.\n\n${A}Also @`;
+  c.notify('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: B }] });
+  const at = locate(B, 'Also @', { plus: 6 });
+  const items = await c.call('textDocument/completion', { ...doc(uri), position: at });
+  const t1 = items.find((i) => i.label === 't1');
+  assert.ok(t1, 'the id of the last analysis');
+  assert.deepStrictEqual(t1.textEdit.range, { start: at, end: at }, 'the range on the text as it is');
+  // The rename's edits are at the new lines: it waited for the analysis.
+  const edit = await c.call('textDocument/rename', { ...doc(uri), position: locate(B, 'See @t1', { plus: 5 }), newName: 'first' });
+  assert.deepStrictEqual(
+    sorted(edit.changes[uri].map((e) => e.range.start)),
+    sorted([locate(B, '{#t1}', { plus: 2 }), locate(B, 'See @t1', { plus: 5 })]),
+  );
+  assert.strictEqual((await c.published(uri)).version, 2);
+  c.notify('textDocument/didClose', doc(uri));
+  await c.published(uri);
 });
 
 // A head script before the tern.js line declares the note's vocabulary.
@@ -618,9 +734,9 @@ check('a single-file note declares its vocabulary in window.TERN.schema', async 
   // A didChange to the head script changes the vocabulary.
   const NEXT = theorem('Satz', ", lemma: { counter: 'theorem', label: 'Lemma' }");
   c.notify('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: NEXT }] });
+  assert.deepStrictEqual((await c.published(uri)).diagnostics, []); // the answers come from the last analysis: wait for the change's
   assert.ok((await hover(NEXT)).includes('Satz 1 — Main'), await hover(NEXT));
   assert.deepStrictEqual((await names(NEXT)).map((i) => i.label), ['theorem', 'lemma']);
-  assert.deepStrictEqual((await c.published(uri)).diagnostics, []);
   // A local head script is stamped like an add-on: an edit on disk is seen.
   const VOCAB = path.join(DIR, 'vocab.js');
   fs.writeFileSync(VOCAB, "window.TERN = { schema: { block: { claim: { label: 'Claim' } } } };");
@@ -632,6 +748,7 @@ check('a single-file note declares its vocabulary in window.TERN.schema', async 
   const t = new Date(Date.now() + 5000);
   fs.utimesSync(VOCAB, t, t);
   c.notify('textDocument/didChange', { textDocument: { uri: src.uri, version: 2 }, contentChanges: [{ text: SRC }] });
+  await c.published(src.uri);
   assert.ok((await labels()).includes('axiom'));
 });
 
@@ -783,6 +900,180 @@ check('willRenameFiles: tern mv’s edits, for the files where they are; the wor
   assert.deepStrictEqual((await c.published(y.uri)).diagnostics.map((d) => d.code), ['link.missing'], 'didRenameFiles');
   c.notify('textDocument/didClose', doc(y.uri));
   await c.published(y.uri);
+});
+
+// Across files: a link `page.html#id` is a reference to the id in that
+// file. Definition goes there, references and rename reach every note of
+// the workspace that links to the id, and document links say where each
+// URL goes. The expectations come from the texts, not from the server.
+check('across files: definition, references and rename follow page.html#id; document links', async () => {
+  const W = path.join(DIR, 'across');
+  const files = {
+    'tern.js': '',
+    'a.html': '<script src="tern.js" data-use="addon.js"></script>\n# A {#a}\n\nSee [known](b.html#known), [b](b.html), [heading](notes.md#second-part), [plain](plain.html#pid), [me](#a), [out](https://example.org/x#y), [gone](nope.html#z), [root](/r.html#q).\n',
+    'b.html': '<script src="tern.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n\nSee @known and [k](#known) and [self](b.html#known).\n',
+    'c.html': '<script src="tern.js"></script>\n# C\n\n[c](<b.html#known> "t") and <a href="b.html#known">raw</a> and [other](b.html#other).\n',
+    'notes.md': '# First part\n\n## Second part\n\ntext\n',
+    'plain.html': '<!doctype html>\n<p><span id="pid">here</span></p>\n',
+  };
+  for (const [rel, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(W, rel)), { recursive: true });
+    fs.writeFileSync(path.join(W, rel), text);
+  }
+  fs.copyFileSync(ADDON, path.join(W, 'addon.js'));
+  const w = new Client();
+  await w.call('initialize', { processId: process.pid, rootUri: null, workspaceFolders: [{ uri: pathToFileURL(W).href, name: 'w' }], capabilities: {} });
+  w.notify('initialized', {});
+  const uri = (rel) => pathToFileURL(path.join(W, rel)).href;
+  const A = files['a.html'];
+  const B = files['b.html'];
+  const C = files['c.html'];
+  const a = await w.open(path.join(W, 'a.html'), A);
+  assert.deepStrictEqual(a.diagnostics.map((d) => d.code), ['link.missing'], 'only nope.html is missing');
+  const go = (needle, opts) => w.call('textDocument/definition', { ...doc(a.uri), position: locate(A, needle, opts) });
+  // Definition: the id's declaration in b.html, b.html's first line, the Markdown heading, the plain file's id attribute.
+  assert.deepStrictEqual(await go('b.html#known', { plus: 8 }), { uri: uri('b.html'), range: { start: locate(B, '#known}'), end: locate(B, '#known}', { plus: 6 }) } });
+  assert.deepStrictEqual(await go('[b](b.html)', { plus: 5 }), { uri: uri('b.html'), range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } });
+  assert.deepStrictEqual(await go('notes.md#second-part', { plus: 12 }), { uri: uri('notes.md'), range: { start: { line: 2, character: 0 }, end: { line: 2, character: 14 } } });
+  assert.deepStrictEqual(await go('plain.html#pid', { plus: 12 }), { uri: uri('plain.html'), range: { start: { line: 1, character: 3 }, end: { line: 1, character: 17 } } });
+  assert.strictEqual(await go('nope.html#z', { plus: 10 }), null, 'a missing file');
+  assert.strictEqual(await go('/r.html#q', { plus: 8 }), null, 'a root-relative URL is not resolved');
+  assert.strictEqual(await go('example.org', { plus: 3 }), null);
+
+  // References of #known: from the link in a.html, and from the declaration in b.html, the same set.
+  const frag = (text, rel, needle, nth = 0) => ({ uri: uri(rel), range: { start: locate(text, needle, { nth, plus: needle.indexOf('#') + 1 }), end: locate(text, needle, { nth, plus: needle.length }) } });
+  const want = sorted([
+    { uri: uri('b.html'), range: { start: locate(B, '@known'), end: locate(B, '@known', { plus: 6 }) } },
+    { uri: uri('b.html'), range: { start: locate(B, '[k](#known)'), end: locate(B, '[k](#known)', { plus: 11 }) } },
+    frag(B, 'b.html', 'b.html#known'),
+    frag(A, 'a.html', 'b.html#known'),
+    frag(C, 'c.html', 'b.html#known', 0),
+    frag(C, 'c.html', 'b.html#known', 1),
+  ]);
+  const refs = await w.call('textDocument/references', { ...doc(a.uri), position: locate(A, 'b.html#known', { plus: 9 }), context: { includeDeclaration: false } });
+  assert.deepStrictEqual(sorted(refs), want, 'from the link');
+  const b = await w.open(path.join(W, 'b.html'), B);
+  assert.deepStrictEqual(b.diagnostics, []);
+  const all = await w.call('textDocument/references', { ...doc(b.uri), position: locate(B, '#known}', { plus: 2 }), context: { includeDeclaration: true } });
+  assert.deepStrictEqual(sorted(all), sorted([...want.map((s) => JSON.parse(s)), { uri: uri('b.html'), range: { start: locate(B, '#known}'), end: locate(B, '#known}', { plus: 6 }) } }]), 'from the declaration, with it');
+
+  // Rename from the link in a.html: b.html's declaration and uses, and every fragment, in the files where they are.
+  const edit = await w.call('textDocument/rename', { ...doc(a.uri), position: locate(A, 'b.html#known', { plus: 9 }), newName: 'k2' });
+  assert.deepStrictEqual(Object.keys(edit.changes).sort(), [uri('a.html'), uri('b.html'), uri('c.html')].sort());
+  const after = (rel, text) => applyEdits(text, edit.changes[uri(rel)]);
+  assert.strictEqual(after('a.html', A), A.replace('b.html#known', 'b.html#k2'));
+  assert.strictEqual(after('b.html', B), B.split('known').join('k2'));
+  assert.strictEqual(after('c.html', C), C.split('b.html#known').join('b.html#k2'));
+  const checked = analyse(after('b.html', B), path.join(W, 'b.html'));
+  assert.ok(checked.ast.data.tern.ids.k2 && !checked.ast.data.tern.ids.known && !checked.diagnostics.some((d) => d.code === 'ref.dangling'), 'b.html renamed consistently');
+  // The same from b.html's own reference; a link to a file that is not a note is refused; a dangling fragment has nothing to rename from.
+  const fromB = await w.call('textDocument/rename', { ...doc(b.uri), position: locate(B, '@known', { plus: 3 }), newName: 'k2' });
+  assert.deepStrictEqual(sorted(Object.entries(fromB.changes).flatMap(([u, es]) => es.map((e) => ({ u, ...e })))), sorted(Object.entries(edit.changes).flatMap(([u, es]) => es.map((e) => ({ u, ...e })))));
+  const plain = await w.send('textDocument/rename', { ...doc(a.uri), position: locate(A, 'plain.html#pid', { plus: 12 }), newName: 'x' });
+  assert.ok(plain.error && plain.error.code === -32803 && /plain\.html is not a note/.test(plain.error.message), JSON.stringify(plain));
+  const cc = await w.open(path.join(W, 'c.html'), C);
+  assert.deepStrictEqual(cc.diagnostics.map((d) => d.code), ['link.dangling']);
+  assert.strictEqual(await w.call('textDocument/rename', { ...doc(cc.uri), position: locate(C, 'b.html#other', { plus: 9 }), newName: 'x' }), null, 'no such id in b.html');
+
+  // Document links: each URL as written, with where it goes.
+  const dl = await w.call('textDocument/documentLink', doc(a.uri));
+  const by = Object.fromEntries(dl.map((l) => [A.split('\n')[l.range.start.line].slice(l.range.start.character, l.range.end.character), l.target]));
+  assert.deepStrictEqual(by, {
+    'tern.js': uri('tern.js'),
+    'addon.js': uri('addon.js'),
+    'b.html#known': `${uri('b.html')}#known`,
+    'b.html': uri('b.html'),
+    'notes.md#second-part': `${uri('notes.md')}#second-part`,
+    'plain.html#pid': `${uri('plain.html')}#pid`,
+    '#a': `${a.uri}#a`,
+    'https://example.org/x#y': 'https://example.org/x#y',
+  });
+  w.proc.kill();
+});
+
+// Code actions: the fixes cli/language.js offers for a diagnostic, each a
+// quickfix whose edit, applied, removes the diagnostic; and the disk's
+// spelling for a link in another case.
+check('codeAction: quickfixes for dangling references, undefined footnotes, unclosed blocks and math, opener junk, unknown names and a link’s case', async () => {
+  const Q = path.join(DIR, 'fix');
+  fs.mkdirSync(Q, { recursive: true });
+  fs.writeFileSync(path.join(Q, 'tern.js'), '');
+  fs.writeFileSync(path.join(Q, 'Other.html'), '<script src="tern.js"></script>\n# O\n');
+  const T = `<script>window.TERN = { schema: { strict: true, block: { theorem: {} }, leaf: {}, inline: { kbd: {} } } };</script><script src="tern.js"></script>
+# Kernel {#kernel}
+
+See @kernl, @nowhere, text[^x] and :kdb[x]; [o](other.html).
+
+:::theorm[T] #rn .big
+x
+
+$$
+y = 2
+
+:::aside
+z
+:::
+`;
+  const file = path.join(Q, 'fix.html');
+  const { uri, diagnostics } = await c.open(file, T);
+  const codes = diagnostics.map((d) => d.code);
+  for (const code of ['ref.dangling', 'footnote.undefined', 'name.unknown', 'link.missing', 'block.opener-junk', 'block.unclosed', 'math.unclosed']) assert.ok(codes.includes(code), code);
+  const actions = async (d) => c.call('textDocument/codeAction', { ...doc(uri), range: d.range, context: { diagnostics: [d] } });
+  const fixed = (action) => applyEdits(T, action.edit.changes[uri]);
+  const count = (text, code) => analyse(text, file).diagnostics.filter((d) => d.code === code).length;
+  const titles = {};
+  for (const d of diagnostics) {
+    const list = await actions(d);
+    titles[`${d.code} ${d.range.start.line}:${d.range.start.character}`] = list.map((x) => x.title + (x.isPreferred ? ' *' : ''));
+    for (const x of list) {
+      assert.strictEqual(x.kind, 'quickfix');
+      assert.deepStrictEqual(x.diagnostics, [d]);
+      assert.strictEqual(count(fixed(x), d.code), count(T, d.code) - 1, `"${x.title}" leaves ${d.code}: ${fixed(x)}`);
+    }
+  }
+  assert.deepStrictEqual(titles, {
+    'ref.dangling 3:4': ['Change to @kernel *', 'Write \\@kernl: not a reference'],
+    'ref.dangling 3:12': ['Write \\@nowhere: not a reference *'],
+    'footnote.undefined 3:26': ['Add the definition [^x]: *'],
+    'name.unknown 3:36': ['Change to kbd *'],
+    'link.missing 3:44': ['Write it as the disk does: Other.html *'],
+    'name.unknown 5:3': ['Change to theorem *'],
+    'block.unclosed 5:0': ['Close it with :::/theorm *'],
+    'block.opener-junk 5:13': ['Write the attributes in braces: {#rn .big} *'],
+    'math.unclosed 8:0': ['Close it with $$ *'],
+  });
+  // The escape is right when the text is not a reference: no diagnostic, and the text reads @kernl.
+  const esc = (await actions(diagnostics[0])).find((x) => x.title.startsWith('Write'));
+  assert.ok(fixed(esc).includes('\\@kernl') && count(fixed(esc), 'ref.dangling') === 1, fixed(esc));
+  // Without the client's diagnostics, the range picks them; a range with none gets [].
+  const byRange = await c.call('textDocument/codeAction', { ...doc(uri), range: { start: { line: 3, character: 0 }, end: { line: 3, character: 20 } }, context: { diagnostics: [] } });
+  assert.deepStrictEqual(byRange.map((x) => x.title), ['Change to @kernel', 'Write \\@kernl: not a reference', 'Write \\@nowhere: not a reference']);
+  assert.deepStrictEqual(await c.call('textDocument/codeAction', { ...doc(uri), range: { start: { line: 1, character: 0 }, end: { line: 1, character: 3 } }, context: { diagnostics: [] } }), []);
+  c.notify('textDocument/didClose', doc(uri));
+  await c.published(uri);
+});
+
+check('workspace/symbol: headings and blocks with an id or a title, across the workspace’s notes and the open ones', async () => {
+  const S = path.join(DIR, 'symbols');
+  fs.mkdirSync(path.join(S, 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(S, 'tern.js'), '');
+  fs.writeFileSync(path.join(S, 'one.html'), '<script src="tern.js"></script>\n# Kernel {#kernel}\n\n:::theorem[Rank–nullity]{#rn}\nx\n:::\n\n::toc\n');
+  fs.writeFileSync(path.join(S, 'sub', 'two.html'), '<script src="../tern.js"></script>\n## Kernels again\n\n:::proof{#p1}\ny\n:::\n');
+  fs.writeFileSync(path.join(S, 'plain.html'), '<h1>Kernel</h1>\n');
+  const w = new Client();
+  await w.call('initialize', { processId: process.pid, rootUri: null, workspaceFolders: [{ uri: pathToFileURL(S).href, name: 's' }], capabilities: {} });
+  w.notify('initialized', {});
+  const names = async (query) => (await w.call('workspace/symbol', { query })).map((s) => `${s.containerName}: ${s.name} (${s.kind}) ${s.location.range.start.line}-${s.location.range.end.line}`).sort();
+  assert.deepStrictEqual(await names('kern'), ['one.html: Kernel (15) 1-1', 'sub/two.html: Kernels again (15) 1-1']);
+  assert.deepStrictEqual(await names('#p'), ['sub/two.html: proof #p1 (5) 3-5']);
+  assert.deepStrictEqual(await names('rank'), ['one.html: Rank–nullity #rn (5) 3-5']);
+  assert.deepStrictEqual(await names(''), ['one.html: Kernel (15) 1-1', 'one.html: Rank–nullity #rn (5) 3-5', 'sub/two.html: Kernels again (15) 1-1', 'sub/two.html: proof #p1 (5) 3-5'], 'every symbol; ::toc has neither id nor title; plain.html is not a note');
+  // An open note outside the workspace counts, as it is in the editor.
+  const o = await w.open(path.join(DIR, 'outside.html'), '<script src="tern.js"></script>\n# Outside {#out}\n');
+  assert.ok((await names('outside')).some((s) => s.includes('Outside')));
+  const r = (await w.call('workspace/symbol', { query: 'outside' }))[0];
+  assert.strictEqual(r.location.uri, o.uri);
+  w.proc.kill();
 });
 
 check('initializationOptions.noScripts: a note’s own code is not run', async () => {

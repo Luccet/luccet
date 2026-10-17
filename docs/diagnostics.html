@@ -2668,7 +2668,8 @@ The engine renders no math itself, so a formula a [math add-on](addons.html#kate
     - one that does not parse as a classic script, which is how tern.js runs an add-on;
     - one that throws;
     - a transform it registers that throws;
-    - the note's scripts, run in the [sandbox](tools.html#sandbox), did not finish in 2 seconds or used too much memory; none of its vocabulary or transforms is then applied.
+    - the note's scripts, run in the [sandbox](tools.html#sandbox), did not finish in 2 seconds or used too much memory; none of its vocabulary or transforms is then applied;
+    - the sandbox's breaker is tripped: its process died three times in a row before answering, so for a minute no note's scripts are run (`the script sandbox died three times in a row, so the note's scripts were not run for a minute`). In the language server, the vocabulary of the note's last analysis whose scripts ran stands in while its head and add-ons are unchanged, and the message says `its vocabulary is kept from its last analysis` ([Vocabulary and the sandbox](tools.html#lsp-cache)).
 
     A remote add-on is [`addon.remote`](#addon-remote) instead.
 - **Position.** The `tern.js` line: line 0 in the browser, shown as `the tern.js line (file line 1)`; the file line of the tag, column 1, on the command line.

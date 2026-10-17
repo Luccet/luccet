@@ -26,7 +26,7 @@ npm run smoke                 # the browser tests (the print test also needs mut
 2. **A test that fails before the change** and passes after it: a corpus case for the engine (`test/corpus/*.txt`), a CLI or LSP test for the tools (`test/cli.js`, `test/lsp.js`), an API test (`test/api.js`), a smoke test for the runtime and the add-ons (`test/smoke.js`). `node test/run.js --lint` checks that a corpus case cites the documentation section it tests.
 3. **The documentation in the same pull request.** A change in behaviour changes a page in `docs/`; its live examples are checked against the engine by `npm test`, so an example that no longer holds fails the build.
 4. **A line in `CHANGELOG.md`**, under the unreleased section at the top, saying what changed for a reader of the previous release.
-5. **Every suite green**: `npm test`, and `npm run smoke` for anything the browser runs. CI runs both on every pull request.
+5. **Every suite green**: `npm test`, and `npm run smoke` for anything the browser runs. CI runs both on every pull request, and the tests of [tern.nvim](https://github.com/OzkrAC/tern.nvim), the Neovim plugin, against the pull request’s engine: a change to the language server that breaks the plugin fails here. To run them yourself, check the plugin out beside this repository and run `nvim --headless -u NONE -l test/run.lua` in it (`TERN_ROOT` names another checkout).
 
 Releases are cut from `main` by the maintainer; the steps are in the README under Development. Security problems go through [`SECURITY.md`](SECURITY.md), not an issue.
 

@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const tern = require('../tern.js');
 const sandbox = require('./sandbox');
 const { scanUse } = require('../src/use');
@@ -113,15 +114,37 @@ function headScripts(head) {
 const isRemote = (url) => /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//');
 
 // Why the note's scripts were not run, as the addon.failed message: the
-// sandbox timed out, crashed, or could not start (cli/sandbox.js).
-const failMessage = (kind) =>
-  kind === 'timeout'
-    ? "the note's scripts did not finish in 2 s, so they were not run; its vocabulary and transforms are missing"
+// sandbox timed out, crashed, or could not start (cli/sandbox.js). `kept`
+// says that the vocabulary of the last analysis stands in.
+const failMessage = (kind, kept) => {
+  const what = kept ? 'its vocabulary is kept from its last analysis, its transforms are missing' : 'its vocabulary and transforms are missing';
+  return kind === 'timeout'
+    ? `the note's scripts did not finish in 2 s, so they were not run; ${what}`
     : kind === 'crash'
-      ? "the note's scripts used too much memory or crashed the sandbox, so they were not run; its vocabulary and transforms are missing"
+      ? `the note's scripts used too much memory or crashed the sandbox, so they were not run; ${what}`
       : kind === 'unavailable'
-        ? "the script sandbox is not available, so the note's scripts were not run; its vocabulary and transforms are missing"
-        : "the note's scripts could not be run in the sandbox, so its vocabulary and transforms are missing";
+        ? `the script sandbox is not available, so the note's scripts were not run; ${what}`
+        : kind === 'tripped'
+          ? `the script sandbox died three times in a row, so the note's scripts were not run for a minute; ${what}`
+          : `the note's scripts could not be run in the sandbox, so ${what}`;
+};
+
+// A note file's text, read as UTF-8, with a warning when it is not: a UTF-16
+// byte order mark (the file is not read as a note), or bytes that are not
+// UTF-8, read as U+FFFD. Throws what readFileSync throws.
+function readText(file) {
+  const buf = fs.readFileSync(file);
+  if (buf.length >= 2 && ((buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff))) {
+    return { text: buf.toString('utf8'), warning: `${file} is UTF-16 (it starts with a byte order mark); Tern reads UTF-8, so it is not read as a note` };
+  }
+  try {
+    return { text: new TextDecoder('utf-8', { fatal: true }).decode(buf), warning: null };
+  } catch {
+    const text = buf.toString('utf8');
+    const n = (text.match(/\uFFFD/g) || []).length;
+    return { text, warning: `${file} is not valid UTF-8; ${n} byte sequence${n === 1 ? '' : 's'} that ${n === 1 ? 'is' : 'are'} not ${n === 1 ? 'was' : 'were'} read as U+FFFD` };
+  }
+}
 
 // The note's own code the sandbox must run, read here (the sandbox child
 // cannot read files): the head's classic scripts and the script add-ons of
@@ -137,6 +160,7 @@ function collect(tag, dir, head, note) {
   const scripts = [];
   const addons = [];
   const problems = [];
+  const files = []; // the local files read, absolute: an editor watches them
   const attrs = attributes(tag);
   let seq = 0;
   for (const s of headScripts(head)) {
@@ -151,6 +175,7 @@ function collect(tag, dir, head, note) {
       continue;
     }
     const file = locate(dir, s.src.replace(/[?#].*$/, ''));
+    files.push(file);
     try {
       scripts.push({ url, code: fs.readFileSync(file, 'utf8'), line: s.line, column: s.column, seq: at.seq });
     } catch {
@@ -166,6 +191,7 @@ function collect(tag, dir, head, note) {
       continue;
     }
     const file = locate(dir, url);
+    files.push(file);
     try {
       addons.push({ url, code: fs.readFileSync(file, 'utf8'), seq: seq++ });
     } catch (e) {
@@ -184,6 +210,7 @@ function collect(tag, dir, head, note) {
       continue;
     }
     const file = locate(dir, url);
+    files.push(file);
     try {
       addons.push({ url: e.url, code: fs.readFileSync(file, 'utf8'), seq: seq++, position: span });
     } catch (err) {
@@ -195,6 +222,7 @@ function collect(tag, dir, head, note) {
     scripts,
     addons,
     problems,
+    files,
     vocabSeq,
     use,
     dataUse,
@@ -236,21 +264,55 @@ const toFile = (pos, line) => ({
 //   - a remote add-on: `addon.remote`, an info at the tern.js line;
 //   - a head script: `head.script`, an info or a warning at its <script>.
 // `.demo` is window.ternDocs.demo, a documentation add-on's schema, or null.
+// `.vocab` is the vocabulary the analysis used, {stamp, schema, lang, ran}:
+// `stamp` tells the head and the code apart from another's, and `ran` is
+// false when the sandbox did not run the code. A caller that analyses the
+// same note again passes the last one as `opts.lastVocab`: when the code
+// fails to run and the stamp still holds, that vocabulary stands in, so an
+// editor keeps a note's names while a script of it is stuck. `.files` are
+// the local script and add-on files the analysis read.
+// analyseAsync is the same over the sandbox's asynchronous bridge, for the
+// language server; analyse blocks, for the tools.
 function analyse(text, file, opts = {}) {
+  const s = prepare(text, file, opts);
+  if (!s) return null;
+  return finish(s, s.req ? sandbox.analyse(s.req) : null);
+}
+
+async function analyseAsync(text, file, opts = {}) {
+  const s = prepare(text, file, opts);
+  if (!s) return null;
+  return finish(s, s.req ? await sandbox.analyseAsync(s.req) : null);
+}
+
+// What the sandbox is asked, or nothing when the note has no code to run.
+function prepare(text, file, opts) {
   const parts = split(text);
   if (!parts) return null;
   const dir = file ? path.dirname(path.resolve(file)) : process.cwd();
   const c = collect(parts.tag, dir, parts.head, parts.note);
   const transform = opts.transform !== false;
+  const stamp = crypto
+    .createHash('sha1')
+    .update(JSON.stringify([parts.head, c.dataUse ?? null, c.dataLang ?? null, c.dataKatex ?? null, c.scripts.map((s) => s.code), c.addons.map((a) => a.code)]))
+    .digest('hex');
+  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataKatex: c.dataKatex, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform };
+  return { parts, c, transform, stamp, req, opts };
+}
+
+// The analysis from the sandbox's reply (null when it was not asked).
+function finish({ parts, c, transform, stamp, opts }, r) {
   let schema = { block: {}, leaf: {}, inline: {} };
   let lang = c.dataLang || undefined;
   let demo = null;
   let ternDocs = null;
   let all;
   let problems = c.problems;
+  let ran = true;
 
   // No code, scripts turned off, or the sandbox could not run the code: parse
-  // here with an empty vocabulary (a note that declares none is unaffected).
+  // here with an empty vocabulary (a note that declares none is unaffected),
+  // or with the last one when it is given and the code has not changed.
   const here = () => {
     const options = { schema, head: parts.head, lang };
     const parsed = tern.parse(parts.note, options);
@@ -265,23 +327,26 @@ function analyse(text, file, opts = {}) {
 
   let ast;
   let failures = [];
-  if (opts.noScripts || !c.hasCode) {
+  if (!r) {
     ast = here();
-  } else {
-    const r = sandbox.analyse({ note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataKatex: c.dataKatex, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform });
-    if (r.failed) {
-      ast = here();
-      problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed) }]);
-    } else {
-      schema = r.schema;
-      lang = r.lang == null ? undefined : r.lang;
-      ternDocs = r.ternDocs || null;
-      demo = ternDocs && ternDocs.demo ? ternDocs.demo : null;
-      ast = r.ast;
-      all = r.diagnostics;
-      problems = problems.concat(r.problems);
-      failures = r.failures || [];
+  } else if (r.failed) {
+    ran = false;
+    const last = opts.lastVocab && opts.lastVocab.stamp === stamp && opts.lastVocab.schema ? opts.lastVocab : null;
+    if (last) {
+      schema = last.schema;
+      lang = last.lang == null ? undefined : last.lang;
     }
+    ast = here();
+    problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed, !!last) }]);
+  } else {
+    schema = r.schema;
+    lang = r.lang == null ? undefined : r.lang;
+    ternDocs = r.ternDocs || null;
+    demo = ternDocs && ternDocs.demo ? ternDocs.demo : null;
+    ast = r.ast;
+    all = r.diagnostics;
+    problems = problems.concat(r.problems);
+    failures = r.failures || [];
   }
   // Loading problems in document order (their seq, set by collect and echoed
   // by the sandbox), then any transform failure, as they run last.
@@ -301,7 +366,8 @@ function analyse(text, file, opts = {}) {
     return p.kind === 'head' ? point(p.line, p.column) : point(parts.line, 1);
   };
   const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: where(p) }));
-  return { ...parts, schema, opts: options, ast, demo, ternDocs, use: c.use, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
+  const vocab = { stamp, schema, lang: lang === undefined ? null : lang, ran };
+  return { ...parts, schema, opts: options, ast, demo, ternDocs, use: c.use, files: c.files, vocab, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
 }
 
 // The .html files under dir, sorted, skipping dot-directories and
@@ -331,4 +397,4 @@ function repository(dir) {
   }
 }
 
-module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, htmlFiles, repository, tern, shutdown: sandbox.shutdown, clean: sandbox.clean };
+module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, analyseAsync, readText, htmlFiles, repository, tern, shutdown: sandbox.shutdown, clean: sandbox.clean };

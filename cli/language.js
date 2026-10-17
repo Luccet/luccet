@@ -51,9 +51,7 @@ class LanguageError extends Error {
 // index holds AST nodes: it is built and used where the AST lives.
 function index(a) {
   if (!a) return null;
-  const src = String(a.note ?? '').replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\0/g, '�'); // as the parser normalises it
-  const starts = [0];
-  for (let i = src.indexOf('\n'); i >= 0; i = src.indexOf('\n', i + 1)) starts.push(i + 1);
+  const { src, starts } = lines(a.note);
   const ids = (a.ast.data && a.ast.data.tern && a.ast.data.tern.ids) || {};
   const holders = new Map();
   const occ = [];
@@ -107,6 +105,14 @@ function index(a) {
     if (n.type === 'heading') occ.push({ kind: 'decl', id, s, e: n.position.end.offset, from: s, to: n.position.end.offset });
   }
   return { line: Number(a.line) || 0, src, starts, schema: a.schema || tern.schema, ast: a.ast, ids, holders, decls, occ };
+}
+
+// A note's text as the parser normalises it, with where its lines start.
+function lines(note) {
+  const src = String(note ?? '').replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\0/g, '�');
+  const starts = [0];
+  for (let i = src.indexOf('\n'); i >= 0; i = src.indexOf('\n', i + 1)) starts.push(i + 1);
+  return { src, starts };
 }
 
 // The `#id` of a fragment link as written: after the `](` that ends its text,
@@ -191,6 +197,19 @@ function describe(n) {
   return [label, clip(title)].filter(Boolean).join(' — ');
 }
 const md = (s) => s.replace(/[\\`*_[\]<>#|]/g, '\\$&');
+
+// idAt(d, pos) -> the id at pos (a reference, a fragment link, a footnote
+// reference or a declaration), or null: what references and rename act on.
+function idAt(d, pos) {
+  const h = hit(d, pos);
+  return h && h.id !== undefined ? h.id : null;
+}
+
+// declaration(d, id) -> range | null: where the id is declared in the note.
+function declaration(d, id) {
+  const decl = d && d.decls.get(id);
+  return decl ? range(d, decl.s, decl.e) : null;
+}
 
 // definition(d, pos) -> range | null: an id's declaration, or a named
 // closer's opening name.
@@ -292,26 +311,32 @@ function rename(d, pos, newName) {
   return edits;
 }
 
-// completion(d, pos) -> [{label, kind, detail, sortText, filterText, range,
-// newText}]: element names after `:::`, `::` and `:`, the open containers'
-// named closers, and ids after `@` or `](#`. Never inside code, math, raw
-// HTML or a raw body, which the AST tells. `range` is what the item
-// replaces, from the trigger to pos. Kinds: 'name' (the schema), 'core'
+// completion(d, pos, now?) -> [{label, kind, detail, sortText, filterText,
+// range, newText}]: element names after `:::`, `::` and `:`, the open
+// containers' named closers, and ids after `@` or `](#`. Never inside code,
+// math, raw HTML or a raw body, which the AST tells. `range` is what the
+// item replaces, from the trigger to pos. Kinds: 'name' (the schema), 'core'
 // (meta, macros), 'element' (the HTML allowlist), 'closer', 'id'.
-function completion(d, pos) {
-  const off = d ? offset(d, pos) : -1;
-  if (off < 0 || opaque(d, off)) return [];
-  const bol = d.starts[pos.line - d.line];
-  const before = d.src.slice(bol, off);
+// `now`, {note, line}, is the text as it is when the index is of an older
+// one (an editor between a keystroke and the next analysis): the trigger and
+// the range are read from it, the names, ids, open containers and opaque
+// spans from the index, at the same offset.
+function completion(d, pos, now) {
+  if (!d) return [];
+  const cur = now && typeof now.note === 'string' ? { ...lines(now.note), line: Number.isInteger(now.line) ? now.line : d.line } : d;
+  const off = offset(cur, pos);
+  if (off < 0 || opaque(d, Math.min(off, d.src.length))) return [];
+  const bol = cur.starts[pos.line - cur.line];
+  const before = cur.src.slice(bol, off);
   const items = [];
   const add = (from, kind, sort) => (label, detail) =>
-    items.push({ label, kind, detail, sortText: `${sort}${label}`, filterText: label, range: range(d, from, off), newText: label });
+    items.push({ label, kind, detail, sortText: `${sort}${label}`, filterText: label, range: range(cur, from, off), newText: label });
   let m;
   if ((m = /^[\s>]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(:{2,})(\/?)([\p{L}\p{M}\p{N}_-]*)$/u.exec(before))) {
     const from = off - m[2].length - m[3].length;
     if (m[1].length >= 3) {
       const close = add(from, 'closer', '0');
-      for (const n of open(d, bol)) close(`/${n.name}`, `closes :::${n.name} (line ${n.position.start.line + d.line})`);
+      for (const n of open(d, Math.min(bol, d.src.length))) close(`/${n.name}`, `closes :::${n.name} (line ${n.position.start.line + d.line})`);
       if (!m[2]) names(d, 'block', from, add);
     } else if (!m[2]) names(d, 'leaf', from, add);
   } else if ((m = /(?:^|[^A-Za-z0-9_:/]):([\p{L}\p{M}\p{N}_-]*)$/u.exec(before))) names(d, 'inline', off - m[1].length, add);
@@ -358,6 +383,112 @@ function opaque(d, off) {
     if (OPAQUE.has(n.type) || (typeof n.value === 'string' && LEVEL[n.type] && start.line < line && line < end.line)) inside = true;
   });
   return inside;
+}
+
+// actions(d, diag) -> [{title, edits: [{range, newText}], preferred}]: the
+// mechanical fixes of one of the note's diagnostics (one with a note
+// `position`), none for most. A reference to no id: a near id, or the
+// escape its hint suggests; a footnote without a definition: the definition,
+// at the end; an unclosed container or display math: its closer, where it
+// runs out; an unknown name: a near name of its level; an opener's junk
+// that reads as attributes: in braces. `preferred` marks the first choice.
+function actions(d, diag) {
+  if (!d || !diag || !diag.position) return [];
+  const s = diag.position.start.offset;
+  const e = diag.position.end.offset;
+  const out = [];
+  const edit = (from, to, newText) => ({ range: range(d, from, to), newText });
+  const act = (title, edits, preferred = false) => out.push({ title, edits, preferred });
+  switch (diag.code) {
+    case 'ref.dangling': {
+      const name = d.src.slice(s + 1, e);
+      const ids = Object.keys(d.ids).filter((k) => d.ids[k].kind !== 'footnoteReference' && IDENT.test(k));
+      for (const id of near(name, ids)) act(`Change to @${id}`, [edit(s + 1, e, id)], out.length === 0);
+      act(`Write \\@${name}: not a reference`, [edit(s, s, '\\')], out.length === 0);
+      break;
+    }
+    case 'footnote.undefined': {
+      const label = d.src.slice(s + 2, e - 1);
+      const end = d.src.length;
+      act(`Add the definition [^${label}]:`, [edit(end, end, `${d.src.endsWith('\n') || !end ? '' : '\n'}\n[^${label}]: `)], true);
+      break;
+    }
+    case 'block.unclosed':
+    case 'math.unclosed': {
+      const n = nodeAt(d, s, diag.code === 'math.unclosed' ? 'math' : 'containerDirective');
+      if (!n) break;
+      const closer = diag.code === 'math.unclosed' ? '$$' : `:::/${n.name}`;
+      const end = n.position.end.offset;
+      act(`Close it with ${closer}`, [edit(end, end, `\n${closer}`)], true);
+      break;
+    }
+    case 'name.unknown': {
+      const o = d.occ.find((x) => x.kind === 'name' && x.s === s);
+      if (!o) break;
+      const level = LEVEL[o.node.type];
+      const known = [...new Set([...Object.keys(d.schema[level] || {}), ...(level === 'block' ? ['meta', 'macros'] : []), ...ALLOW[level]])];
+      for (const k of near(d.src.slice(s, e), known)) act(`Change to ${k}`, [edit(s, e, k)], out.length === 0);
+      break;
+    }
+    case 'block.opener-junk': {
+      const junk = d.src.slice(s, e).trim();
+      if (!/^(?:[#.][\p{L}_]|[\p{L}_][\p{L}\p{M}\p{N}_-]*=)/u.test(junk)) break;
+      let from = s;
+      while (from > 0 && /[ \t]/.test(d.src[from - 1])) from--;
+      act(`Write the attributes in braces: {${junk}}`, [edit(from, e, `{${junk}}`)], true);
+      break;
+    }
+  }
+  return out;
+}
+
+// The node of a type starting at an offset.
+function nodeAt(d, off, type) {
+  let found = null;
+  tern.visit(d.ast, (n) => {
+    if (found || !n.position || n.position.end.offset < off) return found ? false : undefined;
+    if (n.type === type && n.position.start.offset === off) found = n;
+  });
+  return found;
+}
+
+// The names near a misspelt one: an edit distance of one, or two for a name
+// of five characters or more, two adjacent characters swapped counting one,
+// case ignored; the nearest first, at most five.
+function near(name, names) {
+  const want = name.toLowerCase();
+  const limit = want.length >= 5 ? 2 : 1;
+  const scored = [];
+  for (const k of names) {
+    if (k === name) continue;
+    const dist = distance(want, k.toLowerCase(), limit);
+    if (dist <= limit) scored.push([dist, k]);
+  }
+  return scored
+    .sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0))
+    .slice(0, 5)
+    .map((x) => x[1]);
+}
+
+// The edit distance of two strings (a swap of two adjacent characters
+// counting one), or limit + 1 when it is past the limit.
+function distance(a, b, limit) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let older = null;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (older && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) row[j] = Math.min(row[j], older[j - 2] + 1);
+      if (row[j] < best) best = row[j];
+    }
+    if (best > limit) return limit + 1;
+    older = prev;
+    prev = row;
+  }
+  return prev[b.length];
 }
 
 // symbols(d) -> [{name, detail, kind, range, selectionRange, children}]:
@@ -429,4 +560,4 @@ function outline(a) {
   return o;
 }
 
-module.exports = { index, definition, references, highlights, hover, prepareRename, rename, completion, symbols, folds, outline, LanguageError };
+module.exports = { index, idAt, declaration, definition, references, highlights, hover, prepareRename, rename, completion, actions, symbols, folds, outline, LanguageError };

@@ -233,7 +233,7 @@ tern check: 1 note: 1 error, 2 warnings, 2 infos
 ## tern mv
 
 ```sh
-tern mv FROM… TO [--root=DIR] [--dry-run]
+tern mv FROM… TO [--root=DIR] [--dry-run] [--json]
 ```
 
 Moves or renames notes, other files and folders, and rewrites the relative URLs that point at them, and the moved notes' own URLs. **Whenever notes link to what moves, use `tern mv` instead of `mv` or `git mv`, and run it with `--dry-run` (`-n`) first.**
@@ -265,7 +265,7 @@ Without `--dry-run`, the first line reads `moved …` and the summary drops "a d
 ## tern build, tern parse, tern corpus
 
 ```sh
-tern build FILE [-o OUT] [--math katex|mathml]
+tern build FILE [-o OUT] [--math katex|mathml] [--json]
 ```
 
 Writes a static page holding the HTML the browser would mount, plus `:::meta` written into the head. The page still loads `tern.js` for behaviours, the panel, copy and print. Its tag gets `data-built`, so it is **not a note**: never edit it; edit the note and rebuild.

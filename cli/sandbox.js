@@ -16,16 +16,26 @@
 // Only data crosses back — the schema the note declares, its transformed AST
 // and the diagnostics — as JSON. The host reads the add-on files (the child
 // cannot) and sends their source; it emits HTML and checks links itself, on
-// that data. The bridge is synchronous (the tools are): length-framed JSON
-// over a pipe, so note.analyse keeps its signature.
+// that data. The bridge is length-framed JSON over a pipe, driven two ways:
+// blocking, for the tools, so note.analyse keeps its signature; through the
+// event loop, for the language server, which answers requests while a
+// note's code runs. Each way has a child of its own.
 //
-//   analyse(req)   run a note's code and analyse it; req is
-//                  {note, head, dataUse, dataLang, dataKatex, scripts, addons,
-//                  transform}, the result {schema, lang, demo, ast,
-//                  diagnostics, problems, failures} or {failed} on a child
-//                  error (a timeout, a crash); scripts and addons are
-//                  [{url, code, line?, column?}], read by the host.
-//   shutdown()     stop the child (the CLI at exit; the LSP never needs to).
+//   analyse(req)        run a note's code and analyse it, blocking; req is
+//                       {note, head, dataUse, dataLang, dataKatex, scripts,
+//                       addons, transform}, the result {schema, lang, demo,
+//                       ast, diagnostics, problems, failures} or {failed} on
+//                       a child error (a timeout, a crash); scripts and
+//                       addons are [{url, code, line?, column?}], read by
+//                       the host.
+//   analyseAsync(req)   the same, as a promise; requests run one at a time,
+//                       in order.
+//   shutdown()          stop the children (the CLI at exit; the LSP never
+//                       needs to).
+// A child that dies before answering its first request, three times in a
+// row, trips a breaker: for a minute no child is started and every request
+// fails as 'tripped', said once; a note cannot be told from an environment
+// that cannot run the child, so both are waited out.
 'use strict';
 
 const path = require('path');
@@ -250,12 +260,15 @@ function driverSetup() {
   };
 }
 
-// The child's loop: read a framed request on fd 3, run it in a fresh sealed
-// context, write the framed reply on fd 4. stdout is left alone; the note's
-// console output rides back in the reply. One malformed or oversized frame,
-// or EOF, ends the child.
+// The child: a framed request arrives on fd 3, runs in a fresh sealed
+// context, and the framed reply goes out on fd 4. Requests are read through
+// the event loop (a socket on fd 3), so an idle child waits in the loop
+// rather than reading, and either host below drives it the same way. stdout
+// is left alone; the note's console output rides back in the reply. One
+// malformed or oversized frame, or EOF, ends the child.
 function childMain() {
   const fs = require('fs');
+  const net = require('net');
   const vm = require('vm');
   // A note's code runs no async of its own that we wait for; a promise it
   // leaves rejected (an await that never resolves, a refused import) must not
@@ -270,30 +283,6 @@ function childMain() {
   const ternScript = new vm.Script(ternSource, { filename: 'tern.js' });
   const driverScript = new vm.Script('(' + driverSetup.toString() + ')()', { filename: 'tern-sandbox-driver' });
 
-  const readFrame = () => {
-    const need = (n) => {
-      const b = Buffer.allocUnsafe(n);
-      let got = 0;
-      while (got < n) {
-        let r;
-        try {
-          r = fs.readSync(3, b, got, n - got, null);
-        } catch (e) {
-          if (e.code === 'EAGAIN') continue;
-          throw e;
-        }
-        if (r === 0) return null;
-        got += r;
-      }
-      return b;
-    };
-    const head = need(4);
-    if (!head) return null;
-    const len = head.readUInt32BE(0);
-    if (len === 0 || len > 0x7fffffff) return null;
-    const body = need(len);
-    return body && body.toString('utf8');
-  };
   const writeFrame = (text) => {
     const body = Buffer.from(text, 'utf8');
     const head = Buffer.allocUnsafe(4);
@@ -311,10 +300,7 @@ function childMain() {
       off += w; // a full pipe takes the rest on the next write
     }
   };
-
-  for (;;) {
-    const reqText = readFrame();
-    if (reqText === null) break;
+  const run = (reqText) => {
     let reply;
     try {
       const ctx = vm.createContext(Object.create(null), { codeGeneration: { strings: true, wasm: false }, microtaskMode: 'afterEvaluate' });
@@ -329,42 +315,82 @@ function childMain() {
       reply = JSON.stringify({ failed: timeout ? 'timeout' : 'error', message: (e && e.message) || String(e) });
     }
     writeFrame(reply);
-  }
+  };
+
+  const input = new net.Socket({ fd: 3, readable: true, writable: false });
+  let buf = Buffer.alloc(0);
+  input.on('data', (chunk) => {
+    buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
+    while (buf.length >= 4) {
+      const len = buf.readUInt32BE(0);
+      if (len === 0 || len > 0x7fffffff) return process.exit(0);
+      if (buf.length < 4 + len) return;
+      const reqText = buf.toString('utf8', 4, 4 + len);
+      buf = buf.subarray(4 + len);
+      run(reqText);
+    }
+  });
+  input.on('end', () => process.exit(0));
+  input.on('error', () => process.exit(0));
 }
 
 // ------------------------------------------------------------------ host
 
-let child = null; // {proc, toFd, fromFd} or null before the first note
+let child = null; // the blocking bridge's: {proc, toFd, fromFd, alive, served} or null before the first note
 let broken = false; // a spawn that failed: fall back, warn once
 const spin = new Int32Array(new SharedArrayBuffer(4));
+const TRIP_AT = 3; // children dead before their first answer, in a row
+const TRIP_MS = 60000;
+let deaths = 0;
+let trippedUntil = 0;
+
+// A child answered: the run of deaths is over. A child died before it ever
+// answered: one more; at TRIP_AT, the breaker trips.
+function answered(c) {
+  c.served = (c.served || 0) + 1;
+  deaths = 0;
+}
+function died(c) {
+  if (c.served) return (deaths = 0);
+  if (++deaths < TRIP_AT) return;
+  deaths = 0;
+  trippedUntil = Date.now() + TRIP_MS;
+  process.stderr.write(`tern: the script sandbox died ${TRIP_AT} times in a row before answering; notes are analysed without their own scripts for ${TRIP_MS / 1000} s\n`);
+}
+const tripped = () => Date.now() < trippedUntil;
+
+// A child, speaking only over the pipes (fds 3, 4); a note's console output
+// rides back in the reply. Its own stdout and stderr carry nothing but a
+// crash dump (an out-of-memory report), so they are dropped. It does not hold
+// the process open: a finished command exits, and the child then reaches
+// end-of-input and exits too.
+function spawnProcess() {
+  const { spawn } = require('child_process');
+  const proc = spawn(process.execPath, ['--permission', `--allow-fs-read=${TERN}`, `--allow-fs-read=${SELF}`, `--max-old-space-size=${MEMORY_MB}`, SELF, '--sandbox-child'], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], env: {} });
+  proc.on('error', () => {});
+  if (!proc.stdio[3] || !proc.stdio[4]) {
+    proc.kill();
+    throw new Error('the sandbox pipes are not available');
+  }
+  proc.unref();
+  return proc;
+}
 
 function spawnChild() {
-  const { spawn } = require('child_process');
-  const proc = spawn(
-    process.execPath,
-    ['--permission', `--allow-fs-read=${TERN}`, `--allow-fs-read=${SELF}`, `--max-old-space-size=${MEMORY_MB}`, SELF, '--sandbox-child'],
-    // The child speaks only over the pipe (fds 3, 4); a note's console output
-    // rides back in the reply. Its own stdout and stderr carry nothing but a
-    // crash dump (an out-of-memory report), so they are dropped.
-    { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], env: {} },
-  );
-  proc.on('error', () => {});
+  const proc = spawnProcess();
   const to = proc.stdio[3];
   const from = proc.stdio[4];
   // The tools read the reply synchronously (below), so keep Node's stream
-  // machinery off these pipes — it must not race the manual reads — and let
-  // the child not hold the process open: a finished command exits, and the
-  // child then reaches end-of-input and exits too.
+  // machinery off these pipes — it must not race the manual reads.
   to.pause();
   from.pause();
   if (!to._handle || !from._handle) {
     proc.kill();
     throw new Error('the sandbox pipes are not available');
   }
-  proc.unref();
   to.unref();
   from.unref();
-  return { proc, toFd: to._handle.fd, fromFd: from._handle.fd, alive: true };
+  return { proc, toFd: to._handle.fd, fromFd: from._handle.fd, alive: true, served: 0 };
 }
 
 function ensureChild() {
@@ -373,6 +399,13 @@ function ensureChild() {
   const mark = () => { child && (child.alive = false); };
   child.proc.on('exit', mark);
   return child;
+}
+
+// A spawn that failed: no child runs for the rest of the process, said once.
+function unavailable(e) {
+  broken = true;
+  process.stderr.write(`tern: the script sandbox could not start (${e.message}); notes are analysed without their own scripts\n`);
+  return { failed: 'unavailable' };
 }
 
 const fs = require('fs');
@@ -443,13 +476,12 @@ const clean = (s) => String(s).replace(/[\0-\x08\x0b-\x1f\x7f-\x9f]/g, '');
 // a timeout, a crash or a spawn that is not possible here.
 function analyse(req) {
   if (broken) return { failed: 'unavailable' };
+  if (tripped()) return { failed: 'tripped' };
   let c;
   try {
     c = ensureChild();
   } catch (e) {
-    broken = true;
-    process.stderr.write(`tern: the script sandbox could not start (${e.message}); notes are analysed without their own scripts\n`);
-    return { failed: 'unavailable' };
+    return unavailable(e);
   }
   let text;
   try {
@@ -464,8 +496,10 @@ function analyse(req) {
       c.proc.kill();
     } catch (e) {}
     child = null;
+    if (text === null) died(c);
     return { failed: text === undefined ? 'timeout' : 'crash' };
   }
+  answered(c);
   let reply;
   try {
     reply = JSON.parse(text);
@@ -476,15 +510,118 @@ function analyse(req) {
   return reply;
 }
 
-function shutdown() {
-  if (child) {
+// ------------------------------------------------- host, through the event loop
+
+// The asynchronous bridge's child, for the language server: the same child,
+// read and written with Node's streams. Requests go one at a time, in the
+// order they came; a reply settles the request in flight. A child that dies
+// fails that request and a fresh child takes the next; one that answers
+// nothing within WEDGED_MS is killed, and the request has timed out.
+let achild = null; // {proc, to, from, buf, job, alive}
+const queue = []; // {req, resolve, timer} waiting for a child
+
+function spawnAsync() {
+  const proc = spawnProcess();
+  const c = { proc, to: proc.stdio[3], from: proc.stdio[4], buf: Buffer.alloc(0), job: null, alive: true, served: 0 };
+  c.to.on('error', () => {});
+  c.from.on('error', () => {});
+  c.from.on('data', (chunk) => {
+    c.buf = c.buf.length ? Buffer.concat([c.buf, chunk]) : chunk;
+    while (c.buf.length >= 4) {
+      const len = c.buf.readUInt32BE(0);
+      if (c.buf.length < 4 + len) return;
+      const text = c.buf.toString('utf8', 4, 4 + len);
+      c.buf = c.buf.subarray(4 + len);
+      let reply;
+      try {
+        reply = JSON.parse(text);
+      } catch (e) {
+        reply = { failed: 'error' };
+      }
+      answered(c);
+      settle(c, reply);
+    }
+  });
+  proc.on('exit', () => {
+    retire(c);
+    if (c.job) {
+      died(c);
+      settle(c, { failed: 'crash' });
+    } else pump();
+  });
+  // The pipes keep the process open only while a request is in flight.
+  c.to.unref();
+  c.from.unref();
+  return c;
+}
+
+function analyseAsync(req) {
+  return new Promise((resolve) => {
+    queue.push({ req, resolve, timer: null });
+    pump();
+  });
+}
+
+// Starts the next request when the child is free, spawning one when there is
+// none; the spawn failing settles every waiting request as unavailable.
+function pump() {
+  if (!queue.length) return;
+  if (broken) return queue.splice(0).forEach((j) => j.resolve({ failed: 'unavailable' }));
+  if (tripped()) return queue.splice(0).forEach((j) => j.resolve({ failed: 'tripped' }));
+  if (!achild || !achild.alive) {
     try {
-      child.proc.stdio[3].end();
-      child.proc.kill();
-    } catch (e) {}
-    child = null;
+      achild = spawnAsync();
+    } catch (e) {
+      const r = unavailable(e);
+      return queue.splice(0).forEach((j) => j.resolve(r));
+    }
   }
+  const c = achild;
+  if (c.job) return;
+  const job = queue.shift();
+  c.job = job;
+  c.from.ref();
+  job.timer = setTimeout(() => {
+    retire(c);
+    try {
+      c.proc.kill();
+    } catch (e) {}
+    settle(c, { failed: 'timeout' });
+  }, WEDGED_MS);
+  const body = Buffer.from(JSON.stringify(job.req), 'utf8');
+  const head = Buffer.allocUnsafe(4);
+  head.writeUInt32BE(body.length, 0);
+  c.to.write(Buffer.concat([head, body]));
+}
+
+// A child that died or wedged is done with; the next request gets a fresh one.
+function retire(c) {
+  c.alive = false;
+  if (achild === c) achild = null;
+}
+
+function settle(c, reply) {
+  const job = c.job;
+  if (!job) return;
+  c.job = null;
+  clearTimeout(job.timer);
+  c.from.unref();
+  if (reply.consoleOut && reply.consoleOut.length) process.stderr.write(reply.consoleOut.map(clean).join('\n') + '\n');
+  job.resolve(reply);
+  pump();
+}
+
+function shutdown() {
+  for (const c of [child, achild]) {
+    if (!c) continue;
+    try {
+      c.proc.stdio[3].end();
+      c.proc.kill();
+    } catch (e) {}
+  }
+  child = null;
+  achild = null;
 }
 
 if (require.main === module && process.argv.includes('--sandbox-child')) childMain();
-else module.exports = { analyse, shutdown, clean };
+else module.exports = { analyse, analyseAsync, shutdown, clean };

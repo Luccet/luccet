@@ -111,4 +111,30 @@ jobs:
       - run: node test/docs.js # the documentation's pages, live examples and links
       - run: node test/skills.js # skills/: the agent skills, their format, examples and links
 
+  nvim:
+    name: tern.nvim against this engine
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: tern
+      # The Neovim plugin, a client of `tern lsp`, from its own repository:
+      # its tests run its commands and the server against this checkout.
+      - uses: actions/checkout@v7
+        with:
+          repository: OzkrAC/tern.nvim
+          path: tern.nvim
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - run: nvim --version | head -1
+      - run: nvim --headless -u NONE -l test/run.lua
+        working-directory: tern.nvim
+        env:
+          TERN_ROOT: ${{ github.workspace }}/tern
+
   # The release job is .github/workflows/release.yml (a pushed tag vX.Y.Z).

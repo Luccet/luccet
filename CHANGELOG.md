@@ -2,9 +2,17 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org) with a `0.x` caveat: until 1.0, a minor release may change how an existing note renders or what an add-on receives, and the entry says so when it does. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 0.5.1 (unreleased)
+## 0.6.0 (unreleased)
 
-Phase 3 of the remediation plan: the runtime's robustness.
+
+- The language server runs a note's code over an asynchronous sandbox bridge, so a script that never returns no longer freezes every document: requests are answered from the last analysis while one runs, a change made meanwhile is analysed after it, and a rename waits for the analysis. A note whose scripts time out or crash keeps the vocabulary of its last analysis until its head or add-ons change. `note.analyseAsync` is the asynchronous form of `analyse`; the commands keep the blocking one.
+- The language server follows a link `page.html#id` as a reference: definition goes to the id's declaration in that file (or the element with that id in an HTML file, the heading with that anchor in a Markdown file), references and rename reach the fragment of every such link from the workspace's notes, and `textDocument/documentLink` gives every URL's target. `textDocument/codeAction` offers quick fixes: a near id for `ref.dangling` or its escape, a footnote's definition, a closer for `block.unclosed` and `math.unclosed`, a near name for `name.unknown`, braces for `block.opener-junk`, the disk's spelling for a `link.missing` in another case. `workspace/symbol` searches the headings and blocks of the workspace's notes. `language.idAt`, `declaration` and `actions` are new.
+- The language server takes `workspace/didChangeWorkspaceFolders`, asks a client that can watch files to watch notes, what they link to and what they load, and analyses a note again when an add-on it loads changes on disk; what it keeps of the files it read is capped at 512 entries per table, and a file rename reads the notes through the same cache.
+- `tern mv --json`, `tern build --json` (the page in the object without `-o`) and `tern index --json` print one object on stdout. A note that is not valid UTF-8, or is UTF-16, is said on stderr by every command that reads it. `tern index` asks git for the dates of the indexed notes alone, and says when a log cut at 256 MB left notes dated by their modification time; the dates were silently lost before. A sandbox process that dies three times in a row before answering trips a breaker for a minute, said once, instead of being started again for every note.
+- Tern’s CI runs the tests of tern.nvim, the Neovim plugin, against every push and pull request, so a change to the language server that breaks the plugin fails here; the plugin takes the new capabilities (code actions with `gra`, cross-file definition, references and rename, workspace symbols, and a `watch` option for the server’s file watching).
+- Completion is triggered by `:` and `@` only (`/` and `#` are typed inside a trigger), and right after a keystroke it reads the trigger from the text as it is, answering from the last analysis instead of running one per trigger. `language.completion` takes the current text as a third argument for that.
+
+## 0.5.1 (2026-10-16)
 
 - A note script that calls `tern.render(el, source)` with a script in the source no longer disarms the `document.write` guard for the scripts after it; a later `document.write` wiped the page.
 - An add-on that never loads no longer leaves a blank page: 12 seconds after the note has arrived (`tern.config.addonTimeout`, in milliseconds) the note mounts without it, with `addon.failed`; the console says what is still awaited after 2 seconds; the document carries `aria-busy` until the mount.
@@ -15,8 +23,6 @@ Phase 3 of the remediation plan: the runtime's robustness.
 
 ## 0.5.0 (2026-10-16)
 
-Phase 2 of the remediation plan: the trust boundary and the engine's limits. A minor release: `render` listeners now receive a second argument, and a root rendered with `safe` stays untrusted for behaviours and the add-ons.
-
 - Inline constructs nest at most 1,000 deep; one past that is shown as its source text with `nesting.limit`. Ten thousand nested `**` used to parse into a tree that `JSON.stringify`, `tern.visit`, `tern.outline` and `tern.search` could not walk (a `RangeError`); those readers now keep their own stacks too.
 - A reference's text and a toc entry copy at most 200 characters of their target, with an ellipsis; a 60 KB heading referenced 10,000 times used to make 600 MB of HTML and a `RangeError`. The emitter has an output budget too, `maxOutput` (64 M characters), past which the HTML stops with an `output.limit` diagnostic.
 - Under `safe`, the attributes that drive the host page (`form`, `popovertarget`, `popovertargetaction`, `usemap`, `name`) are dropped too, attribute names are checked without case (a schema's `Href` passed), and a new `idPrefix` option of `tern.emit` and `tern.toHTML` keeps an untrusted root's ids and fragment links apart from the page's.
@@ -25,8 +31,6 @@ Phase 2 of the remediation plan: the trust boundary and the engine's limits. A m
 - The KaTeX and MathML add-ons typeset an untrusted root with trust off whatever the page sets, with a copy of the macro table, and ignore its `:::macros`: with `trust: true` set for the page, a safe render of `\href{javascript:…}` used to make a live link, and a `\gdef` in it reached every later formula.
 
 ## 0.4.4 (2026-10-15)
-
-Phase 1 of the [remediation plan](https://github.com/OzkrAC/tern): the confirmed defects that are a few lines and a test each, and the project files a repository is expected to have.
 
 - KaTeX add-on: `?trust=false` and `?strict=false` on the add-on's URL now mean false. They arrived as strings, which KaTeX read as true, so an author who turned trust off turned it on.
 - Notes and search add-ons: an entry of `notes.json` or `search.json` whose URL is not a page on the file's own origin is left out, with a warning; a crafted file could make a `javascript:` or `data:` link. `index=` and `from=` must name `http(s)` URLs, and one that is not a URL at all is reported in place instead of leaving the box at "Indexing…" or the list empty.
@@ -43,15 +47,11 @@ Phase 1 of the [remediation plan](https://github.com/OzkrAC/tern): the confirmed
 
 ## 0.4.3 (2026-10-15)
 
-The first release whose tag, `package.json` and `tern.version` agree, and the first with a changelog and a GitHub Release.
-
 - Release process: `npm run tag` creates the release tag only on a clean `main` that passes `tools/version.js --check`, has a changelog section for the version and is not tagged yet; `npm run bump` starts that section. The release workflow was refusing 0.4.1 and 0.4.2 because their tags did not match the version inside them.
 - Notes and search add-ons: a page reached as its folder (`blog/` for `blog/index.html`) is recognised as the page itself, so it is left out of its own `::notes` list and `::search` scope.
 - A changelog, this file, from 0.1.0 on.
 
 ## 0.4.2 (2026-10-15)
-
-Mislabeled: the tag exists on GitHub and jsDelivr, but `tern.version` and `package.json` inside it say 0.4.0, so the release workflow refused it. Prefer 0.4.3, which has the same content plus the fixes above.
 
 - `tern index` writes `notes.json`, a catalogue of a folder's notes (path, title, description, date, headings, links), and `search.json`, the search index, beside them; in a git repository only tracked files are indexed, and a note with `robots: noindex` is left out.
 - `addons/notes.js`: a `::notes` leaf that lists the catalogue's notes, newest first, with dates and descriptions.
@@ -61,12 +61,9 @@ Mislabeled: the tag exists on GitHub and jsDelivr, but `tern.version` and `packa
 
 ## 0.4.1 (2026-10-14)
 
-Mislabeled like 0.4.2: `tern.version` inside it says 0.4.0.
-
 - `addons/search.js`: a `::search` box over a set of notes, indexed in the browser from the notes a page links to, a `from=` page's links, or a `notes=` list; hits link to the heading or block they are in.
 - `tern search QUERY [PATH…]`: the same search over files, each hit at its file and line, with `--json` for editors; `tern.search` is the engine module both use.
 - `:TernSearch` in tern.nvim fills the quickfix list from `tern search --json`.
-- The project moved to the GitHub account OzkrAC; the documentation is published at ozkrac.github.io/tern (now ozkr.ac/tern).
 
 ## 0.4.0 (2026-10-13)
 
