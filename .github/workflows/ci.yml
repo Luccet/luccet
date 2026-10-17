@@ -127,11 +127,10 @@ jobs:
       - run: node test/skills.js # skills/: the agent skills, their format, examples and links
 
   # The command line and the language server on Windows: paths, the sandbox
-  # child, the pipes. Advisory until it is green there; then it blocks.
+  # child, the pipes.
   windows:
-    name: command line and language server on Windows (advisory)
+    name: command line and language server on Windows
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -140,12 +139,11 @@ jobs:
       - run: node test/cli.js
       - run: node test/lsp.js
 
-  # WebKit, the engine behind Safari, in the smoke matrix: advisory until the
-  # suite is green there; then it blocks, as Chromium and Firefox do.
+  # WebKit, the engine behind Safari, in the smoke matrix, blocking as
+  # Chromium and Firefox do.
   webkit:
-    name: browser smoke (WebKit, advisory)
+    name: browser smoke (WebKit)
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
