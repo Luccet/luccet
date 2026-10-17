@@ -1500,12 +1500,15 @@ const TESTS = [
   })),
 
   {
-    // A real key press in both browsers (in Firefox a synthetic
-    // ClipboardEvent has no clipboardData). A window listener records what
-    // the copy event carries after tern's handler, which listens on the
-    // document and so runs first. Chromium also reads the system clipboard
-    // back (the permission exists there); Firefox's clipboard read needs a
-    // user's paste prompt, so there the event's data is the evidence.
+    // A real key press (a synthetic ClipboardEvent has no clipboardData in
+    // Firefox). A window listener records what the copy event carries after
+    // tern's handler, which listens on the document and so runs first.
+    // Chromium also reads the system clipboard back (the permission exists
+    // there); Firefox's clipboard read needs a user's paste prompt, so there
+    // the event's data is the evidence. WebKit's shell on Linux binds no key
+    // to copy, so there the key press's own (trusted) keydown runs
+    // document.execCommand('copy'), which the browser answers with the same
+    // trusted copy event; TERN_SMOKE_COPY_EXEC=1 takes that path everywhere.
     name: 'copy: a selection with formulas reaches the clipboard as $tex$ and $$tex$$',
     url: '/test/smoke/copy.html',
     init: () =>
@@ -1532,8 +1535,17 @@ const TESTS = [
         getSelection().removeAllRanges();
         getSelection().addRange(range);
       });
+      const exec = ctx.browser === 'webkit' || process.env.TERN_SMOKE_COPY_EXEC === '1';
+      if (exec) {
+        await page.evaluate(() => {
+          window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && e.isTrusted) window.__exec = document.execCommand('copy');
+          });
+        });
+      }
       await page.keyboard.press('ControlOrMeta+C');
-      await expect(page, () => !!window.__copy, 'a copy event from the key press', 3000);
+      await expect(page, () => !!window.__copy, `a copy event from the key press${exec ? " (through execCommand('copy'))" : ''}`, 3000);
+      if (exec && !(await page.evaluate(() => window.__exec))) throw new Error("execCommand('copy') from the key press returned false");
       const event = await page.evaluate(() => window.__copy);
       if (!event.trusted) throw new Error('the copy event was not trusted');
       if (!event.prevented) throw new Error("tern's copy handler did not take the copy (the event was not cancelled)");
@@ -1564,7 +1576,7 @@ const TESTS = [
           if (!htmlText.includes(want)) throw new Error(`text/html on ${where} lacks ${JSON.stringify(want)}: ${JSON.stringify(htmlText.slice(0, 240))}`);
         }
       }
-      ctx.note(`checked ${checks.map(([w]) => w).join(' and ')}`);
+      ctx.note(`checked ${checks.map(([w]) => w).join(' and ')}${exec ? ", copied through execCommand('copy') from the key press" : ''}`);
     },
   },
   {
