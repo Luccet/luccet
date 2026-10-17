@@ -405,7 +405,7 @@ test('check: directories are searched; non-notes skipped, with a note when named
   write('d/deferred.html', `${FIRST}<script defer src="tern.js"></script>\n# x\n`);
   const r = run(['check', 'd', '--json']);
   exits(r, 1, 'check d');
-  eq([...new Set(JSON.parse(r.out).map((d) => d.file))], ['d/a.html', path.join('d', 'sub', 'b.htm')], 'files with diagnostics');
+  eq([...new Set(JSON.parse(r.out).map((d) => d.file))], ['d/a.html', 'd/sub/b.htm'], 'files with diagnostics (forward slashes on every platform)');
   ok(!/skipped/.test(r.err) && /2 notes/.test(r.err), `no notes about files found in a directory: ${r.err}`);
   const named = run(['check', 'd/sub/plain.html', 'd/deferred.html']);
   exits(named, 0, 'named non-notes');

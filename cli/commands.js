@@ -142,6 +142,8 @@ const command = (name, fn) => (args) => {
 };
 
 const say = (s) => process.stdout.write(`${s}\n`);
+// A path as the commands print it: forward slashes on every platform.
+const slash = (p) => String(p).split(path.sep).join('/');
 const warn = (s) => process.stderr.write(`${s}\n`);
 // --help prints the command's synopsis.
 function help(name) {
@@ -277,7 +279,7 @@ function check(args) {
   const seen = new Set();
   const add = (p, named) => {
     const key = path.resolve(p);
-    if (!seen.has(key)) seen.add(key), files.push({ shown: p, named });
+    if (!seen.has(key)) seen.add(key), files.push({ shown: slash(p), named });
   };
   for (const p of positionals) {
     let st;
@@ -339,7 +341,7 @@ function filesOf(positionals) {
   const seen = new Set();
   const add = (p, named) => {
     const key = path.resolve(p);
-    if (!seen.has(key)) seen.add(key), files.push({ shown: p, named });
+    if (!seen.has(key)) seen.add(key), files.push({ shown: slash(p), named });
   };
   for (const p of positionals) {
     let st;
@@ -443,7 +445,7 @@ function search(args) {
 function searchIndex(file, query, limit, json) {
   const idx = readIndex(file);
   const base = path.dirname(path.resolve(file));
-  const shown = (url) => path.relative(process.cwd(), path.resolve(base, url)) || '.';
+  const shown = (url) => slash(path.relative(process.cwd(), path.resolve(base, url))) || '.';
   const titles = new Map((idx.notes || []).map((n) => [n.url, n.title]));
   const hits = tern.search.query(idx, query, { limit });
   const out = [];
@@ -655,7 +657,7 @@ function index(args) {
     [NOTES_JSON, `${JSON.stringify({ tern: tern.version, notes }, null, 2)}\n`],
     [SEARCH_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
   ];
-  const where = (name) => path.join(dir, name);
+  const where = (name) => slash(path.join(dir, name));
   if (undated) warn(`tern index: the git log was longer than ${GIT_BUFFER >> 20} MB and was cut, so ${plural(undated, 'note')} ${undated === 1 ? 'is' : 'are'} dated by ${undated === 1 ? 'its' : 'their'} modification time`);
   const summary = `${plural(notes.length, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${left ? `; ${left} left out (not tracked by git)` : ''}${robots ? `; ${robots} noindex` : ''}`;
   // --json: the summary as one object, on stdout.
@@ -741,7 +743,7 @@ function buildPage(args) {
   };
   for (const w of r.warnings) said(w);
   for (const d of diagnostics) warn(format(file, d));
-  if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${path.dirname(out)}`);
+  if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
   if (!out && !o.json) process.stdout.write(r.html);
   else if (out) {
     try {
@@ -756,7 +758,7 @@ function buildPage(args) {
     }
   }
   const m = r.math;
-  warn(`tern build: ${out ? `wrote ${out}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}`);
+  warn(`tern build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}`);
   if (out && !asDir && !path.extname(out)) said(`${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`);
   if (o.json) {
     const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
@@ -917,7 +919,7 @@ function corpus(args) {
     }
     for (const f of st.isDirectory() ? [...htmlFiles(p)] : [p]) {
       const key = path.resolve(f);
-      if (!seen.has(key)) seen.add(key), files.push({ shown: f, named: !st.isDirectory() });
+      if (!seen.has(key)) seen.add(key), files.push({ shown: slash(f), named: !st.isDirectory() });
     }
   }
   if (o.out) {
