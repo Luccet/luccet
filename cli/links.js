@@ -24,11 +24,17 @@
 //   new Targets(opts)        files as the checks read them (below):
 //     .analyse(file, text?)    cli/note.js analyse(), or null for a non-note
 //     .remember(file, a)       an analysis of the file as it is now
+//     .parsed(file)            {text, a}: the file's text and parsed(text)
 //     .find(file)              {kind: 'file'|'dir', actual} or null, actual
 //                              the path as the disk spells it
 //     .ids(file)               a Set, or null when the file has no ids to know
+//     .during(fn)              fn(), with each file's stat taken once
 //   urls(a)                  the URLs of a note analysed as `a`, with where
 //                            they are and where they are written
+//   spanRange(a, span)       where a URL's span is written, as file positions
+//                            {start: {line, column}, end}, 1-based, UTF-16
+//   fragmentSpan(a, u)       the span of the fragment of urls() entry u, after
+//                            its #, or null when it has none
 //   parsed(text)             a note parsed, not transformed, for urls()
 //   parse(url)               what a relative URL names: {path, frag}, or null
 //   resolve(file, url, targets)  what a URL from the note at `file` names, and
@@ -65,11 +71,14 @@ function lineCol(text, offset) {
 // Files as the checks read them. Each value is kept with a stamp of what it
 // came from, and used while the stamp holds: a file's mtime and size, a
 // folder's mtime, an open document's version. So one Targets serves a long
-// run, such as the language server's, as well as one `tern check`.
+// run, such as the language server's, as well as one `tern check`. Each
+// table keeps its last MAX entries, so a long run over a large workspace
+// does not grow without end.
 //   opts.open(file)          an editor's text for the file, {text, stamp},
 //                            or undefined: the editor's text wins over the
 //                            disk's, and an open file exists
 //   opts.analyse(text, file) analyses a note (default cli/note.js analyse)
+const MAX = 512;
 class Targets {
   constructor({ open, analyse: run } = {}) {
     this.open = open || (() => undefined);
@@ -77,7 +86,16 @@ class Targets {
     this.dirs = new Map(); // dir -> {stamp, names}
     this.notes = new Map(); // file -> {stamp, a}
     this.idSets = new Map(); // file -> {stamp, ids}
+    this.parsedNotes = new Map(); // file -> {stamp, text, a}
     this.pass = null; // during one check(): stamps already taken, by path
+  }
+
+  // A table entry, set or refreshed as the newest; the oldest goes past MAX.
+  keep(table, key, value) {
+    table.delete(key);
+    table.set(key, value);
+    if (table.size > MAX) table.delete(table.keys().next().value);
+    return value;
   }
 
   // A stat, taken once per check() pass.
@@ -86,6 +104,17 @@ class Targets {
     const st = fs.statSync(file, { throwIfNoEntry: false }) || null;
     if (this.pass) this.pass.set(file, st);
     return st;
+  }
+
+  // fn(), with every file's stat taken once: a check, a search over the workspace.
+  during(fn) {
+    if (this.pass) return fn();
+    this.pass = new Map();
+    try {
+      return fn();
+    } finally {
+      this.pass = null;
+    }
   }
 
   // A file's stamp and a reader of its text.
@@ -110,28 +139,39 @@ class Targets {
   analyse(file, text) {
     const src = this.source(file);
     const hit = this.notes.get(file);
-    if (text === undefined && hit && hit.stamp === src.stamp) return hit.a;
+    if (text === undefined && hit && hit.stamp === src.stamp) return this.keep(this.notes, file, hit).a;
     const a = this.run(text === undefined ? src.text() : text, file);
-    this.notes.set(file, { stamp: src.stamp, a });
+    this.keep(this.notes, file, { stamp: src.stamp, a });
     return a;
   }
 
   // An analysis made elsewhere, of the file as it is now (the language
   // server's of an open document).
   remember(file, a) {
-    this.notes.set(file, { stamp: this.source(file).stamp, a });
+    this.keep(this.notes, file, { stamp: this.source(file).stamp, a });
+  }
+
+  // The file's text and the note parsed, not transformed (parsed() below),
+  // `a` null for a file that is not a note: its URLs and outline, with no
+  // code of it run. For a search over every note of a workspace.
+  parsed(file) {
+    const src = this.source(file);
+    const hit = this.parsedNotes.get(file);
+    if (hit && hit.stamp === src.stamp) return this.keep(this.parsedNotes, file, hit);
+    const text = src.text();
+    return this.keep(this.parsedNotes, file, { stamp: src.stamp, text, a: parsed(text) });
   }
 
   entries(dir) {
     const st = this.stat(dir);
     const stamp = st ? String(st.mtimeMs) : 'none';
     const hit = this.dirs.get(dir);
-    if (hit && hit.stamp === stamp) return hit.names;
+    if (hit && hit.stamp === stamp) return this.keep(this.dirs, dir, hit).names;
     let names = null;
     try {
       names = fs.readdirSync(dir);
     } catch {}
-    this.dirs.set(dir, { stamp, names });
+    this.keep(this.dirs, dir, { stamp, names });
     return names;
   }
 
@@ -155,7 +195,7 @@ class Targets {
   ids(file) {
     const src = this.source(file);
     const hit = this.idSets.get(file);
-    if (hit && hit.stamp === src.stamp) return hit.ids;
+    if (hit && hit.stamp === src.stamp) return this.keep(this.idSets, file, hit).ids;
     let ids = null;
     if (/\.html?$/i.test(file)) {
       const a = this.analyse(file);
@@ -172,7 +212,7 @@ class Targets {
         }
       }
     } else if (/\.(md|markdown)$/i.test(file)) ids = markdownAnchors(src.text());
-    this.idSets.set(file, { stamp: src.stamp, ids });
+    this.keep(this.idSets, file, { stamp: src.stamp, ids });
     return ids;
   }
 }
@@ -286,6 +326,32 @@ function urls(a) {
     }
   });
   return out;
+}
+
+// Where a span of urls() is written, as file positions: the head's lines are
+// the file's first; the tag is on the tern.js line, after what the head
+// holds of it; a note line n is file line n + a.line.
+function spanRange(a, span) {
+  const at = (off) => {
+    if (span.in === 'head') return lineCol(a.head, off);
+    if (span.in === 'tag') return { line: a.line, column: a.head.length - a.head.lastIndexOf('\n') + off };
+    const p = lineCol(a.note, off);
+    return { line: p.line + a.line, column: p.column };
+  };
+  return { start: at(span.from), end: at(span.to) };
+}
+
+// The fragment of a URL as written: the span after its first `#` (a Tern
+// link may escape one as `\#`, which is not it), or null without one.
+function fragmentSpan(a, u) {
+  if (!u.span || !u.url.includes('#')) return null;
+  const text = u.span.in === 'head' ? a.head : u.span.in === 'tag' ? a.tag : a.note;
+  const written = text.slice(u.span.from, u.span.to);
+  for (let i = 0; i < written.length; i++) {
+    if (written[i] === '\\') i++;
+    else if (written[i] === '#') return { in: u.span.in, from: u.span.from + i + 1, to: u.span.to };
+  }
+  return null;
 }
 
 // Where a Tern link's or image's destination is written: after the `](`
@@ -435,4 +501,4 @@ function merge(own, more) {
   return out.concat(more.slice(i));
 }
 
-module.exports = { Targets, urls, parse, parsed, resolve, check, merge };
+module.exports = { Targets, urls, spanRange, fragmentSpan, parse, parsed, resolve, check, merge };

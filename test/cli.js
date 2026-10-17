@@ -553,6 +553,83 @@ test('check: a note that crashes the sandbox is addon.failed, and the run goes o
   ok(!/sb\/fine\.html/.test(r.out), `the next note is fine, on a fresh child: ${r.out}`);
 });
 
+// Three children dead before their first answer, in a row, trip the
+// breaker: the next notes' scripts are not run, said once, and the run goes on.
+test('check: a sandbox child dying three times in a row trips the breaker; the next note is addon.failed without a child', () => {
+  write('sb/bomb.js', 'tern.transform(\'bomb\', function () { var a = []; for (;;) a.push(new Array(1e6).fill(7)); });\n');
+  for (const n of [1, 2, 3]) write(`sb/bomb${n}.html`, `${FIRST}<script src="tern.js" data-use="bomb.js"></script>\n# ${n}\n`);
+  write('sb/after.js', "tern.block('aside', { tag: 'aside', label: 'OK' });\n");
+  write('sb/after.html', `${FIRST}<script src="tern.js" data-use="after.js"></script>\n:::aside{#a}\nx\n:::\n`);
+  const r = run(['check', 'sb/bomb1.html', 'sb/bomb2.html', 'sb/bomb3.html', 'sb/after.html']);
+  exits(r, 1, 'check');
+  eq((r.out.match(/used too much memory or crashed/g) || []).length, 3, `three crashes: ${r.out}`);
+  ok(/sb\/after\.html:1:1: error addon\.failed: the script sandbox died three times in a row, so the note's scripts were not run for a minute; its vocabulary and transforms are missing/.test(r.out), `tripped: ${r.out}`);
+  eq((r.err.match(/tern: the script sandbox died 3 times in a row before answering; notes are analysed without their own scripts for 60 s/g) || []).length, 1, `said once: ${r.err}`);
+  // Two crashes, then an answer: no trip.
+  const ok2 = run(['check', 'sb/bomb1.html', 'sb/bomb2.html', 'sb/after.html', 'sb/bomb3.html', 'sb/after.html']);
+  ok(!/died/.test(ok2.err) && !/sb\/after\.html/.test(ok2.out), `an answer resets the count: ${ok2.out}${ok2.err}`);
+});
+
+test('check, build, parse, index, mv: a file that is not UTF-8 is said on stderr; a UTF-16 file is not a note', () => {
+  fs.mkdirSync(at('enc'), { recursive: true });
+  write('enc/tern.js', '');
+  fs.writeFileSync(at('enc/latin.html'), Buffer.concat([Buffer.from(`${FIRST}<script src="tern.js"></script>\n# Caf`), Buffer.from([0xe9]), Buffer.from(' {#cafe}\n\nSee @cafe.\n')]));
+  fs.writeFileSync(at('enc/wide.html'), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(`${FIRST}<script src="tern.js"></script>\n# W\n`, 'utf16le')]));
+  const r = run(['check', 'enc/latin.html', 'enc/wide.html']);
+  exits(r, 0, 'check');
+  ok(/^tern check: enc\/latin\.html is not valid UTF-8; 1 byte sequence that is not was read as U\+FFFD$/m.test(r.err), `latin-1: ${r.err}`);
+  ok(/^tern check: enc\/wide\.html is UTF-16 \(it starts with a byte order mark\); Tern reads UTF-8, so it is not read as a note$/m.test(r.err) && /wide\.html is not a note/.test(r.err), `utf-16: ${r.err}`);
+  ok(/0 errors, 0 warnings/.test(r.err), 'the latin-1 note is checked, its byte read as U+FFFD');
+  ok(/^tern build: enc\/latin\.html is not valid UTF-8/m.test(run(['build', 'enc/latin.html']).err), 'build');
+  ok(/^tern parse: enc\/latin\.html is not valid UTF-8/m.test(run(['parse', 'enc/latin.html']).err), 'parse');
+  ok(/^tern index: enc\/latin\.html is not valid UTF-8/m.test(run(['index', 'enc', '-o', 'enc/out']).err), 'index');
+  ok(/^tern mv: enc\/latin\.html is not valid UTF-8/m.test(run(['mv', '--dry-run', 'enc/wide.html', 'enc/w2.html', '--root=enc']).err), 'mv');
+});
+
+test('build --json, mv --json, index --json: one object on stdout, the lines on stderr as before', () => {
+  write('j/tern.js', '');
+  write('j/a.html', `${FIRST}<script src="tern.js"></script>\n# A {#a}\n\nSee @nowhere, [b](b.html) and $x$.\n`);
+  write('j/b.html', `${FIRST}<script src="tern.js"></script>\n# B\n\n[a](a.html#a)\n`);
+  // build: the page in the object without -o; with -o, written, and `out` names it.
+  let r = run(['build', 'j/a.html', '--json']);
+  exits(r, 0, 'build --json');
+  let j = JSON.parse(r.out);
+  eq([j.file, j.out, j.math, j.warnings], ['j/a.html', null, { total: 1, prerendered: 0, engine: null }, []], 'the object');
+  eq(j.diagnostics.map((d) => [d.file, d.code, d.severity, d.filePosition.start.line]), [['j/a.html', 'ref.dangling', 'warning', 4]], 'the diagnostics as check --json gives them');
+  ok(/<!doctype html>/i.test(j.html) && /data-built/.test(j.html), 'the page is in html');
+  r = run(['build', 'j/a.html', '-o', 'j/dist/', '--json']);
+  exits(r, 0, 'build -o --json');
+  j = JSON.parse(r.out);
+  eq([j.out, j.html, j.warnings.length], [path.join('j/dist/', 'a.html'), undefined, 1], 'written to -o: no html in the object, the relative-URL warning');
+  ok(/^tern build: wrote j\/dist\/a\.html/m.test(r.err), 'the summary on stderr');
+  // mv: the moves, the edits and what is left alone.
+  write('j/README.md', 'see a.html\n', { tern: false });
+  r = run(['mv', '--dry-run', '--json', 'j/a.html', 'j/sub/a.html', '--root=j']);
+  exits(r, 0, 'mv --json');
+  j = JSON.parse(r.out);
+  eq(j, {
+    dryRun: true,
+    moves: [{ from: 'j/a.html', to: 'j/sub/a.html' }],
+    edits: [
+      { file: 'j/sub/a.html', line: 1, column: 51, was: 'tern.js', text: '../tern.js' },
+      { file: 'j/sub/a.html', line: 4, column: 19, was: 'b.html', text: '../b.html' },
+      { file: 'j/b.html', line: 4, column: 5, was: 'a.html', text: 'sub/a.html' },
+    ],
+    left: [{ file: 'j/README.md', names: ['a.html'], reason: 'names a.html but is not a note, so it is left as it is; look at it' }],
+  }, 'the object');
+  ok(!/would move/.test(r.out) && /^tern mv: 1 move, 3 links in 2 notes; a dry run/m.test(r.err), 'no lines on stdout; the summary on stderr');
+  // index: the summary, --check's stale files.
+  r = run(['index', 'j', '-o', 'j/idx', '--json']);
+  exits(r, 0, 'index --json');
+  j = JSON.parse(r.out);
+  eq(j, { notes: 2, entries: 2, leftOut: 0, noindex: 0, unreadable: false, files: { notes: 'j/idx/notes.json', search: 'j/idx/search.json' }, wrote: true }, 'the object');
+  write('j/b.html', `${FIRST}<script src="tern.js"></script>\n# B\n\n[a](a.html#a) and more.\n`);
+  r = run(['index', 'j', '-o', 'j/idx', '--check', '--json']);
+  exits(r, 1, 'index --check --json, stale');
+  j = JSON.parse(r.out);
+  eq([j.wrote, j.stale], [false, ['j/idx/search.json']], 'the stale file named');
+});
+
 test('check --no-scripts: a note is analysed without running its add-ons', () => {
   write('ns/box.js', "tern.block('blinker', { tag: 'blink' });\n");
   write('ns/n.html', `${FIRST}<script src="tern.js" data-use="box.js"></script>\n:::blinker\nhi\n:::\n`);

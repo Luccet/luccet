@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
 const { spawnSync } = require('child_process');
-const { split, notNote, attributes, analyse, htmlFiles, repository, tern, clean } = require('./note');
+const { split, notNote, attributes, analyse, htmlFiles, repository, tern, clean, readText } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
 const examples = require('./examples');
@@ -29,10 +29,10 @@ const SYNOPSIS = {
   new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]',
   check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'tern build FILE [-o OUT] [--math katex|mathml] [--no-scripts]',
-  mv: 'tern mv FROM… TO [--root=DIR] [--dry-run]',
+  build: 'tern build FILE [-o OUT] [--math katex|mathml] [--json] [--no-scripts]',
+  mv: 'tern mv FROM… TO [--root=DIR] [--dry-run] [--json]',
   search: 'tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
-  index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--no-scripts]',
+  index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
   corpus: 'tern corpus PATH… [--out=DIR]',
   lsp: 'tern lsp [--stdio]',
 };
@@ -57,14 +57,15 @@ const usage = () =>
       Write a static, pre-rendered page (to stdout without -o) that still
       loads tern.js; --math katex pre-renders formulas with the katex
       package (--katex is the same), --math mathml renders native MathML
-      with the temml package and turns KaTeX off. --no-scripts builds
-      without running the note's own code.
+      with the temml package and turns KaTeX off. --json prints one object
+      instead (the page in it without -o). --no-scripts builds without
+      running the note's own code.
   ${SYNOPSIS.mv}
       Move or rename notes, files and folders, and rewrite the relative URLs
       that point at them, in every note under DIR (default: the repository
       FROM is in, else the current folder), and the moved notes' own. TO is
       a folder when it ends in / or exists. --dry-run (-n) prints the moves
-      and the edits, and changes nothing.
+      and the edits, and changes nothing. --json prints them as one object.
   ${SYNOPSIS.search}
       Search notes by word: the notes under each PATH (default: the current
       folder) are split into entries — every heading's section and every
@@ -83,7 +84,8 @@ const usage = () =>
       repository only tracked files are indexed, so a private note is never
       published (--all indexes every file); a note whose meta says
       robots: noindex is left out. --check writes nothing and exits 1 when
-      a file is missing or differs from what would be written.
+      a file is missing or differs from what would be written. --json
+      prints the summary as one object.
   ${SYNOPSIS.corpus}
       Print the live examples of documentation pages (tern fences with the
       class live) as conformance-corpus cases. A case's spec: line is the
@@ -141,12 +143,17 @@ function refuse(reason, name = 'new') {
 const RANK = { info: 1, warning: 2, error: 3 };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-function read(file) {
+// A note file's text; one that is not UTF-8 is said on stderr (cli/note.js
+// readText), as `tern COMMAND: …`.
+function read(file, command) {
+  let r;
   try {
-    return fs.readFileSync(file, 'utf8');
+    r = readText(file);
   } catch (e) {
     throw new UsageError(`cannot read ${file}: ${e.code === 'ENOENT' ? 'no such file' : e.code === 'EISDIR' ? 'it is a directory' : e.message}`, false);
   }
+  if (r.warning && command) warn(`tern ${command}: ${r.warning}`);
+  return r.text;
 }
 
 // A diagnostic as printed. A message or hint may quote a note's own code (an
@@ -277,9 +284,9 @@ function check(args) {
   for (const f of files) {
     let text;
     try {
-      text = fs.readFileSync(f.shown, 'utf8');
+      text = read(f.shown, 'check');
     } catch (e) {
-      warn(`tern check: cannot read ${f.shown}: ${e.message}`);
+      warn(`tern check: ${e.message}`);
       broken = true;
       continue;
     }
@@ -377,9 +384,9 @@ function search(args) {
   for (const f of files) {
     let text;
     try {
-      text = fs.readFileSync(f.shown, 'utf8');
+      text = read(f.shown, 'search');
     } catch (e) {
-      warn(`tern search: cannot read ${f.shown}: ${e.message}`);
+      warn(`tern search: ${e.message}`);
       broken = true;
       continue;
     }
@@ -446,35 +453,51 @@ function searchIndex(file, query, limit, json) {
 const NOTES_JSON = 'notes.json';
 const SEARCH_JSON = 'search.json';
 
-// git, run in a repository: its stdout, or null when it fails or is not there.
-function git(root, args) {
-  const r = spawnSync('git', ['-C', root, '-c', 'core.quotePath=false', ...args], { encoding: 'utf8', maxBuffer: 1 << 28 });
-  return r.error || r.status !== 0 ? null : r.stdout;
+// git, run in a repository: {out, truncated}, or null when it fails or is
+// not there. Output past the buffer's size is cut, and said so, rather than
+// lost whole.
+const GIT_BUFFER = 1 << 28;
+function git(root, args, input) {
+  const r = spawnSync('git', ['-C', root, '-c', 'core.quotePath=false', ...args], { encoding: 'utf8', maxBuffer: GIT_BUFFER, input });
+  if (r.error && r.error.code === 'ENOBUFS') return { out: r.stdout || '', truncated: true };
+  return r.error || r.status !== 0 ? null : { out: r.stdout, truncated: false };
 }
 
 // What git knows about a repository's files, for the index: the tracked
-// files (absolute paths), the day each was last committed, and the files
-// with changes not yet committed. null when git is not available.
+// files (absolute paths), the files with changes not yet committed, and
+// `dates`, the day each indexed note was last committed, once dateNotes()
+// has asked for the notes in it. null when git is not available.
 const repos = new Map();
 function repoInfo(root) {
   if (repos.has(root)) return repos.get(root);
   let info = null;
   const ls = git(root, ['ls-files', '-z']);
   if (ls !== null) {
-    info = { tracked: new Set(ls.split('\0').filter(Boolean).map((f) => path.resolve(root, f))), dates: new Map(), changed: new Set() };
-    const log = git(root, ['log', '--format=%x01%as', '--name-only']) || '';
-    let day = '';
-    for (const line of log.split('\n')) {
-      if (line.startsWith('\x01')) day = line.slice(1).trim();
-      else if (line.trim() && day && !info.dates.has(path.resolve(root, line))) info.dates.set(path.resolve(root, line), day);
-    }
+    info = { tracked: new Set(ls.out.split('\0').filter(Boolean).map((f) => path.resolve(root, f))), dates: new Map(), changed: new Set(), truncated: false };
     // No HEAD yet (no commit): every file counts as changed.
     const diff = git(root, ['diff', '--name-only', '-z', 'HEAD']);
     if (diff === null) info.changed = null;
-    else for (const f of diff.split('\0').filter(Boolean)) info.changed.add(path.resolve(root, f));
+    else for (const f of diff.out.split('\0').filter(Boolean)) info.changed.add(path.resolve(root, f));
   }
   repos.set(root, info);
   return info;
+}
+
+// The day each of the files was last committed, from a log limited to
+// them (their paths on git's stdin, so that a repository full of other
+// files costs nothing); a log too long for the buffer gives the dates it
+// reached, and `truncated`.
+function dateNotes(root, info, files) {
+  const rel = files.map((f) => path.relative(root, f)).filter((f) => f && !f.includes('\n'));
+  if (!rel.length) return;
+  const log = git(root, ['log', '--format=%x01%as', '--name-only', '--stdin'], `--\n${rel.join('\n')}\n`);
+  if (!log) return;
+  info.truncated = info.truncated || log.truncated;
+  let day = '';
+  for (const line of log.out.split('\n')) {
+    if (line.startsWith('\x01')) day = line.slice(1).trim();
+    else if (line.trim() && day && !info.dates.has(path.resolve(root, line))) info.dates.set(path.resolve(root, line), day);
+  }
 }
 
 // A day as YYYY-MM-DD, local time: a file's modification day, or today.
@@ -513,7 +536,7 @@ function linkFile(dir, url) {
 }
 
 function index(args) {
-  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, check: { type: 'boolean' }, all: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, check: { type: 'boolean' }, all: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('index');
   const paths = positionals.length ? positionals : ['.'];
   const files = filesOf(paths);
@@ -541,17 +564,26 @@ function index(args) {
     return false;
   });
   if (noGit) warn('tern index: git is not available, so untracked and ignored files are indexed too');
+  // The commit dates of the notes to index, by repository, from one log each.
+  const byRepo = new Map();
+  for (const f of kept) {
+    const abs = path.resolve(f.shown);
+    const root = repository(path.dirname(abs));
+    if (root && repoInfo(root)) (byRepo.get(root) || byRepo.set(root, []).get(root)).push(abs);
+  }
+  for (const [root, files] of byRepo) dateNotes(root, repoInfo(root), files);
 
   const notes = [];
   const entries = [];
   let robots = 0;
   let broken = false;
+  let undated = 0;
   for (const f of kept) {
     let text;
     try {
-      text = fs.readFileSync(f.shown, 'utf8');
+      text = read(f.shown, 'index');
     } catch (e) {
-      warn(`tern index: cannot read ${f.shown}: ${e.message}`);
+      warn(`tern index: ${e.message}`);
       broken = true;
       continue;
     }
@@ -577,6 +609,7 @@ function index(args) {
       // so that --check holds once it is committed; the modification day for
       // a file git does not know.
       const committed = info && info.changed !== null && !info.changed.has(abs) ? info.dates.get(abs) : null;
+      if (info && info.truncated && !committed && info.changed !== null && !info.changed.has(abs)) undated++;
       date = committed || (info && (info.changed === null || info.changed.has(abs)) ? today() : dayOf(abs));
     }
     const links = [];
@@ -604,20 +637,24 @@ function index(args) {
     [SEARCH_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
   ];
   const where = (name) => path.join(dir, name);
+  if (undated) warn(`tern index: the git log was longer than ${GIT_BUFFER >> 20} MB and was cut, so ${plural(undated, 'note')} ${undated === 1 ? 'is' : 'are'} dated by ${undated === 1 ? 'its' : 'their'} modification time`);
   const summary = `${plural(notes.length, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${left ? `; ${left} left out (not tracked by git)` : ''}${robots ? `; ${robots} noindex` : ''}`;
+  // --json: the summary as one object, on stdout.
+  const report = (extra) => say(JSON.stringify({ notes: notes.length, entries: entries.length, leftOut: left, noindex: robots, unreadable: broken, files: { notes: where(NOTES_JSON), search: where(SEARCH_JSON) }, ...extra }, null, 2));
   if (o.check) {
-    let stale = 0;
+    const stale = [];
     for (const [name, text] of outputs) {
       let have = null;
       try {
         have = fs.readFileSync(path.join(outDir, name), 'utf8');
       } catch {}
       if (have === text) continue;
-      stale++;
+      stale.push(where(name));
       warn(`tern index: ${where(name)} is ${have === null ? 'missing' : 'stale'}: run tern index${o.output !== undefined ? ` -o ${o.output}` : ''} ${paths.join(' ')}`);
     }
-    warn(`tern index: ${summary}; ${stale ? `${stale} of 2 files to write` : 'both files are up to date'}`);
-    return broken ? 2 : stale ? 1 : 0;
+    warn(`tern index: ${summary}; ${stale.length ? `${stale.length} of 2 files to write` : 'both files are up to date'}`);
+    if (o.json) report({ wrote: false, stale });
+    return broken ? 2 : stale.length ? 1 : 0;
   }
   try {
     fs.mkdirSync(outDir, { recursive: true });
@@ -626,6 +663,7 @@ function index(args) {
     throw new UsageError(`cannot write ${dir}: ${e.message}`, false);
   }
   warn(`tern index: ${summary} → ${where(NOTES_JSON)}, ${where(SEARCH_JSON)}`);
+  if (o.json) report({ wrote: true });
   return broken ? 2 : 0;
 }
 
@@ -636,7 +674,7 @@ function parse(args) {
   if (o.help) return help('parse');
   if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one FILE' : 'FILE is missing');
   const file = positionals[0];
-  const text = read(file);
+  const text = read(file, 'parse');
   const a = analyse(text, file, { transform: !!o.transformed, noScripts: o['no-scripts'] });
   if (!a) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
   // The vocabulary problems (no note position) as `tern parse` prints them.
@@ -651,7 +689,7 @@ function parse(args) {
 // (created, with its parents, if missing), and the page is DIR/FILE's name;
 // otherwise the page's own path, its directory created if missing.
 function buildPage(args) {
-  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
   const math = o.math || (o.katex ? 'katex' : null);
   if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
@@ -671,16 +709,22 @@ function buildPage(args) {
     if (asDir) out = path.join(out, path.basename(file));
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
-  const text = read(file);
+  const text = read(file, 'build');
   const r = build(text, file, { math, noScripts: o['no-scripts'] });
   if (!r) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
-  for (const w of r.warnings) warn(`tern build: ${clean(w)}`);
-  for (const d of r.diagnostics) warn(format(file, d));
-  for (const f of r.failures) warn(format(file, { severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) }));
-  if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file)))
-    warn(`tern build: relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${path.dirname(out)}`);
-  if (!out) process.stdout.write(r.html);
-  else {
+  // --json: the warnings and diagnostics in one object on stdout, with the
+  // page when no -o takes it; the summary and the warnings go to stderr too.
+  const warnings = [];
+  const diagnostics = [...r.diagnostics, ...r.failures.map((f) => ({ severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) }))];
+  const said = (w) => {
+    warnings.push(clean(w));
+    warn(`tern build: ${clean(w)}`);
+  };
+  for (const w of r.warnings) said(w);
+  for (const d of diagnostics) warn(format(file, d));
+  if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${path.dirname(out)}`);
+  if (!out && !o.json) process.stdout.write(r.html);
+  else if (out) {
     try {
       fs.mkdirSync(into, { recursive: true });
     } catch (e) {
@@ -694,7 +738,12 @@ function buildPage(args) {
   }
   const m = r.math;
   warn(`tern build: ${out ? `wrote ${out}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}`);
-  if (out && !asDir && !path.extname(out)) warn(`tern build: ${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`);
+  if (out && !asDir && !path.extname(out)) said(`${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`);
+  if (o.json) {
+    const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+    if (!out) json.html = r.html;
+    say(JSON.stringify(json, null, 2));
+  }
   return 0;
 }
 
@@ -735,7 +784,7 @@ function mentions(root, moves, notes) {
 // Moves first, then the edits relocate() asks for, each file written once,
 // at its new path. With --dry-run, the same lines, and nothing changes.
 function mv(args) {
-  const { values: o, positionals } = options(args, { root: { type: 'string' }, 'dry-run': { type: 'boolean', short: 'n' } });
+  const { values: o, positionals } = options(args, { root: { type: 'string' }, 'dry-run': { type: 'boolean', short: 'n' }, json: { type: 'boolean' } });
   if (o.help) return help('mv');
   if (positionals.length < 2) throw new UsageError('give FROM and TO');
   const shown = (p) => path.relative(process.cwd(), p).split(path.sep).join('/') || '.';
@@ -773,13 +822,21 @@ function mv(args) {
   const notes = [];
   for (const file of files) {
     try {
-      notes.push({ file, text: fs.readFileSync(file, 'utf8') });
+      const r = readText(file);
+      if (r.warning) warn(`tern mv: ${r.warning.replace(file, shown(file))}`);
+      notes.push({ file, text: r.text });
     } catch (e) {
       warn(`tern mv: cannot read ${shown(file)}: ${e.message}; its links are left as they are`);
     }
   }
   const plan = relocate(notes, moves);
   const dry = !!o['dry-run'];
+  // --json: the moves, the edits and what is left alone, as one object.
+  const json = o.json ? { dryRun: dry, moves: moves.map((m) => ({ from: shown(m.from), to: shown(m.to) })), edits: [], left: [] } : null;
+  const leave = (file, why, more) => {
+    if (json) json.left.push({ file: shown(file), ...more, reason: why });
+    warn(`tern mv: ${shown(file)}${more && more.line ? `:${more.line}:${more.column}` : ''}${more && more.line ? ': ' : ' '}${why}`);
+  };
 
   // A move that fails undoes the ones before it, so nothing is half done.
   if (!dry) {
@@ -796,20 +853,24 @@ function mv(args) {
       return 1;
     }
   }
-  for (const m of moves) say(`${dry ? 'would move' : 'moved'} ${shown(m.from)} → ${shown(m.to)}`);
+  if (!json) for (const m of moves) say(`${dry ? 'would move' : 'moved'} ${shown(m.from)} → ${shown(m.to)}`);
   let count = 0;
   for (const p of plan) {
-    for (const e of p.edits) say(`${shown(p.moved)}:${e.line}:${e.column}: ${e.was} → ${e.text}`);
+    for (const e of p.edits) {
+      if (json) json.edits.push({ file: shown(p.moved), line: e.line, column: e.column, was: e.was, text: e.text });
+      else say(`${shown(p.moved)}:${e.line}:${e.column}: ${e.was} → ${e.text}`);
+    }
     count += p.edits.length;
-    if (p.base) warn(`tern mv: ${shown(p.moved)} has a <base href>, so its URLs do not resolve from its folder; they are left as they are`);
-    for (const l of p.lost) warn(`tern mv: ${shown(p.moved)}:${l.line}:${l.column}: ${l.url} moves, but where it is written was not found; it is left as it is`);
+    if (p.base) leave(p.moved, 'has a <base href>, so its URLs do not resolve from its folder; they are left as they are');
+    for (const l of p.lost) leave(p.moved, `${l.url} moves, but where it is written was not found; it is left as it is`, { line: l.line, column: l.column, url: l.url });
   }
   const isNote = new Set(notes.filter((n) => split(n.text)).map((n) => n.file));
-  for (const m of mentions(root, moves, isNote)) warn(`tern mv: ${shown(m.file)} names ${m.named.join(', ')} but is not a note, so it is left as it is; look at it`);
+  for (const m of mentions(root, moves, isNote)) leave(m.file, `names ${m.named.join(', ')} but is not a note, so it is left as it is; look at it`, { names: m.named });
   const edited = plan.filter((p) => p.edits.length);
   const text = new Map(notes.map((n) => [n.file, n.text]));
   if (!dry) for (const p of edited) fs.writeFileSync(p.moved, apply(text.get(p.file), p.edits));
   warn(`tern mv: ${plural(moves.length, 'move')}, ${plural(count, 'link')} in ${plural(edited.length, 'note')}${dry ? '; a dry run, so nothing changed' : ''}`);
+  if (json) say(JSON.stringify(json, null, 2));
   return 0;
 }
 
@@ -853,7 +914,7 @@ function corpus(args) {
   const shown = (f) => f.split(path.sep).join('/');
   const written = new Map(); // output file -> the page that wrote it
   for (const f of files) {
-    const text = read(f.shown);
+    const text = read(f.shown, 'corpus');
     const x = examples.extract(text, f.shown);
     if (!x) {
       if (f.named) warn(`tern corpus: ${f.shown} is not a note (${notNote(text)}); skipped`);

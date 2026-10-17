@@ -144,6 +144,10 @@ A note's head scripts and script add-ons are the note's own code, not the tool's
 - a **separate process**, started with Node's [permission model](https://nodejs.org/api/permissions.html) and an empty environment, able to read only `tern.js` and the sandbox's own file: it cannot reach your files, run another program, or load a native add-on. The tools read the note's add-on files and send the source in; the code never reads the disk itself;
 - inside it, a **sealed context** for each note: the code sees a fresh global with the engine and the `tern`/`window` shim and nothing of Node, so the usual ways to climb out (`this.constructor.constructor`, and so on) reach no real object. Dynamic `import()` is refused, and the 2-second limit stops a script or transform that never returns.
 
+The commands wait for the sandbox's answer; the [language server](#lsp-analysis) does not, so it keeps answering while a note's code runs, and a script that never returns costs that note its vocabulary, not the editor its server.
+
+A sandbox process that dies before it has answered once, three times in a row, trips a breaker: for a minute no process is started, each note gets [`addon.failed`](diagnostics.html#addon-failed) saying `the script sandbox died three times in a row, so the note's scripts were not run for a minute`, and the terminal is told once. Three notes whose code exhausts the memory limit do that, and so does an environment where the process cannot run at all; either way the run goes on, without the notes' vocabulary.
+
 This is a seat belt for code that misbehaves or that you have not read, not a vault for hostile code; Node's permission model [states as much](https://nodejs.org/api/permissions.html#permission-model). Network access is not among the things it blocks. What the code throws or prints through `console` is shown with terminal control characters taken out (escape sequences, C1), so it cannot retitle or clear the terminal. Pass **`--no-scripts`** to `check`, `build` or `parse` (or set it in the editor) to analyse a note without running its code at all: its own vocabulary is then unknown, so names it declares may get [`name.unknown`](diagnostics.html#name-unknown) and the like, but nothing in it runs.
 
 A transform that throws is reported like this, and the note is checked without it:
@@ -352,6 +356,16 @@ notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is stil
 
 In CI, `tern check site/ --quiet` prints only what fails the build. Add `--fail-on=warning` to hold notes to a stricter standard, broken links between notes included.
 
+**Encoding.** Notes are read as UTF-8. A file that is not valid UTF-8 is checked with each byte sequence that is not read as U+FFFD, and said on stderr; a UTF-16 file, which starts with a byte order mark, is not read as a note, and said too. Every command that reads notes says the same, as `tern COMMAND: …`:
+
+```sh
+$ tern check notes/latin.html notes/wide.html
+tern check: notes/latin.html is not valid UTF-8; 1 byte sequence that is not was read as U+FFFD
+tern check: notes/wide.html is UTF-16 (it starts with a byte order mark); Tern reads UTF-8, so it is not read as a note
+tern check: notes/wide.html is not a note (no line loads tern.js); skipped
+tern check: 1 note: 0 errors, 0 warnings, 0 infos
+```
+
 ### --json {#check-json}
 
 `--json` prints one array with every diagnostic of every note, in the same order as the lines would be. `--quiet` filters it the same way; with nothing to report, the array is empty (`[]`). The summary line still goes to stderr unless `--quiet`.
@@ -512,7 +526,7 @@ The node types and their fields are on [The AST](api.html#ast).
 
 :::syntax[tern build]
 ```sh
-tern build FILE [-o OUT] [--math katex|mathml] [--no-scripts]
+tern build FILE [-o OUT] [--math katex|mathml] [--json] [--no-scripts]
 ```
 :::
 
@@ -520,6 +534,7 @@ tern build FILE [-o OUT] [--math katex|mathml] [--no-scripts]
 |---|---|
 | `-o OUT`, `--output=OUT` | Where to write the page. Without it, or with `-o -`, the page goes to stdout. When `OUT` ends with `/`, or is an existing folder, the page is written into that folder under the note's file name, and the folder is created if needed. Any other `OUT` is the page's file name, and missing folders on its path are created. `OUT` may not be the note itself. |
 | `--math katex|mathml` | Pre-renders the math: `katex` to typeset HTML with the `katex` package, `mathml` to native MathML with the `temml` package. `--katex` is short for `--math katex`. See [pre-rendered math](#build-katex). |
+| `--json` | Prints one JSON object on stdout instead of the page: see [--json](#build-json). |
 | `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `tern.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. |
 
 ```sh
@@ -548,6 +563,15 @@ tern build: wrote dist/maps.html; 2 formulas
   ```
 - **Not a note**, `-o` naming the note itself, a missing file: exit 2.
 - The last line says how many formulas the page has, and with `--math` how many were pre-rendered, and as what.
+
+### --json {#build-json}
+
+`--json` prints one object on stdout: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, `prerendered`, `engine`: `"katex"`, `"mathml"` or `null`), `warnings` (the `tern build:` notes, as strings), `diagnostics` (the note's, as [`tern check --json`](#check-json) gives them, `math.error` among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
+
+```sh
+$ tern build notes/maps.html --json | jq '{out, math, warnings, diagnostics: (.diagnostics | length)}'
+{ "out": null, "math": { "total": 2, "prerendered": 0, "engine": null }, "warnings": [], "diagnostics": 1 }
+```
 
 ### The built page {#built-page}
 
@@ -672,7 +696,7 @@ How a built page differs from a note:
 
 :::syntax[tern mv]
 ```sh
-tern mv FROM… TO [--root=DIR] [--dry-run]
+tern mv FROM… TO [--root=DIR] [--dry-run] [--json]
 ```
 :::
 
@@ -704,6 +728,23 @@ Each edit prints as `file:line:col: old → new`, with the file at its new path;
 | `TO` | The new path. When it is a folder that exists, or ends in `/`, each FROM moves into it and keeps its name. With several FROMs, TO must be a folder that exists. Missing folders on the way are created. |
 | `--root=DIR` | The folder whose notes are searched for links, with its subfolders, as [`tern check`](#check-folders) finds notes. By default, the repository FROM is in (the nearest folder above it holding `.git`), else the current folder. |
 | `--dry-run`, `-n` | Prints the moves and the edits, and changes nothing. |
+| `--json` | Prints the moves, the edits and what is left alone as one JSON object instead of lines: see [--json](#mv-json). |
+
+### --json {#mv-json}
+
+`--json` prints one object on stdout in place of the lines: `dryRun`; `moves`, each `{from, to}`; `edits`, each `{file, line, column, was, text}` with the file at its new path, as the lines name it; and `left`, what is left alone with its `reason`: a note with a `<base href>` (`file`), a URL whose writing was not found (`file`, `line`, `column`, `url`), a file that is not a note but names what moves (`file`, `names`). The summary and the warnings still go to stderr. The dry run above:
+
+```json
+{
+  "dryRun": true,
+  "moves": [{ "from": "notes/maps.html", "to": "notes/linear/maps.html" }],
+  "edits": [
+    { "file": "notes/index.html", "line": 4, "column": 17, "was": "maps.html", "text": "linear/maps.html" },
+    { "file": "notes/linear/maps.html", "line": 1, "column": 51, "was": "../tern.js", "text": "../../tern.js" }
+  ],
+  "left": []
+}
+```
 
 ### What it rewrites {#mv-rewrites}
 
@@ -795,7 +836,7 @@ The notes are parsed with their own vocabulary, as `tern check` parses them ([Vo
 
 :::syntax[tern index]
 ```sh
-tern index [PATH…] [-o DIR] [--check] [--all] [--no-scripts]
+tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]
 ```
 :::
 
@@ -814,6 +855,7 @@ $ echo $?
 | `-o DIR` | Where the two files go, and what the paths in them are relative to. Without it, the first `PATH` when it is a folder, else that file's folder. Created if missing. |
 | `--check` | Writes nothing. Exits 1, naming the file, when `notes.json` or `search.json` is missing or differs from what would be written: for a workflow that keeps them honest. |
 | `--all` | Indexes every note found. Without it, in a git repository, only tracked files are indexed ([What is left out](#index-left-out)). |
+| `--json` | Prints the summary as one JSON object on stdout: `notes`, `entries`, `leftOut`, `noindex`, `unreadable` (true when a file could not be read, exit 2), `files` (the paths of `notes` and `search`), `wrote`; with `--check`, `wrote` is false and `stale` lists the files missing or differing. The summary line still goes to stderr. |
 | `--no-scripts` | Indexes without running the notes' head scripts and add-ons ([Running a note's code](#sandbox)): their vocabulary is unknown, so blocks declared there keep no label. |
 
 ### What is written {#index-files}
@@ -838,7 +880,7 @@ $ echo $?
 
 - **`url`** is the note's path relative to the file, with forward slashes, so a site can be served under any path.
 - **`title`** is the head's `<title>`, else `:::meta`'s `title`, else the first heading's text. **`description`** is the head's `<meta name="description">`, else `:::meta`'s `description`, else empty.
-- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD`, so that lists sort. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist.
+- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD`, so that lists sort. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist. The log is asked for the indexed notes alone, so a repository full of other files costs nothing; should it still run past 256 MB, it is cut there, and `tern index` says how many notes are dated by their modification time instead.
 - **`headings`** are every heading of the note, with its depth, its id as the page gives it, and its text. **`links`** are the notes in the catalogue this note links to, as paths like `url`, each once.
 
 **`search.json`** is the search index: `tern`, `notes` (each note's `url` and `title`), and the index [`tern.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The stems in `terms` are the stemmer's, which changes only in a minor release of Tern, so an index serves the readers of its own series (`0.4.x`); a reader from another says so and does without it.
@@ -1008,7 +1050,7 @@ $$ {#eq}
   "capabilities": {
     "positionEncoding": "utf-16",
     "textDocumentSync": { "openClose": true, "change": 1, "save": { "includeText": false } },
-    "completionProvider": { "triggerCharacters": [":", "@", "/", "#"] },
+    "completionProvider": { "triggerCharacters": [":", "@"] },
     "hoverProvider": true,
     "definitionProvider": true,
     "referencesProvider": true,
@@ -1016,7 +1058,11 @@ $$ {#eq}
     "renameProvider": { "prepareProvider": true },
     "documentSymbolProvider": true,
     "foldingRangeProvider": true,
+    "documentLinkProvider": { "resolveProvider": false },
+    "codeActionProvider": { "codeActionKinds": ["quickfix"] },
+    "workspaceSymbolProvider": true,
     "workspace": {
+      "workspaceFolders": { "supported": true, "changeNotifications": true },
       "fileOperations": {
         "willRename": { "filters": [{ "scheme": "file", "pattern": { "glob": "**" } }] },
         "didRename": { "filters": [{ "scheme": "file", "pattern": { "glob": "**" } }] },
@@ -1033,14 +1079,20 @@ $$ {#eq}
 |---|---|
 | `positionEncoding: "utf-16"` | Columns count UTF-16 code units, the engine's own unit. It is the only encoding offered. |
 | `textDocumentSync` | Open, close and save notifications, and **full** sync: every change sends the whole text. A save is when the server looks at the disk again for [links](#lsp-links). |
-| `completionProvider` | Completion, triggered by `:`, `@`, `/` and `#`. See [Completion](#lsp-completion). |
+| `completionProvider` | Completion, triggered by `:` and `@`, where a name or an id starts; a closer's `/` and a link's `#` are typed inside one. See [Completion](#lsp-completion). |
 | `hoverProvider` | Hover on ids, references and names. See [Hover](#lsp-hover). |
-| `definitionProvider`, `referencesProvider` | Go to an id's declaration, and find its references. See [Definition and references](#lsp-definition). |
+| `definitionProvider`, `referencesProvider` | Go to an id's declaration, and find its references, in the note and [across files](#lsp-across). See [Definition and references](#lsp-definition). |
 | `documentHighlightProvider` | Mark the occurrences of the id or the name at the cursor. See [Highlights](#lsp-highlight). |
-| `renameProvider` | Rename an id or an element name, with `prepareRename`. See [Rename](#lsp-rename). |
+| `renameProvider` | Rename an id, with the links to it from other notes, or an element name, with `prepareRename`. See [Rename](#lsp-rename). |
 | `documentSymbolProvider` | The outline of headings, containers and leaves. See [Symbols](#lsp-symbols). |
 | `foldingRangeProvider` | Folds for blocks and sections. See [Folding](#lsp-folding). |
+| `documentLinkProvider` | Every URL in the note, with where it goes. See [Document links](#lsp-document-links). |
+| `codeActionProvider` | Quick fixes for the diagnostics that have one. See [Code actions](#lsp-code-actions). |
+| `workspaceSymbolProvider` | Headings and blocks across the workspace's notes. See [Workspace symbols](#lsp-workspace-symbols). |
 | `workspace.fileOperations` | Renaming or moving any file or folder in the editor fixes the links to it and in it. See [Moving files](#lsp-files). Creating, renaming and deleting files checks the open notes' links again. |
+| `workspace.workspaceFolders` | The folders searched [across files](#lsp-across) are those of `initialize`, and the server takes `workspace/didChangeWorkspaceFolders` as they change. |
+
+**Watched files.** A client that can watch files for a server (`workspace.didChangeWatchedFiles.dynamicRegistration` in its capabilities) is asked to, right after `initialized`, with a `client/registerCapability` request for `**/*.{html,htm,md,markdown,js,mjs,css}`: the notes, what they link to, and what they load. On `workspace/didChangeWatchedFiles`, the open notes' links are checked again, and a note that loads a changed file as a head script or an add-on is analysed again, so an add-on edited on disk takes effect at once. A client that does not watch files sees such changes at the note's next change, or at the next save, open, close or file operation.
 
 **Errors.** A request the server cannot answer gets a JSON-RPC error; the server keeps running.
 
@@ -1062,7 +1114,8 @@ $$ {#eq}
 
 - **`didOpen`** analyses the note at once and publishes its diagnostics, then the [`tern/outline`](#outline) notification.
 - **`didChange`** waits 150 ms after the last change, then analyses once. Typing fast publishes once, for the last text.
-- **Requests never read stale text.** A request on a document with a change still waiting analyses it first. So the debounce only spaces out publishing.
+- **Requests are answered at once, from the last analysis.** The note's own code runs in the [sandbox](#sandbox) over a bridge that does not block the server, so a request that arrives while an analysis runs, or while a change still waits, is answered from the analysis before it: hover, definition, references, symbols and folds can lag one edit behind, and the next publication catches up. A request on a document with a change still waiting starts its analysis right away. Two requests take care: [completion](#lsp-completion) reads what you typed from the text as it is, and a [rename](#lsp-rename) waits for the analysis, since its edits must match the text.
+- **A stuck script does not stop the server.** A note whose head script or add-on does not finish in 2 seconds is published with [`addon.failed`](diagnostics.html#addon-failed) when the sandbox cuts it off, and every other document is served meanwhile. One analysis runs per document at a time: a change made during one is analysed after it.
 - **`didClose`** forgets the document and publishes an empty list of diagnostics for it.
 - **Files that are not notes** get an empty list of diagnostics and no outline, and requests on them answer nothing. A file that stops being a note (you deleted its `tern.js` line) gets one last, empty outline. So it is safe to attach the server to every `.html` file.
 - **The analysis** is the one `tern check` runs, so the diagnostics are the same, in the same order.
@@ -1070,7 +1123,9 @@ $$ {#eq}
 
 ### Vocabulary and the sandbox {#lsp-cache}
 
-The server loads each note's vocabulary as the commands do ([Vocabulary under Node](#vocabulary)), running the note's head scripts and add-ons in the [sandbox](#sandbox). It reads those files fresh on each analysis, so an add-on edited on disk takes effect at the note's next change, and a note with no scripts of its own skips the sandbox entirely.
+The server loads each note's vocabulary as the commands do ([Vocabulary under Node](#vocabulary)), running the note's head scripts and add-ons in the [sandbox](#sandbox). It reads those files fresh on each analysis, so an add-on edited on disk takes effect at the note's next change, or at once when the client watches files ([Protocol](#lsp-protocol)), and a note with no scripts of its own skips the sandbox entirely.
+
+**A vocabulary that stands in.** When a note's scripts fail to run (they did not finish in 2 seconds, or crashed the sandbox) and its head, its add-on files and the tag's attributes are the same as at its last analysis whose scripts ran, that analysis's vocabulary is used for this one: completion still offers the note's names, hover still knows them, and no `name.unknown` appears for a block that is declared. The `addon.failed` message says so: `its vocabulary is kept from its last analysis, its transforms are missing`. Edit the head or an add-on, and the stand-in is dropped until the scripts run again. The command line, which analyses each note once, has no last analysis to keep.
 
 To analyse a workspace of notes you do not trust without running any of their code, start the server with `initializationOptions: { "noScripts": true }` (how your editor sets it varies). Their own vocabulary is then unknown, so names they declare may get [`name.unknown`](diagnostics.html#name-unknown), but nothing in them runs.
 
@@ -1104,7 +1159,7 @@ Each analysis also checks the note's links to other files, as [`tern check`](#ch
 
 - **A note open in the editor is read as it is there,** unsaved changes included. Add `{#thm-rank}` to `maps.html` and a link to `maps.html#thm-rank` from another note stops being dangling before you save. A file open but never saved exists.
 - **The other open notes are checked again** whenever a note is analysed, opened, closed or saved, when the editor creates, renames or deletes a file, and on `workspace/didChangeWatchedFiles`. A note is published again only when its link diagnostics changed.
-- **Files changed outside the editor,** by a `git checkout` or a file manager, are seen at the next of those events. What the server read of a file is kept while its modification time and size hold, and a folder's listing while its modification time holds.
+- **Files changed outside the editor,** by a `git checkout` or a file manager, are seen at the next of those events, or at once when the client watches files. What the server read of a file is kept while its modification time and size hold, and a folder's listing while its modification time holds; each of these tables keeps its last 512 entries, so a long session over a large workspace does not grow without end.
 - **An untitled document** has no folder, so its links are not checked.
 
 ### Moving files {#lsp-files}
@@ -1184,6 +1239,8 @@ image    Image
 
 Each item replaces what you typed after the trigger (a `textEdit`), and is sorted closers first, then the vocabulary, the core blocks, and the allowlist.
 
+**Right after a keystroke,** before the 150 ms debounce has run the next analysis, completion reads what you typed from the text as it is, so the `@` you just typed is seen, and answers with the names and ids of the last analysis; an id declared in the same keystroke appears at the next one. Whether you are inside code or math is read from the last analysis too, at the same offset.
+
 ### Definition and references {#lsp-definition}
 
 The server knows every place an id or a name occurs, with its exact columns:
@@ -1199,6 +1256,14 @@ A request acts on the innermost occurrence at the cursor, its last character inc
 **Definition** goes from a reference, a fragment link or a footnote reference to the declaration: the `#rn` of `{#rn}`, a footnote's `[^1]:`, a slug's heading. From a named closer, it goes to the opener's name. On `@rn` above, it answers `{"line": 5, "character": 25}` to `{"line": 5, "character": 28}`, the `#rn` on the theorem's line. A dangling reference has no definition.
 
 **References** work from the declaration or from any reference. They list every `@id`, fragment link and footnote reference to the id, as their whole extents, plus the declaration first when the client asks for it (`includeDeclaration`). References never occur inside code or math: `@rn` in a code span is text, not a reference.
+
+### Across files {#lsp-across}
+
+A link to another file with a fragment, `page.html#id`, is a reference to that id, and the three requests above follow it. The other notes are read as [link checking](#lsp-links) reads them: an open note as it is in the editor, the rest from disk, parsed without running their code. The notes searched are those of the workspace folders the client gave at `initialize` (and told of since, with `workspace/didChangeWorkspaceFolders`) and every open note.
+
+- **Definition** on `maps.html#rn` goes to the `#rn` of `{#rn}` in `maps.html`; on a link without a fragment, to the file's first line. In an HTML file that is not a note, it goes to the element with that `id` (or an `<a name>`); in a Markdown file, to the heading whose GitHub anchor it is. A link to a file that does not exist, a root-relative URL (`/notes/maps.html`) or an absolute one has no definition.
+- **References** on an id, from its note or from such a link, list its uses in its note and the fragment of every `page.html#id` that names it, from any note. A raw `<a href="maps.html#rn">` counts, and so does a link with a title or in angle brackets.
+- **Rename** on an id edits its note and, in each note that links to it, the fragment, in one `WorkspaceEdit` whose changes name each file. From a link to a file that is not a note, rename is refused with `-32803`: the id is declared there, in HTML the server does not edit. A fragment that names no id in its file has nothing to rename.
 
 ### Highlights {#lsp-highlight}
 
@@ -1305,6 +1370,50 @@ Image                     ## #image         lines 9–19
 
 `textDocument/foldingRange` folds every block that spans lines: containers, fences, display math, tables, lists, footnote definitions and raw HTML blocks, and each heading's section. For the note above, the ranges are (0-based file lines) 5–7 (the theorem), 13–17 (the aside), 14–16 (the math), 3–7 (Kernel) and 9–19 (Image).
 
+### Document links {#lsp-document-links}
+
+`textDocument/documentLink` lists every URL written in the note, its head and its `tern.js` tag, each with the range of the URL as written and the `target` it goes to, so a client can underline them and follow them:
+
+| URL | Target |
+|---|---|
+| a relative path, `maps.html#rn`, `../img/kernel.svg`, the `tern.js` and the add-ons of the tag | the file's `file:` URI, with the fragment |
+| a fragment of the note itself, `#rn` | the document's own URI with the fragment |
+| an absolute URL, `https://…`, `mailto:…` | as written |
+| a root-relative URL (`/notes/maps.html`) or a protocol-relative one (`//host/…`), which depend on where the site is served; a path to a file that does not exist | no link |
+
+The server does not resolve links later (`resolveProvider` is false): every link comes with its target.
+
+### Code actions {#lsp-code-actions}
+
+`textDocument/codeAction` answers with the quick fixes of the diagnostics in the request's range, each a `CodeAction` of kind `quickfix` holding the diagnostic it fixes and a `WorkspaceEdit` for the document. The diagnostics the client sends in `context` are matched by code and range; when none matches (the text changed since they were published), the diagnostics in the range are taken. The fixes are mechanical, so a diagnostic with a judgement call has none:
+
+| Diagnostic | Fixes |
+|---|---|
+| [`ref.dangling`](diagnostics.html#ref-dangling) | *Change to `@id`* for each id of the note near the one written (one edit away, two for a name of five characters or more, a swap of two adjacent characters counting one); and *Write `\@name`: not a reference*, the escape its hint suggests |
+| [`footnote.undefined`](diagnostics.html#footnote-undefined) | *Add the definition `[^x]:`*, at the end of the note |
+| [`block.unclosed`](diagnostics.html#block-unclosed) | *Close it with `:::/name`*, where the container runs out |
+| [`math.unclosed`](diagnostics.html#math-unclosed) | *Close it with `$$`*, where the display math runs out |
+| [`name.unknown`](diagnostics.html#name-unknown) | *Change to `name`* for each near name of that level: the vocabulary, the core blocks, the HTML allowlist |
+| [`block.opener-junk`](diagnostics.html#block-opener-junk) | *Write the attributes in braces: `{#rn .big}`*, when what follows the opener reads as attributes |
+| [`link.missing`](diagnostics.html#link-missing), a path in another case than the disk's | *Write it as the disk does: `path`* |
+
+The first fix of each is `isPreferred`. For `See @kernl` in a note with the id `kernel`:
+
+```json
+[
+  { "title": "Change to @kernel", "kind": "quickfix", "isPreferred": true,
+    "diagnostics": [{ "code": "ref.dangling", "…": "…" }],
+    "edit": { "changes": { "file:///…/notes/maps.html": [
+      { "range": { "start": { "line": 11, "character": 5 }, "end": { "line": 11, "character": 10 } }, "newText": "kernel" }
+    ] } } },
+  { "title": "Write \\@kernl: not a reference", "kind": "quickfix", "isPreferred": false, "…": "…" }
+]
+```
+
+### Workspace symbols {#lsp-workspace-symbols}
+
+`workspace/symbol` searches the headings, and the containers and leaves with an id or a title, of every note in the workspace folders and every open note, from their outlines, without running their code. The `query` matches a symbol's name or its id (`#rn` matches the id `rn`), case ignored; an empty query lists them all, up to a thousand. Each result is a `SymbolInformation`: the name (a block's title or name, with its id, `Rank–nullity #rn`), the kind of [document symbols](#lsp-symbols), the location spanning the heading's line or the block's lines, and the file's path relative to its workspace folder as `containerName`.
+
 ### The language module {#language}
 
 The server's answers come from one module, `cli/language.js`. An editor that runs the engine itself, in a browser worker for example, can require it and give the same answers as `tern lsp`, with no server. It uses nothing from Node: it requires only `tern.js` and the engine's sources for the element [allowlists](elements.html#allowlists) (`src/schema.js`, with the `src/scan.js` it needs), so a bundler such as esbuild packs it for the browser. It is a CommonJS module, like the rest of the command line.
@@ -1368,19 +1477,22 @@ language.hover(doc, { line: 11, character: 5 });
 | Call | Returns | In `tern lsp` |
 |---|---|---|
 | `index(a)` | The index, or `null`. | |
+| `idAt(doc, pos)` | The id at the position, or `null`: what references and rename act on. | the server's [cross-file](#lsp-across) requests |
+| `declaration(doc, id)` | The range where the id is declared, or `null`. | the same |
 | `definition(doc, pos)` | A range, or `null`. | `textDocument/definition`, with the document's `uri` |
 | `references(doc, pos, { includeDeclaration })` | An array of ranges, with the declaration first on request; `null` off an id. | `textDocument/references`, with the `uri` |
 | `highlights(doc, pos)` | `[{range, kind}]`, `kind` being `"write"` or `"read"`; `null` off an id or a name. | `textDocument/documentHighlight`, kinds `3` and `2` |
 | `hover(doc, pos)` | `{markdown, range}`, or `null`. | `textDocument/hover`, as `{contents: {kind: "markdown", value}, range}` |
 | `prepareRename(doc, pos)` | `{range, placeholder}`, or `null`. May throw. | `textDocument/prepareRename` |
 | `rename(doc, pos, newName)` | `[{range, newText}]`, or `null`. May throw. | `textDocument/rename`, as `{changes: {uri: edits}}` |
-| `completion(doc, pos)` | `[{label, kind, detail, sortText, filterText, range, newText}]`, possibly empty. | `textDocument/completion`, with `range` and `newText` as the `textEdit` |
+| `actions(doc, diag)` | `[{title, edits, preferred}]` for one of the analysis's diagnostics (one with a note `position`): its quick fixes, each with `edits` `[{range, newText}]`; empty for most. | `textDocument/codeAction`, each as a `quickfix` |
+| `completion(doc, pos, now?)` | `[{label, kind, detail, sortText, filterText, range, newText}]`, possibly empty. `now`, `{note, line}`, is the text as it is when the index is of an older one: the trigger and the `range` are read from it, the rest from the index. | `textDocument/completion`, with `range` and `newText` as the `textEdit` |
 | `symbols(doc)` | `[{name, detail, kind, range, selectionRange, children}]`. | `textDocument/documentSymbol` |
 | `folds(doc)` | `[{startLine, endLine}]`, in 0-based file lines. | `textDocument/foldingRange` |
 | `outline(a)` | `tern.outline(a.ast)` with 1-based file lines; empty arrays for `null`. | the `tern/outline` notification |
 | `LanguageError` | The class of what `prepareRename` and `rename` throw. | |
 
-What each answer holds is described above, request by request: [Completion](#lsp-completion), [Definition and references](#lsp-definition), [Highlights](#lsp-highlight), [Rename](#lsp-rename), [Hover](#lsp-hover), [Symbols](#lsp-symbols) and [Folding](#lsp-folding). A symbol's `range` covers what it holds, a heading's whole section, and its `selectionRange` the element itself: for a heading, its line.
+What each answer holds is described above, request by request: [Completion](#lsp-completion), [Definition and references](#lsp-definition), [Highlights](#lsp-highlight), [Rename](#lsp-rename), [Hover](#lsp-hover), [Symbols](#lsp-symbols), [Folding](#lsp-folding) and [Code actions](#lsp-code-actions). What crosses files ([Across files](#lsp-across), [Document links](#lsp-document-links), [Workspace symbols](#lsp-workspace-symbols)) reads the disk, so it is the server's, over `cli/links.js`. A symbol's `range` covers what it holds, a heading's whole section, and its `selectionRange` the element itself: for a heading, its line.
 
 **Kinds** are words; the server turns them into the protocol's numbers:
 

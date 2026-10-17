@@ -14,7 +14,8 @@
 //
 //   relocate(notes, moves) -> [{file, moved, edits, base, lost}], for the
 //                             notes with an edit or a URL left alone
-//     notes  [{file, text}], absolute paths before the move
+//     notes  [{file, text, parsed?}], absolute paths before the move;
+//            `parsed` is links.parsed(text) when the caller has it
 //     moves  [{from, to}], absolute paths; a folder moves with what it holds
 //     moved  the note's path after the move
 //     edits  [{from, to, text, was, line, column}]: from and to are offsets
@@ -24,6 +25,7 @@
 //     lost   [{line, column, url}]: URLs that move but whose writing could
 //            not be found, left alone
 //   apply(text, edits) -> the text with the edits made
+//   pathEnd(written)   -> where a written URL's path ends (its ? or #)
 'use strict';
 
 const path = require('path');
@@ -38,8 +40,8 @@ function relocate(notes, moves) {
     return p;
   };
   const out = [];
-  for (const { file, text } of notes) {
-    const a = links.parsed(text);
+  for (const { file, text, parsed } of notes) {
+    const a = parsed === undefined ? links.parsed(text) : parsed;
     if (!a) continue;
     const moved = map(file);
     const norm = String(text).replace(/^﻿/, '').replace(/\r\n?/g, '\n');
@@ -129,4 +131,4 @@ function apply(text, edits) {
   return out;
 }
 
-module.exports = { relocate, apply };
+module.exports = { relocate, apply, pathEnd };
