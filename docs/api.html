@@ -65,8 +65,15 @@ A second tern.js on the same page leaves the first in charge. It warns, `tern: t
 
 ### Under node {#under-node}
 
+The engine is an npm package, `@ozkrac/tern`, installed with npm from this repository at a tag (it is not on the npm registry): the same `tern.js`, with `tern.css`, the add-ons, the themes, the command line as the `tern` binary, and type declarations (`tern.d.ts`).
+
+```sh
+npm install github:OzkrAC/tern#vX.Y.Z
+```
+
 ```js
-const tern = require('./tern.js');
+const tern = require('@ozkrac/tern');          // from the package, or
+const tern = require('./tern.js');             // from a checkout: the same file
 
 tern.version;                    // → '0.6.0'
 tern.toHTML('Hello *world*.');   // → '<p>Hello <em>world</em>.</p>\n'
@@ -855,6 +862,7 @@ tern.config;
 | `lang` | `data-lang` | `lang` | the label language. After mount, when nothing set it, it is the `lang` of `<html>` (which `:::meta` may have set). The command line picks labels in the same order: `data-lang`, `window.TERN.lang`, the `lang` of `:::meta`, then `<html lang>` |
 | `diagnostics` | `data-diagnostics` | `diagnostics` | true shows the panel everywhere, not only on `file:` and `localhost` |
 | `quiet` | `data-quiet` | `quiet` | true hides the panel everywhere; it wins over `diagnostics` |
+| `strings` | | `strings` | the runtime's and the add-ons' words in another language, by key ([Strings](#strings)) |
 | any other key | | the same key | copied as it is |
 
 **`data-use`** is also how add-ons are loaded. Its value is a list of URLs, separated by spaces, resolved against the page; a [`:::use` block](syntax-blocks.html#use) at the top of the note lists more, one or more per line, loaded after the tag's. An entry ending in `.css` (before its query) is a stylesheet, linked in its place in the [cascade](#style); any other is a script. Scripts are fetched in parallel and run in the order listed, and the note mounts only once every entry has loaded or failed.
@@ -894,6 +902,32 @@ tern.style('.t-block.aside { border-inline-start: 3px solid var(--t-line); }');
 ```
 
 `tern.config.nonce` goes on the element. `css` is converted to a string; `null` and `undefined` give an empty sheet. Under node `tern.style` does nothing and returns `undefined`.
+
+### `tern.string` and `window.TERN.strings` {#strings}
+
+:::syntax
+```js
+tern.string(key, params?, fallback?) → string
+window.TERN = { strings: { noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer' } };
+```
+:::
+
+The few words the runtime and the add-ons write for the reader, in a language of your choice. `window.TERN.strings` maps a key to a string; `tern.string(key, params, fallback)` returns the string for `key`, the page's when it sets one, else `fallback`, else the runtime's own; `{name}` fields are filled from `params`, and a string with a `|` is `singular|plural`, chosen by `params.n`. An add-on brings its own keys and fallbacks the same way.
+
+| Key | Default | Where |
+|---|---|---|
+| `problems`, `errors`, `warnings`, `infos` | `{n} problem\|{n} problems` … | the diagnostics panel's summary and the console group |
+| `footnotes`, `back`, `done`, `todo` | Footnotes, Back to the text, Done, Not done | the emitter's [ARIA labels](elements.html#accessibility); without a string they follow the note's label language |
+| `searchPlaceholder`, `indexing`, `notesCount`, `entriesCount`, `unreadable`, `results`, `noneListed`, `noResults`, `searchFailed` | Search the notes, Indexing…, `{n} note\|{n} notes`, `{n} entry\|{n} entries`, `; {n} could not be read`, `{n} result\|{n} results`, `, none listed`, No results, `The search could not be set up ({why}).` | the [search add-on](addons.html#search) |
+| `notes`, `noNotes`, `notesFailed` | Notes, No notes., `The list of notes could not be loaded ({from}).` | the [notes add-on](addons.html#notes) |
+
+```html
+<!doctype html><meta charset="utf-8"><script>
+window.TERN = { lang: 'de', strings: { searchPlaceholder: 'Notizen durchsuchen', noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer', problems: '{n} Problem|{n} Probleme' } };
+</script><script src="tern.js" data-use="addons/search.js"></script>
+```
+
+Under node, `tern check` and `tern build` give an add-on the fallback alone. The engine's own messages, the diagnostics, are not translated: they name codes and syntax, and the tools print them.
 
 ## The lifecycle {#lifecycle}
 

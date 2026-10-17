@@ -233,14 +233,15 @@ const safeSet = (k, v) => (k === 'srcset' ? v.split(',').every((c) => safeUrl(c.
 // The few words the emitter writes itself, for assistive technology: the
 // footnote section's name, a back link's, a task checkbox's state. Picked by
 // the note's label language as a schema label map is (src/schema.js pick),
-// English when the language has none.
+// English when the language has none; opts.strings (window.TERN.strings in
+// the browser) overrides a key with a string of its own.
 const WORDS = {
   footnotes: { en: 'Footnotes', de: 'Fußnoten', fr: 'Notes de bas de page', es: 'Notas al pie', pt: 'Notas de rodapé', it: 'Note a piè di pagina', nl: 'Voetnoten' },
   back: { en: 'Back to the text', de: 'Zurück zum Text', fr: 'Retour au texte', es: 'Volver al texto', pt: 'Voltar ao texto', it: 'Torna al testo', nl: 'Terug naar de tekst' },
   done: { en: 'Done', de: 'Erledigt', fr: 'Fait', es: 'Hecho', pt: 'Feito', it: 'Fatto', nl: 'Gedaan' },
   todo: { en: 'Not done', de: 'Offen', fr: 'À faire', es: 'Pendiente', pt: 'Pendente', it: 'Da fare', nl: 'Te doen' },
 };
-const words = (lang) => Object.fromEntries(Object.keys(WORDS).map((k) => [k, escAttr(pick(WORDS[k], lang))]));
+const words = (lang, given) => Object.fromEntries(Object.keys(WORDS).map((k) => [k, escAttr(given && typeof given[k] === 'string' ? given[k] : pick(WORDS[k], lang))]));
 
 // ---------------------------------------------------------------- the walk
 
@@ -251,7 +252,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
-  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '');
+  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '', opts && opts.strings && typeof opts.strings === 'object' ? opts.strings : null);
   prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;

@@ -623,7 +623,7 @@ What the emitter writes for assistive technology, beyond the HTML elements thems
 | an end mark | `aria-hidden="true"`: decoration ([End marks](#end-marks)) |
 | a block's label | real text, read as part of the title ([Labels](#labels)) |
 
-The words follow the note's [label language](schema.html#choosing-language), as a schema's label map does: English, German, French, Spanish, Portuguese, Italian and Dutch are built in, and a language without them gets English. An image's `alt` is the author's ([Figures](#figures)).
+The words follow the note's [label language](schema.html#choosing-language), as a schema's label map does: English, German, French, Spanish, Portuguese, Italian and Dutch are built in, and a language without them gets English; a page sets its own with [`window.TERN.strings`](api.html#strings) (the keys `footnotes`, `back`, `done`, `todo`), and `tern.emit` takes them as `opts.strings`. An image's `alt` is the author's ([Figures](#figures)).
 
 ```tern {.live}
 A claim.[^why]

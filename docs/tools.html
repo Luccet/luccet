@@ -18,11 +18,12 @@ The examples on this page are real output, run against the engine in this reposi
 
 ## Installing and running {#install}
 
-You need **Node 22 or later** (`package.json` asks for `node >= 22`). The command line has no dependencies of its own: a checkout of the repository is all it needs.
+You need **Node 22 or later** (`package.json` asks for `node >= 22`). The command line has no dependencies of its own: the npm package, or a checkout of the repository, is all it needs.
 
 | How | Command | Notes |
 |---|---|---|
-| Directly | `node path/to/tern/tern-cli.js check notes/` | Works from anywhere. |
+| With npm, from GitHub | `npm install -g github:OzkrAC/tern#vX.Y.Z`, then `tern check notes/` | npm installs the package `@ozkrac/tern` from the repository at a tag and puts `tern` on your `PATH`; `npx github:OzkrAC/tern#vX.Y.Z check notes/` runs it without installing. It is not on the npm registry. |
+| Directly | `node path/to/tern/tern-cli.js check notes/` | Works from anywhere, from a checkout or from `node_modules/@ozkrac/tern/`. |
 | npx, inside the checkout | `npx --no -- tern check notes/` | Uses the `bin` entry of the checkout's `package.json`. |
 | A `tern` command | `npm link` in the checkout | Puts `tern` on your `PATH`, linked to the checkout. |
 | A symbolic link | `ln -s ~/src/tern/tern-cli.js ~/.local/bin/tern` | `tern-cli.js` is executable and starts with `#!/usr/bin/env node`. |
@@ -30,7 +31,7 @@ You need **Node 22 or later** (`package.json` asks for `node >= 22`). The comman
 The rest of this page writes `tern` for whichever you chose.
 
 :::warning
-Run `npx` only inside the checkout. Elsewhere, `npx tern` looks for a package called `tern` on the npm registry, which is an unrelated project. The `--no` flag makes `npx` refuse to install anything, so a mistake fails instead of downloading it. Also put `--` before the command: `npx --no tern --version` prints npm's own version.
+The package is not on the npm registry, and `npx tern` looks there for a package called `tern`, which is an unrelated project. Inside the checkout, `npx --no -- tern` uses the checkout's `bin` entry; the `--no` flag makes `npx` refuse to install anything, so a mistake fails instead of downloading it, and `--` keeps `npx --no tern --version` from printing npm's own version.
 :::
 
 `tern help` (or `tern` alone, `tern --help`, `tern -h`) prints the usage to stdout and exits 0. `tern --version` (or `-v`, `version`) prints the engine's version:
@@ -56,6 +57,7 @@ $ echo $?
 | `tern search QUERY` | searches notes by word, each hit at its file and line | [tern search](#search) |
 | `tern index [PATH…]` | writes `notes.json` and `search.json`, what the `::notes` and `::search` add-ons read | [tern index](#index) |
 | `tern corpus PATH…` | prints documentation pages' live examples as corpus cases | [tern corpus](#corpus) |
+| `tern vendor DIR` | writes local copies of the add-ons' libraries, in the layout `?base=` takes | [tern vendor](#vendor) |
 | `tern lsp [--stdio]` | the language server, over stdio | [The language server](#lsp) |
 
 ## What every command shares {#common}
@@ -912,6 +914,47 @@ $ git config core.hooksPath .githooks
 
 In a workflow, `tern index --check` fails the build when the files are stale. A site built by a workflow can instead run `tern index` there and deploy the result, so that nothing generated is committed.
 
+## tern vendor {#vendor}
+
+`tern vendor` writes the local copies that the add-ons' `?base=` option takes ([a copy of your own](addons.html#katex-loading)), from the packages the add-ons pin, for notes that must work offline or under a policy that allows no CDN.
+
+:::syntax[tern vendor]
+```sh
+tern vendor DIR [--katex] [--code] [--mermaid] [--mathml]
+```
+:::
+
+```sh
+$ tern vendor vendor --katex --mathml
+vendor/katex/fonts/KaTeX_AMS-Regular.ttf
+…
+vendor/katex/katex.min.css
+vendor/katex/katex.min.js
+vendor/temml/Temml-Local.css
+vendor/temml/Temml.woff2
+vendor/temml/temml.min.js
+tern vendor: katex 0.19.0 → vendor/katex (62 files); load it with addons/katex.js?base=vendor/katex
+tern vendor: mathml 0.14.0 → vendor/temml (3 files); load it with addons/mathml.js?base=vendor/temml
+tern vendor: 2 packages, 65 files, 1.5 MB; a ?base= resolves from the note's folder, so write the path from there
+```
+
+| Option | What it does |
+|---|---|
+| `DIR` | The folder to write into, created if missing; each library gets a folder of its own under it. |
+| `--katex`, `--code`, `--mermaid`, `--mathml` | Which libraries: KaTeX for [`katex.js`](addons.html#katex), highlight.js for [`code.js`](addons.html#code), Mermaid for [`mermaid.js`](addons.html#mermaid), Temml for [`mathml.js`](addons.html#mathml). Without a flag, all four. |
+
+| Folder | Files | Load it with |
+|---|---|---|
+| `DIR/katex/` | `katex.min.js`, `katex.min.css`, `fonts/` | `addons/katex.js?base=DIR/katex` |
+| `DIR/highlight/` | `highlight.min.js`, `languages/` | `addons/code.js?base=DIR/highlight` |
+| `DIR/mermaid/` | `mermaid.min.js` | `addons/mermaid.js?base=DIR/mermaid` |
+| `DIR/temml/` | `temml.min.js`, `Temml-Local.css`, `Temml.woff2` | `addons/mathml.js?base=DIR/temml` |
+
+- **The versions** are the ones the add-ons pin, read from their tables, so a copy is the file the add-on would fetch from jsDelivr, byte for byte: the add-on's SRI hash matches it, though a `?base=` copy is loaded without one.
+- **The packages** are downloaded from the npm registry once, checked against the registry's hash, into `node_modules/.cache/tern-smoke/` beside `tern.js` (the cache the test suite shares), and copied from there. Offline with an empty cache, the library is reported as not fetched and the exit code is 1; the others are still written.
+- **The paths.** The `?base=` the summary prints is `DIR` as you gave it; a note in another folder writes the path from its own folder, as for any relative URL.
+- **Files already there** are overwritten. Nothing else in `DIR` is touched.
+
 ## tern corpus {#corpus}
 
 `tern corpus` turns the live examples of documentation pages, such as this one, into cases of the conformance corpus, the test format of `test/corpus/`. So every example in the documentation is also a test of the engine.
@@ -1419,8 +1462,8 @@ The first fix of each is `isPreferred`. For `See @kernl` in a note with the id `
 The server's answers come from one module, `cli/language.js`. An editor that runs the engine itself, in a browser worker for example, can require it and give the same answers as `tern lsp`, with no server. It uses nothing from Node: it requires only `tern.js` and the engine's sources for the element [allowlists](elements.html#allowlists) (`src/schema.js`, with the `src/scan.js` it needs), so a bundler such as esbuild packs it for the browser. It is a CommonJS module, like the rest of the command line.
 
 ```js
-const tern = require('tern');
-const language = require('tern/cli/language.js');
+const tern = require('@ozkrac/tern');
+const language = require('@ozkrac/tern/cli/language.js');
 ```
 
 You run the engine on the note, index the result, then ask the index.
@@ -1438,7 +1481,7 @@ You run the engine on the note, index the result, then ask the index.
 In a browser, find the note with the [detection pattern](#detection-fixtures), then parse and transform it:
 
 ```js
-const detect = require('tern/test/fixtures/detect.json');
+const detect = require('@ozkrac/tern/test/fixtures/detect.json');
 const DETECT = new RegExp(detect.pattern, detect.flags);
 
 // One analysis of a file's text, with \n line breaks; null when it is not a note.

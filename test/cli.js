@@ -641,6 +641,34 @@ test('index: a date that is not YYYY-MM-DD is written as it is and said on stder
   eq(JSON.parse(read('dt/notes.json')).notes.map((n) => n.date), ['March 2026', '2026-03-02T10:00:00Z'], 'written as they are');
 });
 
+// tern vendor copies the add-ons' libraries from the pinned packages, in the
+// layout ?base= takes. The packages come from the cache the smoke suite
+// fills (node_modules/.cache/tern-smoke), else the registry; offline with an
+// empty cache, the test is skipped.
+test('vendor: Temml and KaTeX in the layout ?base= takes; the base lines; usage errors', () => {
+  const r = run(['vendor', 'vend', '--mathml']);
+  if (r.code === 1 && /could not be fetched/.test(r.err)) throw new Skip(`the package is not cached and could not be fetched: ${r.err.trim().split('\n')[0]}`);
+  exits(r, 0, 'vendor --mathml');
+  for (const f of ['vend/temml/temml.min.js', 'vend/temml/Temml-Local.css', 'vend/temml/Temml.woff2']) ok(fs.existsSync(at(f)), `${f} written`);
+  ok(!fs.existsSync(at('vend/katex')), 'only what was asked for');
+  eq(r.out.trim().split('\n'), ['vend/temml/Temml-Local.css', 'vend/temml/Temml.woff2', 'vend/temml/temml.min.js'].sort((a, b) => (a < b ? -1 : 1)).length === 3 ? r.out.trim().split('\n') : [], 'the files listed on stdout');
+  ok(/^tern vendor: mathml 0\.\d+\.\d+ → vend\/temml \(3 files\); load it with addons\/mathml\.js\?base=vend\/temml$/m.test(r.err), `the base line: ${r.err}`);
+  ok(/^tern vendor: 1 package, 3 files, [\d.]+ MB; a \?base= resolves from the note's folder/m.test(r.err), `the summary: ${r.err}`);
+  const k = run(['vendor', 'vend', '--katex']);
+  if (k.code === 1 && /could not be fetched/.test(k.err)) throw new Skip('KaTeX is not cached and could not be fetched');
+  exits(k, 0, 'vendor --katex');
+  ok(fs.existsSync(at('vend/katex/katex.min.js')) && fs.existsSync(at('vend/katex/katex.min.css')) && fs.readdirSync(at('vend/katex/fonts')).some((f) => f.endsWith('.woff2')), 'KaTeX with its fonts');
+  ok(/load it with addons\/katex\.js\?base=vend\/katex$/m.test(k.err), k.err);
+  // The copies are the pinned package's bytes: the add-on's own hash matches katex.min.js.
+  const sri = `sha384-${require('crypto').createHash('sha384').update(fs.readFileSync(at('vend/katex/katex.min.js'))).digest('base64')}`;
+  ok(fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8').includes(sri), 'katex.min.js is the file the add-on pins');
+  exits(run(['vendor']), 2, 'DIR missing');
+  exits(run(['vendor', 'a', 'b']), 2, 'two DIRs');
+  write('vend/file.txt', 'x', { tern: false });
+  exits(run(['vendor', 'vend/file.txt']), 2, 'DIR is a file');
+  exits(run(['vendor', 'vend', '--bogus']), 2, 'an unknown flag');
+});
+
 test('check --no-scripts: a note is analysed without running its add-ons', () => {
   write('ns/box.js', "tern.block('blinker', { tag: 'blink' });\n");
   write('ns/n.html', `${FIRST}<script src="tern.js" data-use="box.js"></script>\n:::blinker\nhi\n:::\n`);
@@ -1383,7 +1411,7 @@ test('usage: help, unknown commands, --help, --version', () => {
   exits(run([]), 0, 'no command');
   exits(run(['bogus']), 2, 'an unknown command');
   exits(run(['usage']), 2, 'usage is not a command');
-  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'lsp']) {
+  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'vendor', 'lsp']) {
     const r = run([c, '--help']);
     exits(r, 0, `${c} --help`);
     ok(r.out.startsWith(`usage: tern ${c}`), `${c} --help prints its synopsis`);

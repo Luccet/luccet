@@ -351,7 +351,7 @@ See [raw-body containers](syntax-blocks.html#raw-body) for `:::macros`.
 
 A note works without a network if everything it loads is local: `tern.js`, its add-ons, and the math library.
 
-1. Copy KaTeX 0.19.0's `dist/katex.min.js`, `dist/katex.min.css` and the `dist/fonts/` folder into your site, for example `vendor/katex/`. They are in the `dist/` folder of the `katex` npm package, which `npm pack katex@0.19.0` downloads as a tarball. The stylesheet loads the fonts from `fonts/` next to it, so keep that layout.
+1. Copy KaTeX 0.19.0's `dist/katex.min.js`, `dist/katex.min.css` and the `dist/fonts/` folder into your site, for example `vendor/katex/`: [`tern vendor vendor --katex`](tools.html#vendor) does exactly that from the pinned package. (By hand, they are in the `dist/` folder of the `katex` npm package, which `npm pack katex@0.19.0` downloads as a tarball.) The stylesheet loads the fonts from `fonts/` next to it, so keep that layout.
 2. Point the add-on at it with `?base=`:
 
    ```html
@@ -367,7 +367,7 @@ $ openssl dgst -sha384 -binary vendor/katex/katex.min.js | openssl base64 -A
 QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 ```
 
-**Other routes.** [`addons/mathml.js`](addons.html#mathml) with `?base=` self-hosts Temml the same way; its MathML needs no fonts. Or pre-render with `tern build --math=katex` or `--math=mathml` ([pre-rendered math](tools.html#build-katex)), so the page carries its math and loads no math script at all. A note without math needs no math add-on: leave it out and nothing is fetched.
+**Other routes.** [`addons/mathml.js`](addons.html#mathml) with `?base=` self-hosts Temml the same way (`tern vendor vendor --mathml`); its MathML needs no fonts. `tern vendor` alone writes all four libraries the add-ons load, highlight.js and Mermaid too. Or pre-render with `tern build --math=katex` or `--math=mathml` ([pre-rendered math](tools.html#build-katex)), so the page carries its math and loads no math script at all. A note without math needs no math add-on: leave it out and nothing is fetched.
 
 ## Browsers {#browsers}
 
@@ -384,7 +384,7 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 
 **Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property and `MutationObserver`: Chrome 86, Firefox 78 and Safari 14, or newer. In an older browser `tern.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page.
 
-**Safari is not verified.** No test runs in Safari or WebKit, and nothing on these pages has been checked there.
+**WebKit is advisory, Safari not verified.** The smoke suite also runs in Playwright's WebKit, the engine behind Safari, as an advisory job in CI: its failures are reported, not blocking, until the suite is green there. Nothing on these pages has been checked in Safari itself. The command line and the language server run their tests on Windows the same way, advisory until green.
 
 **Known differences** between the tested browsers:
 

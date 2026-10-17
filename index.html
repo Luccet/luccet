@@ -193,4 +193,10 @@ Complete notes, each declaring its own vocabulary in a few lines at the top. Ope
 
 ## Status {#status}
 
-**1.0.** The syntax these pages describe is Tern 1.0. These pages and the engine's conformance tests are its reference, and every live example on these pages is checked against the engine. Tern is MIT licensed; the source is at [github.com/OzkrAC/tern](https://github.com/OzkrAC/tern).
+**Two versions.** The *syntax* these pages describe is Tern 1.0: these pages and the engine's conformance tests are its reference, every live example on them is checked against the engine, and a note written to them keeps rendering. The *engine*, `tern.js`, is at version 0.6.0 (`tern.version`; the tags on GitHub and jsDelivr carry the same number): it is in its 0.x series, so until 1.0 a minor release may still change how an existing note renders or what an add-on receives, and the [changelog](https://github.com/OzkrAC/tern/blob/main/CHANGELOG.md) says so when it does. Pin a release (`@v0.6.0`) to be sure; `@0.6` follows the fixes of a series.
+
+**Deprecation.** A construct, an option or an API that is to go is marked deprecated in the changelog and on its page, keeps working for at least one minor release with a diagnostic or a console line that names the replacement, and is removed in the release after that. Nothing described on these pages is deprecated today.
+
+**Towards 1.0.** The engine reaches 1.0 when what remains of its readiness plan is through: the safe-rendering contract complete and documented, the browser floor stated and guarded, an npm package, Windows and WebKit in the test matrix, and no open finding of consequence. Tern is MIT licensed; the source is at [github.com/OzkrAC/tern](https://github.com/OzkrAC/tern).
+
+**AI assistance.** Tern is developed with the help of an AI coding assistant: it drafts code, tests and documentation under the author's direction. Everything that lands is read and run by the author, and the tests, the conformance corpus and the live examples on these pages are the record of what was verified. A page that reads as if a person wrote it was reviewed by one.

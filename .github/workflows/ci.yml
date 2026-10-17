@@ -9,6 +9,11 @@ on:
     branches: ['**']
   pull_request:
 
+# One run per branch at a time: a push cancels the run of the push before it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -52,7 +57,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node test/fuzz.js --seconds=30
+      - run: node test/fuzz.js --seconds=30 --seed=${{ github.run_id }} # a new seed per run: every run tries new inputs
       - uses: actions/upload-artifact@v6
         if: failure()
         with:
@@ -95,6 +100,16 @@ jobs:
       - run: node tools/concat.js --check
       - run: node tools/version.js --check # every place that names the version agrees with package.json
       - run: node test/themes.js # themes/ is the build of tools/themes.js, and readable
+      - run: node test/package.js # what npm pack ships, the exports map, the declarations
+      # The package, installed from its tarball into an empty folder: the
+      # engine requires, the command runs, a subpath export resolves.
+      - name: the package installs and runs
+        run: |
+          npm pack --ignore-scripts
+          mkdir -p /tmp/pkg && cd /tmp/pkg && npm init -y >/dev/null && npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/ozkrac-tern-*.tgz
+          node -e "const t = require('@ozkrac/tern'); if (t.version !== require('@ozkrac/tern/package.json').version) throw new Error('version'); console.log('require ok', t.version, t.toHTML('# Hi').trim())"
+          node -e "require('@ozkrac/tern/cli/language.js'); require('@ozkrac/tern/test/fixtures/detect.json'); console.log('subpaths ok')"
+          npx tern --version
 
   cli:
     name: API, command line, language server and documentation
@@ -110,5 +125,82 @@ jobs:
       - run: node test/lsp.js
       - run: node test/docs.js # the documentation's pages, live examples and links
       - run: node test/skills.js # skills/: the agent skills, their format, examples and links
+
+  # The command line and the language server on Windows: paths, the sandbox
+  # child, the pipes. Advisory until it is green there; then it blocks.
+  windows:
+    name: command line and language server on Windows (advisory)
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node test/cli.js
+      - run: node test/lsp.js
+
+  # WebKit, the engine behind Safari, in the smoke matrix: advisory until the
+  # suite is green there; then it blocks, as Chromium and Firefox do.
+  webkit:
+    name: browser smoke (WebKit, advisory)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/tern-smoke
+          key: tern-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps webkit
+      - run: sudo apt-get install -y mupdf-tools
+      - run: node test/smoke.js --browsers=webkit
+
+  # Coverage of the Node suites (not perf or fuzz, whose budgets and timing
+  # instrumentation would skew), with c8 over the engine, the command line
+  # and the add-ons; the lcov report is an artifact of the run.
+  coverage:
+    name: coverage report (c8)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: |
+          for t in run api samples addons themes package cli language lsp docs skills; do
+            npx --yes c8@12.0.0 --clean=false --reporter=none node test/$t.js || exit 1
+          done
+          npx --yes c8@12.0.0 report --reporter=text-summary --reporter=lcov --include='tern.js' --include='cli/**' --include='addons/**' --include='tools/**'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: coverage
+          path: coverage/
+
+  # A pull request changes CHANGELOG.md: a line for a reader of the previous
+  # release (CONTRIBUTING.md). A change that needs none is labelled no-changelog.
+  changelog:
+    name: the changelog has a line for this change
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-changelog')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: |
+          if git diff --name-only "origin/${{ github.base_ref }}" HEAD | grep -qx CHANGELOG.md; then
+            echo "CHANGELOG.md changed"
+          else
+            echo "::error::CHANGELOG.md has no line for this change; add one under the unreleased section, or label the pull request no-changelog"
+            exit 1
+          fi
 
   # The release job is .github/workflows/release.yml (a pushed tag vX.Y.Z).

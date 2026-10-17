@@ -1,14 +1,60 @@
 {
-  "name": "tern",
+  "name": "@ozkrac/tern",
   "version": "0.6.0",
   "description": "Documents with the full power of HTML, CSS and JS.",
   "license": "MIT",
-  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/OzkrAC/tern.git"
   },
+  "homepage": "https://ozkr.ac/tern/",
+  "bugs": "https://github.com/OzkrAC/tern/issues",
+  "keywords": [
+    "markdown",
+    "html",
+    "notes",
+    "math",
+    "katex",
+    "language-server",
+    "static-site"
+  ],
   "main": "tern.js",
+  "types": "tern.d.ts",
+  "exports": {
+    ".": {
+      "types": "./tern.d.ts",
+      "default": "./tern.js"
+    },
+    "./tern.css": "./tern.css",
+    "./cli/*": "./cli/*",
+    "./src/*": "./src/*",
+    "./addons/*": "./addons/*",
+    "./themes/*": "./themes/*",
+    "./skills/*": "./skills/*",
+    "./test/fixtures/detect.json": "./test/fixtures/detect.json",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "tern": "tern-cli.js"
+  },
+  "files": [
+    "tern.js",
+    "tern.css",
+    "tern.d.ts",
+    "tern-cli.js",
+    "cli/",
+    "src/",
+    "addons/",
+    "themes/",
+    "skills/",
+    "tools/npm.js",
+    "tools/katex.js",
+    "tools/hljs.js",
+    "tools/mermaid.js",
+    "tools/temml.js",
+    "test/fixtures/detect.json",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -30,7 +76,7 @@
   "devDependencies": {
     "playwright": "1.61.1"
   },
-  "bin": {
-    "tern": "tern-cli.js"
+  "publishConfig": {
+    "access": "public"
   }
 }

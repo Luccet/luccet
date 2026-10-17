@@ -1,8 +1,10 @@
 # The release job. Pushing a tag vX.Y.Z runs every test, checks that the tag
 # matches tern.version and that tern.js is the build of src/, publishes
 # the site (index.html, docs/, examples/, themes/, addons/, tern.js, tern.css) to GitHub Pages,
-# and drafts the GitHub Release with a minified tern.js attached, under the
-# same name; the maintainer publishes the draft.
+# and drafts the GitHub Release with a minified tern.js (under the same
+# name), tern.css and a zip of the distribution attached; the maintainer
+# publishes the draft. The npm package is installed from the tag
+# (npm install github:OzkrAC/tern#vX.Y.Z), not from the registry.
 name: release
 
 on:
@@ -73,14 +75,20 @@ jobs:
           node tools/version.js --notes > notes.md
           printf '\n\n`tern.js` below is the minified build of this release: the same version, under the same name, for a site where bytes matter.\n' >> notes.md
           cat notes.md
-      - name: the draft release, with min/tern.js as tern.js
+      - name: the distribution zip
+        run: |
+          mkdir -p dist/tern
+          cp -r tern.js tern.css tern.d.ts LICENSE CHANGELOG.md addons themes dist/tern/
+          (cd dist && zip -qr "tern-$GITHUB_REF_NAME.zip" tern)
+          ls -l dist/*.zip
+      - name: the draft release, with min/tern.js as tern.js, tern.css and the zip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" min/tern.js --clobber
+            gh release upload "$GITHUB_REF_NAME" min/tern.js tern.css "dist/tern-$GITHUB_REF_NAME.zip" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file notes.md min/tern.js
+            gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file notes.md min/tern.js tern.css "dist/tern-$GITHUB_REF_NAME.zip"
           fi
 
   pages:

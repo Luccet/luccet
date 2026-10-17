@@ -11,6 +11,7 @@
 //   tern search QUERY  search notes by word, each hit with its file and line
 //   tern index [PATH…] write notes.json and search.json, what the ::notes and ::search add-ons read
 //   tern corpus PATH…  print documentation examples as corpus cases
+//   tern vendor DIR    write local copies of the add-ons' libraries, for ?base=
 //   tern lsp           the language server, over stdio
 'use strict';
 
@@ -26,7 +27,7 @@ for (const stream of [process.stdout, process.stderr]) {
   });
 }
 
-const COMMANDS = ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'lsp'];
+const COMMANDS = ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'vendor', 'lsp'];
 const [name, ...args] = process.argv.slice(2);
 const run = COMMANDS.includes(name) ? commands[name] : null;
 if (name === '--version' || name === '-v' || name === 'version') {

@@ -178,6 +178,7 @@ function driverSetup() {
       undefine: function () {},
       on: inertFn,
       style: function () {},
+      string: function (key, params, fallback) { return fallback === undefined ? key : String(fallback); },
       transform: function (name, fn, order) {
         if (typeof name !== 'string') return E.transform(name, fn); // run the pipeline on a tree
         var url = current;
