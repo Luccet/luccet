@@ -151,7 +151,7 @@ test('new: --tern, --use (commas, spaces, repeated) and --title', () => {
   write('o/a.js', '');
   const r = run(['new', 'o/n.html', '--tern=https://cdn.example/x/tern.js', '--use=a.js,b.css', '--use', 'c.js d.css', '--title=Linear maps: kernel & image']);
   exits(r, 0, 'new');
-  eq(read('o/n.html'), `${FIRST}<script src="https://cdn.example/x/tern.js"></script>\n:::meta\ntitle: Linear maps: kernel & image\n:::\n\n:::use\na.js\nb.css\nc.js\nd.css\n:::\n\n`, 'the file');
+  eq(read('o/n.html'), `${FIRST}<link rel="preload" href="a.js" as="script"><link rel="preload" href="b.css" as="style"><link rel="preload" href="c.js" as="script"><link rel="preload" href="d.css" as="style"><script src="https://cdn.example/x/tern.js"></script>\n:::meta\ntitle: Linear maps: kernel & image\n:::\n\n:::use\na.js\nb.css\nc.js\nd.css\n:::\n\n`, 'the file: a preload per add-on, scripts as script and stylesheets as style, before the tern.js tag');
   ok(/:::use names b\.css, which does not exist yet/.test(r.err) && !/names a\.js/.test(r.err), `stderr: ${r.err}`);
   const ast = JSON.parse(run(['parse', 'o/n.html', '--transformed']).out);
   eq(ast.data.tern.meta.title, 'Linear maps: kernel & image', 'the title read back');
@@ -628,6 +628,17 @@ test('build --json, mv --json, index --json: one object on stdout, the lines on 
   exits(r, 1, 'index --check --json, stale');
   j = JSON.parse(r.out);
   eq([j.wrote, j.stale], [false, ['j/idx/search.json']], 'the stale file named');
+});
+
+test('index: a date that is not YYYY-MM-DD is written as it is and said on stderr', () => {
+  write('dt/tern.js', '');
+  write('dt/a.html', `${FIRST}<script src="tern.js"></script>\n:::meta\ndate: March 2026\n:::\n\n# A\n`);
+  write('dt/b.html', `${FIRST}<script src="tern.js"></script>\n:::meta\ndate: 2026-03-02T10:00:00Z\n:::\n\n# B\n`);
+  const r = run(['index', 'dt']);
+  exits(r, 0, 'index');
+  ok(/^tern index: dt\/a\.html: the date "March 2026" is not YYYY-MM-DD; it is written as it is, and lists sort it last$/m.test(r.err), `stderr: ${r.err}`);
+  ok(!/b\.html: the date/.test(r.err), 'a date with a time passes');
+  eq(JSON.parse(read('dt/notes.json')).notes.map((n) => n.date), ['March 2026', '2026-03-02T10:00:00Z'], 'written as they are');
 });
 
 test('check --no-scripts: a note is analysed without running its add-ons', () => {

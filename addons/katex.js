@@ -95,6 +95,11 @@
     katexP = Promise.all([js, css]).then(([K, styled]) => {
       if (!K) warn(`KaTeX did not load from ${base}, so math stays as TeX source`);
       else if (!styled) warn(`KaTeX's stylesheet did not load from ${base}, so math stays as TeX source`);
+      if (!K || !styled) {
+        // Asked for again at the next render: the network may be back.
+        katexP = null;
+        link.remove();
+      }
       return K && styled ? K : null;
     });
     return katexP;

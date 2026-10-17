@@ -627,7 +627,7 @@ Docs: [references](https://ozkrac.github.io/tern/docs/syntax-inline.html#referen
 
 ### Footnote references
 
-`[^label]` anywhere in the text, also right after `!`, refers to a `[^label]:` definition. It is an atom, a numbered `<sup class="t-fnref">`; a repeated reference shows the same number. `[^]` and `[^ x]` are text. With no definition it stays text, with `footnote.undefined`. A strong group glued after it lands on the `<sup>`. Write `\[^x]` for the literal text.
+`[^label]` anywhere in the text, also right after `!`, refers to a `[^label]:` definition. It is an atom, a numbered `<sup class="t-fnref">` whose link is `role="doc-noteref"`; a repeated reference shows the same number. `[^]` and `[^ x]` are text. With no definition it stays text, with `footnote.undefined`. A strong group glued after it lands on the `<sup>`. Write `\[^x]` for the literal text.
 
 ### Autolinks
 

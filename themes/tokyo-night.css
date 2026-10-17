@@ -1,29 +1,44 @@
 /* SPDX-License-Identifier: MIT */
 /* Tokyo Night for Tern, after Tokyo Night Day (light) and Night (dark) (https://github.com/folke/tokyonight.nvim).
    Light or dark, by the reader's system setting. Use: <script src="tern.js" data-use="themes/tokyo-night.css"></script>
-   Raised to 4.5:1 contrast: fg, muted, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted (light); muted, code comment, code deleted (dark).
+   Raised to 4.5:1 contrast: fg, muted, line-strong, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted (light); muted, line-strong, code comment, code deleted (dark).
    Built by tools/themes.js; edit that, not this file. */
 :root {
   color-scheme: light dark;
-  --t-bg: #e1e2e7; --t-fg: #3358b0; --t-muted: #545a74; --t-line: #c4c8da; --t-soft: #d0d5e3;
-  --t-link: #215aa8; --t-mark: #e2d3be; --t-error: #b01e49; --t-error-bg: #e3d0da; --t-warn: #9c5100;
-  --t-code-comment: #545a74; --t-code-keyword: #7440b7; --t-code-string: #4a6230; --t-code-number: #8e4a00; --t-code-function: #215aa8;
-  --t-code-type: #136472; --t-code-variable: #32655e; --t-code-meta: #006385; --t-code-inserted: #4a6230; --t-code-deleted: #b01e49;
+  --t-bg: #e1e2e7; --t-fg: #3358b0; --t-muted: #545a74; --t-line: #c4c8da; --t-line-strong: #7d808c;
+  --t-soft: #d0d5e3; --t-link: #215aa8; --t-mark: #e2d3be; --t-error: #b01e49; --t-error-bg: #e3d0da;
+  --t-warn: #9c5100; --t-code-comment: #545a74; --t-code-keyword: #7440b7; --t-code-string: #4a6230; --t-code-number: #8e4a00;
+  --t-code-function: #215aa8; --t-code-type: #136472; --t-code-variable: #32655e; --t-code-meta: #006385; --t-code-inserted: #4a6230;
+  --t-code-deleted: #b01e49;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --t-bg: #1a1b26; --t-fg: #c0caf5; --t-muted: #7b82a8; --t-line: #292e42; --t-soft: #16161e;
-    --t-link: #7aa2f7; --t-mark: #6e4a17; --t-error: #f7768e; --t-error-bg: #422b39; --t-warn: #ff9e64;
-    --t-code-comment: #9a9fb8; --t-code-keyword: #bb9af7; --t-code-string: #9ece6a; --t-code-number: #ff9e64; --t-code-function: #7aa2f7;
-    --t-code-type: #2ac3de; --t-code-variable: #73daca; --t-code-meta: #7dcfff; --t-code-inserted: #9ece6a; --t-code-deleted: #f77990;
+    --t-bg: #1a1b26; --t-fg: #c0caf5; --t-muted: #7b82a8; --t-line: #292e42; --t-line-strong: #656977;
+    --t-soft: #16161e; --t-link: #7aa2f7; --t-mark: #6e4a17; --t-error: #f7768e; --t-error-bg: #422b39;
+    --t-warn: #ff9e64; --t-code-comment: #9a9fb8; --t-code-keyword: #bb9af7; --t-code-string: #9ece6a; --t-code-number: #ff9e64;
+    --t-code-function: #7aa2f7; --t-code-type: #2ac3de; --t-code-variable: #73daca; --t-code-meta: #7dcfff; --t-code-inserted: #9ece6a;
+    --t-code-deleted: #f77990;
   }
 }
 @media print {
   :root {
     color-scheme: light;
-    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-soft: #f3f4f1;
-    --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
-    --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
-    --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
+    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-line-strong: #767676;
+    --t-soft: #f3f4f1; --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea;
+    --t-warn: #8a5300; --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae;
+    --t-code-function: #6639ba; --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329;
+    --t-code-deleted: #82071e;
   }
+}
+@media (prefers-contrast: more) {
+  :root { --t-muted: #3358b0; --t-line: #7d808c; }
+  @media (prefers-color-scheme: dark) { :root { --t-muted: #c0caf5; --t-line: #656977; } }
+}
+@media (forced-colors: active) {
+  :root {
+    --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
+    --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
+  }
+  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
 }

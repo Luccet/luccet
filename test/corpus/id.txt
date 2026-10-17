@@ -338,10 +338,10 @@ See [this]{#fn-x}.
 ````
 
 ````html
-<p>Text<sup class="t-fnref"><a id="fnref-x" href="#fn-x">1</a></sup>.</p>
+<p>Text<sup class="t-fnref"><a role="doc-noteref" id="fnref-x" href="#fn-x">1</a></sup>.</p>
 <p>See <span>this</span>.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-x"><p>Note. <a class="t-fnback" href="#fnref-x">↩</a></p></li>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-x"><p>Note. <a class="t-fnback" href="#fnref-x" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -366,9 +366,9 @@ Text[^x].
 
 ````html
 <p>See <span id="fn-x">this</span>.</p>
-<p>Text<sup class="t-fnref"><a id="fnref-x" href="#fn-x">1</a></sup>.</p>
-<section class="t-footnotes"><ol>
-<li><p>Note. <a class="t-fnback" href="#fnref-x">↩</a></p></li>
+<p>Text<sup class="t-fnref"><a role="doc-noteref" id="fnref-x" href="#fn-x">1</a></sup>.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li><p>Note. <a class="t-fnback" href="#fnref-x" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 

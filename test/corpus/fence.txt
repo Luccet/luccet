@@ -38,7 +38,7 @@ def take(it, n):
 ````
 
 ````html
-<pre class="wide" data-t="code" data-lines data-start="10"><code class="language-python"><span class="t-line">def take(it, n):</span>
+<pre class="wide" data-t="code" data-lines data-start="10" style="--t-start:10"><code class="language-python"><span class="t-line">def take(it, n):</span>
 <span class="t-line">    return [x for _, x in zip(range(n), it)]</span></code></pre>
 ````
 
@@ -680,7 +680,7 @@ b
 ````
 
 ````html
-<pre data-t="code" data-lines data-start="10" data-hl="11"><code class="language-txt"><span class="t-line">a</span>
+<pre data-t="code" data-lines data-start="10" data-hl="11" style="--t-start:10"><code class="language-txt"><span class="t-line">a</span>
 <span class="t-line t-hl">b</span></code></pre>
 ````
 
@@ -716,7 +716,7 @@ b
 ````
 
 ````html
-<pre data-t="code" data-start="5"><code class="language-txt"><span class="t-line">a</span>
+<pre data-t="code" data-start="5" style="--t-start:5"><code class="language-txt"><span class="t-line">a</span>
 <span class="t-line">b</span></code></pre>
 ````
 
@@ -1038,4 +1038,25 @@ An attribute line before a raw HTML fence stays text with `attributes.raw`, as b
 
 ````diagnostics
 1:1 warning attributes.raw
+````
+
+## fence/start-with-author-style
+
+spec: syntax-blocks#fence-lines elements#fences
+
+`start` sets `--t-start` in the first declaration of `style`, before the author's own, so a stylesheet can read the counter's start without typed `attr()`; a listing's `<pre>` carries it too.
+
+````tern
+```txt {lines start=7 style="color:red"}
+a
+```
+
+```txt[Listing] {start=3}
+b
+```
+````
+
+````html
+<pre data-t="code" data-lines data-start="7" style="--t-start:7;color:red"><code class="language-txt"><span class="t-line">a</span></code></pre>
+<figure class="t-block code" data-t="code"><pre data-start="3" style="--t-start:3"><code class="language-txt"><span class="t-line">b</span></code></pre><figcaption class="t-title"><span class="t-label">Listing 1</span> Listing</figcaption></figure>
 ````

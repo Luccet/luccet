@@ -162,7 +162,7 @@ Some prose
 
 ````html
 <p>Some prose</p>
-<table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>
+<table><thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>
 ````
 
 ## block/delimiter-row-does-not-interrupt
@@ -290,8 +290,8 @@ Closed under addition.[^a]
 ````
 
 ````html
-<p>Closed under addition.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol><li id="fn-a"><p>Scaling too. <a class="t-fnback" href="#fnref-a">↩</a></p></li></ol></section>
+<p>Closed under addition.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol><li id="fn-a"><p>Scaling too. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li></ol></section>
 ````
 
 ## block/interrupt-attribute-line

@@ -304,7 +304,7 @@ A bare URL never consumes `|`, so the row keeps its cells.
 ````
 
 ````html
-<table><thead><tr><th>URL</th><th>Note</th></tr></thead><tbody><tr><td><a href="https://a.b">https://a.b</a></td><td>note</td></tr></tbody></table>
+<table><thead><tr><th scope="col">URL</th><th scope="col">Note</th></tr></thead><tbody><tr><td><a href="https://a.b">https://a.b</a></td><td>note</td></tr></tbody></table>
 ````
 
 ## autolink/bare-literal-escape

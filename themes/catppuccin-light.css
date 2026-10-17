@@ -1,21 +1,34 @@
 /* SPDX-License-Identifier: MIT */
 /* Catppuccin for Tern, after Catppuccin Latte (light) and Mocha (dark) (https://catppuccin.com/palette).
    Light for every reader. Use: <script src="tern.js" data-use="themes/catppuccin-light.css"></script>
-   Raised to 4.5:1 contrast: muted, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted.
+   Raised to 4.5:1 contrast: muted, line-strong, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted.
    Built by tools/themes.js; edit that, not this file. */
 :root {
   color-scheme: light;
-  --t-bg: #eff1f5; --t-fg: #4c4f69; --t-muted: #63667a; --t-line: #ccd0da; --t-soft: #e6e9ef;
-  --t-link: #1c5ee1; --t-mark: #f3d0a0; --t-error: #c10e34; --t-error-bg: #ecdae2; --t-warn: #bc4a08;
-  --t-code-comment: #666879; --t-code-keyword: #8538ea; --t-code-string: #2f7620; --t-code-number: #b24608; --t-code-function: #1c5ee1;
-  --t-code-type: #8f5b13; --t-code-variable: #bd3944; --t-code-meta: #127277; --t-code-inserted: #2f7620; --t-code-deleted: #ce0f38;
+  --t-bg: #eff1f5; --t-fg: #4c4f69; --t-muted: #63667a; --t-line: #ccd0da; --t-line-strong: #878990;
+  --t-soft: #e6e9ef; --t-link: #1c5ee1; --t-mark: #f3d0a0; --t-error: #c10e34; --t-error-bg: #ecdae2;
+  --t-warn: #bc4a08; --t-code-comment: #666879; --t-code-keyword: #8538ea; --t-code-string: #2f7620; --t-code-number: #b24608;
+  --t-code-function: #1c5ee1; --t-code-type: #8f5b13; --t-code-variable: #bd3944; --t-code-meta: #127277; --t-code-inserted: #2f7620;
+  --t-code-deleted: #ce0f38;
 }
 @media print {
   :root {
     color-scheme: light;
-    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-soft: #f3f4f1;
-    --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
-    --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
-    --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
+    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-line-strong: #767676;
+    --t-soft: #f3f4f1; --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea;
+    --t-warn: #8a5300; --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae;
+    --t-code-function: #6639ba; --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329;
+    --t-code-deleted: #82071e;
   }
+}
+@media (prefers-contrast: more) {
+  :root { --t-muted: #4c4f69; --t-line: #878990; }
+}
+@media (forced-colors: active) {
+  :root {
+    --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
+    --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
+  }
+  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
 }

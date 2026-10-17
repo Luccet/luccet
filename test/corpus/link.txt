@@ -408,9 +408,9 @@ spec: syntax-inline#images syntax-inline#footnote-reference syntax-inline#algori
 ````
 
 ````html
-<p>!<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup>(x.png)</p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Note. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>!<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup>(x.png)</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Note. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 

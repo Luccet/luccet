@@ -197,4 +197,5 @@ module.exports = {
   slotFor,
   withins,
   label,
+  pick,
 };

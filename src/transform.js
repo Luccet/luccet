@@ -166,8 +166,9 @@ function context(ast, opts) {
     schema: opts.schema || S.schema,
     opts,
     head,
-    // The label language: the caller's, then `:::meta`, then <html lang>.
-    lang: String(opts.lang || (meta && meta.lang) || head.lang || ''),
+    // The label language: the caller's, then `:::meta`, then <html lang>;
+    // recorded on the tree for the emitter's own words (its ARIA labels).
+    lang: (ast.data.tern.lang = String(opts.lang || (meta && meta.lang) || head.lang || '')),
     reg: null, // the id registry, once the ids transform has run
     report(code, at, message, hint, severity) {
       const position = !at ? ORIGIN : at.position || (at.start && at.start.line !== undefined ? at : ORIGIN);

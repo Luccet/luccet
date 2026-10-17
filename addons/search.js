@@ -16,7 +16,7 @@
 //   ::search{notes="a.html b.html"} these notes
 //   ::search{index=search.json}     the notes that index holds
 //
-// `limit` caps the results (20), `placeholder` sets the box's. The same
+// `limit` caps the results (20; 0 lists none), `placeholder` sets the box's. The same
 // options go on the add-on (`?from=index.html`) or in window.TERN = {use:
 // {search: {…}}}; an attribute on the leaf wins. `?q=` in the page's URL
 // fills the box, and typing keeps it up to date. An index that cannot be
@@ -42,7 +42,7 @@
   T.style(
     [
       '.tern .t-search { margin-block: 0 1rem; font-family: var(--t-sans); }',
-      '.t-search-box { font: inherit; inline-size: 100%; box-sizing: border-box; padding: .5rem .75rem; color: var(--t-fg); background: var(--t-bg); border: 1px solid var(--t-line); border-radius: 6px; }',
+      '.t-search-box { font: inherit; inline-size: 100%; box-sizing: border-box; padding: .5rem .75rem; color: var(--t-fg); background: var(--t-bg); border: 1px solid var(--t-line-strong); border-radius: 6px; }',
       '.t-search-box:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }',
       '.t-search-status { color: var(--t-muted); font-size: .85em; margin-block: .4rem 0; }',
       '.tern .t-search-results { list-style: none; margin: .75rem 0 0; padding: 0; }',
@@ -65,8 +65,9 @@
   // ---------------------------------------------------------------- the notes
 
   const isNote = (url) => /\.html?$/i.test(url.pathname);
-  // This page's URL, as a link to it reads: a folder's address (blog/) is its index.html.
-  const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html');
+  // This page's URL, as a link to it reads: a folder's address (blog/) is its
+  // index.html, and a page without its extension (blog/post) is the page.
+  const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html').replace(/\.html?$/i, '');
   const page = () => same(location.href);
 
   // A URL the add-on fetches or links to is http(s), or the page's own
@@ -207,11 +208,14 @@
 
   async function build(host) {
     const attr = (k) => (host.hasAttribute(k) ? host.getAttribute(k) : defaults[k]);
-    const o = { notes: attr('notes'), from: attr('from'), index: attr('index'), limit: Math.max(1, parseInt(attr('limit'), 10) || 20), placeholder: attr('placeholder') || 'Search the notes' };
+    const given = parseInt(attr('limit'), 10);
+    const o = { notes: attr('notes'), from: attr('from'), index: attr('index'), limit: Number.isFinite(given) && given >= 0 ? given : 20, placeholder: attr('placeholder') || 'Search the notes' };
     host.classList.add('t-search');
     const box = el('input', { type: 'search', class: 't-search-box', placeholder: o.placeholder, 'aria-label': o.placeholder, autocomplete: 'off' });
+    // The status line is the one live region: a second on the list would read
+    // every hit twice. The list has no bullets, so it says it is a list.
     const status = el('p', { class: 't-search-status', role: 'status', text: 'Indexing…' });
-    const results = el('ol', { class: 't-search-results', 'aria-live': 'polite' });
+    const results = el('ol', { class: 't-search-results', role: 'list' });
     host.replaceChildren(box, status, results);
 
     // The index: the file `index=` names, else built here from the notes.
@@ -243,10 +247,11 @@
     const show = (q) => {
       results.replaceChildren();
       if (!q.trim()) return void (status.textContent = ready);
-      const hits = S.query(idx, q, { limit: o.limit })
+      const found = S.query(idx, q, { limit: o.limit || Infinity })
         .map((h) => ({ ...h, href: linkTo(h.entry.url, base) }))
         .filter((h) => h.href);
-      status.textContent = hits.length ? `${hits.length} result${hits.length === 1 ? '' : 's'}` : 'No results';
+      const hits = o.limit ? found : []; // limit=0: the count, and nothing listed
+      status.textContent = found.length ? `${found.length} result${found.length === 1 ? '' : 's'}${hits.length ? '' : ', none listed'}` : 'No results';
       for (const { entry, matched, href } of hits) {
         const title = [entry.label, entry.title].filter(Boolean).join(' ');
         const link = el('a', { href: `${href}${entry.id ? `#${entry.id}` : ''}` }, el('span', { class: 't-search-label t-search-title', text: title }), el('span', { class: 't-search-page', text: titleOf.get(entry.url) || '' }));
@@ -257,6 +262,7 @@
     box.addEventListener('input', () => {
       clearTimeout(timer);
       timer = setTimeout(() => {
+        timer = 0;
         show(box.value);
         const u = new URL(location.href);
         if (box.value) u.searchParams.set('q', box.value);
@@ -266,6 +272,8 @@
     });
     box.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
+      // Enter before the debounce ran: the query as typed, not the last shown.
+      if (timer) (clearTimeout(timer), (timer = 0), show(box.value));
       const first = results.querySelector('a');
       if (first) (e.preventDefault(), (location.href = first.href));
     });

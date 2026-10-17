@@ -2,6 +2,7 @@
   "tern": "0.4.0",
   "notes": [
     { "url": "index.html", "title": "Smoke: a folder's index", "date": "2026-01-01", "headings": [], "links": ["index.html", "post.html"] },
-    { "url": "post.html", "title": "Smoke: a post", "date": "2026-01-02", "headings": [{ "depth": 1, "id": "post", "text": "A post" }], "links": [] }
+    { "url": "post.html", "title": "Smoke: a post", "date": "2026-01-02", "headings": [{ "depth": 1, "id": "post", "text": "A post" }], "links": [] },
+    { "url": "plain.html", "title": "Smoke: a page without its extension", "date": "2026-01-03", "headings": [], "links": ["plain.html", "post.html"] }
   ]
 }

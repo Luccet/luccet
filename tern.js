@@ -3405,6 +3405,7 @@ module.exports = {
   slotFor,
   withins,
   label,
+  pick,
 };
   };
   // ---- src/transform.js
@@ -3575,8 +3576,9 @@ function context(ast, opts) {
     schema: opts.schema || S.schema,
     opts,
     head,
-    // The label language: the caller's, then `:::meta`, then <html lang>.
-    lang: String(opts.lang || (meta && meta.lang) || head.lang || ''),
+    // The label language: the caller's, then `:::meta`, then <html lang>;
+    // recorded on the tree for the emitter's own words (its ARIA labels).
+    lang: (ast.data.tern.lang = String(opts.lang || (meta && meta.lang) || head.lang || '')),
     reg: null, // the id registry, once the ids transform has run
     report(code, at, message, hint, severity) {
       const position = !at ? ORIGIN : at.position || (at.start && at.start.line !== undefined ? at : ORIGIN);
@@ -4551,6 +4553,7 @@ module.exports = { run, register, names: () => order.slice(), TERN_IDS };
 
 const { decode } = require('./entities');
 const { isReservedName } = require('./scan');
+const { pick } = require('./schema');
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
 const SLOT = { details: 'summary', figure: 'figcaption', table: 'caption', fieldset: 'legend' }; // each tag's own title slot
@@ -4614,6 +4617,7 @@ let work = null; // the stack of pending nodes and strings
 let positions = true;
 let safe = false;
 let cssom = false;
+let say = null; // the emitter's own words, in the note's label language (WORDS)
 let prefix = ''; // opts.idPrefix: before every id and fragment link, so an untrusted root cannot clash with the page's ids
 let section = false; // true once the footnote section is being written
 let inToc = 0; // inside a toc entry: no nested links, no ids
@@ -4754,6 +4758,18 @@ function attrs(a, pre, post, extra, skip, fence) {
 }
 const safeSet = (k, v) => (k === 'srcset' ? v.split(',').every((c) => safeUrl(c.trim().split(/\s+/)[0] || '', true)) : safeUrl(v, true));
 
+// The few words the emitter writes itself, for assistive technology: the
+// footnote section's name, a back link's, a task checkbox's state. Picked by
+// the note's label language as a schema label map is (src/schema.js pick),
+// English when the language has none.
+const WORDS = {
+  footnotes: { en: 'Footnotes', de: 'Fußnoten', fr: 'Notes de bas de page', es: 'Notas al pie', pt: 'Notas de rodapé', it: 'Note a piè di pagina', nl: 'Voetnoten' },
+  back: { en: 'Back to the text', de: 'Zurück zum Text', fr: 'Retour au texte', es: 'Volver al texto', pt: 'Voltar ao texto', it: 'Torna al testo', nl: 'Terug naar de tekst' },
+  done: { en: 'Done', de: 'Erledigt', fr: 'Fait', es: 'Hecho', pt: 'Feito', it: 'Fatto', nl: 'Gedaan' },
+  todo: { en: 'Not done', de: 'Offen', fr: 'À faire', es: 'Pendiente', pt: 'Pendente', it: 'Da fare', nl: 'Te doen' },
+};
+const words = (lang) => Object.fromEntries(Object.keys(WORDS).map((k) => [k, escAttr(pick(WORDS[k], lang))]));
+
 // ---------------------------------------------------------------- the walk
 
 function emit(ast, opts) {
@@ -4763,6 +4779,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
+  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '');
   prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;
@@ -4929,7 +4946,7 @@ function paragraph(n, a) {
 // item starts with a disabled checkbox, inside the first paragraph when loose.
 function listItem(n, a) {
   const task = n.checked === true || n.checked === false;
-  const box = task ? `<input type="checkbox"${n.checked ? ' checked' : ''} disabled>` : '';
+  const box = task ? `<input type="checkbox"${n.checked ? ' checked' : ''} disabled aria-label="${n.checked ? say.done : say.todo}">` : '';
   const list = n.children || [];
   const first = list[0];
   const bare = !n.spread && first && first.type === 'paragraph' && !first.attributes;
@@ -4958,6 +4975,9 @@ function code(n, a) {
   const wrapLines = !!t.lines || hl !== null || start !== null;
   let data = t.lines ? ' data-lines' : '';
   if (start !== null) data += ` data-start="${start}"`;
+  // The counter's start, for the stylesheet: --t-start in the first
+  // declaration of `style` (the runtime sets it through the CSSOM instead).
+  const startStyle = start !== null && !cssom ? `--t-start:${start}` : null;
   if (t.hl != null) data += ` data-hl="${escValue(String(t.hlText != null ? t.hlText : Array.isArray(t.hl) ? t.hl.join(',') : t.hl))}"`;
   const meta = n.meta != null ? ` data-meta="${escValue(n.meta)}"` : ''; // the rest of the info string, verbatim
   let body = n.value || '';
@@ -4970,8 +4990,12 @@ function code(n, a) {
   } else body = esc(body);
   const pre = `${lang}${body}</code></pre>`;
   const titled = Array.isArray(t.title) && (t.title.length > 0 || !!t.text);
-  if (!titled) return void write(`<pre${attrs(a, '', '', ` data-t="code"${data}${meta}${pos(n)}`, null, true)}>${pre}\n`);
-  write(`<figure${attrs(a, 't-block code', '', ` data-t="code"${meta}${pos(n)}`, null, true)}><pre${data}>${pre}`);
+  if (!titled) {
+    const own = a && a.style != null && a.style !== '' && !safe ? String(a.style) : '';
+    const style = startStyle ? ` style="${escAttr(own ? `${startStyle};${own}` : startStyle)}"` : '';
+    return void write(`<pre${attrs(a, '', '', ` data-t="code"${data}${style}${meta}${pos(n)}`, startStyle ? 'style' : null, true)}>${pre}\n`);
+  }
+  write(`<figure${attrs(a, 't-block code', '', ` data-t="code"${meta}${pos(n)}`, null, true)}><pre${data}${startStyle ? ` style="${startStyle}"` : ''}>${pre}`);
   work.push('</figure>\n');
   title(t.slot || 'figcaption', t.text, t.title);
 }
@@ -5028,12 +5052,12 @@ function Row(row, opens, tag) {
   this.tag = tag;
   this.i = 0;
 }
-const cellOpen = (tag, al) => (al ? `<${tag} ${cssom ? 'data-t-align="' : 'style="text-align:'}${escValue(String(al))}">` : `<${tag}>`);
+const cellOpen = (tag, al) => `<${tag}${tag === 'th' ? ' scope="col"' : ''}${al ? ` ${cssom ? 'data-t-align="' : 'style="text-align:'}${escValue(String(al))}"` : ''}>`;
 
 function row(it) {
   const list = (it.row && it.row.children) || [];
   const opens = it.opens;
-  const plain = it.tag === 'th' ? '<th>' : '<td>'; // an extra cell's
+  const plain = it.tag === 'th' ? '<th scope="col">' : '<td>'; // an extra cell's
   const close = it.tag === 'th' ? '</th>' : '</td>';
   let s = it.i === 0 ? '<tr>' : ''; // gathered here, written every 16 KB
   while (it.i < list.length) {
@@ -5251,7 +5275,7 @@ function footnoteReference(n, a) {
   const t = tern(n);
   if (inToc) return '';
   if (t.resolved === false || t.target == null || t.number == null) return esc(`[^${n.label}]`);
-  const open = a ? `<sup${attrs(a, 't-fnref')}><a` : '<sup class="t-fnref"><a';
+  const open = a ? `<sup${attrs(a, 't-fnref')}><a role="doc-noteref"` : '<sup class="t-fnref"><a role="doc-noteref"';
   const id = t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : '';
   const num = typeof t.number === 'number' ? t.number : esc(String(t.number));
   return `${open}${id} href="#${escAttr(prefix + String(t.target))}">${num}</a></sup>`;
@@ -5269,7 +5293,7 @@ function footnoteDefinition(n) {
     return;
   }
   const list = n.children || [];
-  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(prefix + String(t.backref))}">↩</a>` : '';
+  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(prefix + String(t.backref))}" aria-label="${say.back}">↩</a>` : '';
   write(`<li${t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : ''}>`);
   work.push('</li>\n');
   const last = list[list.length - 1];
@@ -5285,7 +5309,7 @@ function footnotes(ast) {
   if (!Array.isArray(order)) return;
   const defs = order.map((id) => fnDefs.get(id)).filter(Boolean);
   if (!defs.length) return;
-  write('<section class="t-footnotes"><ol>\n');
+  write(`<section class="t-footnotes" role="doc-endnotes" aria-label="${say.footnotes}"><ol>\n`);
   work.push('</ol></section>\n');
   kids(defs);
 }
@@ -5302,18 +5326,18 @@ module.exports = { emit };
 
 const css = `:root {
   color-scheme: light dark;
-  --t-bg: #fdfdfb; --t-fg: #1f2328; --t-muted: #636c76; --t-line: #d9dde3; --t-soft: #f3f4f1;
+  --t-bg: #fdfdfb; --t-fg: #1f2328; --t-muted: #636c76; --t-line: #d9dde3; --t-line-strong: #767676; --t-soft: #f3f4f1;
   --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
   --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
   --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   --t-font: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
   --t-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --t-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  --t-width: 40rem; --t-size: 18px; --t-leading: 1.6;
+  --t-width: 40rem; --t-size: 1.125rem; --t-leading: 1.6; /* 18px at the browser's default size, so a reader's own size setting holds */
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --t-bg: #16181c; --t-fg: #dcdfe4; --t-muted: #8b949e; --t-line: #30363d; --t-soft: #1f2329;
+    --t-bg: #16181c; --t-fg: #dcdfe4; --t-muted: #8b949e; --t-line: #30363d; --t-line-strong: #8b949e; --t-soft: #1f2329;
     --t-link: #6cb0ff; --t-mark: #5c4d00; --t-error: #ffb4ab; --t-error-bg: #3b1714; --t-warn: #e3b341;
     --t-code-comment: #949da6; --t-code-keyword: #ff7b72; --t-code-string: #a5d6ff; --t-code-number: #79c0ff; --t-code-function: #d2a8ff;
     --t-code-type: #ffa657; --t-code-variable: #79c0ff; --t-code-meta: #7ee787; --t-code-inserted: #7ee787; --t-code-deleted: #ffa198;
@@ -5337,7 +5361,9 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .tern li > p { margin-block-end: .5rem; }
 .tern hr { border: 0; border-block-start: 1px solid var(--t-line); margin-block: 2rem; }
 .tern blockquote { padding-inline-start: 1rem; border-inline-start: 3px solid var(--t-line); color: var(--t-muted); }
-.tern mark { background: var(--t-mark); color: inherit; padding-inline: .15em; border-radius: 2px; }
+/* Text in a highlight is the text colour, whatever it was (muted, a link, which keeps its underline): the pair that is checked is fg on mark. */
+.tern mark, .tern mark a { color: var(--t-fg); }
+.tern mark { background: var(--t-mark); padding-inline: .15em; border-radius: 2px; }
 
 /* Media keep their aspect ratio when max-width shrinks them. */
 .tern :is(img, video, canvas, picture) { max-inline-size: 100%; height: auto; }
@@ -5347,11 +5373,11 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .tern :is(code, kbd, samp, pre) { font-family: var(--t-mono); font-size: .85em; }
 .tern pre code { font-size: 1em; }
 .tern :not(pre) > code { background: var(--t-soft); padding: .12em .35em; border-radius: 4px; }
-.tern kbd { border: 1px solid var(--t-line); border-block-end-width: 2px; border-radius: 4px; padding: .05em .4em; }
+.tern kbd { border: 1px solid var(--t-line-strong); border-block-end-width: 2px; border-radius: 4px; padding: .05em .4em; }
 .t-math, .tern :is(pre, code, kbd, samp) { direction: ltr; unicode-bidi: isolate; }
 .tern pre { text-align: start; background: var(--t-soft); padding: .8rem 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
 .tern pre[data-lines] code { counter-reset: t-line; }
-.tern pre[data-lines][data-start] code { counter-reset: t-line calc(attr(data-start type(<integer>), 1) - 1); }
+.tern pre[data-lines][data-start] code { counter-reset: t-line calc(var(--t-start, 1) - 1); } /* --t-start: the emitter's, or the runtime's (CSSOM) */
 .tern pre[data-lines] .t-line::before {
   counter-increment: t-line; content: counter(t-line); display: inline-block; min-inline-size: 2.5ch;
   margin-inline-end: 1.5ch; text-align: end; color: var(--t-muted); user-select: none;
@@ -5402,7 +5428,7 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .t-diagnostics {
   position: fixed; inset-block-end: .75rem; inset-inline-end: .75rem; z-index: 2147483647;
   max-inline-size: min(40rem, calc(100vw - 1.5rem)); max-block-size: 60vh; overflow: auto;
-  background: var(--t-bg); color: var(--t-fg); border: 1px solid var(--t-line); border-inline-start: 4px solid var(--t-error);
+  background: var(--t-bg); color: var(--t-fg); border: 1px solid var(--t-line-strong); border-inline-start: 4px solid var(--t-error);
   border-radius: 6px; box-shadow: 0 4px 18px rgb(0 0 0 / .18); font: 13px/1.45 var(--t-sans);
 }
 .t-diagnostics summary { cursor: pointer; padding: .45rem .75rem; font-weight: 600; }
@@ -5415,13 +5441,28 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .t-diag-code { font-family: var(--t-mono); font-size: .95em; }
 .t-diag-hint { display: block; }
 
+/* A reader asking for more contrast: muted text in the text colour, rules and borders in the strong line. */
+@media (prefers-contrast: more) {
+  :root { --t-muted: #1f2328; --t-line: #767676; }
+  @media (prefers-color-scheme: dark) { :root { --t-muted: #dcdfe4; --t-line: #8b949e; } }
+}
+/* Forced colours (Windows high-contrast themes): the system's palette throughout; a highlight keeps its pair. */
+@media (forced-colors: active) {
+  :root {
+    --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
+    --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
+  }
+  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+}
+
 @media print {
   .t-diagnostics { display: none; }
   .tern > * { content-visibility: visible !important; } /* the runtime's held blocks (src/runtime.js) */
   /* Every colour: black on white, the rest the light palette's, even for a reader in dark mode. */
   :root {
     color-scheme: light; --t-size: 11pt;
-    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-soft: #f3f4f1;
+    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-line-strong: #767676; --t-soft: #f3f4f1;
     --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
     --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
     --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
@@ -6321,6 +6362,60 @@ function posters(root) {
   }
 }
 
+// ---------------------------------------------------------------- held blocks
+
+// A long note's top-level blocks out of view get content-visibility: auto, so
+// the browser lays out and paints what is on screen and the first paint does
+// not wait for the whole note. Each block is released, plain again for good,
+// before it comes into view (those near the viewport at once, the rest when
+// they come within one and a half screens), and all of them before printing
+// and before a fragment jump. tern.config.holdOver (characters, 200 000 by
+// default; 0 never holds) is the note size from which a mount holds. The
+// math add-ons hold the same way on their own account while formulas wait.
+const HOLD_OVER = 200000;
+const held = new Map(); // block -> [content-visibility, contain-intrinsic-block-size] as they were
+let watcher = null;
+const holdOver = () => {
+  const v = Number(config.holdOver);
+  return Number.isFinite(v) && v >= 0 ? v : HOLD_OVER;
+};
+function hold(root) {
+  const blocks = [];
+  for (const b of root.children) {
+    if (held.has(b) || /^(?:script|style|template)$/.test(b.localName)) continue;
+    held.set(b, [b.style.contentVisibility, b.style.containIntrinsicBlockSize]);
+    b.style.contentVisibility = 'auto';
+    if (!b.style.containIntrinsicBlockSize) b.style.containIntrinsicBlockSize = 'auto 40rem';
+    blocks.push(b);
+  }
+  // The blocks in and near the viewport now, so no frame shows a held block.
+  const height = window.innerHeight || 800;
+  const margin = height * 1.5;
+  let again = true;
+  while (again) {
+    again = false;
+    for (const b of blocks) {
+      if (!held.has(b)) continue;
+      const r = b.getBoundingClientRect();
+      if (r.bottom > -margin && r.top < height + margin) release(b), (again = true);
+    }
+  }
+  if (!held.size) return;
+  watcher = watcher || new IntersectionObserver((list) => list.forEach((e) => e.isIntersecting && release(e.target)), { rootMargin: '150% 0px' });
+  for (const b of blocks) if (held.has(b)) watcher.observe(b);
+}
+function release(b) {
+  const h = held.get(b);
+  if (!h) return;
+  held.delete(b);
+  b.style.contentVisibility = h[0];
+  b.style.containIntrinsicBlockSize = h[1];
+  if (watcher) watcher.unobserve(b);
+}
+const releaseAll = () => {
+  for (const b of [...held.keys()]) release(b);
+};
+
 let taskStart = 0; // when the task running the mount began (0: not mounting)
 
 async function mount() {
@@ -6349,6 +6444,7 @@ async function mount() {
     main = tpl.content.firstElementChild;
     document.body.replaceChildren(tpl.content);
     presentation(main);
+    if (holdOver() && page.source.length >= holdOver()) hold(main);
     mounted = true;
     rebuildPanel();
     const t2 = now();
@@ -6373,6 +6469,7 @@ async function mount() {
 function reveal() {
   let id = location.hash.slice(1);
   if (!id) return;
+  releaseAll(); // the target's place on the page needs every block laid out
   try {
     id = decodeURIComponent(id);
   } catch {}
@@ -6608,12 +6705,13 @@ function apply(rec, el, name) {
   }
 }
 
-// Line numbers from data-start: the base CSS needs typed attr() (Chromium
-// 133+), so the counter is also set through the CSSOM, which a CSP allows.
+// Line numbers from data-start: the base CSS reads --t-start, which the
+// emitter writes as a style attribute on a built page and the runtime sets
+// here through the CSSOM, which a CSP allows.
 function lineNumbers(root) {
-  for (const code of root.querySelectorAll('pre[data-lines][data-start] > code')) {
-    const n = parseInt(code.parentElement.getAttribute('data-start'), 10);
-    if (Number.isFinite(n)) code.style.counterReset = `t-line ${n - 1}`;
+  for (const pre of root.querySelectorAll('pre[data-start]')) {
+    const n = parseInt(pre.getAttribute('data-start'), 10);
+    if (Number.isFinite(n) && !pre.style.getPropertyValue('--t-start')) pre.style.setProperty('--t-start', String(n));
   }
 }
 
@@ -6660,6 +6758,7 @@ function onCopy(e) {
 // as the print layout is taken right after.
 let printOpened = [];
 function onBeforePrint() {
+  releaseAll();
   for (const d of document.querySelectorAll('details.t-block:not([open])')) (d.open = true), printOpened.push(d);
 }
 function onAfterPrint() {

@@ -60,7 +60,7 @@
 
   // tern.css's print palette (src/css.js, @media print).
   const PRINT = {
-    bg: '#ffffff', fg: '#000000', muted: '#555555', line: '#d9dde3', soft: '#f3f4f1',
+    bg: '#ffffff', fg: '#000000', muted: '#555555', line: '#d9dde3', 'line-strong': '#767676', soft: '#f3f4f1',
     link: '#0b62c4', mark: '#fff2a8', error: '#b3261e', 'error-bg': '#fdecea', warn: '#8a5300',
     'code-comment': '#59636e', 'code-keyword': '#cf222e', 'code-string': '#0a3069', 'code-number': '#0550ae', 'code-function': '#6639ba',
     'code-type': '#953800', 'code-variable': '#0550ae', 'code-meta': '#116329', 'code-inserted': '#116329', 'code-deleted': '#82071e',
@@ -84,9 +84,21 @@
       s.onerror = () => resolve(null);
       document.head.append(s);
     });
-    mermaidP.then((M) => M || console.warn(`Tern mermaid.js: Mermaid did not load from ${base}, so diagrams stay as their source`));
+    // A load that failed is asked for again at the next render (below): the
+    // network may be back. Until then every fence stays as its source.
+    mermaidP.then((M) => {
+      if (M) return;
+      console.warn(`Tern mermaid.js: Mermaid did not load from ${base}, so diagrams stay as their source`);
+      failed = true;
+    });
     return mermaidP;
   }
+  let failed = false;
+  // 'render' fires after a root's behaviours have queued their drawings and
+  // before the queue asks for Mermaid, so a reset here is one retry per render.
+  T.on('render', () => {
+    if (failed) (failed = false), (mermaidP = null);
+  });
 
   // A colour as #rrggbb, which Mermaid's colour maths reads: the canvas
   // normalises any CSS colour, reading the pixel back for those it does not
@@ -351,6 +363,8 @@
     }));
     drawn.set(key, r);
     if (drawn.size > KEEP) drawn.delete(drawn.keys().next().value);
+    // No drawing (Mermaid did not load): not kept, so the next render tries again.
+    r.then((res) => res || (drawn.get(key) === r && drawn.delete(key)));
     return r;
   }
 
@@ -369,10 +383,36 @@
     return t.content.firstElementChild;
   }
 
+  // Every id in a drawing made unique to its placement: a drawing kept and
+  // placed twice (two fences with one source, or a screen and a print copy)
+  // would repeat Mermaid's ids, and their references (url(#…), href, the
+  // <style>'s selectors, aria-labelledby) would land on the first.
+  let placed = 0;
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function uniqueIds(root) {
+    const all = [root, ...root.querySelectorAll('[id]')].filter((e) => e.id);
+    if (!all.length) return;
+    const suffix = `-p${++placed}`;
+    const map = new Map(all.map((e) => [e.id, e.id + suffix]));
+    const re = new RegExp(`#(${[...map.keys()].map(escapeRe).join('|')})(?![\\w-])`, 'g');
+    const fix = (s) => s.replace(re, (m, id) => `#${map.get(id)}`);
+    const byName = (s) => s.split(/\s+/).map((id) => map.get(id) || id).join(' ');
+    for (const el of [root, ...root.querySelectorAll('*')]) {
+      if (el.id && map.has(el.id)) el.id = map.get(el.id);
+      for (const a of [...el.attributes]) {
+        if (a.name === 'id') continue;
+        const v = /^aria-(?:labelledby|describedby|controls|owns)$/.test(a.name) ? byName(a.value) : a.value.includes('#') ? fix(a.value) : a.value;
+        if (v !== a.value) el.setAttribute(a.name, v);
+      }
+      if (el.localName === 'style' && el.textContent.includes('#')) el.textContent = fix(el.textContent);
+    }
+  }
+
   function place(wrap, svg, cls) {
     const el = nodes(svg);
     if (!el) return;
     el.classList.add(cls);
+    uniqueIds(el);
     const old = wrap.querySelector(`:scope > .${cls}`);
     if (old) old.replaceWith(el);
     else wrap.insertBefore(el, wrap.querySelector(':scope > pre'));
@@ -394,17 +434,23 @@
     if (r.error) return fail(wrap, r.error);
     place(wrap, r.svg, 't-mermaid-screen');
     wrap.querySelector(':scope > pre').hidden = true;
+    // The print copy, in tern.css's print palette, for every palette that is
+    // not it: a light theme's colours are not print's black on white either.
     const old = wrap.querySelector(':scope > .t-mermaid-print');
-    if (luminance(screen.bg) >= luminance(screen.fg)) return void (old && old.remove());
-    const pr = await draw(sources.get(wrap), Object.assign({}, PRINT, { font: screen.font }));
+    const print = Object.assign({}, PRINT, { font: screen.font });
+    if (keyOf(print) === key) return void (old && old.remove());
+    const pr = await draw(sources.get(wrap), print);
     if (pr && pr.svg && current()) place(wrap, pr.svg, 't-mermaid-print');
   }
 
+  // A diagram Mermaid cannot read: the fence back where it was, with the id
+  // the wrapper had taken, so links to it still land, and the error after it.
   function fail(wrap, message) {
     const pre = wrap.querySelector(':scope > pre');
     const err = document.createElement('div');
     err.className = 't-error t-mermaid-error';
     err.textContent = `Mermaid cannot draw this diagram: ${message}`;
+    if (wrap.id) pre.id = wrap.id;
     wrap.replaceWith(pre, err);
     pre.hidden = false;
     console.warn(`Tern mermaid.js: ${message}`);

@@ -699,7 +699,7 @@ A `table` title is a `caption.t-title`, first child (through the caption merge; 
 ````
 
 ````html
-<table class="t-block table" data-t="table"><caption class="t-title">Keys</caption><thead><tr><th>Key</th></tr></thead><tbody><tr><td>w</td></tr></tbody></table>
+<table class="t-block table" data-t="table"><caption class="t-title">Keys</caption><thead><tr><th scope="col">Key</th></tr></thead><tbody><tr><td>w</td></tr></tbody></table>
 ````
 
 ## element/title-slot-follows-tag-override

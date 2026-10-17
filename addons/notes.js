@@ -12,7 +12,9 @@
 //
 // `sort` is date (the newest first; undated notes last, in path order),
 // title, or path (the catalogue's own order); `in` keeps the notes under a
-// folder, a prefix of their path in the catalogue; `limit` caps the list.
+// folder, a prefix of their path in the catalogue; `limit` caps the list (0
+// lists none). A date that is not a date (YYYY-MM-DD, with a time allowed)
+// is shown as written, sorts last and gets no <time datetime>.
 // The page itself is left out. The same options go on the add-on
 // (`?from=…`) or in window.TERN = {use: {notes: {…}}}; an attribute on the
 // leaf wins. Under node (tern check, tern build, the language server) the
@@ -53,8 +55,11 @@
     return e;
   };
 
+  // A date as the catalogue is meant to carry it: YYYY-MM-DD, a time after it allowed.
+  const ISO = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+  const dated = (n) => (typeof n.date === 'string' && ISO.test(n.date.trim()) ? n.date.trim() : '');
   const ORDER = {
-    date: (a, b) => (b.date || '') < (a.date || '') ? -1 : (b.date || '') > (a.date || '') ? 1 : a.url < b.url ? -1 : a.url > b.url ? 1 : 0,
+    date: (a, b) => (dated(b) < dated(a) ? -1 : dated(b) > dated(a) ? 1 : a.url < b.url ? -1 : a.url > b.url ? 1 : 0),
     title: (a, b) => String(a.title).localeCompare(String(b.title)) || (a.url < b.url ? -1 : 1),
     path: () => 0,
   };
@@ -77,7 +82,8 @@
 
   async function build(host) {
     const attr = (k) => (host.hasAttribute(k) ? host.getAttribute(k) : defaults[k]);
-    const o = { from: attr('from') || 'notes.json', in: attr('in') || '', sort: attr('sort') || 'date', limit: Math.max(1, parseInt(attr('limit'), 10) || Infinity) };
+    const given = parseInt(attr('limit'), 10);
+    const o = { from: attr('from') || 'notes.json', in: attr('in') || '', sort: attr('sort') || 'date', limit: Number.isFinite(given) && given >= 0 ? given : Infinity };
     host.classList.add('t-notes');
     let url = null;
     try {
@@ -98,8 +104,9 @@
       host.replaceChildren(el('p', { class: 't-notes-status', text: `The list of notes could not be loaded (${o.from}).` }));
       return;
     }
-    // The page itself is left out: a folder's address (blog/) is its index.html.
-    const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html');
+    // The page itself is left out: a folder's address (blog/) is its
+    // index.html, and a page without its extension (blog/post) is the page.
+    const same = (h) => h.replace(/[?#].*$/, '').replace(/\/$/, '/index.html').replace(/\.html?$/i, '');
     const page = same(location.href);
     let list = data.notes
       .filter((n) => n && typeof n.url === 'string')
@@ -109,10 +116,10 @@
     if (ORDER[o.sort] && o.sort !== 'path') list.sort(ORDER[o.sort]);
     list = list.slice(0, o.limit === Infinity ? undefined : o.limit);
     if (!list.length) return void host.replaceChildren(el('p', { class: 't-notes-status', text: 'No notes.' }));
-    const ul = el('ul', { class: 't-notes-list' });
+    const ul = el('ul', { class: 't-notes-list', role: 'list' }); // no bullets, so it says it is a list
     for (const n of list) {
       const li = el('li', null, el('a', { class: 't-notes-title', href: n.href, text: n.title || n.url }));
-      if (n.date) li.append(' ', el('time', { class: 't-notes-date', datetime: n.date, text: n.date }));
+      if (n.date) li.append(' ', dated(n) ? el('time', { class: 't-notes-date', datetime: dated(n), text: n.date }) : el('span', { class: 't-notes-date', text: String(n.date) }));
       if (n.description) li.append(el('p', { class: 't-notes-desc', text: n.description }));
       ul.append(li);
     }

@@ -1242,7 +1242,7 @@ Three reserved keys control line display. They are consumed (never emitted as at
 |---|---|
 | `lines` | wraps every line in `span.t-line` and adds `data-lines`, which shows the numbers |
 | `hl=4,6-7` | adds the class `t-hl` to those lines, and `data-hl` |
-| `start=10` | adds `data-start`; numbering begins at 10 |
+| `start=10` | adds `data-start` and sets `--t-start`; numbering begins at 10 |
 
 - `hl` counts the displayed line numbers, so with `start=10` the first line is 10.
 - `hl` or `start` without `lines` still wraps every line in `span.t-line`; only `lines` adds `data-lines`.
@@ -2066,7 +2066,7 @@ Leading zeros are digits:
 
 ### Task items {#task-items}
 
-An item that starts with `[ ]`, `[x]` or `[X]` followed by a space or the end of the line is a task item: `li.t-task` holding a disabled checkbox. The source is the state.
+An item that starts with `[ ]`, `[x]` or `[X]` followed by a space or the end of the line is a task item: `li.t-task` holding a disabled checkbox, labelled with its state for assistive technology ([Accessibility](elements.html#accessibility)). The source is the state.
 
 - `- [ ]` alone on a line is a task item, as on GitHub.
 - Ordered items can be task items too.
@@ -2137,7 +2137,7 @@ After a blank line, the same line is a list, as in CommonMark. Write `2019\.` to
 
 ## Tables {#tables}
 
-A table is rows of cells between pipes, with a delimiter row under the header.
+A table is rows of cells between pipes, with a delimiter row under the header. Each header cell is a `<th scope="col">`.
 
 :::syntax
 ```tern
@@ -2783,7 +2783,7 @@ Linear maps.[^subspace]
   then $T(u + \lambda v) = 0$.
 ```
 
-Definitions are collected, in the order of their first reference, into `<section class="t-footnotes">` at the end of the note.
+Definitions are collected, in the order of their first reference, into `<section class="t-footnotes" role="doc-endnotes">` at the end of the note, named Footnotes in the note's language; each definition ends with a back link to its first reference ([Accessibility](elements.html#accessibility)).
 
 **Start.** Row 14: `[^LABEL]:` followed by a space or the end of the line, anywhere a block may start, except inside a definition (there a `[^x]:` line is text). It interrupts a paragraph.
 

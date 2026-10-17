@@ -1298,9 +1298,10 @@ The base stylesheet, `tern.css`, reads its colours, fonts and measures from cust
 | `--t-fg` | `#1f2328` | `#dcdfe4` | the text |
 | `--t-muted` | `#636c76` | `#8b949e` | quotes, captions, equation numbers, line numbers |
 | `--t-line` | `#d9dde3` | `#30363d` | rules, table borders, the `h2` underline |
+| `--t-line-strong` | `#767676` | `#8b949e` | a control's border, 3:1 against the page: `kbd`, the diagnostics panel, a search box |
 | `--t-soft` | `#f3f4f1` | `#1f2329` | code backgrounds, table headers |
 | `--t-link` | `#0b62c4` | `#6cb0ff` | links |
-| `--t-mark` | `#fff2a8` | `#5c4d00` | `==highlight==` and highlighted code lines |
+| `--t-mark` | `#fff2a8` | `#5c4d00` | `==highlight==` and highlighted code lines; text in a highlight is `--t-fg`, whatever it was |
 | `--t-error` | `#b3261e` | `#ffb4ab` | `.t-error` text and border, the panel |
 | `--t-error-bg` | `#fdecea` | `#3b1714` | `.t-error` background |
 | `--t-warn` | `#8a5300` | `#e3b341` | warnings in the panel |
@@ -1308,7 +1309,7 @@ The base stylesheet, `tern.css`, reads its colours, fonts and measures from cust
 | `--t-sans` | `system-ui` … | | headings, table headers, the panel |
 | `--t-mono` | `ui-monospace` … | | code |
 | `--t-width` | `40rem` | | the width of the text column |
-| `--t-size` | `18px` | | the base font size; `11pt` in print |
+| `--t-size` | `1.125rem` | | the base font size: 18px at the browser's default, so a reader's own size setting holds; `11pt` in print |
 | `--t-leading` | `1.6` | | the line height |
 | `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | GitHub's | GitHub's | code colours, for the [code add-on](addons.html#code-colours) |
 | `--t-cols` | | | a grid's columns, set by Tern on each grid |
@@ -1398,7 +1399,8 @@ From jsDelivr, give the theme the same tag as `tern.js`: `https://cdn.jsdelivr.n
 - **A theme with both modes has three files.** `NAME.css` follows the reader's system setting, as tern.css does. `NAME-light.css` and `NAME-dark.css` give every reader one palette. A theme with one mode is one file, the same for every reader.
 - **Colours only.** A theme sets the colour properties and `color-scheme`, the [code colours](addons.html#code-colours) included, after the original theme's syntax colours. Fonts, sizes and the column width stay tern.css's ([Custom properties](#custom-properties)).
 - **Your CSS still wins.** A theme cascades after tern.css and before your own styles ([Overriding them](#overriding)): set a property yourself to change one colour of a theme.
-- **Readable.** Every text colour has at least 4.5:1 contrast against what it is drawn on (WCAG AA), and 7:1 in High contrast; code colours as the [code add-on](addons.html#code-colours) says. Where a palette's own colour falls short, the theme darkens or lightens it until it passes; the first lines of each file name those colours. A highlight keeps the palette's yellow hue.
+- **Readable.** Every text colour has at least 4.5:1 contrast against what it is drawn on (WCAG AA), and 7:1 in High contrast; code colours as the [code add-on](addons.html#code-colours) says; a control's border (`--t-line-strong`) 3:1 against the page. Where a palette's own colour falls short, the theme darkens or lightens it until it passes; the first lines of each file name those colours. A highlight keeps the palette's yellow hue, and text in it is the text colour, a link's too (it keeps its underline), so muted text and links stay readable on it.
+- **More contrast, forced colours.** For a reader who asks for more contrast (`prefers-contrast: more`), muted text takes the text colour and rules the strong line. Under forced colours (a Windows high-contrast theme), every property takes the system's colour, as tern.css does, and a highlight keeps the system's highlight pair.
 - **Print.** A theme prints as tern.css does: black on white ([Print](#print)).
 - **Your own theme.** Copy a file and change its values. To add one to Tern, add its palette to `tools/themes.js`, which writes the folder and checks the contrast: `node tools/themes.js`.
 

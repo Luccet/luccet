@@ -22,7 +22,7 @@ The tables example: an attribute line, alignment, an escaped pipe and a continue
 
 ````html
 <table class="wide">
-<thead><tr><th>Phase</th><th style="text-align:right">Weeks</th><th>Note</th></tr></thead>
+<thead><tr><th scope="col">Phase</th><th scope="col" style="text-align:right">Weeks</th><th scope="col">Note</th></tr></thead>
 <tbody>
 <tr><td>P2</td><td style="text-align:right">2</td><td>golden DOM | diff</td></tr>
 <tr><td>P3</td><td style="text-align:right">3</td><td>smoke green;<br>
@@ -45,7 +45,7 @@ A `|` line followed by a delimiter row starts a table; the first line is the hea
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td></tr></tbody>
 </table>
 ````
@@ -79,7 +79,7 @@ Header and body cells are trimmed and parsed as inline content.
 
 ````html
 <table>
-<thead><tr><th><strong>Term</strong></th><th>Meaning</th></tr></thead>
+<thead><tr><th scope="col"><strong>Term</strong></th><th scope="col">Meaning</th></tr></thead>
 <tbody><tr><td><em>x</em></td><td>see <a href="d.html">docs</a></td></tr></tbody>
 </table>
 ````
@@ -202,7 +202,7 @@ The table follows.
 ````html
 <p>The table follows.</p>
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td></tr></tbody>
 </table>
 ````
@@ -238,7 +238,7 @@ After the table.
 
 ````html
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 <p>After the table.</p>
@@ -260,7 +260,7 @@ A blank line ends the table; a later `|` line with no delimiter row under it is 
 
 ````html
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 <p>| 2 |</p>
@@ -280,7 +280,7 @@ Indentation is insignificant: indented delimiter and body rows still belong to t
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td></tr></tbody>
 </table>
 ````
@@ -299,7 +299,7 @@ The trailing `|` is optional on every row, the delimiter row included.
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td></tr></tbody>
 </table>
 ````
@@ -318,7 +318,7 @@ Delimiter cells are `:?-+:?` with spaces allowed around them; a single `-` is en
 
 ````html
 <table>
-<thead><tr><th>a</th><th style="text-align:center">b</th><th style="text-align:right">c</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col" style="text-align:center">b</th><th scope="col" style="text-align:right">c</th></tr></thead>
 <tbody><tr><td>1</td><td style="text-align:center">2</td><td style="text-align:right">3</td></tr></tbody>
 </table>
 ````
@@ -337,7 +337,7 @@ Colons in the delimiter row put `text-align` on both `th` and `td`; no colon, no
 
 ````html
 <table>
-<thead><tr><th style="text-align:left">l</th><th style="text-align:center">c</th><th style="text-align:right">r</th><th>n</th></tr></thead>
+<thead><tr><th scope="col" style="text-align:left">l</th><th scope="col" style="text-align:center">c</th><th scope="col" style="text-align:right">r</th><th scope="col">n</th></tr></thead>
 <tbody><tr><td style="text-align:left">1</td><td style="text-align:center">2</td><td style="text-align:right">3</td><td>4</td></tr></tbody>
 </table>
 ````
@@ -361,7 +361,7 @@ The header fixes the column count; missing cells are emitted empty, and an empty
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th><th>c</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th><th scope="col">c</th></tr></thead>
 <tbody>
 <tr><td>1</td><td></td><td></td></tr>
 <tr><td></td><td>2</td><td></td></tr>
@@ -384,7 +384,7 @@ An empty cell in an aligned column, missing or written, still gets the column's 
 
 ````html
 <table>
-<thead><tr><th style="text-align:center">a</th><th style="text-align:right">b</th></tr></thead>
+<thead><tr><th scope="col" style="text-align:center">a</th><th scope="col" style="text-align:right">b</th></tr></thead>
 <tbody>
 <tr><td style="text-align:center">1</td><td style="text-align:right"></td></tr>
 <tr><td style="text-align:center"></td><td style="text-align:right">2</td></tr>
@@ -406,7 +406,7 @@ A cell beyond the header's column count is kept and warned about, at the `|` tha
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody>
 </table>
 ````
@@ -430,7 +430,7 @@ spec: syntax-blocks#tables diagnostics#table-extra-cell
 
 ````html
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody>
 <tr><td>1</td><td>2</td><td>3</td></tr>
 <tr><td>4</td><td>5</td></tr>
@@ -457,7 +457,7 @@ Header and delimiter rows of different widths still make a table, with no diagno
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th><th>c</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th><th scope="col">c</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody>
 </table>
 ````
@@ -479,7 +479,7 @@ A delimiter row with fewer cells than the header: its colons align the columns i
 
 ````html
 <table>
-<thead><tr><th style="text-align:center">a</th><th style="text-align:right">b</th><th>c</th></tr></thead>
+<thead><tr><th scope="col" style="text-align:center">a</th><th scope="col" style="text-align:right">b</th><th scope="col">c</th></tr></thead>
 <tbody><tr><td style="text-align:center">1</td><td style="text-align:right">2</td><td>3</td></tr></tbody>
 </table>
 ````
@@ -502,7 +502,7 @@ A delimiter row with more cells than the header: the header still fixes the colu
 
 ````html
 <table>
-<thead><tr><th style="text-align:left">a</th><th style="text-align:right">b</th></tr></thead>
+<thead><tr><th scope="col" style="text-align:left">a</th><th scope="col" style="text-align:right">b</th></tr></thead>
 <tbody><tr><td style="text-align:left">1</td><td style="text-align:right">2</td></tr></tbody>
 </table>
 ````
@@ -524,7 +524,7 @@ A header and a delimiter row with no body rows are a table, emitted without a `<
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 </table>
 ````
 
@@ -594,7 +594,7 @@ An attribute line before the table puts its attributes on `<table>`.
 
 ````html
 <table class="wide" data-src="survey">
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -614,7 +614,7 @@ A row ending in a single `\` continues: the next line, minus its indentation, is
 
 ````html
 <table>
-<thead><tr><th>Phase</th><th>Note</th></tr></thead>
+<thead><tr><th scope="col">Phase</th><th scope="col">Note</th></tr></thead>
 <tbody><tr><td>P3</td><td>smoke green;<br>
 no task over 50 ms</td></tr></tbody>
 </table>
@@ -651,7 +651,7 @@ lines | 3 |
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th><th>c</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th><th scope="col">c</th></tr></thead>
 <tbody><tr><td>1</td><td>two<br>
 lines</td><td>3</td></tr></tbody>
 </table>
@@ -673,7 +673,7 @@ three |
 
 ````html
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>one<br>
 two<br>
 three</td></tr></tbody>
@@ -697,7 +697,7 @@ The continuation takes the next line whatever it starts with: a list marker or a
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody>
 <tr><td>1</td><td>x<br>
 - y</td></tr>
@@ -721,7 +721,7 @@ A row ending in `\` at the end of the note is unterminated; the `\` is literal.
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2 \</td></tr></tbody>
 </table>
 ````
@@ -746,7 +746,7 @@ After.
 
 ````html
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1\</td></tr></tbody>
 </table>
 <p>After.</p>
@@ -773,7 +773,7 @@ A continuation never joins a closer line: the row is unterminated, its `\` is li
 ````html
 <div class="t-block box" data-t="box">
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1\</td></tr></tbody>
 </table>
 </div>
@@ -803,7 +803,7 @@ Right.
 <div class="t-block row t-cols" style="--t-cols:repeat(2,minmax(0,1fr))" data-t="row">
 <div class="t-cell">
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1\</td></tr></tbody>
 </table>
 </div>
@@ -831,7 +831,7 @@ next
 ````html
 <blockquote>
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1\</td></tr></tbody>
 </table>
 </blockquote>
@@ -857,7 +857,7 @@ more |
 
 ````html
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td><a href="https://x.org">https://x.org</a><br>
 more</td></tr></tbody>
 </table>
@@ -878,7 +878,7 @@ next
 
 ````html
 <table>
-<thead><tr><th>path</th></tr></thead>
+<thead><tr><th scope="col">path</th></tr></thead>
 <tbody><tr><td>C:\</td></tr></tbody>
 </table>
 <p>next</p>
@@ -901,7 +901,7 @@ Pipes inside a code span or a math span do not split cells: `| $|x|$ | `a|b` |` 
 
 ````html
 <table>
-<thead><tr><th>Math</th><th>Code</th></tr></thead>
+<thead><tr><th scope="col">Math</th><th scope="col">Code</th></tr></thead>
 <tbody><tr><td><span class="t-math">|x|</span></td><td><code>a|b</code></td></tr></tbody>
 </table>
 ````
@@ -920,7 +920,7 @@ spec: syntax-blocks#tables syntax-inline#residual-pipe syntax-inline#ambiguity
 
 ````html
 <table>
-<thead><tr><th>Cell</th></tr></thead>
+<thead><tr><th scope="col">Cell</th></tr></thead>
 <tbody><tr><td><span class="t-math">a | b</span></td></tr></tbody>
 </table>
 ````
@@ -939,7 +939,7 @@ spec: syntax-blocks#tables syntax-inline#inline-math
 
 ````html
 <table>
-<thead><tr><th>Price ($)</th><th>Amount ($)</th></tr></thead>
+<thead><tr><th scope="col">Price ($)</th><th scope="col">Amount ($)</th></tr></thead>
 <tbody><tr><td>5</td><td>10</td></tr></tbody>
 </table>
 ````
@@ -958,7 +958,7 @@ spec: syntax-blocks#tables syntax-inline#escapes syntax-inline#escape
 
 ````html
 <table>
-<thead><tr><th>Expr</th><th>Meaning</th></tr></thead>
+<thead><tr><th scope="col">Expr</th><th scope="col">Meaning</th></tr></thead>
 <tbody><tr><td>a | b</td><td>a or b</td></tr></tbody>
 </table>
 ````
@@ -977,7 +977,7 @@ An escaped final pipe is not a trailing `|`: it stays in the last cell as text.
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2 |</td></tr></tbody>
 </table>
 ````
@@ -996,7 +996,7 @@ Inline elements are not atoms, so a pipe inside `:kbd[…]` in a row must be esc
 
 ````html
 <table>
-<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<thead><tr><th scope="col">Key</th><th scope="col">Action</th></tr></thead>
 <tbody><tr><td><kbd class="kbd" data-t="kbd">|</kbd></td><td>pipe the selection</td></tr></tbody>
 </table>
 ````
@@ -1015,7 +1015,7 @@ An unescaped pipe inside `:kbd[…]` splits the cell, which leaves `:kbd[` unclo
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th><th>c</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th><th scope="col">c</th></tr></thead>
 <tbody><tr><td>:kbd[</td><td>]</td><td>pipe</td></tr></tbody>
 </table>
 ````
@@ -1038,7 +1038,7 @@ Inside code and math there are no escapes: `\|` reaches the code span as written
 
 ````html
 <table>
-<thead><tr><th>Code</th><th>Norm</th></tr></thead>
+<thead><tr><th scope="col">Code</th><th scope="col">Norm</th></tr></thead>
 <tbody><tr><td><code>a\|b</code></td><td><span class="t-math">\|x\|</span></td></tr></tbody>
 </table>
 ````
@@ -1057,7 +1057,7 @@ Verbatim math is an atom, so its pipes do not split the row.
 
 ````html
 <table>
-<thead><tr><th>Set</th></tr></thead>
+<thead><tr><th scope="col">Set</th></tr></thead>
 <tbody><tr><td><span class="t-math">|x|</span></td></tr></tbody>
 </table>
 ````
@@ -1076,7 +1076,7 @@ A bare URL stops at `|`, so `|https://a.b|note|` keeps its two cells.
 
 ````html
 <table>
-<thead><tr><th>Link</th><th>Note</th></tr></thead>
+<thead><tr><th scope="col">Link</th><th scope="col">Note</th></tr></thead>
 <tbody><tr><td><a href="https://a.b">https://a.b</a></td><td>note</td></tr></tbody>
 </table>
 ````
@@ -1116,7 +1116,7 @@ Inline raw HTML is an atom, so a pipe in an attribute value does not split the c
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td><span title="x|y">s</span></td><td>t</td></tr></tbody>
 </table>
 ````
@@ -1135,7 +1135,7 @@ A lone backtick pairs with a later one in the same row, so the code span swallow
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td><code>|</code></td><td></td></tr></tbody>
 </table>
 ````
@@ -1154,7 +1154,7 @@ The row is split before inline parsing and emphasis is not an atom, so `*` canno
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>*x</td><td>y*</td></tr></tbody>
 </table>
 ````
@@ -1175,7 +1175,7 @@ A delimiter row inside the body renders as a text row and is warned about.
 
 ````html
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody>
 <tr><td>1</td><td>2</td></tr>
 <tr><td>---</td><td>---</td></tr>
@@ -1230,7 +1230,7 @@ A table nests in a `:::` container, and the container's closer ends it.
 ````html
 <div class="t-block box" data-t="box">
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 </div>
@@ -1251,7 +1251,7 @@ A table nests in a list item at its content column; the lookahead reads the next
 ````html
 <ul><li>
 <table>
-<thead><tr><th>a</th><th>b</th></tr></thead>
+<thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead>
 <tbody><tr><td>1</td><td>2</td></tr></tbody>
 </table>
 </li></ul>
@@ -1272,7 +1272,7 @@ A table nests in a blockquote; each line's `> ` prefix is stripped first.
 ````html
 <blockquote>
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 </blockquote>
@@ -1315,7 +1315,7 @@ The table-caption example: `:::table[Caption]{#id}` around one pipe table become
 ````html
 <table id="tbl-phases" class="t-block table wide" data-t="table">
 <caption class="t-title"><span class="t-label">Table 1</span> Phases and exit criteria</caption>
-<thead><tr><th>Phase</th><th>Exit</th></tr></thead>
+<thead><tr><th scope="col">Phase</th><th scope="col">Exit</th></tr></thead>
 <tbody><tr><td>P0</td><td>every rule has a case</td></tr></tbody>
 </table>
 ````
@@ -1337,7 +1337,7 @@ Without a written title the caption still holds the label.
 ````html
 <table id="tbl-a" class="t-block table" data-t="table">
 <caption class="t-title"><span class="t-label">Table 1</span></caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -1367,12 +1367,12 @@ See @tbl-b.
 <p>See <a class="t-ref" href="#tbl-b">Table 2</a>.</p>
 <table class="t-block table" data-t="table">
 <caption class="t-title"><span class="t-label">Table 1</span> First</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 <table id="tbl-b" class="t-block table" data-t="table">
 <caption class="t-title"><span class="t-label">Table 2</span> Second</caption>
-<thead><tr><th>b</th></tr></thead>
+<thead><tr><th scope="col">b</th></tr></thead>
 <tbody><tr><td>2</td></tr></tbody>
 </table>
 ````
@@ -1395,7 +1395,7 @@ The container's and the table's attributes are combined; on a conflict the conta
 ````html
 <table id="tbl-s" class="t-block table compact" data-t="table" data-k="outer">
 <caption class="t-title"><span class="t-label">Table 1</span> Scores</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -1418,7 +1418,7 @@ In the merge the container's `#id` wins over the inner table's, silently, and cl
 ````html
 <table id="tbl-outer" class="t-block table c-inner c-outer" data-t="table">
 <caption class="t-title"><span class="t-label">Table 1</span> Order</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -1442,7 +1442,7 @@ Blank lines around the table are not blocks, so the body is still exactly one pi
 ````html
 <table class="t-block table" data-t="table">
 <caption class="t-title"><span class="t-label">Table 1</span> Spaced</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -1465,7 +1465,7 @@ Without a schema, `table` reaches the element through the container allowlist an
 ````html
 <table class="t-block table" data-t="table">
 <caption class="t-title">Plain</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -1487,7 +1487,7 @@ The merge keys on the element, not the name: a container whose element is `table
 ````html
 <table class="t-block grid" data-t="grid">
 <caption class="t-title">Results</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````
@@ -1510,7 +1510,7 @@ In a merged table the container chooses the element; a `tag=` on the pipe table 
 ````html
 <table class="t-block table wide" data-t="table">
 <caption class="t-title"><span class="t-label">Table 1</span> Results</caption><thead>
-<tr><th>a</th></tr>
+<tr><th scope="col">a</th></tr>
 </thead>
 <tbody>
 <tr><td>1</td></tr>
@@ -1540,7 +1540,7 @@ In a merged table, `raw` and `ref=` on the pipe table's attribute line apply to 
 ````html
 <table class="t-block table t-cols" data-t="table" style="--t-cols:repeat(2,minmax(0,1fr))">
 <caption class="t-title"><span class="t-label">Table 1</span> Results</caption><thead>
-<tr><th>a</th></tr>
+<tr><th scope="col">a</th></tr>
 </thead>
 <tbody>
 <tr><td>1</td></tr>
@@ -1603,7 +1603,7 @@ See @tbl-real.
 </div>
 <table id="tbl-real" class="t-block table" data-t="table">
 <caption class="t-title"><span class="t-label">Table 2</span> Real</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 <p>See <a class="t-ref" href="#tbl-real">Table 2</a>.</p>
@@ -1635,11 +1635,11 @@ Two pipe tables are not "exactly one", so nothing merges: the fallback `div` kee
 <div class="t-block table" data-t="table">
 <div class="t-title"><span class="t-label">Table 1</span> Two</div>
 <table>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 <table>
-<thead><tr><th>b</th></tr></thead>
+<thead><tr><th scope="col">b</th></tr></thead>
 <tbody><tr><td>2</td></tr></tbody>
 </table>
 </div>
@@ -1694,7 +1694,7 @@ A merged `:::table` has no end mark: HTML allows no `span` between table section
 ````html
 <table class="t-block proof" data-t="proof">
 <caption class="t-title"><span class="t-label">Proof</span> Data</caption>
-<thead><tr><th>a</th></tr></thead>
+<thead><tr><th scope="col">a</th></tr></thead>
 <tbody><tr><td>1</td></tr></tbody>
 </table>
 ````

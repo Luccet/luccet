@@ -93,7 +93,7 @@ Outcome table: `| Price ($) | Amount ($) |` has two text cells, because `$)` can
 
 ````html
 <table>
-<thead><tr><th>Price ($)</th><th>Amount ($)</th></tr></thead>
+<thead><tr><th scope="col">Price ($)</th><th scope="col">Amount ($)</th></tr></thead>
 <tbody><tr><td>5</td><td>10</td></tr></tbody>
 </table>
 ````
@@ -702,7 +702,7 @@ Math is an atom for the row splitter: `$|x|$` is one cell.
 
 ````html
 <table>
-<thead><tr><th>Norm</th><th>Value</th></tr></thead>
+<thead><tr><th scope="col">Norm</th><th scope="col">Value</th></tr></thead>
 <tbody><tr><td><span class="t-math">|x|</span></td><td>1</td></tr></tbody>
 </table>
 ````
@@ -721,7 +721,7 @@ Residual case: `$a | b$` in a row is one math span, so the pipe inside it does n
 
 ````html
 <table>
-<thead><tr><th>A</th><th>B</th></tr></thead>
+<thead><tr><th scope="col">A</th><th scope="col">B</th></tr></thead>
 <tbody><tr><td><span class="t-math">a | b</span></td><td>c</td></tr></tbody>
 </table>
 ````

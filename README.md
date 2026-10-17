@@ -48,7 +48,7 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 ```
 
 - **To follow releases,** use `@0.5` (the newest 0.5.x) or `@latest` (the newest release).
-- **Not `tern.min.js`.** jsDelivr minifies any file on request, so `tern.min.js` exists beside `tern.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `tern.js`.
+- **Not `tern.min.js`.** jsDelivr minifies any file on request, so `tern.min.js` exists beside `tern.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `tern.js`. Where bytes matter, each [GitHub Release](https://github.com/OzkrAC/tern/releases) carries a minified build under that name: `https://github.com/OzkrAC/tern/releases/download/vX.Y.Z/tern.js`, or copy it to your site.
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://ozkrac.github.io/tern/docs/schema.html#themes).
 
@@ -88,7 +88,7 @@ npm test            # build check, corpus, samples, perf, fuzz, API, CLI, LSP, d
 npm run smoke       # Chromium and Firefox (Playwright)
 ```
 
-**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `tern.version`, the README's jsDelivr tag and the docs' examples. It rebuilds `tern.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test and publishes the site. Then create the GitHub Release from the changelog section. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
+**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `tern.version`, the README's jsDelivr tag and the docs' examples. It rebuilds `tern.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test, publishes the site, and drafts the GitHub Release with the changelog section as its notes and a minified `tern.js` attached (built with a pinned terser, checked to be the same version). Publish the draft. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
 
 
 MIT licensed.
