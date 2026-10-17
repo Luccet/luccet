@@ -366,10 +366,10 @@ Read @h.
 ````
 
 ````html
-<h2 id="h">See <a href="https://x.org">the docs</a><sup class="t-fnref"><a id="fnref-n" href="#fn-n">1</a></sup> and <a class="t-ref" href="#k">k</a></h2>
+<h2 id="h">See <a href="https://x.org">the docs</a><sup class="t-fnref"><a role="doc-noteref" id="fnref-n" href="#fn-n">1</a></sup> and <a class="t-ref" href="#k">k</a></h2>
 <p><span id="k">t</span></p>
 <p>Read <a class="t-ref" href="#h">See the docs and k</a>.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-n"><p>A note. <a class="t-fnback" href="#fnref-n">↩</a></p></li>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-n"><p>A note. <a class="t-fnback" href="#fnref-n" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````

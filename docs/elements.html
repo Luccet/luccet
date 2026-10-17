@@ -473,6 +473,7 @@ A [term]{.c #k data-x=1} here.
 - Every fence has `data-t="code"`, so a highlighter is an ordinary behaviour on `code`.
 - The author's attributes go on `<pre>`. A fence with no language has a bare `<code>`.
 - A **titled** fence is a listing: `figure.t-block.code[data-t=code]`, holding the `<pre>` and a `figcaption`. The author's attributes go on the `<figure>`; the line keys (`lines`, `hl`, `start`) stay on `<pre>` as `data-lines`, `data-hl` and `data-start`.
+- `start` also sets the custom property `--t-start` on the `<pre>`, which the stylesheet's line counter reads: in the first declaration of its `style` attribute in HTML the engine writes, through the CSSOM in the browser, so no typed `attr()` is needed and a strict CSP is kept.
 
 ````tern {.live}
 ```js {.wide}
@@ -607,6 +608,30 @@ Tern's own classes, all reserved to it:
 | `t-line`, `t-hl` | a fence's numbered and highlighted lines |
 | `t-error` | content shown as an error: opener junk, unclosed raw HTML, an unclosed equation, a reserved container, a formula KaTeX rejects |
 | `t-macros` | the hidden `:::macros` body |
+
+### Accessibility {#accessibility}
+
+What the emitter writes for assistive technology, beyond the HTML elements themselves:
+
+| Where | What |
+|---|---|
+| a table's header cells | `scope="col"`: each names its column |
+| the footnote section | `role="doc-endnotes"` and an `aria-label` (Footnotes) |
+| a footnote reference's link | `role="doc-noteref"` |
+| a footnote's back link | an `aria-label` (Back to the text), since its text is an arrow |
+| a task item's checkbox | an `aria-label` with its state (Done, Not done), since the box is disabled and its text follows it |
+| an end mark | `aria-hidden="true"`: decoration ([End marks](#end-marks)) |
+| a block's label | real text, read as part of the title ([Labels](#labels)) |
+
+The words follow the note's [label language](schema.html#choosing-language), as a schema's label map does: English, German, French, Spanish, Portuguese, Italian and Dutch are built in, and a language without them gets English. An image's `alt` is the author's ([Figures](#figures)).
+
+```tern {.live}
+A claim.[^why]
+
+- [x] checked, labelled "Done"
+
+[^why]: Because.
+```
 
 ## Titles and labels {#title-slots}
 

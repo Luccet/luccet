@@ -11,6 +11,8 @@
 //   /gen/big.js          a ≥ 250 KB script that records its execution
 //   /gen/addon.js|.css   add-ons of a fixed size (waterfall test)
 //   /gen/math4000.html   a long note with 4,000 formulas (mathNote)
+//   /gen/long1mb.html    a 1 MB note of prose, lists, tables and code, no math (longNote)
+//   /gen/a11y/THEME.html a note with every construct under a theme (a11yNote), for axe
 //   /gen/fragment.html   two closed <details> below the fold (fragment tests)
 //   /gen/built.html      test/smoke/built.html through `tern build`;
 //                        built-katex.html with --katex; guarded.html from
@@ -98,6 +100,7 @@ function sampleStandIn(file) {
   const ext = path.extname(file);
   if (ext === '.svg') return { type: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"><rect width="40" height="30" fill="#ccc"/></svg>' };
   if (/^\.(png|jpe?g|gif|webp)$/.test(ext)) return { type: 'image/png', body: PNG_1PX };
+  if (ext === '.css') return { type: 'text/css', body: '/* a stand-in stylesheet */\n' }; // a theme or a preload a fence shows
   if (/^\.(mp4|webm|ogg|mp3)$/.test(ext)) return { status: 204 }; // silent in both browsers; an empty 200 stalls Firefox's load event
   if (ext === '.js') {
     // A component script: define the element its file is named after.
@@ -140,6 +143,11 @@ function staticHandler(cdnOrigin) {
       headers['Content-Security-Policy'] = CSP_NONCE;
     }
     if (url === '/gen/never.js') return; // the add-on that never loads (the deadline test): no answer, ever
+    if (url.startsWith('/gen/a11y/') && url.endsWith('.html')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(a11yNote(url.slice('/gen/a11y/'.length, -'.html'.length)));
+      return;
+    }
     if (url.startsWith('/gen/') && GENERATED[url.slice(5)]) {
       const [type, body] = GENERATED[url.slice(5)]();
       res.writeHead(200, { 'Content-Type': /^text\/|javascript/.test(type) ? `${type}; charset=utf-8` : type });
@@ -155,8 +163,9 @@ function staticHandler(cdnOrigin) {
     if (url.startsWith('/gen/indexed/')) file = path.join(indexedDir(), path.normalize(url.slice('/gen/indexed/'.length)));
     // A sample's add-ons (addons/katex.js …) resolve to the repository's, as tern.js does.
     if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
-    // A folder's address is its index.html, as GitHub Pages and most servers serve it.
+    // A folder's address is its index.html, as GitHub Pages and most servers serve it; a page without its extension is the page.
     if (url.endsWith('/') && fs.existsSync(path.join(file, 'index.html'))) file = path.join(file, 'index.html');
+    if (!fs.existsSync(file) && fs.existsSync(`${file}.html`)) file = `${file}.html`;
     const missing = !file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory();
     const docs = missing && file.startsWith(ROOT + path.sep) && docsReferer(req);
     if (missing && (file.startsWith(SAMPLES + path.sep) || docs)) {
@@ -308,6 +317,98 @@ function badIndex() {
   };
 }
 
+// A long note with no math, about a megabyte: the runtime's held blocks
+// (src/runtime.js hold) are what keeps its first paint quick.
+function longNote(bytes = 1000000) {
+  const out = [
+    '<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>',
+    '',
+    '<script>',
+    "  window.__t = { script: performance.now() };",
+    "  tern.on('render', () => { window.__t.render = performance.now(); });",
+    "  tern.on('ready', () => { window.__t.ready = performance.now(); });",
+    '</script>',
+    '',
+    '# A long note: about a megabyte of prose {#top}',
+    '',
+  ];
+  const para = 'The kernel of a linear map is the set of vectors sent to zero; it is a subspace, and its dimension plus the rank is the dimension of the domain. '.repeat(4);
+  let size = 0;
+  for (let s = 1; size < bytes; s++) {
+    const part = [
+      `## Section ${s}: linear maps, part ${s} {#s-${s}}`,
+      '',
+      para,
+      '',
+      `- item one of section ${s}`,
+      `- item two, with a [link](#top) and **emphasis**`,
+      `- item three, with inline \`code()\``,
+      '',
+      '| Phase | Weeks | Note |',
+      '|---|--:|---|',
+      `| P${s} | ${s % 9} | a cell in section ${s} |`,
+      '',
+      '```js',
+      `function section${s}() { return ${s}; }`,
+      '```',
+      '',
+      `:::theorem[Result ${s}]{#r-${s}}`,
+      para,
+      ':::',
+      '',
+      `${para}See @r-${s} and the [top](#top).`,
+      '',
+    ].join('\n');
+    out.push(part);
+    size += part.length + 1;
+  }
+  return out.join('\n');
+}
+
+// A note with every construct the emitter writes, under a theme (`tern` for
+// tern.css alone), with a language and a title, for an axe run.
+function a11yNote(theme) {
+  const use = theme === 'tern' ? '' : ` data-use="/themes/${theme}.css"`;
+  return [
+    `<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: ${theme}</title><script src="/tern.js"${use}></script>`,
+    '',
+    `# Every construct, in the ${theme} theme {#top}`,
+    '',
+    'A paragraph with a [link](#top), *emphasis*, **strong**, `code`, :kbd[Ctrl], a ==highlight with a [link](#eq) inside== and a footnote.[^n]',
+    '',
+    '> A quotation, in the muted colour, with ==a highlight==.',
+    '',
+    '## A list and a task list {#lists}',
+    '',
+    '- one\n- two with `code`\n\n1. first\n2. second\n\n- [x] done\n- [ ] not done',
+    '',
+    '## A table {#table}',
+    '',
+    '| Phase | Weeks | Note |\n|---|--:|---|\n| P2 | 2 | golden DOM |\n| P3 | 3 | smoke green |',
+    '',
+    '## Code {#code}',
+    '',
+    '```js {lines start=3 hl=4}\nfunction a() {}\nfunction b() {} // highlighted\nfunction c() {}\n```',
+    '',
+    '## Math and a figure {#math}',
+    '',
+    'Inline $x^2$ and display:',
+    '',
+    '$$\nE = mc^2\n$$ {#eq}',
+    '',
+    ':::figure[A one-pixel image]{#fig}\n![A grey square](/gen/poster.png)\n:::',
+    '',
+    ':::details[More]{#more}\nHidden until opened.\n:::',
+    '',
+    ':::aside{#aside}\nAn aside, with @eq and @fig.\n:::',
+    '',
+    '::toc',
+    '',
+    '[^n]: The footnote, with a back link.',
+    '',
+  ].join('\n');
+}
+
 const GENERATED = {
   'big.js': () => ['text/javascript', pad(260) + "window.order = (window.order || []).concat('external');\n"],
   'bad-index/index.html': () => ['text/html', badIndexPage()],
@@ -316,6 +417,7 @@ const GENERATED = {
   'addon.js': () => ['text/javascript', pad(20) + 'window.__addon = (window.__addon || 0) + 1;\n'],
   'addon.css': () => ['text/css', pad(6) + '.tern { outline-color: currentColor; }\n'],
   'math4000.html': () => ['text/html', mathNote()],
+  'long1mb.html': () => ['text/html', longNote()],
   'fragment.html': () => ['text/html', fragmentNote()],
   'built.html': () => ['text/html', cliPage('built')],
   'built-katex.html': () => ['text/html', cliPage('built-katex')],
@@ -407,6 +509,7 @@ const HLJS_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 
 const MERMAID_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@(\d+\.\d+\.\d+)\/([^?#]+)/;
 const MERMAID_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mermaid.js'), 'utf8'))[1];
 const TEMML_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mathml.js'), 'utf8'))[1];
+const AXE_VERSION = '4.14.0'; // axe-core, for the accessibility test; cached like the add-ons' libraries
 
 // A package's folder in node_modules/.cache/tern-smoke/, filled once
 // (tools/npm.js); null if it cannot be fetched (offline on the first run).
@@ -428,6 +531,7 @@ const katexDist = (v) => cached('KaTeX', (version) => npm.packageDir('katex', ve
 const hljsDir = (v) => cached('highlight.js', require('../tools/hljs').packageDir, v);
 const mermaidDir = (v) => cached('Mermaid', require('../tools/mermaid').packageDir, v);
 const temmlDir = (v) => cached('Temml', require('../tools/temml').packageDir, v);
+const axeDir = (v) => cached('axe-core', (version) => npm.packageDir('axe-core', version, { folder: `axe-core-${version}`, keep: ['axe.min.js'], has: 'axe.min.js' }), v);
 
 // Answers a package's CDN requests from its copy, as routeKatex below does KaTeX's.
 async function routeCached(context, re, dirOf) {
@@ -764,7 +868,7 @@ const DOC_TESTS = (() => {
       if (!r.titled) problems.push('the titled example lost its figure and caption');
       if (r.nav !== '../../docs/guide.html') problems.push(`the site nav's first link is ${r.nav}, expected ../../docs/guide.html`);
       if (r.tern < 10) problems.push(`only ${r.tern} highlighted Tern tokens`);
-      if (!/^<p>A <em>short<\/em> example/.test(r.html) || !/\n<section class="t-footnotes">\n {2}<ol>\n {4}<li id="fn-a">/.test(r.html)) problems.push(`the HTML pane: ${JSON.stringify(r.html.slice(0, 300))}`);
+      if (!/^<p>A <em>short<\/em> example/.test(r.html) || !/\n<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes">\n {2}<ol>\n {4}<li id="fn-a">/.test(r.html)) problems.push(`the HTML pane: ${JSON.stringify(r.html.slice(0, 300))}`);
       const own = ['t-math katex f\\colon \\RR \\to \\RR', 't-math katex \\RR^2'];
       if (JSON.stringify(r.own) !== JSON.stringify(own)) problems.push(`the example's own macro: ${JSON.stringify(r.own)}, expected ${JSON.stringify(own)} (typeset .t-math with data-tex, for copy)`);
       if (r.macrosHidden !== 'none' || r.runtimeMacros) problems.push(`:::macros in a result: display ${r.macrosHidden}, ${r.runtimeMacros} left as .t-macros for the runtime`);
@@ -1168,11 +1272,11 @@ const TESTS = [
     },
   },
   {
-    name: 'mermaid add-on: fences drawn as diagrams in the theme, listings and ids kept, a broken one left with its error, Mermaid pinned with SRI',
+    name: 'mermaid add-on: fences drawn as diagrams in the theme, listings and ids kept, a broken one left with its error and its id, print copies with unique ids, Mermaid pinned with SRI',
     url: '/test/smoke/mermaid-addon.html',
-    timeout: 60000,
+    timeout: 90000,
     async check(page, ctx) {
-      await page.waitForFunction(() => document.querySelectorAll('main.tern .t-mermaid > svg.t-mermaid-screen').length === 11 && document.querySelector('.t-mermaid-error'), null, { timeout: 40000 });
+      await page.waitForFunction(() => document.querySelectorAll('main.tern .t-mermaid > svg.t-mermaid-screen').length === 11 && document.querySelectorAll('main.tern .t-mermaid > svg.t-mermaid-print').length === 11 && document.querySelector('.t-mermaid-error'), null, { timeout: 80000 });
       const r = await page.evaluate(() => {
         const flow = document.getElementById('flow');
         const rect = flow && flow.querySelector('svg .node rect, svg .node polygon');
@@ -1187,6 +1291,24 @@ const TESTS = [
           broken: broken && broken.previousElementSibling && broken.previousElementSibling.matches('pre:not([hidden])') && /Parse error/.test(broken.textContent),
           js: !!document.querySelector('main.tern > pre > code.language-js'),
           prints: document.querySelectorAll('.t-mermaid-print').length,
+          brokenId: !!(document.getElementById('broken') && document.getElementById('broken').matches('pre') && !document.getElementById('broken').hidden),
+          // An id in two drawings (Mermaid repeats some within one drawing of its own accord).
+          dupIds: (() => {
+            const owner = new Map();
+            const dup = [];
+            for (const e of document.querySelectorAll('.t-mermaid > svg [id], .t-mermaid > svg[id]')) {
+              const svg = e.closest('svg');
+              if (owner.has(e.id) && owner.get(e.id) !== svg) dup.push(e.id);
+              owner.set(e.id, svg);
+            }
+            return dup;
+          })(),
+          // Every url(#…) reference in a print copy lands inside that copy.
+          refs: [...document.querySelectorAll('.t-mermaid-print [marker-end], .t-mermaid-print [marker-start], .t-mermaid-print [fill^="url("]')].map((e) => {
+            const v = e.getAttribute('marker-end') || e.getAttribute('marker-start') || e.getAttribute('fill');
+            const m = /url\(#([^)]+)\)/.exec(v);
+            return m ? !!e.closest('svg').querySelector(`#${CSS.escape(m[1])}`) : true;
+          }),
           scripts: [...document.querySelectorAll('script[src*="mermaid@"]')].map((e) => ({ src: e.src.replace(/^.*\/npm\//, ''), sri: e.integrity.startsWith('sha384-') })),
         };
       });
@@ -1196,7 +1318,10 @@ const TESTS = [
       if (!r.listing) throw new Error('the listing lost its diagram or its caption');
       if (!r.broken) throw new Error('the broken diagram is not shown as source with its error');
       if (!r.js) throw new Error('the js fence was touched');
-      if (r.prints) throw new Error(`${r.prints} print copies for a light palette`);
+      if (r.prints !== 11) throw new Error(`${r.prints} print copies: the light palette is not print's, so every diagram gets one`);
+      if (!r.brokenId) throw new Error('the broken fence did not get its id back, or is hidden');
+      if (r.dupIds.length) throw new Error(`ids repeated across drawings: ${[...new Set(r.dupIds)].slice(0, 5).join(', ')}`);
+      if (!r.refs.length || !r.refs.every(Boolean)) throw new Error(`${r.refs.filter((x) => !x).length} of ${r.refs.length} url(#…) references in print copies point outside their copy`);
       if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: `mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`, sri: true }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /Tern mermaid\.js: Parse error/.test(m.text))) throw new Error('no console warning for the broken diagram');
     },
@@ -1247,7 +1372,7 @@ const TESTS = [
       const dark = await page.evaluate(() => ({ fill: getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill, soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim() }));
       if (dark.soft !== '#1f2329' || dark.fill !== 'rgb(31, 35, 41)') throw new Error(`after the switch a node is filled ${dark.fill}, --t-soft is ${dark.soft}`);
       await page.emulateMedia({ colorScheme: 'light' });
-      await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === was && !document.querySelector('.t-mermaid-print'), light, { timeout: 20000 });
+      await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === was, light, { timeout: 20000 });
       // Once the redraws the switches queued are done, render the note again.
       const again = await page.evaluate(async () => {
         const main = document.querySelector('main.tern');
@@ -1291,12 +1416,14 @@ const TESTS = [
     },
   },
   {
-    name: 'mermaid add-on: a Mermaid that fails to load leaves each fence as its source, with a warning',
+    name: 'mermaid add-on: a Mermaid that fails to load leaves each fence as its source, with a warning; the next render asks for it again',
     url: '/test/smoke/mermaid-addon.html',
+    timeout: 90000,
     allowConsole: /Failed to load resource|Loading failed for the <script>|integrity|MIME type/i,
-    async setup(context) {
-      // Registered after the cache route, so it wins.
-      await context.route((url) => MERMAID_URL.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
+    async setup(context, _page, ctx) {
+      // Registered after the cache route, so it wins; lifted for the retry.
+      ctx.blocked = (url) => MERMAID_URL.test(url.href);
+      await context.route(ctx.blocked, (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
     },
     async check(page, ctx) {
       await page.waitForFunction(() => [...document.querySelectorAll('script')].some((s) => /mermaid@/.test(s.src)), null, { timeout: 5000 });
@@ -1304,6 +1431,15 @@ const TESTS = [
       const r = await page.evaluate(() => ({ svgs: document.querySelectorAll('.t-mermaid svg').length, hidden: document.querySelectorAll('main.tern pre[hidden]').length, fences: document.querySelectorAll('main.tern code.language-mermaid').length }));
       if (r.svgs || r.hidden || r.fences !== 12) throw new Error(`${r.svgs} diagrams, ${r.hidden} hidden fences, ${r.fences} fences`);
       if (!ctx.console.some((m) => m.type === 'warning' && /Mermaid did not load/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      // The network is back: the note rendered again asks for Mermaid again and draws.
+      await page.context().unroute(ctx.blocked);
+      await page.evaluate(async () => {
+        const html = await (await fetch(location.href)).text();
+        await window.tern.render(document.querySelector('main.tern'), html.slice(html.indexOf('</script>') + '</script>'.length));
+      });
+      await page.waitForFunction(() => document.querySelectorAll('.t-mermaid > svg.t-mermaid-screen').length === 11, null, { timeout: 60000 });
+      const scripts = await page.evaluate(() => document.querySelectorAll('script[src*="mermaid@"]').length);
+      if (scripts !== 2) throw new Error(`${scripts} Mermaid script tags, expected the failed one and the retry`);
     },
   },
   {
@@ -1536,6 +1672,100 @@ const TESTS = [
       const fonts = late.filter((r) => /katex@[^/]+\/dist\/fonts\//.test(r.url));
       ctx.note(`  ${stages} serial stages before mount; after mount ${late.length} request(s)${late.length ? ` up to stage ${Math.max(...late.map((r) => r.stage))}` : ''}, ${fonts.length} of them KaTeX fonts (not counted: mount does not wait for them)`);
       if (stages > 3) throw new Error(`${stages} serial stages before mount, budget 3 (see the waterfall below)`);
+    },
+  },
+  {
+    // axe-core over one page per theme family (its NAME.css, light and dark;
+    // a one-mode theme as it is) and tern.css alone: WCAG 2.0/2.1 A and AA
+    // rules, no violation. The page holds every construct the emitter writes.
+    name: 'accessibility: axe finds no WCAG A or AA violation on a page of every construct, in every theme, light and dark',
+    url: '/gen/a11y/tern.html',
+    timeout: 240000,
+    async setup(_context, _page, ctx) {
+      ctx.axe = await axeDir(AXE_VERSION);
+      if (!ctx.axe) ctx.skip(`no local copy of axe-core ${AXE_VERSION}`);
+    },
+    async check(page, ctx) {
+      const origin = new URL(page.url()).origin;
+      const T = require('../tools/themes');
+      const pages = [['tern', 'light'], ['tern', 'dark']];
+      for (const f of T.FAMILIES) for (const mode of [f.light && 'light', f.dark && 'dark'].filter(Boolean)) pages.push([f.name, mode]);
+      const problems = [];
+      let rules = 0;
+      for (const [theme, mode] of pages) {
+        await page.emulateMedia({ colorScheme: mode });
+        await page.goto(`${origin}/gen/a11y/${theme}.html`, { waitUntil: 'load' });
+        await expect(page, () => window.tern && window.tern.ready && document.querySelector('main.tern .t-footnotes'), `${theme} ${mode} mounted`, 20000);
+        await page.evaluate(() => window.tern.ready);
+        await page.addScriptTag({ path: path.join(ctx.axe, 'axe.min.js') });
+        const r = await page.evaluate(() => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }).then((res) => ({ violations: res.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) })), passes: res.passes.length })));
+        rules = Math.max(rules, r.passes + r.violations.length);
+        for (const v of r.violations) problems.push(`${theme} (${mode}): ${v.id} [${v.impact}] at ${v.nodes.join('; ')}`);
+      }
+      ctx.note(`${pages.length} pages (${pages.map(([t, m]) => `${t}/${m[0]}`).join(', ')}); axe-core ${AXE_VERSION}, about ${rules} rules checked`);
+      for (const p of problems) ctx.note(p);
+      if (problems.length) throw new Error(`${problems.length} violation(s), listed below`);
+    },
+  },
+  {
+    // A 1 MB note of prose, no math: the runtime holds its top-level blocks out
+    // of view at mount (content-visibility: auto), so the first paint costs a
+    // screen's layout, not a megabyte's. The budget is the mount frame's
+    // style, layout and paint (LoAF, Chromium) or, without LoAF, the time from
+    // 'render' to the first contentful paint; both are reported. Held blocks
+    // are released as they come into view, and all of them before printing.
+    name: 'first paint of a 1 MB note: off-screen blocks held at mount, released on scroll and before print',
+    url: '/gen/long1mb.html',
+    timeout: 120000,
+    readyTimeout: 60000,
+    init: () => {
+      window.__loaf = [];
+      try {
+        new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__loaf.push({ start: e.startTime, duration: e.duration, layout: e.duration - (e.styleAndLayoutStart ? e.styleAndLayoutStart - e.startTime : e.duration) }))).observe({ type: 'long-animation-frame', buffered: true });
+      } catch {}
+    },
+    async check(page, ctx) {
+      const BUDGET = 1500; // ms of style, layout and paint for the mount frame
+      await expect(page, () => window.__t && window.__t.ready != null, "the 'ready' event", 60000);
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const r = await page.evaluate(() => {
+        const blocks = [...document.querySelector('main.tern').children];
+        const heldNow = blocks.filter((b) => b.style.contentVisibility === 'auto');
+        const inView = heldNow.filter((b) => {
+          const q = b.getBoundingClientRect();
+          return q.bottom > 0 && q.top < innerHeight;
+        });
+        const paint = performance.getEntriesByType('paint').find((e) => e.name === 'first-contentful-paint');
+        const t = window.__t;
+        const end = (e) => e.start + e.duration;
+        const frame = (window.__loaf || []).find((f) => f.start <= t.render + 1 && t.render <= end(f) + 1);
+        return { bytes: document.documentElement.outerHTML.length, blocks: blocks.length, held: heldNow.length, inView: inView.length, fcp: paint ? paint.startTime : null, render: t.render, script: t.script, ready: t.ready, frame };
+      });
+      const ms = (x) => `${Math.round(x)} ms`;
+      ctx.note(`${r.blocks} top-level blocks, ${r.held} held after the mount (${r.inView} of them in view); 'ready' at ${ms(r.ready)}`);
+      if (r.frame) ctx.note(`mount frame (LoAF): ${ms(r.frame.duration)}, of which style, layout and paint ${ms(r.frame.layout)}`);
+      if (r.fcp != null) ctx.note(`first contentful paint at ${ms(r.fcp)}, 'render' at ${ms(r.render)}`);
+      if (r.held < 100) throw new Error(`${r.held} held blocks of ${r.blocks}: the runtime did not hold a 1 MB note`);
+      if (r.inView) throw new Error(`${r.inView} held block(s) in view`);
+      const cost = r.frame ? r.frame.layout : r.fcp != null ? r.fcp - r.render : null;
+      if (cost == null) ctx.note('no LoAF and no first-contentful-paint entry: the layout cost is not measured here');
+      else if (cost > BUDGET) throw new Error(`the first paint cost ${ms(cost)} of layout, budget ${BUDGET} ms`);
+      // Scrolled to the end: the blocks there are released and laid out; before printing, all are.
+      const scrolled = await page.evaluate(async () => {
+        const last = document.querySelector('main.tern').lastElementChild;
+        last.scrollIntoView();
+        await new Promise((r) => setTimeout(r, 400));
+        return { lastHeld: last.style.contentVisibility === 'auto', lastHeight: last.getBoundingClientRect().height, stillHeld: [...document.querySelector('main.tern').children].filter((b) => b.style.contentVisibility === 'auto').length };
+      });
+      if (scrolled.lastHeld || scrolled.lastHeight < 10) throw new Error(`the last block after a scroll to it: held ${scrolled.lastHeld}, ${Math.round(scrolled.lastHeight)} px high`);
+      if (!scrolled.stillHeld) throw new Error('every block released by a scroll to the end: the middle should still be held');
+      const printed = await page.evaluate(() => {
+        window.dispatchEvent(new Event('beforeprint'));
+        const n = [...document.querySelector('main.tern').children].filter((b) => b.style.contentVisibility === 'auto').length;
+        window.dispatchEvent(new Event('afterprint'));
+        return n;
+      });
+      if (printed) throw new Error(`${printed} blocks still held before printing`);
     },
   },
   {
@@ -1826,6 +2056,15 @@ const TESTS = [
     },
   },
   {
+    name: 'addons/mathml.js: a note with no math fetches neither Temml nor its stylesheet',
+    url: '/test/smoke/mathml-none.html',
+    async check(page) {
+      await page.waitForTimeout(400);
+      const r = await page.evaluate(() => ({ scripts: document.querySelectorAll('script[src*="temml.min.js"]').length, links: document.querySelectorAll('link[href*="Temml-Local"]').length, }));
+      if (r.scripts || r.links) throw new Error(`${r.scripts} Temml script(s) and ${r.links} stylesheet(s) on a note with no math`);
+    },
+  },
+  {
     name: 'tern build --math=mathml: native MathML, self-contained, no math asset fetched',
     url: '/gen/built-mathml.html',
     async setup(_context, page, ctx) {
@@ -1985,19 +2224,29 @@ const TESTS = [
     allowConsole: /Failed to load resource/,
     async check(page) {
       await expect(page, () => /result/.test(document.querySelector('.t-search-status').textContent), 'the prefilled query to run');
+      await expect(page, () => /result/.test(document.querySelectorAll('.t-search-status')[1].textContent), 'the second box too');
       const r = await page.evaluate(() => ({
         status: document.querySelector('.t-search-status').textContent,
         value: document.querySelector('.t-search-box').value,
         placeholder: document.querySelector('.t-search-box').placeholder,
         hrefs: [...document.querySelectorAll('.t-search-results a')].map((a) => a.getAttribute('href').replace(/^.*\/search\//, '')),
         role: document.querySelector('search.t-search').getAttribute('role'),
+        list: [...document.querySelectorAll('.t-search-results')].map((ol) => [ol.getAttribute('role'), ol.getAttribute('aria-live')]),
+        none: { status: document.querySelectorAll('.t-search-status')[1].textContent, items: document.querySelectorAll('.t-search-results')[1].children.length },
       }));
       if (r.status !== '1 result' || r.value !== 'pi' || r.placeholder !== 'Find an exercise') throw new Error(JSON.stringify(r));
       if (r.hrefs.join() !== 'beta.html#circ') throw new Error(`hits ${r.hrefs.join()}, expected beta's section alone (limit=1)`);
       if (r.role !== 'search') throw new Error(`the element is ${r.role}`);
-      await page.focus('.t-search-box');
-      await page.keyboard.press('Enter');
-      await page.waitForURL(/beta\.html#circ$/, { timeout: 5000 });
+      if (JSON.stringify(r.list) !== JSON.stringify([['list', null], ['list', null]])) throw new Error(`the results lists: ${JSON.stringify(r.list)}, expected role=list and no live region of their own`);
+      if (r.none.status !== '1 result, none listed' || r.none.items) throw new Error(`limit=0: ${JSON.stringify(r.none)}`);
+      // Enter right after typing, before the debounce ran: the query as typed is run first, and its first hit opened.
+      await page.evaluate(() => {
+        const box = document.querySelector('.t-search-box');
+        box.value = 'pythag';
+        box.dispatchEvent(new Event('input', { bubbles: true }));
+        box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      });
+      await page.waitForURL(/alpha\.html#ex-1$/, { timeout: 5000 });
     },
   },
   {
@@ -2011,7 +2260,7 @@ const TESTS = [
     async check(page, ctx) {
       const status = (sel) => page.evaluate((sel) => document.querySelector(`${sel} .t-search-status`).textContent, sel);
       await expect(page, () => ['#pre', '#live'].every((s) => document.querySelector(`${s} .t-search-status`) && !/Indexing/.test(document.querySelector(`${s} .t-search-status`).textContent)), 'both boxes to be ready');
-      if ((await status('#pre')) !== '3 notes, 6 entries') throw new Error(`status "${await status('#pre')}", expected the index's three notes, the noindex pages left out`);
+      if ((await status('#pre')) !== '4 notes, 7 entries') throw new Error(`status "${await status('#pre')}", expected the index's four notes, the noindex pages left out`);
       if ((await status('#live')) !== '1 note, 3 entries') throw new Error(`the fallback's status "${await status('#live')}", expected alpha.html indexed here`);
       await page.fill('#pre .t-search-box', 'pythag');
       await page.waitForTimeout(250);
@@ -2033,25 +2282,29 @@ const TESTS = [
     },
   },
   {
-    name: 'notes add-on: lists the catalogue tern index wrote, newest first, with dates and descriptions; sort=title and limit; a catalogue that cannot be loaded says so',
+    name: 'notes add-on: lists the catalogue tern index wrote, newest first, with dates and descriptions, a date that is not one last and without <time>; sort=title and limit; limit=0; a catalogue that cannot be loaded says so',
     url: '/gen/indexed/notes.html',
     allowConsole: /Failed to load resource/,
     async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('.t-notes').length === 3 && [...document.querySelectorAll('.t-notes')].every((n) => n.querySelector('.t-notes-list, .t-notes-status')), 'the three lists to settle');
+      await expect(page, () => document.querySelectorAll('.t-notes').length === 4 && [...document.querySelectorAll('.t-notes')].every((n) => n.querySelector('.t-notes-list, .t-notes-status')), 'the four lists to settle');
       const r = await page.evaluate(() => [...document.querySelectorAll('.t-notes')].map((n) => ({
         label: n.getAttribute('aria-label'),
         tag: n.tagName,
-        items: [...n.querySelectorAll('li')].map((li) => [li.querySelector('.t-notes-title').textContent, li.querySelector('.t-notes-title').getAttribute('href').replace(/^.*\/indexed\//, ''), (li.querySelector('.t-notes-date') || {}).textContent || '', (li.querySelector('.t-notes-desc') || {}).textContent || '']),
+        role: n.querySelector('.t-notes-list') && n.querySelector('.t-notes-list').getAttribute('role'),
+        items: [...n.querySelectorAll('li')].map((li) => [li.querySelector('.t-notes-title').textContent, li.querySelector('.t-notes-title').getAttribute('href').replace(/^.*\/indexed\//, ''), (li.querySelector('.t-notes-date') || {}).textContent || '', (li.querySelector('.t-notes-desc') || {}).textContent || '', li.querySelector('time') ? li.querySelector('time').getAttribute('datetime') : null]),
         status: (n.querySelector('.t-notes-status') || {}).textContent || '',
       })));
       const want = [
-        ['Beta: circles', 'beta.html', '2026-03-01', 'Circles and what is inscribed in them.'],
-        ['Alpha: triangles', 'alpha.html', '2026-02-01', 'Right triangles and their hypotenuse.'],
-        ['Hidden', 'hidden.html', '2025-12-31', ''],
+        ['Beta: circles', 'beta.html', '2026-03-01', 'Circles and what is inscribed in them.', '2026-03-01'],
+        ['Alpha: triangles', 'alpha.html', '2026-02-01', 'Right triangles and their hypotenuse.', '2026-02-01'],
+        ['Hidden', 'hidden.html', '2025-12-31', '', '2025-12-31'],
+        ['Odd: a date that is not one', 'odd.html', 'March 2026', 'A catalogue entry whose date is prose.', null],
       ];
-      if (JSON.stringify(r[0].items) !== JSON.stringify(want)) throw new Error(`the default list ${JSON.stringify(r[0].items)}, expected newest first, the noindex pages and this page left out`);
-      if (JSON.stringify(r[1].items.map((i) => i[0])) !== JSON.stringify(['Alpha: triangles', 'Beta: circles'])) throw new Error(`sort=title limit=2: ${JSON.stringify(r[1].items)}`);
-      if (r[2].items.length || !/could not be loaded \(missing\.json\)/.test(r[2].status)) throw new Error(`the missing catalogue: ${JSON.stringify(r[2])}`);
+      if (JSON.stringify(r[0].items) !== JSON.stringify(want)) throw new Error(`the default list ${JSON.stringify(r[0].items)}, expected newest first, the odd date last as written and without <time>, the noindex pages and this page left out`);
+      if (r[0].role !== 'list') throw new Error(`the list's role is ${r[0].role}`);
+      if (r[1].items.length || r[1].status !== 'No notes.') throw new Error(`limit=0: ${JSON.stringify(r[1])}, expected none listed`);
+      if (JSON.stringify(r[2].items.map((i) => i[0])) !== JSON.stringify(['Alpha: triangles', 'Beta: circles'])) throw new Error(`sort=title limit=2: ${JSON.stringify(r[2].items)}`);
+      if (r[3].items.length || !/could not be loaded \(missing\.json\)/.test(r[3].status)) throw new Error(`the missing catalogue: ${JSON.stringify(r[3])}`);
       if (r.some((n) => n.label !== 'Notes' || n.tag !== 'NAV')) throw new Error(`the element: ${JSON.stringify(r.map((n) => [n.tag, n.label]))}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
@@ -2069,8 +2322,24 @@ const TESTS = [
         search: document.querySelector('.t-search-status').textContent,
       }));
       if (!/\/folder\/$/.test(r.href)) throw new Error(`the page is at ${r.href}, expected the folder's address`);
-      if (r.items.join() !== 'post.html') throw new Error(`the list ${JSON.stringify(r.items)} ${r.status}, expected the post alone: the page itself left out`);
+      if (r.items.join() !== 'plain.html,post.html') throw new Error(`the list ${JSON.stringify(r.items)} ${r.status}, expected the other two pages: the page itself left out`);
       if (!/^1 note\b/.test(r.search)) throw new Error(`the search status "${r.search}", expected the post alone indexed`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    name: 'notes and search add-ons: a page reached without its extension (folder/plain) is the plain.html the catalogue and its links name, and is left out',
+    url: '/test/smoke/folder/plain',
+    async check(page, ctx) {
+      await expect(page, () => document.querySelector('.t-notes-list, .t-notes-status') && document.querySelector('.t-search-status') && !/Indexing/.test(document.querySelector('.t-search-status').textContent), 'the list and the search box to settle');
+      const r = await page.evaluate(() => ({
+        href: location.href,
+        items: [...document.querySelectorAll('.t-notes-list a')].map((a) => a.getAttribute('href').replace(/^.*\/folder\//, '')),
+        search: document.querySelector('.t-search-status').textContent,
+      }));
+      if (!/\/folder\/plain$/.test(r.href)) throw new Error(`the page is at ${r.href}, expected the address without the extension`);
+      if (r.items.join() !== 'post.html,index.html') throw new Error(`the list ${JSON.stringify(r.items)}, expected the other two pages: the page itself left out`);
+      if (!/^1 note\b/.test(r.search)) throw new Error(`the search status "${r.search}", expected the post alone indexed, this page left out`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },
   },

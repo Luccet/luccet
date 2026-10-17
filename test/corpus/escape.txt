@@ -411,7 +411,7 @@ Escapes apply in table cells.
 ````
 
 ````html
-<table><thead><tr><th>A</th></tr></thead><tbody><tr><td>a*b</td></tr></tbody></table>
+<table><thead><tr><th scope="col">A</th></tr></thead><tbody><tr><td>a*b</td></tr></tbody></table>
 ````
 
 ## escape/none-in-fence

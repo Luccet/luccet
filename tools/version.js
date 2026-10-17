@@ -10,6 +10,7 @@
 //   node tools/version.js patch|minor|major  the same, with the next version
 //   node tools/version.js --check            exit 1 if a place disagrees with package.json (CI)
 //   node tools/version.js --tag              tag the release: vX.Y.Z on a clean main that passes --check
+//   node tools/version.js --notes            print CHANGELOG.md's section for the version (the release notes)
 //
 // The check also reads every file git tracks: one that names the version
 // outside a place fails it, so a new mention is added to PLACES and the
@@ -144,6 +145,16 @@ function changelogHas(v) {
   return new RegExp(`^## v?${esc(v)}(?=\\s|$)`, 'm').test(read(CHANGELOG));
 }
 
+// The body of CHANGELOG.md's section for `v`: the release's notes.
+function changelogSection(v) {
+  const text = read(CHANGELOG);
+  const m = new RegExp(`^## v?${esc(v)}(?=\\s|$).*\\n`, 'm').exec(text);
+  if (!m) return null;
+  const from = m.index + m[0].length;
+  const next = text.slice(from).search(/^## /m);
+  return text.slice(from, next < 0 ? text.length : from + next).trim();
+}
+
 // Starts the changelog's section for `v`, dated today, above the first
 // section, so the release notes have a place before the bump is committed.
 function changelogStart(v) {
@@ -223,6 +234,13 @@ function main() {
 
   if (args.includes('--tag')) {
     tag(current);
+    return;
+  }
+
+  if (args.includes('--notes')) {
+    const notes = changelogSection(current);
+    if (notes === null) fail([`${CHANGELOG}: no section for ${current}`]);
+    console.log(notes);
     return;
   }
 

@@ -19,8 +19,8 @@ The lists example: task items, and an ordered list nested at the item's content 
 
 ````html
 <ul>
-<li class="t-task"><input type="checkbox" checked disabled> Motions</li>
-<li class="t-task"><input type="checkbox" disabled> Operators<ol><li>inner vs around</li><li>counts</li></ol></li>
+<li class="t-task"><input type="checkbox" checked disabled aria-label="Done"> Motions</li>
+<li class="t-task"><input type="checkbox" disabled aria-label="Not done"> Operators<ol><li>inner vs around</li><li>counts</li></ol></li>
 </ul>
 ````
 
@@ -36,8 +36,8 @@ spec: syntax-blocks#lists
 ````
 
 ````html
-<ul><li class="t-task"><input type="checkbox" checked disabled> Upper-case x</li></ul>
-<ol><li class="t-task"><input type="checkbox" checked disabled> Ordered</li></ol>
+<ul><li class="t-task"><input type="checkbox" checked disabled aria-label="Done"> Upper-case x</li></ul>
+<ol><li class="t-task"><input type="checkbox" checked disabled aria-label="Done"> Ordered</li></ol>
 ````
 
 ## list/not-task
@@ -67,7 +67,7 @@ spec: syntax-blocks#lists
 ````
 
 ````html
-<ul><li class="t-task"><input type="checkbox" disabled></li><li class="t-task"><input type="checkbox" checked disabled></li></ul>
+<ul><li class="t-task"><input type="checkbox" disabled aria-label="Not done"></li><li class="t-task"><input type="checkbox" checked disabled aria-label="Done"></li></ul>
 ````
 
 ## list/marker-change-new-list
@@ -624,7 +624,7 @@ Tables and display math nest in items at the content column.
 
 ````html
 <ul>
-<li><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></li>
+<li><table><thead><tr><th scope="col">a</th><th scope="col">b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></li>
 <li><div class="t-eq"><span class="t-math" data-display>x^2</span></div></li>
 </ul>
 ````
@@ -716,7 +716,7 @@ In a loose list the checkbox goes inside the item's first paragraph, as on GitHu
 
 ````html
 <ul>
-<li class="t-task"><p><input type="checkbox" checked disabled> Done</p></li>
-<li class="t-task"><p><input type="checkbox" disabled> Todo</p></li>
+<li class="t-task"><p><input type="checkbox" checked disabled aria-label="Done"> Done</p></li>
+<li class="t-task"><p><input type="checkbox" disabled aria-label="Not done"> Todo</p></li>
 </ul>
 ````

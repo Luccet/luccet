@@ -25,6 +25,7 @@
 
 const { decode } = require('./entities');
 const { isReservedName } = require('./scan');
+const { pick } = require('./schema');
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
 const SLOT = { details: 'summary', figure: 'figcaption', table: 'caption', fieldset: 'legend' }; // each tag's own title slot
@@ -88,6 +89,7 @@ let work = null; // the stack of pending nodes and strings
 let positions = true;
 let safe = false;
 let cssom = false;
+let say = null; // the emitter's own words, in the note's label language (WORDS)
 let prefix = ''; // opts.idPrefix: before every id and fragment link, so an untrusted root cannot clash with the page's ids
 let section = false; // true once the footnote section is being written
 let inToc = 0; // inside a toc entry: no nested links, no ids
@@ -228,6 +230,18 @@ function attrs(a, pre, post, extra, skip, fence) {
 }
 const safeSet = (k, v) => (k === 'srcset' ? v.split(',').every((c) => safeUrl(c.trim().split(/\s+/)[0] || '', true)) : safeUrl(v, true));
 
+// The few words the emitter writes itself, for assistive technology: the
+// footnote section's name, a back link's, a task checkbox's state. Picked by
+// the note's label language as a schema label map is (src/schema.js pick),
+// English when the language has none.
+const WORDS = {
+  footnotes: { en: 'Footnotes', de: 'Fußnoten', fr: 'Notes de bas de page', es: 'Notas al pie', pt: 'Notas de rodapé', it: 'Note a piè di pagina', nl: 'Voetnoten' },
+  back: { en: 'Back to the text', de: 'Zurück zum Text', fr: 'Retour au texte', es: 'Volver al texto', pt: 'Voltar ao texto', it: 'Torna al testo', nl: 'Terug naar de tekst' },
+  done: { en: 'Done', de: 'Erledigt', fr: 'Fait', es: 'Hecho', pt: 'Feito', it: 'Fatto', nl: 'Gedaan' },
+  todo: { en: 'Not done', de: 'Offen', fr: 'À faire', es: 'Pendiente', pt: 'Pendente', it: 'Da fare', nl: 'Te doen' },
+};
+const words = (lang) => Object.fromEntries(Object.keys(WORDS).map((k) => [k, escAttr(pick(WORDS[k], lang))]));
+
 // ---------------------------------------------------------------- the walk
 
 function emit(ast, opts) {
@@ -237,6 +251,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
+  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '');
   prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;
@@ -403,7 +418,7 @@ function paragraph(n, a) {
 // item starts with a disabled checkbox, inside the first paragraph when loose.
 function listItem(n, a) {
   const task = n.checked === true || n.checked === false;
-  const box = task ? `<input type="checkbox"${n.checked ? ' checked' : ''} disabled>` : '';
+  const box = task ? `<input type="checkbox"${n.checked ? ' checked' : ''} disabled aria-label="${n.checked ? say.done : say.todo}">` : '';
   const list = n.children || [];
   const first = list[0];
   const bare = !n.spread && first && first.type === 'paragraph' && !first.attributes;
@@ -432,6 +447,9 @@ function code(n, a) {
   const wrapLines = !!t.lines || hl !== null || start !== null;
   let data = t.lines ? ' data-lines' : '';
   if (start !== null) data += ` data-start="${start}"`;
+  // The counter's start, for the stylesheet: --t-start in the first
+  // declaration of `style` (the runtime sets it through the CSSOM instead).
+  const startStyle = start !== null && !cssom ? `--t-start:${start}` : null;
   if (t.hl != null) data += ` data-hl="${escValue(String(t.hlText != null ? t.hlText : Array.isArray(t.hl) ? t.hl.join(',') : t.hl))}"`;
   const meta = n.meta != null ? ` data-meta="${escValue(n.meta)}"` : ''; // the rest of the info string, verbatim
   let body = n.value || '';
@@ -444,8 +462,12 @@ function code(n, a) {
   } else body = esc(body);
   const pre = `${lang}${body}</code></pre>`;
   const titled = Array.isArray(t.title) && (t.title.length > 0 || !!t.text);
-  if (!titled) return void write(`<pre${attrs(a, '', '', ` data-t="code"${data}${meta}${pos(n)}`, null, true)}>${pre}\n`);
-  write(`<figure${attrs(a, 't-block code', '', ` data-t="code"${meta}${pos(n)}`, null, true)}><pre${data}>${pre}`);
+  if (!titled) {
+    const own = a && a.style != null && a.style !== '' && !safe ? String(a.style) : '';
+    const style = startStyle ? ` style="${escAttr(own ? `${startStyle};${own}` : startStyle)}"` : '';
+    return void write(`<pre${attrs(a, '', '', ` data-t="code"${data}${style}${meta}${pos(n)}`, startStyle ? 'style' : null, true)}>${pre}\n`);
+  }
+  write(`<figure${attrs(a, 't-block code', '', ` data-t="code"${meta}${pos(n)}`, null, true)}><pre${data}${startStyle ? ` style="${startStyle}"` : ''}>${pre}`);
   work.push('</figure>\n');
   title(t.slot || 'figcaption', t.text, t.title);
 }
@@ -502,12 +524,12 @@ function Row(row, opens, tag) {
   this.tag = tag;
   this.i = 0;
 }
-const cellOpen = (tag, al) => (al ? `<${tag} ${cssom ? 'data-t-align="' : 'style="text-align:'}${escValue(String(al))}">` : `<${tag}>`);
+const cellOpen = (tag, al) => `<${tag}${tag === 'th' ? ' scope="col"' : ''}${al ? ` ${cssom ? 'data-t-align="' : 'style="text-align:'}${escValue(String(al))}"` : ''}>`;
 
 function row(it) {
   const list = (it.row && it.row.children) || [];
   const opens = it.opens;
-  const plain = it.tag === 'th' ? '<th>' : '<td>'; // an extra cell's
+  const plain = it.tag === 'th' ? '<th scope="col">' : '<td>'; // an extra cell's
   const close = it.tag === 'th' ? '</th>' : '</td>';
   let s = it.i === 0 ? '<tr>' : ''; // gathered here, written every 16 KB
   while (it.i < list.length) {
@@ -725,7 +747,7 @@ function footnoteReference(n, a) {
   const t = tern(n);
   if (inToc) return '';
   if (t.resolved === false || t.target == null || t.number == null) return esc(`[^${n.label}]`);
-  const open = a ? `<sup${attrs(a, 't-fnref')}><a` : '<sup class="t-fnref"><a';
+  const open = a ? `<sup${attrs(a, 't-fnref')}><a role="doc-noteref"` : '<sup class="t-fnref"><a role="doc-noteref"';
   const id = t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : '';
   const num = typeof t.number === 'number' ? t.number : esc(String(t.number));
   return `${open}${id} href="#${escAttr(prefix + String(t.target))}">${num}</a></sup>`;
@@ -743,7 +765,7 @@ function footnoteDefinition(n) {
     return;
   }
   const list = n.children || [];
-  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(prefix + String(t.backref))}">↩</a>` : '';
+  const back = t.backref != null ? `<a class="t-fnback" href="#${escAttr(prefix + String(t.backref))}" aria-label="${say.back}">↩</a>` : '';
   write(`<li${t.id != null ? ` id="${escAttr(prefix + String(t.id))}"` : ''}>`);
   work.push('</li>\n');
   const last = list[list.length - 1];
@@ -759,7 +781,7 @@ function footnotes(ast) {
   if (!Array.isArray(order)) return;
   const defs = order.map((id) => fnDefs.get(id)).filter(Boolean);
   if (!defs.length) return;
-  write('<section class="t-footnotes"><ol>\n');
+  write(`<section class="t-footnotes" role="doc-endnotes" aria-label="${say.footnotes}"><ol>\n`);
   work.push('</ol></section>\n');
   kids(defs);
 }

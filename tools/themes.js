@@ -9,7 +9,11 @@
 //
 // Text colours must reach the family's contrast (4.5:1, WCAG AA; 7:1 for
 // high-contrast) against what they are drawn on; code colours too, on the
-// code background, and 3:1 on a highlighted line (4.5:1 for high-contrast).
+// code background, and 3:1 on a highlighted line (4.5:1 for high-contrast);
+// a control's border (line-strong) 3:1 against the page. Text in a highlight
+// is the text colour (tern.css), so the highlight is checked against fg.
+// Each file also answers prefers-contrast: more (muted text in the text
+// colour, rules in the strong line) and forced-colors (the system palette).
 // A palette colour that falls short is mixed toward black or white until it
 // does, and the file's header names it. test/themes.js checks the result.
 //
@@ -71,6 +75,8 @@ function fromHsl([h, s, l]) {
 //   muted      quotes, captions, equation and line numbers
 //   soft       code and table-header backgrounds
 //   line       rules and borders
+//   lineStrong a control's border (a kbd, the panel, a search box), 3:1
+//              against the page; derived from line when absent
 //   link       links
 //   red        errors; their background is red mixed into bg, unless errorBg
 //   warn       warnings in the diagnostics panel
@@ -260,7 +266,7 @@ const FAMILIES = [
 // The most a derived highlight may stand out from bg, as a contrast ratio.
 const MARK = { light: 1.3, dark: 2.2 };
 
-const PAGE = ['bg', 'fg', 'muted', 'line', 'soft', 'link', 'mark', 'error', 'error-bg', 'warn'];
+const PAGE = ['bg', 'fg', 'muted', 'line', 'line-strong', 'soft', 'link', 'mark', 'error', 'error-bg', 'warn'];
 const CODE = ['comment', 'keyword', 'string', 'number', 'function', 'type', 'variable', 'meta', 'inserted', 'deleted'];
 // Every colour property, without its --t-: the page's, then code-*.
 const COLOURS = [...PAGE, ...CODE.map((k) => `code-${k}`)];
@@ -302,6 +308,7 @@ function resolve(v, min) {
     fg,
     muted: fit('muted', v.muted, [[bg, min], [soft, min]]),
     line,
+    'line-strong': fit('line-strong', v.lineStrong || line, [[bg, 3]]),
     soft,
     link: fit('link', v.link, [[bg, min], [soft, min]]),
     mark,
@@ -326,11 +333,30 @@ function printPalette() {
   return Object.fromEntries(COLOURS.map((k) => [k, print[k] || light[k]]));
 }
 
+// tern.css's forced-colors block, as it is: a theme under forced colours is
+// the system's palette, like the base.
+function forcedColors() {
+  const file = path.join(ROOT, 'src', 'css.js');
+  delete require.cache[require.resolve(file)];
+  const { css } = require(file);
+  const from = css.indexOf('@media (forced-colors: active) {');
+  if (from < 0) throw new Error('src/css.js has no forced-colors block');
+  let depth = 0;
+  for (let i = from; i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}' && --depth === 0) return css.slice(from, i + 1);
+  }
+  throw new Error('src/css.js: the forced-colors block is not closed');
+}
+
 // ---------------------------------------------------------------- writing
 
 // Five to a line, the page's colours then the code's.
 const declarations = (c, indent) =>
-  [0, 5, 10, 15].map((i) => indent + COLOURS.slice(i, i + 5).map((k) => `--t-${k}: ${c[k]};`).join(' ')).join('\n');
+  COLOURS.map((_, i) => i)
+    .filter((i) => i % 5 === 0)
+    .map((i) => indent + COLOURS.slice(i, i + 5).map((k) => `--t-${k}: ${c[k]};`).join(' '))
+    .join('\n');
 const rootBlock = (scheme, c, indent = '') => `${indent}:root {\n${indent}  color-scheme: ${scheme};\n${declarations(c, `${indent}  `)}\n${indent}}`;
 const declarationsOnly = (c) => `  :root {\n${declarations(c, '    ')}\n  }`;
 
@@ -359,6 +385,12 @@ function sheet(family, file, mode, variants) {
     body.push(`@media (prefers-color-scheme: dark) {\n${declarationsOnly(variants.dark.colours)}\n}`);
   } else body.push(rootBlock(mode, variants[mode].colours));
   body.push(`@media print {\n${rootBlock('light', printPalette(), '  ')}\n}`);
+  // More contrast: muted text in the text colour, rules in the strong line;
+  // the dark variant's under its own query. Forced colours: tern.css's block.
+  const more = (c) => `:root { --t-muted: ${c.fg}; --t-line: ${c['line-strong']}; }`;
+  if (mode === 'auto') body.push(`@media (prefers-contrast: more) {\n  ${more(variants.light.colours)}\n  @media (prefers-color-scheme: dark) { ${more(variants.dark.colours)} }\n}`);
+  else body.push(`@media (prefers-contrast: more) {\n  ${more(variants[mode].colours)}\n}`);
+  body.push(forcedColors());
   return `${head.join('\n')}\n${body.join('\n')}\n`;
 }
 
@@ -404,6 +436,6 @@ function main() {
   console.log(`wrote ${names.length} themes to themes/`);
 }
 
-module.exports = { FAMILIES, PAGE, CODE, COLOURS, build, resolve, printPalette, onMark, contrast, luminance, isLight };
+module.exports = { FAMILIES, PAGE, CODE, COLOURS, build, resolve, printPalette, forcedColors, onMark, contrast, luminance, isLight };
 
 if (require.main === module) main();

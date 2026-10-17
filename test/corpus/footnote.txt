@@ -21,9 +21,9 @@ Both are subspaces.[^subspace]
 ````
 
 ````html
-<p>Both are subspaces.<sup class="t-fnref"><a id="fnref-subspace" href="#fn-subspace">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-subspace"><p>Closed under addition. <a class="t-fnback" href="#fnref-subspace">↩</a></p></li>
+<p>Both are subspaces.<sup class="t-fnref"><a role="doc-noteref" id="fnref-subspace" href="#fn-subspace">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-subspace"><p>Closed under addition. <a class="t-fnback" href="#fnref-subspace" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -53,10 +53,10 @@ See the kernel.[^subspace]
 ````
 
 ````html
-<p>See the kernel.<sup class="t-fnref"><a id="fnref-subspace" href="#fn-subspace">1</a></sup></p>
-<section class="t-footnotes"><ol>
+<p>See the kernel.<sup class="t-fnref"><a role="doc-noteref" id="fnref-subspace" href="#fn-subspace">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
 <li id="fn-subspace"><p>Closed under addition and scaling: if <span class="t-math">Tu = Tv = 0</span>
-then <span class="t-math">T(u + \lambda v) = 0</span>. <a class="t-fnback" href="#fnref-subspace">↩</a></p></li>
+then <span class="t-math">T(u + \lambda v) = 0</span>. <a class="t-fnback" href="#fnref-subspace" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -75,9 +75,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>First paragraph.</p><p>Second paragraph. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>First paragraph.</p><p>Second paragraph. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -95,10 +95,10 @@ wraps lazily.
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
 <li id="fn-a"><p>A note that
-wraps lazily. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+wraps lazily. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -117,10 +117,10 @@ Back in the text.
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
 <p>Back in the text.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -138,10 +138,10 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
 <h2 id="next">Next</h2>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -160,10 +160,10 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
 <p>Not part of the note.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -183,9 +183,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The note.</p><p>Still the note. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note.</p><p>Still the note. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -203,9 +203,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The note starts on the next line. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note starts on the next line. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -270,9 +270,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Right under the paragraph. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Right under the paragraph. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -290,10 +290,10 @@ Cites b[^b] then a[^a].
 ````
 
 ````html
-<p>Cites b<sup class="t-fnref"><a id="fnref-b" href="#fn-b">1</a></sup> then a<sup class="t-fnref"><a id="fnref-a" href="#fn-a">2</a></sup>.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-b"><p>Note B. <a class="t-fnback" href="#fnref-b">↩</a></p></li>
-<li id="fn-a"><p>Note A. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Cites b<sup class="t-fnref"><a role="doc-noteref" id="fnref-b" href="#fn-b">1</a></sup> then a<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">2</a></sup>.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-b"><p>Note B. <a class="t-fnback" href="#fnref-b" aria-label="Back to the text">↩</a></p></li>
+<li id="fn-a"><p>Note A. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -310,9 +310,9 @@ First use[^x], second use[^x].
 ````
 
 ````html
-<p>First use<sup class="t-fnref"><a id="fnref-x" href="#fn-x">1</a></sup>, second use<sup class="t-fnref"><a id="fnref-x-2" href="#fn-x">1</a></sup>.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-x"><p>Shared note. <a class="t-fnback" href="#fnref-x">↩</a></p></li>
+<p>First use<sup class="t-fnref"><a role="doc-noteref" id="fnref-x" href="#fn-x">1</a></sup>, second use<sup class="t-fnref"><a role="doc-noteref" id="fnref-x-2" href="#fn-x">1</a></sup>.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-x"><p>Shared note. <a class="t-fnback" href="#fnref-x" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -331,11 +331,11 @@ One[^1], two[^2b], three[^x_3-c].
 ````
 
 ````html
-<p>One<sup class="t-fnref"><a id="fnref-1" href="#fn-1">1</a></sup>, two<sup class="t-fnref"><a id="fnref-2b" href="#fn-2b">2</a></sup>, three<sup class="t-fnref"><a id="fnref-x_3-c" href="#fn-x_3-c">3</a></sup>.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-1"><p>Digits only. <a class="t-fnback" href="#fnref-1">↩</a></p></li>
-<li id="fn-2b"><p>Digit first. <a class="t-fnback" href="#fnref-2b">↩</a></p></li>
-<li id="fn-x_3-c"><p>Letters, digits, underscore and hyphen. <a class="t-fnback" href="#fnref-x_3-c">↩</a></p></li>
+<p>One<sup class="t-fnref"><a role="doc-noteref" id="fnref-1" href="#fn-1">1</a></sup>, two<sup class="t-fnref"><a role="doc-noteref" id="fnref-2b" href="#fn-2b">2</a></sup>, three<sup class="t-fnref"><a role="doc-noteref" id="fnref-x_3-c" href="#fn-x_3-c">3</a></sup>.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-1"><p>Digits only. <a class="t-fnback" href="#fnref-1" aria-label="Back to the text">↩</a></p></li>
+<li id="fn-2b"><p>Digit first. <a class="t-fnback" href="#fnref-2b" aria-label="Back to the text">↩</a></p></li>
+<li id="fn-x_3-c"><p>Letters, digits, underscore and hyphen. <a class="t-fnback" href="#fnref-x_3-c" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -385,9 +385,9 @@ Text.[^used]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-used" href="#fn-used">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-used"><p>Referenced. <a class="t-fnback" href="#fnref-used">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-used" href="#fn-used">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-used"><p>Referenced. <a class="t-fnback" href="#fnref-used" aria-label="Back to the text">↩</a></p></li>
 <li id="fn-unused"><p>Not referenced.</p></li>
 </ol></section>
 ````
@@ -410,9 +410,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>First definition. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>First definition. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -434,10 +434,10 @@ Text.[^a] More.[^b]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup> More.<sup class="t-fnref"><a id="fnref-b" href="#fn-b">2</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>See also[^b]. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
-<li id="fn-b"><p>The other. <a class="t-fnback" href="#fnref-b">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup> More.<sup class="t-fnref"><a role="doc-noteref" id="fnref-b" href="#fn-b">2</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>See also[^b]. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
+<li id="fn-b"><p>The other. <a class="t-fnback" href="#fnref-b" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -459,9 +459,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>See[^b]. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>See[^b]. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 <li id="fn-b"><p>Only cited from inside a note.</p></li>
 </ol></section>
 ````
@@ -489,9 +489,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Steps:</p><ul><li>one</li><li>two</li></ul><p>Done. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Steps:</p><ul><li>one</li><li>two</li></ul><p>Done. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -512,9 +512,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Run this:</p><pre data-t="code"><code class="language-sh">make test</code></pre><p><a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Run this:</p><pre data-t="code"><code class="language-sh">make test</code></pre><p><a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -543,9 +543,9 @@ Text.[^a]
 ````
 
 ````html
-<div class="t-block box" data-t="box"><p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p></div>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Defined inside a box. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<div class="t-block box" data-t="box"><p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p></div>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Defined inside a box. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -563,10 +563,10 @@ Inside a quote the definition's 2-column indent is measured after the `> ` prefi
 ````
 
 ````html
-<blockquote><p>Quoted.<sup class="t-fnref"><a id="fnref-q" href="#fn-q">1</a></sup></p></blockquote>
-<section class="t-footnotes"><ol>
+<blockquote><p>Quoted.<sup class="t-fnref"><a role="doc-noteref" id="fnref-q" href="#fn-q">1</a></sup></p></blockquote>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
 <li id="fn-q"><p>Defined in the quote,
-continued. <a class="t-fnback" href="#fnref-q">↩</a></p></li>
+continued. <a class="t-fnback" href="#fnref-q" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -586,11 +586,11 @@ Cells are inline content, so a reference works in a table cell.
 
 ````html
 <table>
-<thead><tr><th>Term</th><th>Note</th></tr></thead>
-<tbody><tr><td>kernel</td><td>a subspace<sup class="t-fnref"><a id="fnref-k" href="#fn-k">1</a></sup></td></tr></tbody>
+<thead><tr><th scope="col">Term</th><th scope="col">Note</th></tr></thead>
+<tbody><tr><td>kernel</td><td>a subspace<sup class="t-fnref"><a role="doc-noteref" id="fnref-k" href="#fn-k">1</a></sup></td></tr></tbody>
 </table>
-<section class="t-footnotes"><ol>
-<li id="fn-k"><p>Of the domain. <a class="t-fnback" href="#fnref-k">↩</a></p></li>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-k"><p>Of the domain. <a class="t-fnback" href="#fnref-k" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -607,9 +607,9 @@ spec: syntax-inline#footnote-reference syntax-blocks#footnote-definition
 ````
 
 ````html
-<p><sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup> begins this line.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The definition. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p><sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup> begins this line.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The definition. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -626,9 +626,9 @@ Wow![^a]
 ````
 
 ````html
-<p>Wow!<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Exclamation. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Wow!<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Exclamation. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -648,9 +648,9 @@ See ![^a](x.png).
 ````
 
 ````html
-<p>See !<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup>(x.png).</p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Not an image. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>See !<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup>(x.png).</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Not an image. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -667,9 +667,9 @@ Text.[^A]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Lower-case definition. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Lower-case definition. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -689,9 +689,9 @@ Once[^KERNEL], twice[^kernel].
 ````
 
 ````html
-<p>Once<sup class="t-fnref"><a id="fnref-Kernel" href="#fn-Kernel">1</a></sup>, twice<sup class="t-fnref"><a id="fnref-Kernel-2" href="#fn-Kernel">1</a></sup>.</p>
-<section class="t-footnotes"><ol>
-<li id="fn-Kernel"><p>Mixed case. <a class="t-fnback" href="#fnref-Kernel">↩</a></p></li>
+<p>Once<sup class="t-fnref"><a role="doc-noteref" id="fnref-Kernel" href="#fn-Kernel">1</a></sup>, twice<sup class="t-fnref"><a role="doc-noteref" id="fnref-Kernel-2" href="#fn-Kernel">1</a></sup>.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-Kernel"><p>Mixed case. <a class="t-fnback" href="#fnref-Kernel" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -708,9 +708,9 @@ Straße[^ß]
 ````
 
 ````html
-<p>Straße<sup class="t-fnref"><a id="fnref-ss" href="#fn-ss">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-ss"><p>Folded. <a class="t-fnback" href="#fnref-ss">↩</a></p></li>
+<p>Straße<sup class="t-fnref"><a role="doc-noteref" id="fnref-ss" href="#fn-ss">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-ss"><p>Folded. <a class="t-fnback" href="#fnref-ss" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -728,9 +728,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>First definition. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>First definition. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -754,9 +754,9 @@ See @x and the note.[^x]
 
 ````html
 <h2 id="x">Kernel</h2>
-<p>See <a class="t-ref" href="#x">Kernel</a> and the note.<sup class="t-fnref"><a id="fnref-x" href="#fn-x">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-x"><p>A note. <a class="t-fnback" href="#fnref-x">↩</a></p></li>
+<p>See <a class="t-ref" href="#x">Kernel</a> and the note.<sup class="t-fnref"><a role="doc-noteref" id="fnref-x" href="#fn-x">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-x"><p>A note. <a class="t-fnback" href="#fnref-x" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -775,9 +775,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>Outer.</p><p>[^b]: Inner. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>Outer.</p><p>[^b]: Inner. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -798,9 +798,9 @@ Text.[^a]
 ````
 
 ````html
-<p>Text.<sup class="t-fnref"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p><a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p><a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -817,9 +817,9 @@ Text.[^a]{.x}
 ````
 
 ````html
-<p>Text.<sup class="t-fnref x"><a id="fnref-a" href="#fn-a">1</a></sup></p>
-<section class="t-footnotes"><ol>
-<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a">↩</a></p></li>
+<p>Text.<sup class="t-fnref x"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p></li>
 </ol></section>
 ````
 
@@ -842,4 +842,34 @@ Ref[^a]
 
 ````diagnostics
 1:1 warning attributes.orphan
+````
+
+## footnote/aria-in-the-note-language
+
+spec: syntax-blocks#footnote-definition elements#accessibility schema#languages
+
+The footnote section is `role="doc-endnotes"` with an `aria-label`, a reference `role="doc-noteref"`, a back link labelled; the words follow the note's label language (here `:::meta`'s `lang`), English when the language has none.
+
+````tern
+:::meta
+lang: de
+:::
+
+Text.[^a]
+
+- [x] erledigt
+- [ ] offen
+
+[^a]: Eine Anmerkung.
+````
+
+````html
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<ul>
+<li class="t-task"><input type="checkbox" checked disabled aria-label="Erledigt"> erledigt</li>
+<li class="t-task"><input type="checkbox" disabled aria-label="Offen"> offen</li>
+</ul>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Fußnoten"><ol>
+<li id="fn-a"><p>Eine Anmerkung. <a class="t-fnback" href="#fnref-a" aria-label="Zurück zum Text">↩</a></p></li>
+</ol></section>
 ````

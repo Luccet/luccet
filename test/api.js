@@ -277,7 +277,7 @@ test('safe: attributes that drive the host page are dropped, attribute names are
   const p = tern.toHTML('## A {#a}\n\nSee @a, [b](#a) and [c](x.html#a)[^f].\n\n[^f]: note\n', { safe: true, idPrefix: 'c1-', positions: false });
   eq(
     p,
-    '<h2 id="c1-a">A</h2>\n<p>See <a class="t-ref" href="#c1-a">A</a>, <a href="#c1-a">b</a> and <a href="x.html#a">c</a><sup class="t-fnref"><a id="c1-fnref-f" href="#c1-fn-f">1</a></sup>.</p>\n<section class="t-footnotes"><ol>\n<li id="c1-fn-f"><p>note <a class="t-fnback" href="#c1-fnref-f">↩</a></p>\n</li>\n</ol></section>\n',
+    '<h2 id="c1-a">A</h2>\n<p>See <a class="t-ref" href="#c1-a">A</a>, <a href="#c1-a">b</a> and <a href="x.html#a">c</a><sup class="t-fnref"><a role="doc-noteref" id="c1-fnref-f" href="#c1-fn-f">1</a></sup>.</p>\n<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>\n<li id="c1-fn-f"><p>note <a class="t-fnback" href="#c1-fnref-f" aria-label="Back to the text">↩</a></p>\n</li>\n</ol></section>\n',
     "every id and fragment link prefixed; another page's fragment untouched",
   );
   eq(tern.toHTML('x\n', { idPrefix: 7 }), '<p>x</p>\n', 'a prefix that is not a string is none');

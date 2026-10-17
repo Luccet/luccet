@@ -42,9 +42,10 @@ const usage = () =>
 
   ${SYNOPSIS.new}
       Write a new note: the canonical first line, loading the nearest tern.js
-      in FILE's directory or above (or PATH); --use sets data-use (add-ons,
-      separated by commas or spaces); --title adds a :::meta block; --guarded
-      shows the source when tern.js does not load.
+      in FILE's directory or above (or PATH); --use lists add-ons in a :::use
+      block (separated by commas or spaces), each preloaded from the first
+      line; --title adds a :::meta block; --guarded shows the source when
+      tern.js does not load.
   ${SYNOPSIS.check}
       Print the diagnostics of notes; directories are searched for .html
       notes. --quiet prints only those at or above --fail-on (default error).
@@ -220,7 +221,10 @@ function newNote(args) {
   const src = o.tern !== undefined ? o.tern.trim() : found || 'tern.js';
   const use = (o.use || []).flatMap((u) => u.split(/[\s,]+/)).filter(Boolean);
   const title = o.title === undefined ? null : o.title.trim();
-  const first = `<!doctype html><meta charset="utf-8"><script src="${escAttr(src)}"></script>${o.guarded ? GUARD : ''}`;
+  // A preload for each add-on: tern.js finds a :::use entry only once it has
+  // the note, so the head asks for the file alongside tern.js itself.
+  const preload = use.map((u) => `<link rel="preload" href="${escAttr(u)}" as="${/\.css(?:[?#]|$)/i.test(u) ? 'style' : 'script'}">`).join('');
+  const first = `<!doctype html><meta charset="utf-8">${preload}<script src="${escAttr(src)}"></script>${o.guarded ? GUARD : ''}`;
   const text = `${first}\n${title === null ? '' : `:::meta\ntitle: ${title}\n:::\n\n`}${use.length ? `:::use\n${use.join('\n')}\n:::\n\n` : ''}`;
 
   // What is written must read back as a note with that line, src and title.
@@ -601,6 +605,9 @@ function index(args) {
     const url = rel(abs);
     const title = d.title || path.basename(f.shown);
     let date = String(d.meta.date || '').trim();
+    // The catalogue's dates are YYYY-MM-DD (a time after it allowed): one
+    // that is not is written as it is, said here, and sorts last in ::notes.
+    if (date && !/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(date)) warn(`tern index: ${f.shown}: the date "${clean(date)}" is not YYYY-MM-DD; it is written as it is, and lists sort it last`);
     if (!date) {
       const root = repository(path.dirname(abs));
       const info = root ? repoInfo(root) : null;

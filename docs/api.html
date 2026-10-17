@@ -843,6 +843,7 @@ tern.config;
 - **When.** `tern.config` is filled once, when tern.js starts. So `window.TERN` must be set by a script in the head, before the tern.js line; setting it later does nothing.
 - **What is copied.** Every key of `window.TERN` is copied into `tern.config`, including keys Tern does not use. An add-on can read its own settings from there.
 - **`addonTimeout`** (milliseconds, 12 000 by default) is how long the mount waits for an add-on still loading once the note has arrived ([Waiting](#capture)).
+- **`holdOver`** (characters, 200 000 by default) is the note size from which the mount holds the top-level blocks out of view with `content-visibility: auto`, so a long note paints its first screen without laying out the rest ([Performance](publishing.html#performance)); `0` never holds.
 - **Booleans.** For `data-diagnostics` and `data-quiet`, the values `false`, `0`, `off` and `no` (in any case) mean false; any other value, or none, means true. Without the attribute, the `window.TERN` value counts, and false when it has none.
 
 | `window.TERN` | Attribute | `tern.config` | Value |

@@ -825,6 +825,60 @@ function posters(root) {
   }
 }
 
+// ---------------------------------------------------------------- held blocks
+
+// A long note's top-level blocks out of view get content-visibility: auto, so
+// the browser lays out and paints what is on screen and the first paint does
+// not wait for the whole note. Each block is released, plain again for good,
+// before it comes into view (those near the viewport at once, the rest when
+// they come within one and a half screens), and all of them before printing
+// and before a fragment jump. tern.config.holdOver (characters, 200 000 by
+// default; 0 never holds) is the note size from which a mount holds. The
+// math add-ons hold the same way on their own account while formulas wait.
+const HOLD_OVER = 200000;
+const held = new Map(); // block -> [content-visibility, contain-intrinsic-block-size] as they were
+let watcher = null;
+const holdOver = () => {
+  const v = Number(config.holdOver);
+  return Number.isFinite(v) && v >= 0 ? v : HOLD_OVER;
+};
+function hold(root) {
+  const blocks = [];
+  for (const b of root.children) {
+    if (held.has(b) || /^(?:script|style|template)$/.test(b.localName)) continue;
+    held.set(b, [b.style.contentVisibility, b.style.containIntrinsicBlockSize]);
+    b.style.contentVisibility = 'auto';
+    if (!b.style.containIntrinsicBlockSize) b.style.containIntrinsicBlockSize = 'auto 40rem';
+    blocks.push(b);
+  }
+  // The blocks in and near the viewport now, so no frame shows a held block.
+  const height = window.innerHeight || 800;
+  const margin = height * 1.5;
+  let again = true;
+  while (again) {
+    again = false;
+    for (const b of blocks) {
+      if (!held.has(b)) continue;
+      const r = b.getBoundingClientRect();
+      if (r.bottom > -margin && r.top < height + margin) release(b), (again = true);
+    }
+  }
+  if (!held.size) return;
+  watcher = watcher || new IntersectionObserver((list) => list.forEach((e) => e.isIntersecting && release(e.target)), { rootMargin: '150% 0px' });
+  for (const b of blocks) if (held.has(b)) watcher.observe(b);
+}
+function release(b) {
+  const h = held.get(b);
+  if (!h) return;
+  held.delete(b);
+  b.style.contentVisibility = h[0];
+  b.style.containIntrinsicBlockSize = h[1];
+  if (watcher) watcher.unobserve(b);
+}
+const releaseAll = () => {
+  for (const b of [...held.keys()]) release(b);
+};
+
 let taskStart = 0; // when the task running the mount began (0: not mounting)
 
 async function mount() {
@@ -853,6 +907,7 @@ async function mount() {
     main = tpl.content.firstElementChild;
     document.body.replaceChildren(tpl.content);
     presentation(main);
+    if (holdOver() && page.source.length >= holdOver()) hold(main);
     mounted = true;
     rebuildPanel();
     const t2 = now();
@@ -877,6 +932,7 @@ async function mount() {
 function reveal() {
   let id = location.hash.slice(1);
   if (!id) return;
+  releaseAll(); // the target's place on the page needs every block laid out
   try {
     id = decodeURIComponent(id);
   } catch {}
@@ -1112,12 +1168,13 @@ function apply(rec, el, name) {
   }
 }
 
-// Line numbers from data-start: the base CSS needs typed attr() (Chromium
-// 133+), so the counter is also set through the CSSOM, which a CSP allows.
+// Line numbers from data-start: the base CSS reads --t-start, which the
+// emitter writes as a style attribute on a built page and the runtime sets
+// here through the CSSOM, which a CSP allows.
 function lineNumbers(root) {
-  for (const code of root.querySelectorAll('pre[data-lines][data-start] > code')) {
-    const n = parseInt(code.parentElement.getAttribute('data-start'), 10);
-    if (Number.isFinite(n)) code.style.counterReset = `t-line ${n - 1}`;
+  for (const pre of root.querySelectorAll('pre[data-start]')) {
+    const n = parseInt(pre.getAttribute('data-start'), 10);
+    if (Number.isFinite(n) && !pre.style.getPropertyValue('--t-start')) pre.style.setProperty('--t-start', String(n));
   }
 }
 
@@ -1164,6 +1221,7 @@ function onCopy(e) {
 // as the print layout is taken right after.
 let printOpened = [];
 function onBeforePrint() {
+  releaseAll();
   for (const d of document.querySelectorAll('details.t-block:not([open])')) (d.open = true), printOpened.push(d);
 }
 function onAfterPrint() {

@@ -227,7 +227,7 @@ See @tbl-phases.
 ````
 
 ````html
-<table id="tbl-phases" class="t-block table" data-t="table"><caption class="t-title"><span class="t-label">Table 1</span> Phases</caption><thead><tr><th>Phase</th><th>Weeks</th></tr></thead><tbody><tr><td>P2</td><td>2</td></tr></tbody></table>
+<table id="tbl-phases" class="t-block table" data-t="table"><caption class="t-title"><span class="t-label">Table 1</span> Phases</caption><thead><tr><th scope="col">Phase</th><th scope="col">Weeks</th></tr></thead><tbody><tr><td>P2</td><td>2</td></tr></tbody></table>
 <p>See <a class="t-ref" href="#tbl-phases">Table 1</a>.</p>
 ````
 

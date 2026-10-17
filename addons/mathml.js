@@ -50,23 +50,28 @@
   const own = typeof opts.base === 'string' && opts.base.trim() !== '';
   const base = own ? opts.base.trim().replace(/\/+$/, '') : `https://cdn.jsdelivr.net/npm/temml@${TEMML.version}/dist`;
 
-  // Temml's stylesheet, loaded now: the math needs it across browsers (block
-  // display, script letters, stretchy arrows). The woff2 it names resolves
-  // beside it.
-  (function stylesheet() {
+  // Temml's stylesheet, loaded with Temml at the first formula: the math
+  // needs it across browsers (block display, script letters, stretchy
+  // arrows), and a note without math fetches neither. The woff2 it names
+  // resolves beside it.
+  let styled = false;
+  function stylesheet() {
+    if (styled) return;
+    styled = true;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = `${base}/Temml-Local.css`;
     if (T.config && T.config.nonce) link.nonce = T.config.nonce;
     if (!own) (link.integrity = TEMML.css), (link.crossOrigin = 'anonymous');
     document.head.append(link);
-  })();
+  }
 
   // Temml, asked for at the first formula. window.temml can be an element with
   // id="temml", which the browser names on window; the check guards that.
   const found = () => (window.temml && typeof window.temml.renderToString === 'function' ? window.temml : null);
   let temmlP = null;
   function temml() {
+    stylesheet();
     if (temmlP) return temmlP;
     if (found()) return (temmlP = Promise.resolve(found()));
     temmlP = new Promise((resolve) => {
@@ -79,7 +84,12 @@
       s.onerror = () => resolve(null);
       document.head.append(s);
     });
-    temmlP.then((M) => M || console.warn(`Tern mathml.js: Temml did not load from ${base}, so math stays as TeX source`));
+    // A load that failed is asked for again at the next render.
+    temmlP.then((M) => {
+      if (M) return;
+      console.warn(`Tern mathml.js: Temml did not load from ${base}, so math stays as TeX source`);
+      temmlP = null;
+    });
     return temmlP;
   }
 

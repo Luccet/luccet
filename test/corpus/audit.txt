@@ -372,7 +372,7 @@ From table-dollar-toggle-breaks-rows: `| Coffee | $3 |` collapsed the row into o
 ````html
 <table>
 <thead>
-<tr><th>Item</th><th>Price</th></tr>
+<tr><th scope="col">Item</th><th scope="col">Price</th></tr>
 </thead>
 <tbody>
 <tr><td>Coffee</td><td>$3</td></tr>
@@ -396,7 +396,7 @@ From table-dollar-toggle-breaks-rows: `Cost ($)` in the header turned the table 
 ````html
 <table>
 <thead>
-<tr><th>Cost ($)</th><th>n</th></tr>
+<tr><th scope="col">Cost ($)</th><th scope="col">n</th></tr>
 </thead>
 <tbody>
 <tr><td>1</td><td>2</td></tr>
@@ -421,7 +421,7 @@ From table-dollar-toggle-breaks-rows: two prices, a price beside a formula, and 
 ````html
 <table>
 <thead>
-<tr><th>cost</th><th>val</th></tr>
+<tr><th scope="col">cost</th><th scope="col">val</th></tr>
 </thead>
 <tbody>
 <tr><td>$5</td><td>$10</td></tr>
@@ -448,7 +448,7 @@ Some text
 <p>Some text</p>
 <table>
 <thead>
-<tr><th>a</th><th>b</th></tr>
+<tr><th scope="col">a</th><th scope="col">b</th></tr>
 </thead>
 <tbody>
 <tr><td>1</td><td>2</td></tr>
@@ -1727,7 +1727,7 @@ See @fig1, @tbl-1 and @fig-a.
 <figure id="fig1" class="t-block figure" data-t="figure"><img src="x.png" alt="" width="50%"><figcaption class="t-title"><span class="t-label">Figure 1</span> cap</figcaption></figure>
 <table id="tbl-1" class="t-block table" data-t="table"><caption class="t-title"><span class="t-label">Table 1</span> Table caption</caption>
 <thead>
-<tr><th>a</th><th>b</th></tr>
+<tr><th scope="col">a</th><th scope="col">b</th></tr>
 </thead>
 <tbody>
 <tr><td>1</td><td>2</td></tr>
@@ -1760,8 +1760,8 @@ From no-figure-table-captions: a `{#tbl1}` line after a table stayed literal. At
 ````
 
 ````html
-<table id="tbl1"><thead><tr><th>a</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>
-<table><thead><tr><th>b</th></tr></thead><tbody><tr><td>2</td></tr></tbody></table>
+<table id="tbl1"><thead><tr><th scope="col">a</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>
+<table><thead><tr><th scope="col">b</th></tr></thead><tbody><tr><td>2</td></tr></tbody></table>
 <p>{#tbl2}</p>
 ````
 
@@ -1785,9 +1785,9 @@ Text[^1] here, as shown in [@knuth84].
 ````
 
 ````html
-<p>Text<sup class="t-fnref"><a id="fnref-1" href="#fn-1">1</a></sup> here, as shown in [<a class="t-ref" href="#knuth84">Knuth, TAOCP, 1984</a>].</p>
+<p>Text<sup class="t-fnref"><a role="doc-noteref" id="fnref-1" href="#fn-1">1</a></sup> here, as shown in [<a class="t-ref" href="#knuth84">Knuth, TAOCP, 1984</a>].</p>
 <div id="knuth84" class="t-block bib" data-t="bib"><div class="t-title">Knuth, TAOCP, 1984</div></div>
-<section class="t-footnotes"><ol><li id="fn-1"><p>The note. <a class="t-fnback" href="#fnref-1">↩</a></p></li></ol></section>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol><li id="fn-1"><p>The note. <a class="t-fnback" href="#fnref-1" aria-label="Back to the text">↩</a></p></li></ol></section>
 ````
 
 ## audit/task-checkbox-disabled
@@ -1803,8 +1803,8 @@ From study-state-not-persisted and accessibility-gaps: task checkboxes were live
 
 ````html
 <ul>
-<li class="t-task"><input type="checkbox" checked disabled> done task</li>
-<li class="t-task"><input type="checkbox" disabled> open task</li>
+<li class="t-task"><input type="checkbox" checked disabled aria-label="Done"> done task</li>
+<li class="t-task"><input type="checkbox" disabled aria-label="Not done"> open task</li>
 </ul>
 ````
 

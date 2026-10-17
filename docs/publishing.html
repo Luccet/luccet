@@ -33,7 +33,7 @@ This is the canonical first line, and `tern new` writes it for you (see [tern ne
 **What the tag must be.** A plain, synchronous, classic script, on one line:
 
 - no `async`, `defer` or `type="module"`: `tern.js` must run while the browser is still reading the file, to capture the rest of it;
-- the file it names must be called exactly `tern.js` (any path, any query string). The browser would run a copy called `tern.min.js`, and jsDelivr serves one on request beside `tern.js` at every tag, minified there, but the command line and editors would not take the file for a note: do not use it;
+- the file it names must be called exactly `tern.js` (any path, any query string). The browser would run a copy called `tern.min.js`, and jsDelivr serves one on request beside `tern.js` at every tag, minified there, but the command line and editors would not take the file for a note: do not use it. For a smaller file under the right name, each [GitHub Release](https://github.com/OzkrAC/tern/releases) carries a minified `tern.js`, the same version, at `https://github.com/OzkrAC/tern/releases/download/vX.Y.Z/tern.js`, to load from there or to copy to your site;
 - the whole tag on one line, not inside a comment.
 
 The exact rule is [Note detection](tools.html#detection). Other attributes are allowed on the tag, and some configure `tern.js` (see [The tag's attributes](#tag-attributes)).
@@ -251,7 +251,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdel
 <!doctype html><meta charset="utf-8"><link rel="stylesheet" href="tern.css"><script src="tern.js"></script>
 ```
 
-- `script-src 'self'` allows `tern.js` and add-ons from your site; `https://cdn.jsdelivr.net` allows the [`katex.js` add-on](addons.html#katex) to fetch KaTeX's script, and must also be in `style-src` (its stylesheet) and `font-src` (its fonts). With a [local KaTeX copy](#offline) via `?base=`, or no math add-on, `'self'` is enough.
+- `script-src 'self'` allows `tern.js` and add-ons from your site; `https://cdn.jsdelivr.net` allows the [`katex.js` add-on](addons.html#katex) to fetch KaTeX's script, or [`mathml.js`](addons.html#mathml) Temml's, and must also be in `style-src` (their stylesheets) and `font-src` (the fonts those name). With a [local KaTeX copy](#offline) via `?base=`, or no math add-on, `'self'` is enough.
 - `tern.css` comes from the repository, next to `tern.js`. It is the same stylesheet `tern.js` would otherwise inline in a `<style>` element, which a strict `style-src` blocks.
 
 ### Tern's own styles {#csp-cssom}
@@ -379,7 +379,8 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 - `:::meta` and the head, a second `tern.js`, a fragment target inside closed `<details>`;
 - a strict CSP with `tern.css`, and with `data-nonce`;
 - built pages (with `tern.js` blocked, with a missing add-on, with `--math`) and the guard of `tern new --guarded`;
-- copying formulas, printing to PDF, the network waterfall on a slow connection, and long tasks on a 4,000-formula note (the last four in Chromium; copying also in Firefox).
+- copying formulas, printing to PDF, the network waterfall on a slow connection, long tasks on a 4,000-formula note, and the first paint of a 1 MB note (the last five in Chromium; copying and the 1 MB note also in Firefox);
+- accessibility: [axe-core](https://github.com/dequelabs/axe-core) finds no WCAG 2.0 or 2.1 A or AA violation on a page holding every construct the emitter writes, in tern.css alone and in every theme, light and dark.
 
 **Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property and `MutationObserver`: Chrome 86, Firefox 78 and Safari 14, or newer. In an older browser `tern.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page.
 
@@ -400,6 +401,7 @@ The engine and the runtime have budgets, checked by the test suite:
 | Parse, transform and emit take at most 100 ms for a 10,000-line note. | `test/perf.js`, with the engine under Node |
 | At most three serial network steps before the note shows: the HTML, then `tern.js`, then the add-ons it names (requested as it runs, before the note has finished arriving), then the mount. | a Slow-3G network waterfall, in Chromium |
 | No main-thread task over 50 ms caused by math, on a note with 4,000 formulas, and no white flash. | long-task measurement, in Chromium |
+| On a 1 MB note of prose, the mount frame's style, layout and paint take at most 1.5 s, the blocks out of view being held; those come back as they come into view, and all of them before printing. | the long-animation-frame of the mount, in Chromium; the first contentful paint in Firefox |
 
 **Reading the timings.** The console group's first line gives them for each note:
 
@@ -413,7 +415,7 @@ tern 0.5.1: 301 lines; parse, transform and emit 9 ms, mount 1 ms, then scripts,
 - Formulas inside a closed `<details>` wait until it opens.
 - Printing, and jumping to a fragment (`#id`), typeset what is still pending first.
 
-**Long notes.** Typesetting a formula costs the browser several times KaTeX's own time, in style, layout and paint. When more than 100 formulas wait, the add-on holds the note's top-level blocks with `content-visibility: auto`, so blocks out of view cost nothing. Each block is released, made plain again for good, before it comes into view: those near the viewport at once, the others when they come within one and a half screens, and all of them before printing, before a fragment jump, and when a copied selection reaches them. You never see a held block. On the 4,000-formula note, math takes about 1 to 1.3 seconds in Chromium, with no long task after the note shows.
+**Long notes.** A note of 200 000 characters or more (`tern.config.holdOver`) is mounted with its top-level blocks out of view held by `content-visibility: auto`, so the browser lays out and paints the first screen, not the whole note: on a 1 MB note the mount frame's layout takes some tens of milliseconds instead of seconds. Each block is released, made plain again for good, before it comes into view: those near the viewport at once, the others when they come within one and a half screens, and all of them before printing and before a fragment jump. You never see a held block. The [`addons/katex.js` add-on](addons.html#katex) holds the same way on its own account when more than 100 formulas wait, since typesetting a formula costs the browser several times KaTeX's own time in style, layout and paint; it releases its blocks also when a copied selection reaches them. On the 4,000-formula note, math takes about 1 to 1.3 seconds in Chromium, with no long task after the note shows.
 
 **What you can do:**
 

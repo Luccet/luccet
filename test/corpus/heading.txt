@@ -296,8 +296,8 @@ The plain text the slug is built from: tags dropped, entities decoded, math as i
 ````
 
 ````html
-<h2 id="café-bold-t">Caf&eacute; <b>bold</b> <span class="t-math">T^*</span><sup class="t-fnref"><a id="fnref-n" href="#fn-n">1</a></sup></h2>
-<section class="t-footnotes"><ol><li id="fn-n"><p>A note. <a class="t-fnback" href="#fnref-n">↩</a></p></li></ol></section>
+<h2 id="café-bold-t">Caf&eacute; <b>bold</b> <span class="t-math">T^*</span><sup class="t-fnref"><a role="doc-noteref" id="fnref-n" href="#fn-n">1</a></sup></h2>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol><li id="fn-n"><p>A note. <a class="t-fnback" href="#fnref-n" aria-label="Back to the text">↩</a></p></li></ol></section>
 ````
 
 ````diagnostics

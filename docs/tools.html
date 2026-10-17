@@ -181,7 +181,7 @@ $ cat notes/kernel.html
 | Option | What it does |
 |---|---|
 | `--tern=PATH` | The `src` of the script tag, as given: a relative path, a root-relative path, or a URL. Without it, see below. |
-| `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block. Separate them with commas or spaces; the option may repeat. |
+| `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block, and each preloaded from the first line (`<link rel="preload">`, `as="script"` or `as="style"`), so the browser fetches it alongside `tern.js` instead of after the note has arrived. Separate them with commas or spaces; the option may repeat. |
 | `--title=TEXT` | Adds a `:::meta` block with `title: TEXT`, then a blank line. One non-empty line. |
 | `--guarded` | Adds the guard, which shows the note's source when `tern.js` does not run. See [The guard](#guarded). |
 | `--force` | Overwrites an existing file. |
@@ -208,7 +208,7 @@ created notes/first.html, loading ../tern.js
 tern new: :::use names theorems.js, which does not exist yet
 tern new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../tern.js"></script>
 :::meta
 title: Linear maps
 :::
@@ -220,7 +220,7 @@ theme.css
 
 ```
 
-- `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same `:::use` block, `a.js` then `b.css`, one per line.
+- `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same `:::use` block, `a.js` then `b.css`, one per line, and the same two preloads on the first line. `tern.js` preloads `data-use` entries itself as it starts; a `:::use` entry it finds only once the note has arrived, so the head's preload saves a round trip there.
 - A local add-on that does not exist yet (relative to the note's folder) gets a note on stderr. The file is still written: you may be about to create it. Remote URLs and root-relative paths are not checked.
 - `--title` is written as `:::meta` (see [Metadata](elements.html#metadata)). Before writing, `tern new` reads the file back and checks that the title survives as written, and that the add-ons read back from `:::use`; a title that would not is refused.
 
@@ -880,7 +880,7 @@ $ echo $?
 
 - **`url`** is the note's path relative to the file, with forward slashes, so a site can be served under any path.
 - **`title`** is the head's `<title>`, else `:::meta`'s `title`, else the first heading's text. **`description`** is the head's `<meta name="description">`, else `:::meta`'s `description`, else empty.
-- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD`, so that lists sort. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist. The log is asked for the indexed notes alone, so a repository full of other files costs nothing; should it still run past 256 MB, it is cut there, and `tern index` says how many notes are dated by their modification time instead.
+- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD` (a time may follow), so that lists sort: another form is written as it is, said on stderr, and [`::notes`](addons.html#notes) sorts it last without a `<time>`. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist. The log is asked for the indexed notes alone, so a repository full of other files costs nothing; should it still run past 256 MB, it is cut there, and `tern index` says how many notes are dated by their modification time instead.
 - **`headings`** are every heading of the note, with its depth, its id as the page gives it, and its text. **`links`** are the notes in the catalogue this note links to, as paths like `url`, each once.
 
 **`search.json`** is the search index: `tern`, `notes` (each note's `url` and `title`), and the index [`tern.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The stems in `terms` are the stemmer's, which changes only in a minor release of Tern, so an index serves the readers of its own series (`0.4.x`); a reader from another says so and does without it.

@@ -6,8 +6,11 @@
 // tern.css prints; every text colour reaches its family's contrast (4.5:1,
 // 7:1 for high-contrast) against what it is drawn on, and every code colour
 // too on the code background, with 3:1 (high-contrast 4.5:1) on a
-// highlighted line, as tern.css's own palettes do; and the documentation
-// lists every file.
+// highlighted line, as tern.css's own palettes do; a control's border is
+// 3:1 against the page; text in a highlight is the text colour, so muted
+// text and links on a highlight are the checked fg-on-mark pair; each file
+// answers prefers-contrast and forced-colors as tern.css does; and the
+// documentation lists every file.
 //
 //   node test/themes.js
 'use strict';
@@ -88,7 +91,7 @@ const TEXT = [
   ['error', 'error-bg'], ['error', 'bg'],
   ['warn', 'bg'],
 ];
-const APART = [['line', 'bg', 1.15], ['soft', 'bg', 1.03], ['mark', 'bg', 1.05], ['error-bg', 'bg', 1.05]];
+const APART = [['line', 'bg', 1.15], ['line-strong', 'bg', 3], ['soft', 'bg', 1.03], ['mark', 'bg', 1.05], ['error-bg', 'bg', 1.05]];
 const expand = (h) => (h.length === 4 ? '#' + [...h.slice(1)].map((c) => c + c).join('') : h);
 function pairs(name, c, min, p) {
   const x = Object.fromEntries(T.COLOURS.map((k) => [k, expand(c[k])]));
@@ -118,6 +121,38 @@ test("tern.css's own light and dark palettes pass the same checks", (p) => {
   const dark = block(css.indexOf(':root {', css.indexOf('@media (prefers-color-scheme: dark)')));
   pairs('tern.css (light)', light, 4.5, p);
   pairs('tern.css (dark)', dark, 4.5, p);
+});
+
+// Muted text and a link inside a highlight would be new pairs to check
+// (muted on mark fails in most dark palettes); tern.css makes them the
+// checked pair instead: text in a mark is the text colour.
+test('tern.css: text in a highlight is --t-fg, and the base answers prefers-contrast and forced-colors', (p) => {
+  const { css } = require('../src/css');
+  if (!/\.tern mark, \.tern mark a \{[^}]*color: var\(--t-fg\)/.test(css)) p.push('.tern mark and .tern mark a do not set color: var(--t-fg)');
+  for (const q of ['@media (prefers-contrast: more)', '@media (forced-colors: active)']) if (!css.includes(q)) p.push(`tern.css has no ${q} block`);
+  const forced = T.forcedColors();
+  for (const k of ['bg', 'fg', 'muted', 'line', 'line-strong', 'soft', 'link', 'mark']) if (!new RegExp(`--t-${k}: [A-Z][A-Za-z]+;`).test(forced)) p.push(`forced-colors gives --t-${k} no system colour`);
+  // --t-size follows the reader's own size: a rem on the root is the browser's default size.
+  if (!/--t-size: [\d.]+rem;/.test(css)) p.push('--t-size is not in rem, so a reader’s font-size setting would be ignored');
+});
+
+test('every theme answers prefers-contrast (muted as the text colour, rules as the strong line) and forced-colors as tern.css does', (p) => {
+  const forced = T.forcedColors();
+  for (const n of files) {
+    const css = fs.readFileSync(path.join(DIR, n), 'utf8');
+    if (!css.includes(forced)) p.push(`${n}: no forced-colors block, or not tern.css's`);
+    const m = modes(css);
+    const more = css.slice(css.indexOf('@media (prefers-contrast: more)'));
+    if (!more.startsWith('@media')) {
+      p.push(`${n}: no prefers-contrast block`);
+      continue;
+    }
+    for (const [mode, c] of Object.entries(m)) {
+      if (mode === 'print') continue;
+      const want = `:root { --t-muted: ${c.fg}; --t-line: ${c['line-strong']}; }`;
+      if (!more.includes(want)) p.push(`${n} (${mode}): prefers-contrast lacks ${want}`);
+    }
+  }
 });
 
 test('docs/schema.html#themes lists every file', (p) => {
