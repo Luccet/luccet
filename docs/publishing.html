@@ -384,7 +384,7 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 
 **Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property and `MutationObserver`: Chrome 86, Firefox 78 and Safari 14, or newer. In an older browser `tern.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page.
 
-**WebKit is advisory, Safari not verified.** The smoke suite also runs in Playwright's WebKit, the engine behind Safari, as an advisory job in CI: its failures are reported, not blocking, until the suite is green there. Nothing on these pages has been checked in Safari itself. The command line and the language server run their tests on Windows the same way, advisory until green.
+**WebKit is tested, Safari not verified.** The smoke suite also runs in Playwright's WebKit, the engine behind Safari, in CI, where it blocks a change as Chromium and Firefox do. Nothing on these pages has been checked in Safari itself. The command line and the language server run their tests on Windows in CI the same way.
 
 **Known differences** between the tested browsers:
 
