@@ -16,10 +16,13 @@
 // Only data crosses back — the schema the note declares, its transformed AST
 // and the diagnostics — as JSON. The host reads the add-on files (the child
 // cannot) and sends their source; it emits HTML and checks links itself, on
-// that data. The bridge is length-framed JSON over a pipe, driven two ways:
-// blocking, for the tools, so note.analyse keeps its signature; through the
-// event loop, for the language server, which answers requests while a
-// note's code runs. Each way has a child of its own.
+// that data. The bridge is length-framed JSON over the child's stdin and
+// stdout, driven two ways: blocking, for the tools, so note.analyse keeps its
+// signature; through the event loop, for the language server, which answers
+// requests while a note's code runs. Each way has a child of its own. Where
+// the blocking way cannot read the pipe itself (Windows, whose pipes are not
+// file descriptors), the tools start one child per note with spawnSync
+// instead; TERN_SANDBOX_ONESHOT=1 forces that, for the tests.
 //
 //   analyse(req)        run a note's code and analyse it, blocking; req is
 //                       {note, head, dataUse, dataLang, dataKatex, scripts,
@@ -261,12 +264,12 @@ function driverSetup() {
   };
 }
 
-// The child: a framed request arrives on fd 3, runs in a fresh sealed
-// context, and the framed reply goes out on fd 4. Requests are read through
-// the event loop (a socket on fd 3), so an idle child waits in the loop
-// rather than reading, and either host below drives it the same way. stdout
-// is left alone; the note's console output rides back in the reply. One
-// malformed or oversized frame, or EOF, ends the child.
+// The child: a framed request arrives on stdin, runs in a fresh sealed
+// context, and the framed reply goes out on stdout; nothing else is written
+// there, and the note's console output rides back in the reply. Requests are
+// read through the event loop, so an idle child waits in the loop rather
+// than reading, and either host below drives it the same way. One malformed
+// or oversized frame, or EOF, ends the child.
 function childMain() {
   const fs = require('fs');
   const net = require('net');
@@ -293,7 +296,7 @@ function childMain() {
     while (off < buf.length) {
       let w;
       try {
-        w = fs.writeSync(4, buf, off, buf.length - off, null);
+        w = fs.writeSync(1, buf, off, buf.length - off, null);
       } catch (e) {
         if (e.code === 'EAGAIN') continue;
         throw e;
@@ -318,7 +321,7 @@ function childMain() {
     writeFrame(reply);
   };
 
-  const input = new net.Socket({ fd: 3, readable: true, writable: false });
+  const input = process.stdin;
   let buf = Buffer.alloc(0);
   input.on('data', (chunk) => {
     buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
@@ -338,6 +341,7 @@ function childMain() {
 // ------------------------------------------------------------------ host
 
 let child = null; // the blocking bridge's: {proc, toFd, fromFd, alive, served} or null before the first note
+let oneShot = process.env.TERN_SANDBOX_ONESHOT === '1'; // the blocking way starts a child per request (Windows)
 let broken = false; // a spawn that failed: fall back, warn once
 const spin = new Int32Array(new SharedArrayBuffer(4));
 const TRIP_AT = 3; // children dead before their first answer, in a row
@@ -360,16 +364,26 @@ function died(c) {
 }
 const tripped = () => Date.now() < trippedUntil;
 
-// A child, speaking only over the pipes (fds 3, 4); a note's console output
-// rides back in the reply. Its own stdout and stderr carry nothing but a
-// crash dump (an out-of-memory report), so they are dropped. It does not hold
-// the process open: a finished command exits, and the child then reaches
-// end-of-input and exits too.
+// The child's command line and environment: Node's permission model,
+// reading only tern.js and this file, a memory cap, and an empty environment
+// but for what Node itself needs to start on Windows.
+const ARGS = ['--permission', `--allow-fs-read=${TERN}`, `--allow-fs-read=${SELF}`, `--max-old-space-size=${MEMORY_MB}`, SELF, '--sandbox-child'];
+function childEnv() {
+  const env = {};
+  if (process.platform === 'win32') for (const k of ['SystemRoot', 'SYSTEMROOT', 'windir', 'TEMP', 'TMP', 'PATHEXT']) if (process.env[k] !== undefined) env[k] = process.env[k];
+  return env;
+}
+
+// A child, speaking only over its stdin and stdout; a note's console output
+// rides back in the reply, and its stderr carries nothing but a crash dump
+// (an out-of-memory report), so it is dropped. It does not hold the process
+// open: a finished command exits, and the child then reaches end-of-input
+// and exits too.
 function spawnProcess() {
   const { spawn } = require('child_process');
-  const proc = spawn(process.execPath, ['--permission', `--allow-fs-read=${TERN}`, `--allow-fs-read=${SELF}`, `--max-old-space-size=${MEMORY_MB}`, SELF, '--sandbox-child'], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], env: {} });
+  const proc = spawn(process.execPath, ARGS, { stdio: ['pipe', 'pipe', 'ignore'], env: childEnv() });
   proc.on('error', () => {});
-  if (!proc.stdio[3] || !proc.stdio[4]) {
+  if (!proc.stdin || !proc.stdout) {
     proc.kill();
     throw new Error('the sandbox pipes are not available');
   }
@@ -379,24 +393,47 @@ function spawnProcess() {
 
 function spawnChild() {
   const proc = spawnProcess();
-  const to = proc.stdio[3];
-  const from = proc.stdio[4];
+  const to = proc.stdin;
+  const from = proc.stdout;
   // The tools read the reply synchronously (below), so keep Node's stream
   // machinery off these pipes — it must not race the manual reads.
   to.pause();
   from.pause();
-  if (!to._handle || !from._handle) {
+  const fd = (s) => (s._handle && typeof s._handle.fd === 'number' && s._handle.fd >= 0 ? s._handle.fd : null);
+  if (fd(to) === null || fd(from) === null) {
+    // No descriptor to read (Windows): one child per request, below.
     proc.kill();
-    throw new Error('the sandbox pipes are not available');
+    oneShot = true;
+    return null;
   }
   to.unref();
   from.unref();
-  return { proc, toFd: to._handle.fd, fromFd: from._handle.fd, alive: true, served: 0 };
+  return { proc, toFd: fd(to), fromFd: fd(from), alive: true, served: 0 };
+}
+
+// The blocking way without a readable pipe: one child per request, its
+// request on stdin, its reply the whole of stdout, spawnSync waiting.
+function oneShotAnalyse(req) {
+  const { spawnSync } = require('child_process');
+  const body = Buffer.from(JSON.stringify(req), 'utf8');
+  const head = Buffer.allocUnsafe(4);
+  head.writeUInt32BE(body.length, 0);
+  const r = spawnSync(process.execPath, ARGS, { input: Buffer.concat([head, body]), env: childEnv(), timeout: WEDGED_MS, maxBuffer: 1 << 30, stdio: ['pipe', 'pipe', 'ignore'] });
+  const c = { served: 0 };
+  if (r.error && r.error.code === 'ETIMEDOUT') return { failed: 'timeout' };
+  const out = r.stdout || Buffer.alloc(0);
+  if (r.error || r.status !== 0 || out.length < 4 || out.readUInt32BE(0) !== out.length - 4) {
+    died(c);
+    return { failed: 'crash' };
+  }
+  answered(c);
+  return out.toString('utf8', 4);
 }
 
 function ensureChild() {
   if (child && child.alive && child.proc.exitCode === null && child.proc.signalCode === null) return child;
   child = spawnChild();
+  if (!child) return null;
   const mark = () => { child && (child.alive = false); };
   child.proc.on('exit', mark);
   return child;
@@ -478,29 +515,39 @@ const clean = (s) => String(s).replace(/[\0-\x08\x0b-\x1f\x7f-\x9f]/g, '');
 function analyse(req) {
   if (broken) return { failed: 'unavailable' };
   if (tripped()) return { failed: 'tripped' };
-  let c;
-  try {
-    c = ensureChild();
-  } catch (e) {
-    return unavailable(e);
-  }
   let text;
-  try {
-    writeFrame(c.toFd, JSON.stringify(req));
-    text = readFrame(c.fromFd, Date.now() + WEDGED_MS);
-  } catch (e) {
-    text = null;
-  }
-  if (text === null || text === undefined) {
-    c.alive = false;
+  if (oneShot) {
     try {
-      c.proc.kill();
-    } catch (e) {}
-    child = null;
-    if (text === null) died(c);
-    return { failed: text === undefined ? 'timeout' : 'crash' };
+      text = oneShotAnalyse(req);
+    } catch (e) {
+      return unavailable(e);
+    }
+    if (typeof text !== 'string') return text; // {failed}
+  } else {
+    let c;
+    try {
+      c = ensureChild();
+      if (!c) return analyse(req); // the pipe gave no descriptor: oneShot now
+    } catch (e) {
+      return unavailable(e);
+    }
+    try {
+      writeFrame(c.toFd, JSON.stringify(req));
+      text = readFrame(c.fromFd, Date.now() + WEDGED_MS);
+    } catch (e) {
+      text = null;
+    }
+    if (text === null || text === undefined) {
+      c.alive = false;
+      try {
+        c.proc.kill();
+      } catch (e) {}
+      child = null;
+      if (text === null) died(c);
+      return { failed: text === undefined ? 'timeout' : 'crash' };
+    }
+    answered(c);
   }
-  answered(c);
   let reply;
   try {
     reply = JSON.parse(text);
@@ -523,7 +570,7 @@ const queue = []; // {req, resolve, timer} waiting for a child
 
 function spawnAsync() {
   const proc = spawnProcess();
-  const c = { proc, to: proc.stdio[3], from: proc.stdio[4], buf: Buffer.alloc(0), job: null, alive: true, served: 0 };
+  const c = { proc, to: proc.stdin, from: proc.stdout, buf: Buffer.alloc(0), job: null, alive: true, served: 0 };
   c.to.on('error', () => {});
   c.from.on('error', () => {});
   c.from.on('data', (chunk) => {
@@ -616,7 +663,7 @@ function shutdown() {
   for (const c of [child, achild]) {
     if (!c) continue;
     try {
-      c.proc.stdio[3].end();
+      c.proc.stdin.end();
       c.proc.kill();
     } catch (e) {}
   }

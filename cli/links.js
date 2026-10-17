@@ -25,8 +25,10 @@
 //     .analyse(file, text?)    cli/note.js analyse(), or null for a non-note
 //     .remember(file, a)       an analysis of the file as it is now
 //     .parsed(file)            {text, a}: the file's text and parsed(text)
-//     .find(file)              {kind: 'file'|'dir', actual} or null, actual
-//                              the path as the disk spells it
+//     .find(dir, rel)          what a relative path names from a folder:
+//                              {kind: 'file'|'dir', actual, exact} or null,
+//                              actual the path as the disk spells it, exact
+//                              false when a segment differs in case alone
 //     .ids(file)               a Set, or null when the file has no ids to know
 //     .during(fn)              fn(), with each file's stat taken once
 //   urls(a)                  the URLs of a note analysed as `a`, with where
@@ -175,21 +177,37 @@ class Targets {
     return names;
   }
 
-  // Segment by segment from the root, so that a name the disk spells in
-  // another case is seen even where the disk ignores case.
-  find(file) {
-    if (this.open(file)) return { kind: 'file', actual: file };
-    const { root } = path.parse(file);
-    let at = root;
-    for (const part of file.slice(root.length).split(path.sep).filter(Boolean)) {
+  // The segments of a relative path, walked from the note's folder as it
+  // was given, so that a name the disk spells in another case is seen even
+  // where the disk ignores case. Only what the author wrote is walked: the
+  // folder above is taken as it is, since a temporary folder's short name
+  // (RUNNER~1 on Windows) or a symbolic link (/var on macOS) spells it
+  // otherwise than the disk's listing without being a mistake of the note.
+  find(dir, rel) {
+    let at = dir;
+    let exact = true;
+    const parts = String(rel).split('/').filter((p) => p && p !== '.');
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (part === '..') {
+        at = path.dirname(at);
+        continue;
+      }
+      const candidate = path.join(at, part);
+      if (this.open(candidate)) {
+        at = candidate;
+        continue;
+      }
       const names = this.entries(at);
-      if (!names) return fs.existsSync(file) ? { kind: fs.statSync(file).isDirectory() ? 'dir' : 'file', actual: file } : null;
+      if (!names) return null;
       const name = names.includes(part) ? part : names.find((n) => n.toLowerCase() === part.toLowerCase());
       if (name === undefined) return null;
+      if (name !== part) exact = false;
       at = path.join(at, name);
     }
+    if (this.open(at)) return { kind: 'file', actual: at, exact };
     const st = this.stat(at);
-    return st ? { kind: st.isDirectory() ? 'dir' : 'file', actual: at } : null;
+    return st ? { kind: st.isDirectory() ? 'dir' : 'file', actual: at, exact } : null;
   }
 
   ids(file) {
@@ -444,16 +462,17 @@ function resolve(file, url, targets) {
   if (!r || (!r.path && r.frag === null)) return null;
   const out = { ...r, dest: file, problem: null };
   if (r.path) {
-    const dest = path.resolve(path.dirname(file), r.path);
-    let found = targets.find(dest);
+    const dir = path.dirname(file);
+    const dest = path.resolve(dir, r.path);
+    let found = targets.find(dir, r.path);
     out.dest = dest;
     if (found && (found.kind === 'dir' || r.path.endsWith('/'))) {
       out.dest = path.join(dest, 'index.html');
-      found = targets.find(out.dest);
+      found = targets.find(dir, `${r.path.replace(/\/+$/, '')}/index.html`);
       if (!found || found.kind !== 'file') return { ...out, problem: 'no-index' };
     }
     if (!found) return { ...out, problem: 'missing' };
-    if (found.actual !== out.dest) return { ...out, problem: 'case', actual: path.relative(path.dirname(file), found.actual).split(path.sep).join('/') };
+    if (!found.exact) return { ...out, problem: 'case', actual: path.relative(dir, found.actual).split(path.sep).join('/') };
   }
   if (!r.frag || r.frag.toLowerCase() === 'top') return out;
   const ids = targets.ids(out.dest);
