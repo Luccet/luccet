@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js"></script>
 
 :::meta
-description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, diagrams with Mermaid, a search box over a set of notes, and a list of them.
+description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, diagrams with Mermaid, citations from BibTeX or CSL-JSON, a search box over a set of notes, and a list of them.
 :::
 
 ::site-nav
@@ -317,3 +317,56 @@ The version and its hashes live in a table in `addons/mathml.js`. To move to ano
 - **The element** is a `<nav aria-label="Notes">` with the classes `t-notes`, `t-notes-list` (a `<ul role="list">`), `t-notes-title`, its words (the label Notes, No notes., the failure line) from [`window.TERN.strings`](api.html#strings) when the page sets them, `t-notes-date`, `t-notes-desc` and `t-notes-status`, styled from the theme's variables; a stylesheet add-on can restyle them.
 - **When the catalogue cannot be loaded,** or `from=` is not a URL, the leaf says so in place, with the reason in the console. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
 - **Without the page.** `tern check` and `tern build` know the leaf and do nothing with it: the list is built when `tern.js` runs.
+
+## Citations {#cite}
+
+`cite.js` cites sources: a `:::bibliography` block holds them, in BibTeX or CSL-JSON, and `@key` cites one. A citation is a [reference](syntax-inline.html#reference), so nothing new is written: it reads "[1]", or "(Knuth, 1984)" in the author-year style, and links to the entry; the block lists the cited sources, formatted in one plain style, in the order it numbers them.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/cite.js"></script>
+```
+```tern
+As @knuth84 showed, and @lamport94 agreed.
+
+:::bibliography
+@article{knuth84,
+  author = {Knuth, Donald E.}, title = {Literate programming},
+  journal = {The Computer Journal}, volume = 27, number = 2,
+  pages = {97--111}, year = 1984, doi = {10.1093/comjnl/27.2.97}}
+@book{lamport94, author = {Leslie Lamport}, title = {{\LaTeX}: A Document Preparation System},
+  publisher = {Addison-Wesley}, edition = {2nd}, year = 1994}
+:::
+```
+:::
+
+The engine writes (as `tern build` shows it, without positions):
+
+```html
+<p>As <a class="t-ref cite" href="#knuth84">[1]</a> showed, and <a class="t-ref cite" href="#lamport94">[2]</a> agreed.</p>
+<section class="t-block bibliography" data-t="bibliography" role="doc-bibliography"><div class="t-title">References</div><ul class="t-block bib-list" data-t="bib-list" role="list"><li id="knuth84" class="bib numeric" data-t="bib"><span class="t-label">[1]</span> Knuth, D. E. (1984). Literate programming. <em>The Computer Journal</em>, 27(2), 97–111. <a href="https://doi.org/10.1093/comjnl/27.2.97">https://doi.org/10.1093/comjnl/27.2.97</a></li>
+<li id="lamport94" class="bib numeric" data-t="bib"><span class="t-label">[2]</span> Lamport, L. (1994). <em>LaTeX: A Document Preparation System</em> (2nd ed.). Addison-Wesley.</li>
+</ul>
+</section>
+```
+
+- **The sources** go in the block's body, verbatim: BibTeX entries (`@type{key, field = {value}, …}`, with `@string` macros, `"quoted"` and bare values, `#` concatenation, the month abbreviations; `@comment` and `@preamble` are skipped), or CSL-JSON, an array of items (`[{"id": "knuth84", "type": "article-journal", …}]`), which many reference managers export. LaTeX in a value is read as text: braces are removed, accents composed (`M{\"u}ller` is Müller), `--` is an en dash, `\LaTeX` is LaTeX.
+- **The key** is what `@` cites, so it must be one `@` reaches: a letter or `_`, then letters, digits, `_` and `-` (`knuth84`, `knuth-1984`; not `knuth:84`). A key `@` cannot reach is listed but not citable, with [`cite.key`](#cite-diagnostics).
+- **Which sources are listed:** the cited ones. `{all}` lists every source. The list is sorted by the first author's family name, then year, then title (`sort=author`, the default); `sort=cited` follows the order of first citation, as IEEE does; `sort=source` keeps the order written. The numbers follow the list, so with `sort=author` "[1]" is the first by author; a second `:::bibliography` keeps counting.
+- **The citation's text.** In the numeric style (`style=numeric`, the default) `@key` reads "[1]" and `@key{ref=number}` "1". With `{style=author-year}` on the block, `@key` reads "(Knuth, 1984)", `@key{ref=label}` the narrative "Knuth (1984)" and `@key{ref=number}` the year; two authors are "Abel and Borel", three or more "Zed et al.", an undated source "n.d.". In both styles `@key{ref=title}` is the title and `@key{ref=full}` the citation followed by the title. The link gets the class `cite` beside `t-ref`.
+- **The heading** is the title written in the brackets, `:::bibliography[Sources]`, else "References" in the note's [label language](schema.html#languages) (English, German, French, Spanish, Italian, Portuguese, Dutch).
+- **The style of an entry** is one plain style, close to APA: authors as "Family, I. I." joined with "and" (two) or commas and "and" (more; "et al." for `and others`), the year in parentheses, the title (in italics for a book or a thesis), the journal or book in italics with volume(issue) and pages, the publisher, and the DOI as a `https://doi.org/` link (else the URL). Articles, books, chapters and proceedings, theses, reports and anything else have each their shape; fields an entry lacks are left out.
+- **A shared bibliography.** A head script before the tern.js line sets `window.TERN.bib` to the same text, or to an array of CSL items: `<script src="refs.js"></script>` with ``window.TERN = {bib: `@article{…}`}`` in it, kept beside the notes. The note's first `:::bibliography` lists from its body and from `window.TERN.bib` (with an empty body, from the page's alone); a later block lists its own body. tern.js reads the head in the browser, and the command line runs it under node, so both see the same sources.
+- **The elements** are a `<section role="doc-bibliography">` with the classes `t-block bibliography`, its heading in `t-title`, a `<ul role="list">` with `bib-list`, and one `<li>` per source with `bib` and the style's class (`numeric`, `author-year`), its number in `t-label`, hanging-indented by the add-on's stylesheet; a stylesheet add-on can restyle them. Each entry carries its line in the source as its position, so the editor's go-to-definition on `@key` lands on it.
+- **Under node,** `tern check`, `tern build` and the language server run the add-on's transforms, so they see the list as the page will: `tern build` writes it into the page, pre-rendered, and `tern check` reports the diagnostics below with file lines.
+
+### Diagnostics {#cite-diagnostics}
+
+| Code | Severity | When |
+|---|---|---|
+| `cite.syntax` | warning | An entry cannot be read (a brace not closed, a field without `=`, CSL-JSON that does not parse). It is left out; the others stay. |
+| `cite.duplicate` | warning | A key is given twice. The second entry is left out. |
+| `cite.key` | warning | A key `@` cannot reach (`knuth:84`). The entry is listed, without an id. |
+| `cite.empty` | info | A `:::bibliography` with no source in its body and none in `window.TERN.bib`. |
+
+Each is at the entry's line. A `@key` that names no source is the engine's [`ref.dangling`](diagnostics.html#ref-dangling), as for any reference.
