@@ -368,7 +368,8 @@ function longNote(bytes = 1000000) {
 // A note with every construct the emitter writes, under a theme (`tern` for
 // tern.css alone), with a language and a title, for an axe run.
 function a11yNote(theme) {
-  const use = theme === 'tern' ? '' : ` data-use="/themes/${theme}.css"`;
+  // The copy and lightbox add-ons too, so their controls are checked in every theme.
+  const use = ` data-use="/addons/copy.js /addons/lightbox.js${theme === 'tern' ? '' : ` /themes/${theme}.css`}"`;
   return [
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: ${theme}</title><script src="/tern.js"${use}></script>`,
     '',
@@ -2426,6 +2427,61 @@ const TESTS = [
       ctx.note(`${got.cites.length} citations, ${num.entries.length + ay.entries.length} entries in two styles`);
     },
   })),
+  {
+    // copy.js and lightbox.js: a real click on the button (the clipboard API
+    // needs a user gesture); Chromium reads the clipboard back, the others
+    // check the button's state. The lightbox: click, keyboard, Escape, the
+    // backdrop and focus return.
+    name: 'copy and lightbox add-ons: a button copies a fence as written, a figure image opens full size in a dialog and gives focus back',
+    url: '/test/smoke/ui.html',
+    async setup(context, _page, ctx) {
+      if (ctx.browser === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: ctx.origin });
+    },
+    async check(page, ctx) {
+      await expect(page, () => document.querySelectorAll('main.tern pre').length === 3, 'three fences');
+      const buttons = await page.evaluate(() => [...document.querySelectorAll('main.tern pre')].map((pre) => ({ copyable: pre.classList.contains('t-copyable'), button: pre.querySelector(':scope > button.t-copy')?.textContent ?? null, first: pre.firstElementChild?.className })));
+      if (buttons.map((b) => b.button).join() !== 'Copy,Copy,') throw new Error(`buttons ${JSON.stringify(buttons)}: expected one on each fence but the data-copy=false one`);
+      if (!buttons[0].copyable || buttons[2].copyable) throw new Error(`t-copyable ${JSON.stringify(buttons.map((b) => b.copyable))}`);
+      // The listing (lines, numbered from 3): the code alone, lines kept.
+      if (ctx.browser === 'chromium') await page.evaluate(() => navigator.clipboard.writeText('(nothing was copied)'));
+      await page.click('#lst pre > button.t-copy');
+      await expect(page, () => document.querySelector('#lst pre > button.t-copy').textContent === 'Copied', '"Copied" on the button', 3000);
+      const after = await page.evaluate(() => ({ done: document.querySelector('#lst pre > button.t-copy').getAttribute('data-done'), status: document.querySelector('.t-copy-status[role=status]')?.textContent, text: document.querySelector('#lst pre > code').textContent }));
+      if (after.done !== 'yes' || after.status !== 'Copied') throw new Error(`after the click: ${JSON.stringify(after)}`);
+      if (after.text !== 'def f():\n    return 1  # one\nprint(f())') throw new Error(`the code's text (what is copied) ${JSON.stringify(after.text)}: the button's word must not be in it`);
+      if (ctx.browser === 'chromium') {
+        const clip = await page.evaluate(() => navigator.clipboard.readText());
+        if (clip !== 'def f():\n    return 1  # one\nprint(f())') throw new Error(`the clipboard holds ${JSON.stringify(clip)}`);
+      }
+      await expect(page, () => document.querySelector('#lst pre > button.t-copy').textContent === 'Copy', 'the button back to "Copy"', 4000);
+      // The lightbox: only the plain figure's image is zoomable.
+      const imgs = await page.evaluate(() => [...document.querySelectorAll('main.tern img')].map((i) => `${i.closest('figure')?.id || 'p'}:${i.classList.contains('t-zoomable') ? i.getAttribute('role') + '/' + i.tabIndex + '/' + i.getAttribute('aria-label') : 'plain'}`));
+      if (imgs.join(' ') !== 'fig:button/0/View full size: A grey square linked:plain alone:plain p:plain') throw new Error(`images ${JSON.stringify(imgs)}`);
+      const isOpen = () => page.evaluate(() => !!document.querySelector('dialog.t-lightbox[open]'));
+      if (await isOpen()) throw new Error('the dialog is open before any click');
+      await page.click('#fig img');
+      await expect(page, () => !!document.querySelector('dialog.t-lightbox[open]'), 'the dialog open after a click', 3000);
+      const shown = await page.evaluate(() => {
+        const d = document.querySelector('dialog.t-lightbox');
+        const img = d.querySelector('img');
+        return { src: img.getAttribute('src'), caption: d.querySelector('figcaption').textContent, label: d.getAttribute('aria-label'), close: d.querySelector('button').getAttribute('aria-label'), loaded: img.complete && img.naturalWidth > 0, scroll: getComputedStyle(document.documentElement).overflow };
+      });
+      if (!/\/gen\/poster\.png$/.test(shown.src) || shown.caption !== 'A grey square' || shown.label !== 'A grey square' || shown.close !== 'Close') throw new Error(`the dialog ${JSON.stringify(shown)}`);
+      await page.keyboard.press('Escape');
+      await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'Escape closes it', 3000);
+      if (!(await page.evaluate(() => document.activeElement === document.querySelector('#fig img')))) throw new Error('focus did not return to the image');
+      await page.keyboard.press('Enter');
+      await expect(page, () => !!document.querySelector('dialog.t-lightbox[open]'), 'Enter on the focused image opens it', 3000);
+      await page.mouse.click(4, 4); // the dialog's own area, beside the image
+      await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'a click beside the image closes it', 3000);
+      await page.click('#fig img');
+      await expect(page, () => !!document.querySelector('dialog.t-lightbox[open]'), 'open again', 3000);
+      await page.click('dialog.t-lightbox button.t-lightbox-close');
+      await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'the close button closes it', 3000);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+      ctx.note(`${buttons.filter((b) => b.button).length} copy buttons, ${imgs.filter((i) => !/plain$/.test(i)).length} zoomable image; image loaded in the dialog: ${shown.loaded}`);
+    },
+  },
   {
     // KaTeX reads a string 'false' as true, so the add-on must make it a
     // boolean; with trust off, KaTeX shows an untrusted command's name in its
