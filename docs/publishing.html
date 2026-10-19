@@ -378,7 +378,7 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 - a missing add-on, the KaTeX add-on failing to load, a note with no math add-on, a formula KaTeX rejects, unclosed math;
 - `:::meta` and the head, a second `tern.js`, a fragment target inside closed `<details>`;
 - a strict CSP with `tern.css`, and with `data-nonce`;
-- built pages (with `tern.js` blocked, with a missing add-on, with `--math`) and the guard of `tern new --guarded`;
+- built pages (with `tern.js` blocked, with a missing add-on, with `--math`) and the guard of `tern new`;
 - copying formulas, printing to PDF, the network waterfall on a slow connection, long tasks on a 4,000-formula note, and the first paint of a 1 MB note (the last five in Chromium; copying and the 1 MB note also in Firefox);
 - accessibility: [axe-core](https://github.com/dequelabs/axe-core) finds no WCAG 2.0 or 2.1 A or AA violation on a page holding every construct the emitter writes, in tern.css alone and in every theme, light and dark.
 
@@ -488,7 +488,7 @@ error doc.quirks at the tern.js line (file line 1): the file has no <!doctype ht
 
 **Fix.** Check the path from the note's folder: `tern check` reports a local one that leads nowhere as a [`link.missing`](diagnostics.html#link-missing) error. `tern new` writes the right one for the `tern.js` it finds above the note. Open the browser's network panel to see the URL it tried.
 
-**The guard.** `tern new --guarded` adds a guard to the first line. When `tern.js` does not load, the reader then sees "tern.js did not load; the source follows." and the note exactly as written, as plain text, instead of the run-together paragraph. When JavaScript is off, they see "JavaScript is off; the source follows." The guard does nothing when `tern.js` loads. How it works is on [The guard](tools.html#guarded).
+**The guard.** `tern new` ends the first line with a guard (`--bare` leaves it out). When `tern.js` does not load, the reader then sees "tern.js did not load; the source follows." (in the note's language, with `--lang`) and the note exactly as written, as wrapped plain text, instead of the run-together paragraph. When JavaScript is off, they see "JavaScript is off; the source follows." The guard does nothing when `tern.js` loads. How it works is on [The guard](tools.html#guarded).
 
 ### async, defer or module {#async-defer}
 

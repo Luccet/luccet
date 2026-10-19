@@ -29,7 +29,7 @@ A note with *emphasis* and a formula, $e^{i\pi} + 1 = 0$.
 - The `src` is relative to the note: `../tern.js` from a subfolder. Keep the tag plain.
 - The doctype is required (quirks mode breaks math: `doc.quirks`), and so is `<meta charset="utf-8">`.
 - A `<title>`, `<html lang>`, stylesheets and a `window.TERN` script go before the tern.js tag, on lines of their own if you like. Put the page's title and language in a `:::meta` block instead when you prefer to keep them in the note.
-- `tern new FILE --title="…"` writes the line with the right path to the nearest `tern.js`.
+- `tern new FILE --title="…"` writes the line with the right path to the nearest `tern.js`, and after the tag a guard that shows the source as readable text when `tern.js` does not load (`--bare` leaves it out; `--lang=TAG` sets the language).
 
 ## The loop
 

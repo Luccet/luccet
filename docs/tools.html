@@ -75,7 +75,7 @@ Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. O
 ```sh
 $ tern new x.html --bogus
 tern new: Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--bogus"
-usage: tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]
+usage: tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
 ```
 
 ### How diagnostics print {#output}
@@ -165,11 +165,11 @@ tern check: 1 note: 1 error, 0 warnings, 0 infos
 
 ## tern new {#new}
 
-`tern new` writes a new note: the canonical first line, with the right path to `tern.js`.
+`tern new` writes a new note: the canonical first line, with the right path to `tern.js`, and after the tag the [guard](#guarded), which shows the note's source, readable, when `tern.js` does not run.
 
 :::syntax[tern new]
 ```sh
-tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]
+tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
 ```
 :::
 
@@ -177,7 +177,7 @@ tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]
 $ tern new notes/kernel.html
 created notes/kernel.html, loading ../tern.js
 $ cat notes/kernel.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
 ```
 
 | Option | What it does |
@@ -185,7 +185,8 @@ $ cat notes/kernel.html
 | `--tern=PATH` | The `src` of the script tag, as given: a relative path, a root-relative path, or a URL. Without it, see below. |
 | `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block, and each preloaded from the first line (`<link rel="preload">`, `as="script"` or `as="style"`), so the browser fetches it alongside `tern.js` instead of after the note has arrived. Separate them with commas or spaces; the option may repeat. |
 | `--title=TEXT` | Adds a `:::meta` block with `title: TEXT`, then a blank line. One non-empty line. |
-| `--guarded` | Adds the guard, which shows the note's source when `tern.js` does not run. See [The guard](#guarded). |
+| `--lang=TAG` | The note's language, as `lang: TAG` in the `:::meta` block (`en`, `de`, `pt-BR`), which `tern.js` puts on `<html>` when it renders. The guard's message is in that language when the command has it, English otherwise. |
+| `--bare` | Leaves the guard out: the first line is the tag alone. |
 | `--force` | Overwrites an existing file. |
 
 ### The path to tern.js {#new-path}
@@ -202,7 +203,7 @@ tern new: no tern.js in . or above; the note loads tern.js from its own director
 
 Relative paths are what you want for publishing: they keep working when the folder is copied, opened from disk, or served under a sub-path such as a GitHub project page (see [Publishing](publishing.html#github-pages)).
 
-### Add-ons and a title {#new-options}
+### Add-ons, a title and a language {#new-options}
 
 ```sh
 $ tern new notes/first.html --title="Linear maps" --use=theorems.js,theme.css
@@ -210,7 +211,7 @@ created notes/first.html, loading ../tern.js
 tern new: :::use names theorems.js, which does not exist yet
 tern new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
 :::meta
 title: Linear maps
 :::
@@ -224,30 +225,36 @@ theme.css
 
 - `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same `:::use` block, `a.js` then `b.css`, one per line, and the same two preloads on the first line. `tern.js` preloads `data-use` entries itself as it starts; a `:::use` entry it finds only once the note has arrived, so the head's preload saves a round trip there.
 - A local add-on that does not exist yet (relative to the note's folder) gets a note on stderr. The file is still written: you may be about to create it. Remote URLs and root-relative paths are not checked.
-- `--title` is written as `:::meta` (see [Metadata](elements.html#metadata)). Before writing, `tern new` reads the file back and checks that the title survives as written, and that the add-ons read back from `:::use`; a title that would not is refused.
+- `--title` and `--lang` are written as `:::meta`, the title first (see [Metadata](elements.html#metadata)). Before writing, `tern new` reads the file back and checks that the title and the language survive as written, and that the add-ons read back from `:::use`; a title that would not is refused. `--lang` takes a language tag: letters, then subtags after hyphens (`en`, `pt-BR`, `zh-Hant`).
 
-### The guard (--guarded) {#guarded}
+### The guard {#guarded}
 
-A note whose `tern.js` does not load shows its source run together as one paragraph of text, with any raw HTML in it rendered. The guard makes that case readable: it shows a one-line message, then the note exactly as written.
+A note whose `tern.js` does not load shows its source run together as one paragraph of text, with any raw HTML in it rendered. The guard makes that case readable: it shows a one-line message, then the note exactly as written, wrapped at the window's width. `tern new` writes it after the tag; `--bare` leaves it out.
 
 ```sh
-$ tern new notes/guarded.html --guarded
-created notes/guarded.html, loading ../tern.js, guarded
+$ tern new notes/guarded.html --lang=fr
+created notes/guarded.html, loading ../tern.js
 $ cat notes/guarded.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext>
+<!doctype html><meta charset="utf-8"><script src="../tern.js"></script><noscript><p lang="fr">JavaScript est désactivé ; voici la source.</p><xmp hidden></noscript><script>self.tern||document.write('<p lang="fr">tern.js n’a pas été chargé ; voici la source.</p><xmp hidden>')</script></xmp><plaintext lang="fr" style="white-space:pre-wrap">
+:::meta
+lang: fr
+:::
+
 ```
 
-The guard is the rest of the first line, after the tag. It is still one line, so the file is still a note. What happens in each case (all three are tested in Chromium and Firefox):
+The guard is the rest of the first line, after the tag. It is still one line, so the file is still a note. What happens in each case (all three are tested in Chromium, Firefox and WebKit):
 
 | Case | What the reader sees | How |
 |---|---|---|
 | `tern.js` loads | the rendered note | `tern.js` takes everything after its tag as text, the guard included, and the note starts on the next line. The guard is never parsed as HTML. |
-| `tern.js` does not load | "tern.js did not load; the source follows.", then the note as plain text | The `<noscript>` is inert while scripts run. The guard's script finds no `tern`, writes the message and a hidden `<xmp>`, which the `</xmp>` right after closes. `<plaintext>` shows the rest as text. |
-| JavaScript is off | "JavaScript is off; the source follows.", then the note as plain text | The `<noscript>`'s paragraph starts the body, and its hidden `<xmp>` hides the guard script up to the same `</xmp>`. Then `<plaintext>`. |
+| `tern.js` does not load | "tern.js did not load; the source follows.", then the note as plain text | The `<noscript>` is inert while scripts run. The guard's script finds no `tern`, writes the message and a hidden `<xmp>`, which the `</xmp>` right after closes. `<plaintext>` shows the rest as text, wrapped (`white-space: pre-wrap`). |
+| JavaScript is off | "JavaScript is off; the source follows.", then the note as plain text | The `<noscript>`'s paragraph starts the body, and its hidden `<xmp>` hides the guard script up to the same `</xmp>`. Then `<plaintext>`, wrapped. |
 
+- **The language.** With `--lang`, the message is in the note's language when the command has it (German, English, Spanish, French, Italian, Dutch, Portuguese; the primary subtag counts, so `pt-BR` reads Portuguese), English otherwise, and the message and the text carry the tag (`lang="fr"`), so a screen reader speaks them right. The rendered note takes its language from `:::meta` as usual.
 - The guard adds nothing to the rendered page: when `tern.js` loads, its script never runs.
-- **CSP.** The guard's script is an inline script. When `tern.js` loads, the guard is never parsed, so it causes no violation. When `tern.js` does not load under a Content-Security-Policy that blocks inline scripts, the guard's script is blocked: the reader sees the note as plain text, without the message line.
+- **CSP.** The guard's script is an inline script. When `tern.js` loads, the guard is never parsed, so it causes no violation. When `tern.js` does not load under a Content-Security-Policy that blocks inline scripts, the guard's script is blocked: the reader sees the note as plain text, without the message line. A policy that blocks inline styles blocks the `style` attribute that wraps the text: the source then shows unwrapped.
 - `tern build` drops the guard from the page it writes (see [tern build](#build)).
+- `--guarded`, the option that added the guard before 0.7, is accepted and changes nothing.
 
 ### Refusals {#new-refusals}
 
@@ -1909,7 +1916,7 @@ The match ignores case. Every tag it accepts is one `tern.js` starts from. The f
 
 ### The pattern and its fixtures {#detection-fixtures}
 
-`test/fixtures/detect.json` holds the pattern, its flags and 42 cases (20 lines that match, each with the tag it must capture, and 22 that do not). Load it in your editor's tests rather than copying the pattern by hand. `test/cli.js` checks that its pattern is `DETECT` itself and that every case holds.
+`test/fixtures/detect.json` holds the pattern, its flags and 43 cases (21 lines that match, each with the tag it must capture, and 22 that do not). Load it in your editor's tests rather than copying the pattern by hand. `test/cli.js` checks that its pattern is `DETECT` itself and that every case holds.
 
 ```json
 {
