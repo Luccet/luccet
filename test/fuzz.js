@@ -5,7 +5,8 @@
 // edges. For every input the engine must:
 //   - not throw;
 //   - take ≤ 50 ms (scaled to the machine);
-//   - produce output of bounded length (≤ 50 × input + 10 KB);
+//   - produce output of bounded length (≤ 50 × input + 10 KB, plus the
+//     empty cells a table's short rows are padded with);
 //   - be deterministic (same input, same result);
 //   - keep every invariant in test/lib/invariants.js.
 // A failing input is saved to test/fuzz-failures/ with its seed, and replays
@@ -80,6 +81,17 @@ function mutate(s, rnd, pool) {
   return s;
 }
 
+// The empty cells a table's short rows are padded with, one per missing
+// column (the spec asks for them): a wide header over many short rows pays
+// for them in output, not in input, so the length bound allows 48 chars each.
+function padding(node) {
+  let n = 0;
+  const kids = (node && node.children) || [];
+  if (node && node.type === 'table') for (const r of kids) n += Math.max(0, (node.align || []).length - ((r && r.children) || []).length);
+  for (const c of kids) if (c && typeof c === 'object') n += padding(c);
+  return n;
+}
+
 function runOne(tern, input, limitMs) {
   const opts = { schema: fixture };
   const problems = [];
@@ -94,7 +106,8 @@ function runOne(tern, input, limitMs) {
   }
   const ms = Number(process.hrtime.bigint() - t) / 1e6;
   if (ms > limitMs) problems.push(`took ${ms.toFixed(1)} ms (limit ${limitMs.toFixed(0)} ms) for ${input.length} chars`);
-  if (html.length > 50 * input.length + 10240) problems.push(`output ${html.length} chars for ${input.length} chars of input`);
+  const allowed = 50 * input.length + 10240 + 48 * padding(parsed.ast);
+  if (html.length > allowed) problems.push(`output ${html.length} chars for ${input.length} chars of input (bound ${allowed})`);
   problems.push(...checkParse(parsed, input).slice(0, 5));
   try {
     const again = tern.parse(input, opts);
