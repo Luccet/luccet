@@ -21,9 +21,15 @@
 //     on another page (empty for a term with no paragraph).
 //   uses(ast) -> [{term, key, line}]   every `:term[…]`, for tern index's check
 //   key(text), slug(text)              the folding and the id, for add-ons
+//   format                             the number of glossary.json's format
 'use strict';
 
 const { plain, fold } = require('./search');
+
+// The format of a glossary file: the terms' fields and the definitions'
+// trees. 1 since 1.0; the next number comes with a major release. The
+// add-on takes a file of its own format whatever version wrote it.
+const FORMAT = 1;
 
 const key = (text) => fold(String(text)).replace(/\s+/g, ' ').trim();
 const slug = (text) => `glossary-${key(text).replace(/[^\p{L}\p{M}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'term'}`;
@@ -114,4 +120,4 @@ function uses(ast) {
   return out;
 }
 
-module.exports = { terms, uses, key, slug };
+module.exports = { terms, uses, key, slug, format: FORMAT };

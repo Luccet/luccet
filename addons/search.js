@@ -20,9 +20,9 @@
 // options go on the add-on (`?from=index.html`) or in window.TERN = {use:
 // {search: {…}}}; an attribute on the leaf wins. `?q=` in the page's URL
 // fills the box, and typing keeps it up to date. An index that cannot be
-// loaded, or was written by another version series of tern.js (its stems
-// are the stemmer's), is reported in the console and the notes are indexed
-// here instead, from `notes`, `from` or the page's links.
+// loaded, or is of another format than this tern.js reads (its words are
+// the tokeniser's; tern.search.format), is reported in the console and the
+// notes are indexed here instead, from `notes`, `from` or the page's links.
 //
 // Matching is lexical: words are stemmed lightly and a query word matches
 // the words it begins (`pythag` finds Pythagoras and Pythagorean), scored
@@ -158,7 +158,6 @@
 
   // A search.json `tern index` wrote, read: {notes, entries, terms, lengths,
   // avg}, or null when it cannot be used, with the reason in the console.
-  const series = (v) => String(v).split('.').slice(0, 2).join('.');
   async function loadIndex(url) {
     let data;
     try {
@@ -173,8 +172,10 @@
       console.warn(`Tern search.js: ${url} is not a search index written by tern index; indexing the notes here`);
       return null;
     }
-    if (series(data.tern) !== series(T.version)) {
-      console.warn(`Tern search.js: ${url} was written by tern ${data.tern} and this page runs ${T.version}: run tern index again; indexing the notes here`);
+    // The file's format decides, not the version that wrote it (a file
+    // with no format is from before 1.0).
+    if (data.format !== T.search.format) {
+      console.warn(`Tern search.js: ${url} was written by tern ${data.tern} in a format this tern (${T.version}) does not read: run tern index again; indexing the notes here`);
       return null;
     }
     return data;

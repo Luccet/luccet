@@ -304,6 +304,10 @@ function badIndexPage() {
     '',
     '::search{#box index=search.json}',
     '',
+    'One written before the format (0.x), with no note to fall back to (notes= names this page alone):',
+    '',
+    '::search{#old index=old.json notes=index.html}',
+    '',
     'Two with a URL that is not one:',
     '',
     '::search{#bad index="http://[bad"}',
@@ -314,10 +318,12 @@ function badIndexPage() {
 }
 function badIndex() {
   const version = require(TERN_JS).version;
+  const format = require(TERN_JS).search.format;
   const entry = (url, label) => ({ url, id: 'h', kind: 'heading', label, title: '', text: 'alpha text' });
   const entries = [entry('good.html', 'Alpha good'), entry('javascript:alert(1)//', 'Alpha script'), entry('data:text/html,<script>alert(1)</script>', 'Alpha data'), entry('https://other.example/x.html', 'Alpha elsewhere'), entry('//other.example/y.html', 'Alpha protocol-relative')];
   return {
-    search: { tern: version, notes: entries.map((e) => ({ url: e.url, title: e.label })), entries, terms: { alpha: entries.map((_, i) => [i, 3]), text: entries.map((_, i) => [i, 1]) }, lengths: entries.map(() => 2), avg: 2 },
+    search: { tern: version, format, notes: entries.map((e) => ({ url: e.url, title: e.label })), entries, terms: { alpha: entries.map((_, i) => [i, 3]), text: entries.map((_, i) => [i, 1]) }, lengths: entries.map(() => 2), avg: 2 },
+    old: { tern: '0.5.0', notes: [], entries: [], terms: {}, lengths: [], avg: 0 }, // written before the format (0.x)
     notes: { tern: version, notes: entries.map((e, i) => ({ url: e.url, title: e.label, date: `2026-01-0${i + 1}`, headings: [], links: [] })) },
   };
 }
@@ -421,6 +427,7 @@ const GENERATED = {
   'big.js': () => ['text/javascript', pad(260) + "window.order = (window.order || []).concat('external');\n"],
   'bad-index/index.html': () => ['text/html', badIndexPage()],
   'bad-index/search.json': () => ['application/json', JSON.stringify(badIndex().search)],
+  'bad-index/old.json': () => ['application/json', JSON.stringify(badIndex().old)],
   'bad-index/notes.json': () => ['application/json', JSON.stringify(badIndex().notes)],
   'addon.js': () => ['text/javascript', pad(20) + 'window.__addon = (window.__addon || 0) + 1;\n'],
   'addon.css': () => ['text/css', pad(6) + '.tern { outline-color: currentColor; }\n'],
@@ -2478,11 +2485,11 @@ const TESTS = [
     },
   },
   {
-    name: 'glossary add-on: ::glossary lists the terms tern index gathered, by key, each linked to its definition, the definition rendered with its links led back to its note and its math typeset; in= keeps a folder; a missing file says so; :term links to the entry',
+    name: 'glossary add-on: ::glossary lists the terms tern index gathered, by key, each linked to its definition, the definition rendered with its links led back to its note and its math typeset; in= keeps a folder; a missing file and a file of another format say so; :term links to the entry',
     url: '/gen/glossary/glossary.html',
     allowConsole: /Failed to load resource/,
     async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('.t-glossary').length === 3 && [...document.querySelectorAll('.t-glossary')].every((n) => n.querySelector('.t-glossary-list, .t-glossary-status')) && document.querySelectorAll('#list .katex').length >= 3, 'the three lists to settle and the math to typeset');
+      await expect(page, () => document.querySelectorAll('.t-glossary').length === 4 && [...document.querySelectorAll('.t-glossary')].every((n) => n.querySelector('.t-glossary-list, .t-glossary-status')) && document.querySelectorAll('#list .katex').length >= 3, 'the four lists to settle and the math to typeset');
       const r = await page.evaluate(() => {
         const rel = (h) => (h || '').replace(/^.*\/gen\/glossary\//, '');
         const list = (id) => ({
@@ -2492,7 +2499,7 @@ const TESTS = [
           katex: document.querySelectorAll(`#${id} .katex`).length,
           math: [...document.querySelectorAll(`#${id} .t-math`)].filter((m) => !m.querySelector('.katex')).length,
         });
-        return { list: list('list'), sub: list('sub'), missing: list('missing'), uses: [...document.querySelectorAll('.term > a')].map((a) => [a.textContent, rel(a.getAttribute('href'))]), label: document.querySelector('#list').getAttribute('aria-label'), tag: document.querySelector('#list .t-glossary-list').tagName };
+        return { list: list('list'), sub: list('sub'), missing: list('missing'), old: list('old'), uses: [...document.querySelectorAll('.term > a')].map((a) => [a.textContent, rel(a.getAttribute('href'))]), label: document.querySelector('#list').getAttribute('aria-label'), tag: document.querySelector('#list .t-glossary-list').tagName };
       });
       const want = [
         ['glossary-kernel', 'Kernel', 'defs.html#ker', 'From Smoke: definitions', 'The set of vectors v with T(v)=0, written \\ker T.'],
@@ -2508,6 +2515,8 @@ const TESTS = [
       if (r.list.katex < 3 || r.list.math) throw new Error(`${r.list.katex} formulas typeset, ${r.list.math} not: the page's math add-on typesets the definitions`);
       if (r.sub.entries.map((e) => e[1]).join() !== 'widget') throw new Error(`in=sub/: ${JSON.stringify(r.sub.entries)}`);
       if (!/could not be loaded \(missing\.json\)/.test(r.missing.status)) throw new Error(`the missing file: ${JSON.stringify(r.missing)}`);
+      if (r.old.status !== 'The glossary was written by tern 0.5.0; run tern index again.') throw new Error(`the 0.x file: ${JSON.stringify(r.old)}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /old\.json was written by tern 0\.5\.0 in a format this tern \(\d+\.\d+\.\d+\) does not read: run tern index again/.test(m.text))) throw new Error(`no warning for old.json; console: ${JSON.stringify(ctx.console.slice(0, 8))}`);
       if (JSON.stringify(r.uses) !== JSON.stringify([['truism', 'glossary.html#glossary-truism'], ['kernels', 'glossary.html#glossary-kernel'], ['nothing', 'glossary.html#glossary-nothing']])) throw new Error(`the uses ${JSON.stringify(r.uses)}: expected links to this page's entries, title= as the term`);
       if (r.label !== 'Glossary' || r.tag !== 'DL') throw new Error(`the element: ${r.tag} labelled ${r.label}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
@@ -2834,15 +2843,18 @@ const TESTS = [
     },
   },
   {
-    name: 'notes and search add-ons: a malformed index= or from= is reported in place, not left at Indexing… or empty with an unhandled rejection',
+    name: 'notes and search add-ons: a malformed index= or from= is reported in place, not left at Indexing… or empty with an unhandled rejection; an index of another format is refused, with the version that wrote it, and the notes are indexed here',
     url: '/gen/bad-index/index.html',
     async check(page, ctx) {
-      await expect(page, () => document.querySelector('#bad .t-search-status') && !/Indexing/.test(document.querySelector('#bad .t-search-status').textContent) && document.querySelector('#badfrom .t-notes-status'), 'both leaves to settle');
+      await expect(page, () => ['#bad', '#old'].every((s) => document.querySelector(`${s} .t-search-status`) && !/Indexing/.test(document.querySelector(`${s} .t-search-status`).textContent)) && document.querySelector('#badfrom .t-notes-status'), 'the three leaves to settle');
       const r = await page.evaluate(() => ({ search: document.querySelector('#bad .t-search-status').textContent, notes: document.querySelector('#badfrom .t-notes-status').textContent }));
       if (!/^The search could not be set up \(.+\)\.$/.test(r.search)) throw new Error(`the box's status "${r.search}"`);
       if (!/^The list of notes could not be loaded \(http:\/\/\[bad\)\.$/.test(r.notes)) throw new Error(`the list's status "${r.notes}"`);
       if (!ctx.console.some((m) => m.type === 'warning' && /search box could not be set up/.test(m.text))) throw new Error(`no warning for the box; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /from=http:\/\/\[bad is not an http\(s\) file/.test(m.text))) throw new Error(`no warning for the list; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      const old = await page.evaluate(() => document.querySelector('#old .t-search-status').textContent);
+      if (/could not be set up|Indexing/.test(old)) throw new Error(`the 0.x index's box says "${old}", expected the notes indexed here`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /old\.json was written by tern 0\.5\.0 in a format this tern \(\d+\.\d+\.\d+\) does not read: run tern index again; indexing the notes here/.test(m.text))) throw new Error(`no warning for old.json; console: ${JSON.stringify(ctx.console.slice(0, 8))}`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },
   },

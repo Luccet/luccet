@@ -328,12 +328,12 @@ test('index: notes.json and search.json, paths relative to -o, titles, descripti
   eq(notes.notes[0].headings, [{ depth: 1, id: 'alpha', text: 'Alpha' }], 'the headings');
   ok(read('i/notes.json').endsWith('}\n') && read('i/notes.json').includes('\n  "notes": [\n    {\n      "url": "a.html",'), 'notes.json is pretty-printed');
   const idx = JSON.parse(read('i/search.json'));
-  eq([idx.tern, idx.notes], [tern.version, [{ url: 'a.html', title: 'A note' }, { url: 'sub/b.html', title: 'Bee' }]], 'the index names its notes');
+  eq([idx.tern, idx.format, idx.notes], [tern.version, tern.search.format, [{ url: 'a.html', title: 'A note' }, { url: 'sub/b.html', title: 'Bee' }]], 'the index names its notes, the version that wrote it and its format');
   eq(idx.entries.map((e) => [e.url, e.id, e.line, e.endLine, e.kind, e.label]), [['a.html', 'alpha', 6, 13, 'heading', 'Alpha'], ['a.html', 'ex-1', 10, 12, 'note', 'note'], ['sub/b.html', 'bee', 7, 10, 'heading', 'Bee']], 'the entries, at file lines (a section ends on the line after the final newline, as tern search prints it)');
   eq(Object.keys(idx.terms), Object.keys(idx.terms).slice().sort(), 'the terms are sorted');
   ok(Array.isArray(idx.lengths) && idx.lengths.length === 3 && idx.avg > 0, 'lengths and avg');
   ok(/\n "pythagora": \[\[1,1\]\],?\n/.test(read('i/search.json')), `one term per line: ${read('i/search.json').slice(0, 200)}`);
-  eq(JSON.parse(read('i/glossary.json')), { tern: tern.version, notes: [{ url: 'a.html', title: 'A note' }, { url: 'sub/b.html', title: 'Bee' }], terms: [] }, 'glossary.json: the notes and no term, since none is defined');
+  eq(JSON.parse(read('i/glossary.json')), { tern: tern.version, format: tern.glossary.format, notes: [{ url: 'a.html', title: 'A note' }, { url: 'sub/b.html', title: 'Bee' }], terms: [] }, 'glossary.json: the version, the format, the notes and no term, since none is defined');
   r = run(['index', 'i', '--check']);
   exits(r, 0, '--check, up to date');
   eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex; all three files are up to date\n', 'the check\'s summary');
@@ -372,10 +372,21 @@ test('index: notes.json and search.json, paths relative to -o, titles, descripti
   exits(r, 1, 'a miss');
   r = run(['search', 'quux', 'i', '--index=i/search.json']);
   exits(r, 2, '--index with a PATH');
+  // The file's format decides, not the version that wrote it: a 0.x file
+  // has no format and is refused; one of this format from any other
+  // version is read; one of another format is refused.
   write('i/old.json', JSON.stringify({ tern: '0.1.0', notes: [], entries: [], terms: {}, lengths: [], avg: 0 }), { tern: false });
   r = run(['search', 'quux', '--index=i/old.json']);
-  exits(r, 2, 'another version series');
-  ok(/old\.json was written by tern 0\.1\.0 and this is /.test(r.err), r.err);
+  exits(r, 2, 'a file with no format (0.x)');
+  ok(/^tern search: i\/old\.json was written by tern 0\.1\.0 in a format this tern \(\d+\.\d+\.\d+\) does not read: run tern index again\n$/.test(r.err), r.err);
+  write('i/other.json', read('i/search.json').replace(`"tern": "${tern.version}"`, '"tern": "9.9.9"'), { tern: false });
+  r = run(['search', 'quux', '--index=i/other.json']);
+  exits(r, 0, 'the same format, written by another version');
+  ok(/^i\/sub\/b\.html:7: /.test(r.out), `the hit from the file: ${r.out}`);
+  write('i/next.json', read('i/search.json').replace(`"format": ${tern.search.format}`, `"format": ${tern.search.format + 1}`), { tern: false });
+  r = run(['search', 'quux', '--index=i/next.json']);
+  exits(r, 2, 'another format');
+  ok(new RegExp(`^tern search: i/next\\.json was written by tern ${tern.version.replace(/\./g, '\\.')} in a format this tern`).test(r.err), r.err);
   write('i/notes.txt', '{"a": 1}', { tern: false });
   r = run(['search', 'quux', '--index=i/notes.txt']);
   exits(r, 2, 'not an index');
@@ -695,7 +706,7 @@ test('index: glossary.json holds the terms the notes define, by key then note, a
   exits(r, 0, 'index');
   eq(r.err, 'tern index: the term "truism" is defined in gl/a.html:4 and gl/sub/b.html:4; the glossary lists both\ntern index: gl/a.html:10: the term "nothing" has no definition in these notes\ntern index: 2 notes, 3 entries, 4 terms → gl/notes.json, gl/search.json, gl/glossary.json\n', 'the duplicate and the undefined use, at file lines; the terms counted');
   const g = JSON.parse(read('gl/glossary.json'));
-  eq([g.tern, g.notes], [tern.version, [{ url: 'a.html', title: 'Alpha' }, { url: 'sub/b.html', title: 'Bee' }]], 'the version and the notes');
+  eq([g.tern, g.format, g.notes], [tern.version, tern.glossary.format, [{ url: 'a.html', title: 'Alpha' }, { url: 'sub/b.html', title: 'Bee' }]], 'the version, the format and the notes');
   eq(g.terms.map((t) => [t.term, t.key, t.slug, t.url, t.id, t.line, t.how]), [['Kernel', 'kernel', 'glossary-kernel', 'a.html', 'k', 6, 'definition'], ['truism', 'truism', 'glossary-truism', 'a.html', 'top', 4, 'dfn'], ['Truism', 'truism', 'glossary-truism', 'sub/b.html', 't', 4, 'dfn'], ['widget', 'widget', 'glossary-widget', 'sub/b.html', 't', 4, 'dfn']], 'the terms by key then note, each with its anchor, at file lines');
   eq(tern.emit({ type: 'root', children: g.terms[1].definition }, { positions: false }), '<p>A <dfn class="dfn" data-t="dfn">truism</dfn> is obvious, see <a href="sub/b.html">b</a>.</p>\n', 'a definition emits as on its page');
   eq(g.terms.some((t) => 'shown' in t || 'title' in t), false, 'no paths of this machine, no note titles (the notes list has them)');
