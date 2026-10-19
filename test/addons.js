@@ -118,6 +118,17 @@ test("mermaid.js: its print palette is tern.css's", () => {
 
 // cite.js with the real engine: window.tern is tern.js itself, so its
 // transforms register with it, as in a browser (test/smoke.js has the page).
+test("switcher.js: its list of theme families is tools/themes.js's (name, title, light and dark)", () => {
+  const src = fs.readFileSync(path.join(DIR, 'switcher.js'), 'utf8');
+  const m = /const FAMILIES = \[([\s\S]*?)\n  \];/.exec(src);
+  if (!m) throw new Error('no FAMILIES table in switcher.js');
+  const listed = [...m[1].matchAll(/\['([^']+)', '([^']+)', '(both|light|dark)'\]/g)].map((x) => x.slice(1).join('|'));
+  const T = require('../tools/themes');
+  const built = T.FAMILIES.map((f) => `${f.name}|${f.title}|${f.light && f.dark ? 'both' : f.light ? 'light' : 'dark'}`).sort((a, b) => a.localeCompare(b));
+  if (listed.join('\n') !== built.join('\n')) throw new Error(`switcher.js lists\n${listed.join('\n')}\nbut tools/themes.js builds\n${built.join('\n')}`);
+  return `${listed.length} families`;
+});
+
 const vm = require('vm');
 const tern = require('../tern.js');
 function loadCite(TERN) {

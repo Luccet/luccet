@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js ../addons/copy.js ../addons/switcher.js?at=.docs-nav-themes"></script>
 
 :::meta
-description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, copy buttons on code, diagrams with Mermaid, a lightbox for figures, citations from BibTeX or CSL-JSON, a search box over a set of notes, and a list of them.
+description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, copy buttons on code, diagrams with Mermaid, a lightbox for figures, a theme switcher, citations from BibTeX or CSL-JSON, a search box over a set of notes, and a list of them.
 :::
 
 ::site-nav
@@ -184,7 +184,7 @@ The add-on sets Mermaid's `base` theme from the page's [custom properties](schem
 
 - **Shapes and lines.** Nodes are `--t-soft` with `--t-muted` borders, lines and arrows `--t-muted`, text `--t-fg`. Notes are `--t-mark`, and critical tasks in a Gantt chart are `--t-error` on `--t-error-bg`.
 - **Categories:** pie slices, git branches, mind map and timeline sections, the series of an xy chart. These take the theme's accents in turn: `--t-link`, then the [code colours](#code-colours), less any too close to one already taken. Pie slices and branches use the accents themselves; sections use a tint of them, with text in `--t-fg`.
-- **Light, dark and print.** Mermaid writes the colours into each drawing, so the add-on draws a diagram for the palette in effect, and again when the reader switches between light and dark. Unless the palette is already tern.css's print palette, a diagram is drawn a second time in those print colours, black on white, and that copy is the one printed: a dark theme's and a light theme's alike.
+- **Light, dark and print.** Mermaid writes the colours into each drawing, so the add-on draws a diagram for the palette in effect, and again when the reader switches between light and dark, or picks a theme with the [switcher](#switcher) (its `tern:theme` event). Unless the palette is already tern.css's print palette, a diagram is drawn a second time in those print colours, black on white, and that copy is the one printed: a dark theme's and a light theme's alike.
 - **Your own colours:** set the custom properties, or Mermaid's own theme variables, which win: `window.TERN = {use: {mermaid: {themeVariables: {primaryColor: '#e8f0fe'}}}}`. With a Mermaid theme of its own, such as `?theme=forest`, a diagram keeps Mermaid's colours.
 
 ### Options {#mermaid-options}
@@ -253,6 +253,30 @@ no button on this one
 - **The words** `viewFullSize` and `close` come from [`window.TERN.strings`](api.html#strings) when the page sets them.
 - **Needs `<dialog>`** (Chrome 37, Firefox 98, Safari 15.4). In an older browser inside [the support floor](publishing.html#browsers) the add-on does nothing and images stay as they are.
 - **Without the page,** `tern check` and `tern build` load the add-on and nothing happens; a built page gets the behaviour when `tern.js` runs. An untrusted root gets none.
+
+## Theme switcher {#switcher}
+
+`switcher.js` declares a `::themes` leaf: a labelled `<select>` of Tern's [themes](schema.html#themes). Choosing one applies it at once, the choice is kept in the browser, and every page of the site that loads the add-on opens in it.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/switcher.js"></script>
+<script src="tern.js" data-use="addons/switcher.js?at=.site-nav"></script>
+```
+```tern
+::themes
+::themes{themes="nord solarized sepia" label=Colours}
+```
+:::
+
+- **What it lists.** `::themes` alone offers every theme Tern ships: Default (tern.css alone, light or dark as the system is), then each family's files, `Solarized (system)`, which follows the system, `Solarized (light)` and `Solarized (dark)`, or the one file of a one-palette family, `Nord (dark)`. `themes=` names what to offer, in that order, separated by spaces or commas: a family (`solarized`, its three files) or one file (`solarized-dark`). A name Tern does not know is offered as written, for a `NAME.css` of your own in the folder.
+- **Where the files are.** `base=FOLDER` names the folder of the theme files. Without it, the add-on uses the folder of the theme the page loads itself in `data-use` or `:::use`, if any, else `themes/` next to the add-on: the same tag, local or on jsDelivr.
+- **Applying a theme** adds its stylesheet to the head beside the one in effect and removes the old one once the new has loaded, so the page never stands unthemed; the sheet sits right after tern.css, so the page's own CSS still wins, as a theme listed in `data-use` does. A sheet that fails to load is removed again, the previous theme stays, and the console says which file was missing. Default removes the theme, the page's own included.
+- **Remembered.** The choice is kept in `localStorage` under `tern.theme` (`key=` names another), one per origin, and a page that loads the add-on requests it as the add-on loads, before the note renders, so the page opens in that theme: one the page lists itself is replaced by the remembered one. A remembered theme the control does not offer is shown in it by name, while it lasts. Nothing is sent anywhere.
+- **`tern:theme`.** Once a theme is in effect, the add-on dispatches a `tern:theme` event on `window`, with `detail.theme` (the name, `""` for none) and `detail.href`. An add-on that writes colours into what it draws listens and draws again: the [Mermaid add-on](#mermaid-colours) does.
+- **Options** go on the leaf (`themes`, `label`), on the add-on (`addons/switcher.js?themes=nord,sepia`) or in `window.TERN = {use: {switcher: {…}}}`; the leaf's win. `at=SELECTOR` puts the control inside the first element matching the selector after each render, for a page without `::themes`, such as a site's navigation; Tern's own pages do this.
+- **The element** is a `<div class="t-themes">` holding a `<label>` and its `<select>`, styled from the theme's variables; a stylesheet add-on can restyle them. The words `theme`, `themeDefault`, `themeSystem`, `themeLight` and `themeDark` (Theme, Default, system, light, dark) come from [`window.TERN.strings`](api.html#strings) when the page sets them, and `label=` sets the label alone. The control is not printed.
+- **Without the page,** `tern check` and `tern build` know the leaf and do nothing with it: the control is built when `tern.js` runs.
 
 ## Math with KaTeX {#katex}
 

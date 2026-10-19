@@ -14,8 +14,9 @@
 //
 // Mermaid writes the colours into each SVG, so a diagram is drawn for the
 // palette in effect where it stands, and again when that changes (the
-// reader's light or dark preference). A dark palette's diagram is drawn a
-// second time in tern.css's print palette, the copy shown in print. The
+// reader's light or dark preference, or a theme switched in). A dark
+// palette's diagram is drawn a second time in tern.css's print palette, the
+// copy shown in print. The
 // fence stays, hidden, inside the diagram's element; one that Mermaid
 // cannot read stays as it is, with the error after it.
 //
@@ -456,11 +457,13 @@
     console.warn(`Tern mermaid.js: ${message}`);
   }
 
-  // Redraw when the reader's light or dark preference changes the palette.
-  if (window.matchMedia)
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      for (const wrap of document.querySelectorAll('.t-mermaid:not(.t-mermaid-box)')) if (sources.has(wrap) && keyOf(palette(wrap)) !== drawnFor.get(wrap)) show(wrap);
-    });
+  // Redraw what a palette change leaves stale: the reader's light or dark
+  // preference, or a theme switched in (the switcher add-on's tern:theme).
+  const repaint = () => {
+    for (const wrap of document.querySelectorAll('.t-mermaid:not(.t-mermaid-box)')) if (sources.has(wrap) && keyOf(palette(wrap)) !== drawnFor.get(wrap)) show(wrap);
+  };
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
+  window.addEventListener('tern:theme', repaint);
 
   // Fences are pre[data-t=code], listings figure[data-t=code] holding one.
   T.define('code', (el) => {

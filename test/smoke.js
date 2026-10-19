@@ -368,12 +368,14 @@ function longNote(bytes = 1000000) {
 // A note with every construct the emitter writes, under a theme (`tern` for
 // tern.css alone), with a language and a title, for an axe run.
 function a11yNote(theme) {
-  // The copy and lightbox add-ons too, so their controls are checked in every theme.
-  const use = ` data-use="/addons/copy.js /addons/lightbox.js${theme === 'tern' ? '' : ` /themes/${theme}.css`}"`;
+  // The copy, lightbox and switcher add-ons too, so their controls are checked in every theme.
+  const use = ` data-use="/addons/copy.js /addons/lightbox.js /addons/switcher.js${theme === 'tern' ? '' : ` /themes/${theme}.css`}"`;
   return [
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: ${theme}</title><script src="/tern.js"${use}></script>`,
     '',
     `# Every construct, in the ${theme} theme {#top}`,
+    '',
+    '::themes',
     '',
     'A paragraph with a [link](#top), *emphasis*, **strong**, `code`, :kbd[Ctrl], a ==highlight with a [link](#eq) inside== and a footnote.[^n]',
     '',
@@ -2480,6 +2482,130 @@ const TESTS = [
       await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'the close button closes it', 3000);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
       ctx.note(`${buttons.filter((b) => b.button).length} copy buttons, ${imgs.filter((i) => !/plain$/.test(i)).length} zoomable image; image loaded in the dialog: ${shown.loaded}`);
+    },
+  },
+  {
+    name: 'switcher add-on: ::themes lists the themes; a choice applies one beside tern.css, is remembered across pages, announced as tern:theme and drawn by Mermaid; a page\'s own theme and a short list; at= puts the control in the docs nav',
+    url: '/test/smoke/switcher.html',
+    timeout: 120000,
+    context: { colorScheme: 'light' },
+    async setup(_context, page) {
+      await page.addInitScript(() => {
+        window.__themes = [];
+        window.addEventListener('tern:theme', (e) => window.__themes.push(e.detail.theme));
+        // When the note is first put in the page, for "requested before the note renders".
+        window.__mountAt = null;
+        new MutationObserver(() => {
+          if (window.__mountAt === null && document.querySelector('main.tern')) window.__mountAt = performance.now();
+        }).observe(document, { childList: true, subtree: true });
+      });
+    },
+    async check(page, ctx) {
+      const bgOf = (name) => /--t-bg: (#[0-9a-f]{3,6})/i.exec(fs.readFileSync(path.join(__dirname, '..', 'themes', `${name}.css`), 'utf8'))[1];
+      const state = () =>
+        page.evaluate(() => {
+          const s = document.querySelector('.tern > .t-themes select');
+          const label = s && document.querySelector(`label[for="${s.id}"]`);
+          return {
+            value: s && s.value,
+            groups: s ? s.querySelectorAll('optgroup').length : -1,
+            texts: s ? [...s.options].slice(0, 4).map((o) => o.textContent).join() : '',
+            options: s ? s.options.length : -1,
+            label: label && label.textContent,
+            themes: [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)),
+            bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
+            events: window.__themes.join(),
+            stored: localStorage.getItem('tern.theme'),
+          };
+        });
+      let s = await state();
+      if (s.value !== '' || s.groups !== 0 || s.options !== 33 || s.label !== 'Theme' || s.texts !== 'Default,Catppuccin (system),Catppuccin (light),Catppuccin (dark)') throw new Error(`the control at first: ${JSON.stringify(s)}`);
+      if (s.themes.length) throw new Error(`a theme loaded before any choice: ${s.themes}`);
+      await page.waitForFunction(() => document.querySelector('#flow > svg.t-mermaid-screen'), null, { timeout: 60000 });
+      const fill = () => page.evaluate(() => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill);
+      const plain = await fill();
+
+      // Nord: the link after the base style, the variables in effect, the choice kept and announced, the diagram redrawn.
+      await page.selectOption('.tern > .t-themes select', 'nord');
+      await expect(page, (bg) => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Nord in effect', 8000, bgOf('nord'));
+      s = await state();
+      if (s.value !== 'nord' || s.stored !== 'nord' || s.events !== 'nord') throw new Error(`after choosing Nord: ${JSON.stringify(s)}`);
+      if (s.themes.join() !== '/themes/nord.css') throw new Error(`theme links: ${s.themes}`);
+      const order = await page.evaluate(() => {
+        const link = document.querySelector('link[href$="/themes/nord.css"]');
+        const base = document.getElementById('tern-style');
+        return base && link && base.nextElementSibling === link ? 'right after the base' : 'elsewhere';
+      });
+      if (order !== 'right after the base') throw new Error(`the theme's link is ${order}`);
+      await expect(page, (was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill !== was, 'the diagram redrawn in Nord', 30000, plain);
+      const soft = /--t-soft: (#[0-9a-f]{6})/i.exec(fs.readFileSync(path.join(__dirname, '..', 'themes', 'nord.css'), 'utf8'))[1];
+      const rgb = `rgb(${[1, 3, 5].map((i) => parseInt(soft.slice(i, i + 2), 16)).join(', ')})`;
+      if ((await fill()) !== rgb) throw new Error(`a node is filled ${await fill()}, expected Nord's --t-soft ${rgb}`);
+
+      // A reload opens themed: the sheet was requested before the note was rendered.
+      await page.reload();
+      await expect(page, () => window.tern && window.tern.ready && document.querySelector('.tern > .t-themes select'), 'mounted again', 20000);
+      await page.evaluate(() => window.tern.ready);
+      const again = await page.evaluate(() => ({
+        bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
+        value: document.querySelector('.tern > .t-themes select').value,
+        early: performance.getEntriesByType('resource').some((e) => /\/themes\/nord\.css/.test(e.name) && e.startTime < window.__mountAt),
+        events: window.__themes.join(),
+      }));
+      if (again.bg !== bgOf('nord') || again.value !== 'nord' || !again.early) throw new Error(`after a reload: ${JSON.stringify(again)}`);
+
+      // A light file, then Default: the old sheet goes once the new is in, then none is left.
+      await page.selectOption('.tern > .t-themes select', 'solarized-light');
+      await expect(page, (bg) => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Solarized light in effect', 8000, bgOf('solarized-light'));
+      s = await state();
+      if (s.themes.join() !== '/themes/solarized-light.css' || s.stored !== 'solarized-light') throw new Error(`after choosing Solarized light: ${JSON.stringify(s)}`);
+      await page.selectOption('.tern > .t-themes select', '');
+      await expect(page, () => !document.querySelector('link[href*="/themes/"]'), 'no theme sheet left');
+      s = await state();
+      if (s.stored !== '' || s.bg === bgOf('solarized-light') || s.events !== 'nord,solarized-light,') throw new Error(`after choosing Default: ${JSON.stringify(s)}`);
+
+      // A page with its own theme and a short list: the remembered choice replaces the page's; the list is the author's.
+      await page.evaluate(() => localStorage.setItem('tern.theme', 'nord'));
+      await page.goto(`${ctx.origin}/test/smoke/switcher-themed.html`);
+      await expect(page, () => window.tern && window.tern.ready && document.querySelector('.tern > .t-themes select'), 'the themed page mounted', 20000);
+      await page.evaluate(() => window.tern.ready);
+      const themed = await page.evaluate(() => {
+        const s = document.querySelector('.tern > .t-themes select');
+        return {
+          value: s.value,
+          label: document.querySelector(`label[for="${s.id}"]`).textContent,
+          texts: [...s.options].map((o) => o.textContent).join(),
+          options: [...s.options].map((o) => o.value).join(),
+          themes: [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)).join(),
+          bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
+        };
+      });
+      if (themed.value !== 'nord' || themed.label !== 'Colours' || themed.texts !== 'Default,Nord (dark),Solarized (system),Solarized (light),Solarized (dark)' || themed.options !== ',nord,solarized,solarized-light,solarized-dark') throw new Error(`the themed page's control: ${JSON.stringify(themed)}`);
+      if (themed.themes !== '/themes/nord.css' || themed.bg !== bgOf('nord')) throw new Error(`the themed page's theme: ${JSON.stringify(themed)}`);
+      // A remembered theme the list does not offer is shown by its name, while it lasts.
+      await page.evaluate(() => localStorage.setItem('tern.theme', 'dracula'));
+      await page.reload();
+      await expect(page, () => window.tern && window.tern.ready && document.querySelector('.tern > .t-themes select option.t-themes-other'), 'the unlisted theme named in the select', 20000);
+      const other = await page.evaluate(() => {
+        const s = document.querySelector('.tern > .t-themes select');
+        return { value: s.value, text: s.selectedOptions[0].textContent, bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() };
+      });
+      if (other.value !== 'dracula' || other.text !== 'dracula' || other.bg !== bgOf('dracula')) throw new Error(`with an unlisted theme: ${JSON.stringify(other)}`);
+      await page.selectOption('.tern > .t-themes select', 'solarized-dark');
+      await expect(page, () => !document.querySelector('.tern > .t-themes select option.t-themes-other'), 'the extra option gone once another theme is chosen');
+
+      // The docs: at=.docs-nav-themes puts the control in the site navigation, and the choice holds there.
+      await page.evaluate(() => localStorage.setItem('tern.theme', 'gruvbox-dark'));
+      await page.goto(`${ctx.origin}/docs/api.html`);
+      await expect(page, () => window.tern && window.tern.ready && document.querySelector('.site-nav .docs-nav-themes .t-themes select'), 'the docs nav has the control', 30000);
+      await page.evaluate(() => window.tern.ready);
+      const docs = await page.evaluate(() => ({
+        value: document.querySelector('.site-nav .docs-nav-themes .t-themes select').value,
+        controls: document.querySelectorAll('.t-themes').length,
+        bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
+      }));
+      if (docs.value !== 'gruvbox-dark' || docs.controls !== 1 || docs.bg !== bgOf('gruvbox-dark')) throw new Error(`on the docs page: ${JSON.stringify(docs)}`);
+      await page.evaluate(() => localStorage.removeItem('tern.theme'));
     },
   },
   {

@@ -64,6 +64,8 @@
 /* The heading after the navigation starts the page. */
 .tern > .site-nav + :is(h1, h2, .logo) { margin-block-start: .5rem; }
 .docs-nav-heading { display: block; padding: .9rem .7rem .3rem; color: var(--t-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.tern .docs-nav-themes .t-themes { padding: 1rem .7rem .2rem; }
+.tern .docs-nav-themes .t-themes select { flex: 1; min-inline-size: 0; }
 
 @media (min-width: 64rem) {
   body:has(> main.tern > .site-nav) { padding-inline-start: calc(var(--docs-nav) + 2.5rem); }

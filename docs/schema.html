@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js ../addons/switcher.js?at=.docs-nav-themes"></script>
 
 :::meta
 description: How to give Tern's element names meaning, look and behaviour: the schema and every schema field, window.TERN.schema, add-ons, tern.define, custom transforms, styling, and labels in other languages.
@@ -1402,6 +1402,7 @@ From jsDelivr, give the theme the same tag as `tern.js`: `https://cdn.jsdelivr.n
 - **Readable.** Every text colour has at least 4.5:1 contrast against what it is drawn on (WCAG AA), and 7:1 in High contrast; code colours as the [code add-on](addons.html#code-colours) says; a control's border (`--t-line-strong`) 3:1 against the page. Where a palette's own colour falls short, the theme darkens or lightens it until it passes; the first lines of each file name those colours. A highlight keeps the palette's yellow hue, and text in it is the text colour, a link's too (it keeps its underline), so muted text and links stay readable on it.
 - **More contrast, forced colours.** For a reader who asks for more contrast (`prefers-contrast: more`), muted text takes the text colour and rules the strong line. Under forced colours (a Windows high-contrast theme), every property takes the system's colour, as tern.css does, and a highlight keeps the system's highlight pair.
 - **Print.** A theme prints as tern.css does: black on white ([Print](#print)).
+- **The reader's choice.** The [switcher add-on](addons.html#switcher) gives a `::themes` control that lists the themes, applies the chosen one and remembers it across the site's pages.
 - **Your own theme.** Copy a file and change its values. To add one to Tern, add its palette to `tools/themes.js`, which writes the folder and checks the contrast: `node tools/themes.js`.
 
 ### Print {#print}
