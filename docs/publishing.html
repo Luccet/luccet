@@ -201,7 +201,7 @@ Here `site/` holds the notes and `tern.js`, and `tools/tern/` is a copy of Tern'
 
 ## Pre-rendering with tern build {#build}
 
-A note renders in the reader's browser. `tern build` does the rendering ahead of time, and writes a page that already holds the HTML. The page still loads `tern.js`, which adds behaviours, the panel, and copy and print handling, and typesets math if the note's `data-use` loads a [math add-on](addons.html#katex). How the command works is on [tern build](tools.html#build).
+A note renders in the reader's browser. `tern build` does the rendering ahead of time, and writes a page that already holds the HTML. The page still loads `tern.js`, which adds behaviours, the panel, and copy and print handling, and typesets math if the note's `data-use` loads a [math add-on](addons.html#katex). With `--math` the formulas are typeset at build time, and with `--diagrams` the Mermaid diagrams are drawn then, so the page needs neither library. How the command works is on [tern build](tools.html#build).
 
 ```sh
 tern build notes/maps.html -o site/maps.html
