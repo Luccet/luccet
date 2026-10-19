@@ -54,23 +54,24 @@ A page written by `tern build` is skipped too: "it is a page written by tern bui
 ## tern new
 
 ```sh
-tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]
+tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
 ```
 
-Writes one file: the canonical first line, with the right path to `tern.js`. Write the body after it; do not touch line 1.
+Writes one file: the canonical first line, with the right path to `tern.js`, and after the tag the guard, which shows the source as readable text when `tern.js` does not load. Write the body after it; do not touch line 1.
 
 ```text
 $ tern new notes/kernel.html
 created notes/kernel.html, loading ../tern.js
 $ cat notes/kernel.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
 ```
 
 - **The path to tern.js.** Without `--tern`, it looks for a file called `tern.js` in FILE's folder, then each folder above, and writes the nearest as a relative path (`../../tern.js` two levels down). With none, it writes `tern.js` and warns: `tern new: no tern.js in . or above; the note loads tern.js from its own directory`. Copy `tern.js` into place, or pass `--tern`.
 - **`--tern=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.jsdelivr.net/gh/OzkrAC/tern@vX.Y.Z/tern.js` (pin a tag). Prefer relative paths for anything published or opened from disk.
 - **`--use=LIST`** writes a `:::use` block, one entry per line, after the `:::meta` block. `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same block. Paths are relative to the note; a local one that does not exist gets a warning on stderr, and the file is still written.
 - **`--title=TEXT`** adds a `:::meta` block with `title: TEXT` and a blank line. One non-empty line.
-- **`--guarded`** appends a guard to the first line: when `tern.js` does not load (or JavaScript is off), the reader sees a one-line message and the source as plain text instead of a run-together paragraph. It changes nothing when `tern.js` loads; `tern build` drops it.
+- **`--lang=TAG`** adds `lang: TAG` to the `:::meta` block (after the title), which `tern.js` puts on `<html>`; a language tag such as `en`, `de` or `pt-BR`. The guard's message is then in that language when the command has it (de, en, es, fr, it, nl, pt), English otherwise, and marked with the tag.
+- **The guard** is the rest of line 1 after the tag: when `tern.js` does not load (or JavaScript is off), the reader sees a one-line message and the source as wrapped plain text instead of a run-together paragraph. It changes nothing when `tern.js` loads; `tern build` drops it. **`--bare`** leaves it out (`--guarded`, the old option, is accepted and changes nothing).
 - **`--force`** overwrites. Do not use it on an existing note unless the user asked for a fresh file.
 
 ```text
@@ -79,7 +80,7 @@ created notes/first.html, loading ../tern.js
 tern new: :::use names theorems.js, which does not exist yet
 tern new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
 :::meta
 title: Linear maps
 :::
@@ -101,7 +102,7 @@ Refusals print on stderr and exit 1; nothing is written:
 | `--tern` names another file than `tern.js` | `tern new: <script src="lib/tern.min.js"> would not make notes/min.html a note: the src must name a file called tern.js` |
 | the title does not survive in `:::meta` | `tern new: the title does not read back from :::meta` |
 
-Usage errors (exit 2, with the synopsis): no FILE or more than one, a path with no file name (`notes/`), an empty `--tern`, an empty or multi-line `--title`.
+Usage errors (exit 2, with the synopsis): no FILE or more than one, a path with no file name (`notes/`), an empty `--tern`, an empty or multi-line `--title`, a `--lang` that is not a language tag, `--bare` with `--guarded`.
 
 ## tern check
 
@@ -400,7 +401,7 @@ Run `tern check FILE` first; then match the symptom.
 
 | What the page shows | Cause and fix |
 |---|---|
-| The source run together as one paragraph (`#`, `*`, `:::` visible) | `tern.js` did not load or start. Check the `src` from the note's folder (`tern check` reports a `link.missing` error with "so the note does not render"); a root-relative path opened from disk; `tern.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`tern check` says "is not a note"). `tern new --guarded` makes this case readable. |
+| The source run together as one paragraph (`#`, `*`, `:::` visible) | `tern.js` did not load or start. Check the `src` from the note's folder (`tern check` reports a `link.missing` error with "so the note does not render"); a root-relative path opened from disk; `tern.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`tern check` says "is not a note"). The guard `tern new` writes makes this case readable; a note written by hand, or with `--bare`, has none. |
 | Layout broken, add-ons misbehave; `doc.quirks` | No `<!doctype html>` at the very start of the file, so the browser is in quirks mode. |
 | Math stays as TeX source | No math add-on in `data-use` (load `addons/katex.js` or `addons/mathml.js`), or its library did not load — no network, the CDN blocked (CSP, filter), or a wrong `?base=`. The add-on logs a console warning; it is not a `tern check` or panel diagnostic. |
 | `CafÃ©` for `Café` | No `<meta charset="utf-8">` near the top, or the file not saved as UTF-8. |

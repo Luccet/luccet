@@ -15,8 +15,8 @@
 //   /gen/a11y/THEME.html a note with every construct under a theme (a11yNote), for axe
 //   /gen/fragment.html   two closed <details> below the fold (fragment tests)
 //   /gen/built.html      test/smoke/built.html through `tern build`;
-//                        built-katex.html with --katex; guarded.html from
-//                        `tern new --guarded`; built-own-schema.html,
+//                        built-katex.html with --katex; guarded.html and
+//                        guarded-fr.html from `tern new` (--lang=fr); built-own-schema.html,
 //                        built-note-config.html, built-addon-throws.html
 //                        built-poster.html and built-cite.html are
 //                        test/smoke/own-schema.html, note-config.html,
@@ -437,11 +437,12 @@ const GENERATED = {
   'built-diagrams.html': () => ['text/html', cliPage('built-diagrams')],
   'poster.png': () => ['image/png', PNG_1PX],
   'guarded.html': () => ['text/html', cliPage('guarded')],
+  'guarded-fr.html': () => ['text/html', cliPage('guarded-fr')],
 };
 
 // ---- pages written by the command line
 
-// `tern build` and `tern new --guarded`, run once per page; a test's setup
+// `tern build` and `tern new` (its guard), run once per page; a test's setup
 // calls cliPage first, so a failure fails that test. built-katex.html
 // pre-renders with the local KaTeX copy (below) as the `katex` package, on
 // NODE_PATH: the setup awaits katexDist first.
@@ -510,8 +511,8 @@ function cliPage(name) {
       html = cli(['build', 'test/smoke/built.html', '--math=mathml'], { NODE_PATH: path.join(tmp, 'node_modules') });
       if (!/<math\b/.test(html)) throw new Error('tern build --math=mathml did not pre-render MathML');
     } else {
-      const file = path.join(tmp, 'guarded.html');
-      cli(['new', file, '--guarded', '--tern=/tern.js']);
+      const file = path.join(tmp, `${name}.html`);
+      cli(['new', file, '--tern=/tern.js', ...(name === 'guarded-fr' ? ['--lang=fr', '--title=Une note gardée'] : [])]);
       html = fs.readFileSync(file, 'utf8') + GUARDED_NOTE;
     }
     cliPages.set(name, html);
@@ -2252,7 +2253,7 @@ const TESTS = [
     },
   },
   {
-    name: 'tern new --guarded: the note renders and the guard stays inert',
+    name: 'tern new: the note renders and the guard stays inert',
     url: '/gen/guarded.html',
     async setup() {
       cliPage('guarded');
@@ -2267,7 +2268,7 @@ const TESTS = [
     ['tern.js does not load', { setup: (context) => context.route((url) => url.pathname === '/tern.js', (route) => route.abort()) }, 'tern.js did not load; the source follows.'],
     ['JavaScript is off', { context: { javaScriptEnabled: false } }, 'JavaScript is off; the source follows.'],
   ].map(([when, opts, message]) => ({
-    name: `tern new --guarded: when ${when}, the note shows as its source`,
+    name: `tern new: when ${when}, the note shows as its source, wrapped`,
     url: '/gen/guarded.html',
     noTern: true,
     allowConsole: /Failed to load resource|Loading failed for the <script>/,
@@ -2283,12 +2284,46 @@ const TESTS = [
         source: (document.querySelector('body > plaintext') || {}).textContent,
         hidden: [...document.querySelectorAll('xmp')].every((x) => x.hidden),
         main: !!document.querySelector('main.tern'),
+        wrap: getComputedStyle(document.querySelector('body > plaintext')).whiteSpace,
       }));
       if (r.p.join() !== message) throw new Error(`the message ${JSON.stringify(r.p)}, expected ${JSON.stringify(message)}`);
       if (!r.source || !r.source.trimStart().startsWith(GUARDED_NOTE.trim().split('\n')[0]) || !r.source.includes(GUARDED_NOTE.trim())) throw new Error(`the source shown ${JSON.stringify(r.source)}, expected the note and nothing before it`);
       if (!r.hidden || r.main) throw new Error(`the guard shows itself (${!r.hidden}) or the note mounted (${r.main})`);
+      if (r.wrap !== 'pre-wrap') throw new Error(`the source has white-space ${r.wrap}, expected pre-wrap`);
     },
   })),
+  {
+    name: 'tern new --lang=fr: the guard speaks French when JavaScript is off, and the rendered note is lang=fr',
+    url: '/gen/guarded-fr.html',
+    noTern: true,
+    context: { javaScriptEnabled: false },
+    async setup() {
+      cliPage('guarded-fr');
+    },
+    async check(page) {
+      await expect(page, () => document.readyState === 'complete', 'the page to load');
+      const r = await page.evaluate(() => ({
+        p: [...document.querySelectorAll('body > p')].map((p) => `${p.lang}: ${p.textContent}`),
+        lang: (document.querySelector('body > plaintext') || {}).lang,
+        meta: ((document.querySelector('body > plaintext') || {}).textContent || '').includes('lang: fr'),
+      }));
+      if (r.p.join() !== 'fr: JavaScript est désactivé ; voici la source.') throw new Error(`the message ${JSON.stringify(r.p)}`);
+      if (r.lang !== 'fr' || !r.meta) throw new Error(`the source is lang=${r.lang} and holds the :::meta lang line: ${r.meta}`);
+    },
+  },
+  {
+    name: 'tern new --lang=fr: rendered, the note is lang=fr from its :::meta and the guard stays inert',
+    url: '/gen/guarded-fr.html',
+    async setup() {
+      cliPage('guarded-fr');
+    },
+    async check(page) {
+      await expect(page, () => (document.querySelector('main.tern h1') || {}).textContent === 'Smoke: a guarded note', 'the heading in main.tern');
+      const r = await page.evaluate(() => ({ lang: document.documentElement.lang, title: document.title, xmp: document.querySelectorAll('xmp, plaintext').length, text: document.body.innerText }));
+      if (r.lang !== 'fr' || r.title !== 'Une note gardée') throw new Error(`lang ${JSON.stringify(r.lang)}, title ${JSON.stringify(r.title)}`);
+      if (r.xmp || /voici la source/.test(r.text)) throw new Error(`the guard acted: ${JSON.stringify(r)}`);
+    },
+  },
   {
     name: 'search add-on: the linked notes are indexed, hits link to their block, a missing note is counted, nothing else is fetched',
     url: '/test/smoke/search/index.html',

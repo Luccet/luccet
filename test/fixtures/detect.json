@@ -15,8 +15,13 @@
       "tag": "<script src=\"tern.js\" data-use=\"theorems.js theme.css\">"
     },
     {
-      "why": "the line tern new --guarded writes",
-      "line": "<!doctype html><meta charset=\"utf-8\"><script src=\"tern.js\"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext>",
+      "why": "the line tern new writes: the tag, then the guard",
+      "line": "<!doctype html><meta charset=\"utf-8\"><script src=\"tern.js\"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style=\"white-space:pre-wrap\">",
+      "tag": "<script src=\"tern.js\">"
+    },
+    {
+      "why": "the line tern new --lang=fr writes: the guard in French, marked lang=fr, with a typographic apostrophe",
+      "line": "<!doctype html><meta charset=\"utf-8\"><script src=\"tern.js\"></script><noscript><p lang=\"fr\">JavaScript est désactivé ; voici la source.</p><xmp hidden></noscript><script>self.tern||document.write('<p lang=\"fr\">tern.js n’a pas été chargé ; voici la source.</p><xmp hidden>')</script></xmp><plaintext lang=\"fr\" style=\"white-space:pre-wrap\">",
       "tag": "<script src=\"tern.js\">"
     },
     {

@@ -27,7 +27,7 @@ const examples = require('./examples');
 const { relocate, apply } = require('./relocate');
 
 const SYNOPSIS = {
-  new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]',
+  new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
   check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
   build: 'tern build FILE [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]',
@@ -46,8 +46,9 @@ const usage = () =>
       Write a new note: the canonical first line, loading the nearest tern.js
       in FILE's directory or above (or PATH); --use lists add-ons in a :::use
       block (separated by commas or spaces), each preloaded from the first
-      line; --title adds a :::meta block; --guarded shows the source when
-      tern.js does not load.
+      line; --title adds a :::meta block and --lang its language. The line
+      ends with a guard that shows the source, readable, when tern.js does
+      not load, in the note's language; --bare leaves the guard out.
   ${SYNOPSIS.check}
       Print the diagnostics of notes; directories are searched for .html
       notes. --quiet prints only those at or above --fail-on (default error).
@@ -182,16 +183,33 @@ function format(file, d) {
 
 // ---------------------------------------------------------------- new
 
-// With --guarded, the rest of the tern.js line shows the source when tern.js
-// does not run; it is inert when it does, since tern.js's capture swallows
-// the rest of the file, this included.
+// The guard, the rest of the tern.js line (left out with --bare): it shows
+// the source when tern.js does not run, and is inert when it does, since
+// tern.js's capture swallows the rest of the file, this included.
 //   - Scripts on, tern.js missing: the <noscript> is inert text in the head;
 //     the script writes the message and an <xmp hidden> that the </xmp> right
-//     after it closes, and <plaintext> shows the note as text.
+//     after it closes, and <plaintext> shows the note as text, wrapped.
 //   - Scripts off: the <noscript>'s <p> starts the body, and its <xmp hidden>
 //     hides the guard script up to the same </xmp>; then <plaintext>.
-const GUARD =
-  "<noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext>";
+// The message is in the note's language (--lang) when it is one of these,
+// English otherwise, and the message and the text carry the language. An
+// apostrophe is typographic: the second message is a single-quoted string.
+const GUARD_WORDS = {
+  en: ['JavaScript is off; the source follows.', 'tern.js did not load; the source follows.'],
+  de: ['JavaScript ist aus; es folgt der Quelltext.', 'tern.js wurde nicht geladen; es folgt der Quelltext.'],
+  fr: ['JavaScript est désactivé ; voici la source.', 'tern.js n’a pas été chargé ; voici la source.'],
+  es: ['JavaScript está desactivado; sigue el código fuente.', 'tern.js no se cargó; sigue el código fuente.'],
+  pt: ['O JavaScript está desativado; segue o código-fonte.', 'O tern.js não foi carregado; segue o código-fonte.'],
+  it: ['JavaScript è disattivato; segue il sorgente.', 'tern.js non è stato caricato; segue il sorgente.'],
+  nl: ['JavaScript staat uit; hierna volgt de brontekst.', 'tern.js is niet geladen; hierna volgt de brontekst.'],
+};
+const LANG_TAG = /^[a-z]{2,3}(?:-[a-z0-9]{1,8})*$/i; // a language tag as --lang takes it: en, pt-BR, zh-Hant
+function guard(lang) {
+  const l = String(lang || '').toLowerCase();
+  const [off, missing] = GUARD_WORDS[l] || GUARD_WORDS[l.split('-')[0]] || GUARD_WORDS.en;
+  const at = lang ? ` lang="${escAttr(lang)}"` : '';
+  return `<noscript><p${at}>${off}</p><xmp hidden></noscript><script>self.tern||document.write('<p${at}>${missing}</p><xmp hidden>')</script></xmp><plaintext${at} style="white-space:pre-wrap">`;
+}
 
 // The nearest tern.js in dir or above, relative to dir with forward slashes.
 function nearestTern(dir) {
@@ -209,7 +227,9 @@ function newNote(args) {
     tern: { type: 'string' },
     use: { type: 'string', multiple: true },
     title: { type: 'string' },
-    guarded: { type: 'boolean' },
+    lang: { type: 'string' },
+    bare: { type: 'boolean' },
+    guarded: { type: 'boolean' }, // the default since 0.7; accepted, says nothing
     force: { type: 'boolean' },
   });
   if (o.help) return help('new');
@@ -220,6 +240,8 @@ function newNote(args) {
   const dir = path.dirname(file);
   if (o.title !== undefined && (!o.title.trim() || /[\r\n]/.test(o.title))) throw new UsageError('--title is one non-empty line');
   if (o.tern !== undefined && !o.tern.trim()) throw new UsageError('--tern is empty');
+  if (o.lang !== undefined && !LANG_TAG.test(o.lang.trim())) throw new UsageError('--lang is a language tag such as en, de or pt-BR');
+  if (o.bare && o.guarded) throw new UsageError('--bare and --guarded contradict; the guard is the default');
   let st = null;
   try {
     st = fs.statSync(file);
@@ -237,11 +259,13 @@ function newNote(args) {
   const src = o.tern !== undefined ? o.tern.trim() : found || 'tern.js';
   const use = (o.use || []).flatMap((u) => u.split(/[\s,]+/)).filter(Boolean);
   const title = o.title === undefined ? null : o.title.trim();
+  const lang = o.lang === undefined ? null : o.lang.trim();
   // A preload for each add-on: tern.js finds a :::use entry only once it has
   // the note, so the head asks for the file alongside tern.js itself.
   const preload = use.map((u) => `<link rel="preload" href="${escAttr(u)}" as="${/\.css(?:[?#]|$)/i.test(u) ? 'style' : 'script'}">`).join('');
-  const first = `<!doctype html><meta charset="utf-8">${preload}<script src="${escAttr(src)}"></script>${o.guarded ? GUARD : ''}`;
-  const text = `${first}\n${title === null ? '' : `:::meta\ntitle: ${title}\n:::\n\n`}${use.length ? `:::use\n${use.join('\n')}\n:::\n\n` : ''}`;
+  const first = `<!doctype html><meta charset="utf-8">${preload}<script src="${escAttr(src)}"></script>${o.bare ? '' : guard(lang)}`;
+  const fields = `${title === null ? '' : `title: ${title}\n`}${lang === null ? '' : `lang: ${lang}\n`}`;
+  const text = `${first}\n${fields ? `:::meta\n${fields}:::\n\n` : ''}${use.length ? `:::use\n${use.join('\n')}\n:::\n\n` : ''}`;
 
   // What is written must read back as a note with that line, src and title.
   const parts = split(text);
@@ -250,6 +274,7 @@ function newNote(args) {
     return refuse(`<script src="${src}"> would not make ${given} a note: the src must name a file called tern.js`);
   }
   if (title !== null && !(meta && meta.tern && meta.tern.meta && meta.tern.meta.title === title)) return refuse(`the title does not read back from :::meta`);
+  if (lang !== null && !(meta && meta.tern && meta.tern.meta && meta.tern.meta.lang === lang)) return refuse(`the language does not read back from :::meta`);
   if (use.length && JSON.stringify((meta && meta.tern && meta.tern.use ? meta.tern.use : []).map((u) => u.url)) !== JSON.stringify(use)) return refuse(`the add-ons do not read back from :::use`);
 
   try {
@@ -257,7 +282,7 @@ function newNote(args) {
   } catch (e) {
     return refuse(`cannot write ${given}: ${e.code === 'EEXIST' ? 'it exists' : e.message}`);
   }
-  say(`created ${given}, loading ${src}${o.guarded ? ', guarded' : ''}`);
+  say(`created ${given}, loading ${src}${o.bare ? ', bare' : ''}`);
   if (o.tern === undefined && !found) warn(`tern new: no tern.js in ${path.dirname(given)} or above; the note loads tern.js from its own directory`);
   for (const u of use) {
     const local = u.replace(/[?#].*$/, '');

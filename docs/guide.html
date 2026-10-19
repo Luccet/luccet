@@ -1778,14 +1778,15 @@ The command line, `tern-cli.js`, comes with the repository and runs on Node 22 o
 tern new notes/linear-maps.html --title="Linear maps"
 ```
 
-It writes the first line, with the relative path to the nearest `tern.js` in the note's folder or above, and a `:::meta` block when you give `--title`. It never overwrites a file unless you add `--force`.
+It writes the first line, with the relative path to the nearest `tern.js` in the note's folder or above, followed by a guard that shows the source as readable text when `tern.js` cannot load, and a `:::meta` block when you give `--title` or `--lang`. It never overwrites a file unless you add `--force`.
 
 | Option | Effect |
 |---|---|
 | `--title=TEXT` | adds a `:::meta` block with that title |
 | `--use=a.js,b.css` | lists add-ons in a `:::use` block |
 | `--tern=PATH` | the path to `tern.js`, as written |
-| `--guarded` | shows the source as text if `tern.js` cannot load, or if JavaScript is off |
+| `--lang=TAG` | sets the note's language in `:::meta`; the guard's message follows it |
+| `--bare` | leaves out the guard |
 | `--force` | overwrites an existing file |
 
 ### Check notes: `tern check` {#tern-check}

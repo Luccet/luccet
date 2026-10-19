@@ -121,17 +121,28 @@ test('DETECT takes linear time on pathological lines', () => {
 
 // ---------------------------------------------------------------- new
 
-const GUARDED = /<\/script>(<noscript>[\s\S]*<plaintext>)$/;
+// The guard tern new writes after the tag, in English and, with --lang, in
+// the note's language, the language on its message and its text.
+const GUARD = (lang, off, missing) => {
+  const at = lang ? ` lang="${lang}"` : '';
+  return `<noscript><p${at}>${off}</p><xmp hidden></noscript><script>self.tern||document.write('<p${at}>${missing}</p><xmp hidden>')</script></xmp><plaintext${at} style="white-space:pre-wrap">`;
+};
+const GUARD_EN = GUARD('', 'JavaScript is off; the source follows.', 'tern.js did not load; the source follows.');
+const GUARDED = /<\/script>(<noscript>[\s\S]*<plaintext[^>]*>)$/;
 
-test('new: the canonical first line, loading the nearest tern.js above', () => {
+test('new: the canonical first line and the guard, loading the nearest tern.js above; --bare leaves the guard out', () => {
   write('w/tern.js', '// stand-in\n');
   fs.mkdirSync(at('w/a/b'), { recursive: true });
   const r = run(['new', 'w/a/b/note.html']);
   exits(r, 0, 'new');
-  eq(read('w/a/b/note.html'), `${FIRST}<script src="../../tern.js"></script>\n`, 'the file');
-  ok(/created w\/a\/b\/note\.html, loading \.\.\/\.\.\/tern\.js/.test(r.out), `stdout: ${r.out}`);
+  eq(read('w/a/b/note.html'), `${FIRST}<script src="../../tern.js"></script>${GUARD_EN}\n`, 'the file');
+  ok(/created w\/a\/b\/note\.html, loading \.\.\/\.\.\/tern\.js$/m.test(r.out), `stdout: ${r.out}`);
   exits(run(['new', 'w/same.html']), 0, 'new next to tern.js');
-  eq(read('w/same.html'), `${FIRST}<script src="tern.js"></script>\n`, 'tern.js in the same directory');
+  eq(read('w/same.html'), `${FIRST}<script src="tern.js"></script>${GUARD_EN}\n`, 'tern.js in the same directory');
+  const b = run(['new', 'w/bare.html', '--bare']);
+  exits(b, 0, 'new --bare');
+  eq(read('w/bare.html'), `${FIRST}<script src="tern.js"></script>\n`, '--bare: the tag alone');
+  ok(/created w\/bare\.html, loading tern\.js, bare$/m.test(b.out), `stdout: ${b.out}`);
 });
 
 test('new: without a tern.js above, src="tern.js" and a note on stderr', () => {
@@ -141,7 +152,7 @@ test('new: without a tern.js above, src="tern.js" and a note on stderr', () => {
     if (path.dirname(d) === d) break;
   }
   if (found) throw new Skip(`a tern.js exists above ${TMP}`);
-  const r = run(['new', 'lone.html']);
+  const r = run(['new', 'lone.html', '--bare']);
   exits(r, 0, 'new');
   eq(read('lone.html'), `${FIRST}<script src="tern.js"></script>\n`, 'the file');
   ok(/no tern\.js in \. or above/.test(r.err), `stderr: ${r.err}`);
@@ -149,7 +160,7 @@ test('new: without a tern.js above, src="tern.js" and a note on stderr', () => {
 
 test('new: --tern, --use (commas, spaces, repeated) and --title', () => {
   write('o/a.js', '');
-  const r = run(['new', 'o/n.html', '--tern=https://cdn.example/x/tern.js', '--use=a.js,b.css', '--use', 'c.js d.css', '--title=Linear maps: kernel & image']);
+  const r = run(['new', 'o/n.html', '--tern=https://cdn.example/x/tern.js', '--use=a.js,b.css', '--use', 'c.js d.css', '--title=Linear maps: kernel & image', '--bare']);
   exits(r, 0, 'new');
   eq(read('o/n.html'), `${FIRST}<link rel="preload" href="a.js" as="script"><link rel="preload" href="b.css" as="style"><link rel="preload" href="c.js" as="script"><link rel="preload" href="d.css" as="style"><script src="https://cdn.example/x/tern.js"></script>\n:::meta\ntitle: Linear maps: kernel & image\n:::\n\n:::use\na.js\nb.css\nc.js\nd.css\n:::\n\n`, 'the file: a preload per add-on, scripts as script and stylesheets as style, before the tern.js tag');
   ok(/:::use names b\.css, which does not exist yet/.test(r.err) && !/names a\.js/.test(r.err), `stderr: ${r.err}`);
@@ -157,20 +168,42 @@ test('new: --tern, --use (commas, spaces, repeated) and --title', () => {
   eq(ast.data.tern.meta.title, 'Linear maps: kernel & image', 'the title read back');
 });
 
-test('new --guarded: the guard follows the tag on the tern.js line, and the file is still a note', () => {
+test('new: the guard follows the tag on the tern.js line, and the file is still a note', () => {
   write('g/tern.js', '');
-  exits(run(['new', 'g/n.html', '--guarded', '--title=Guarded']), 0, 'new --guarded');
+  exits(run(['new', 'g/n.html', '--title=Guarded']), 0, 'new');
   const text = read('g/n.html');
   const first = text.split('\n')[0];
   ok(first.startsWith(`${FIRST}<script src="tern.js"></script><noscript>`), `first line: ${first}`);
   ok(GUARDED.test(first) && /self\.tern\|\|document\.write\(/.test(first), 'the guard script and its <plaintext>');
-  ok(fixture.match.some((c) => c.line === first), 'detect.json holds the line tern new --guarded writes');
+  ok(/<plaintext style="white-space:pre-wrap">$/.test(first), 'the source view wraps');
+  ok(fixture.match.some((c) => c.line === first), 'detect.json holds the line tern new writes');
   const parts = split(text);
   ok(parts && parts.line === 1 && parts.tag === '<script src="tern.js">' && parts.head === FIRST, 'split() finds the tag on line 1');
   ok(parts.note.startsWith(':::meta\ntitle: Guarded'), 'the note starts on line 2');
   const c = run(['check', 'g/n.html']);
   exits(c, 0, 'check');
   ok(/1 note: 0 errors/.test(c.err), `check: ${c.err}`);
+  exits(run(['new', 'g/old.html', '--guarded']), 0, '--guarded, the default, is still accepted');
+  eq(read('g/old.html'), `${FIRST}<script src="tern.js"></script>${GUARD_EN}\n`, '--guarded writes the same file');
+});
+
+test('new --lang: the language in :::meta, and the guard in that language, marked with it', () => {
+  write('l/tern.js', '');
+  const fr = GUARD('fr', 'JavaScript est désactivé ; voici la source.', 'tern.js n’a pas été chargé ; voici la source.');
+  exits(run(['new', 'l/fr.html', '--lang=fr', '--title=Gardée']), 0, 'new --lang=fr');
+  eq(read('l/fr.html'), `${FIRST}<script src="tern.js"></script>${fr}\n:::meta\ntitle: Gardée\nlang: fr\n:::\n\n`, 'the French file: title then lang in :::meta');
+  ok(fixture.match.some((c) => c.line === read('l/fr.html').split('\n')[0]), 'detect.json holds the French line');
+  exits(run(['new', 'l/br.html', '--lang=pt-BR']), 0, 'new --lang=pt-BR');
+  eq(read('l/br.html'), `${FIRST}<script src="tern.js"></script>${GUARD('pt-BR', 'O JavaScript está desativado; segue o código-fonte.', 'O tern.js não foi carregado; segue o código-fonte.')}\n:::meta\nlang: pt-BR\n:::\n\n`, 'pt-BR: the Portuguese words, the tag as given');
+  exits(run(['new', 'l/ja.html', '--lang=ja']), 0, 'new --lang=ja');
+  eq(read('l/ja.html'), `${FIRST}<script src="tern.js"></script>${GUARD('ja', 'JavaScript is off; the source follows.', 'tern.js did not load; the source follows.')}\n:::meta\nlang: ja\n:::\n\n`, 'a language with no words: English, marked ja');
+  exits(run(['new', 'l/bare.html', '--lang=de', '--bare']), 0, 'new --lang=de --bare');
+  eq(read('l/bare.html'), `${FIRST}<script src="tern.js"></script>\n:::meta\nlang: de\n:::\n\n`, '--bare keeps the :::meta language');
+  const ast = JSON.parse(run(['parse', 'l/fr.html', '--transformed']).out);
+  eq(ast.data.tern.lang, 'fr', 'the language read back');
+  const c = run(['check', 'l/']);
+  exits(c, 0, 'check');
+  ok(/4 notes: 0 errors, 0 warnings, 0 infos/.test(c.err), `check: ${c.err}`);
 });
 
 test('new: refusals and usage errors', () => {
@@ -180,13 +213,13 @@ test('new: refusals and usage errors', () => {
   exits(run(['new', 'r/old.html']), 1, 'an existing file');
   eq(read('r/old.html'), 'keep me', 'the existing file');
   exits(run(['new', 'r/old.html', '--force']), 0, 'an existing file with --force');
-  eq(read('r/old.html'), `${FIRST}<script src="tern.js"></script>\n`, 'the overwritten file');
+  eq(read('r/old.html'), `${FIRST}<script src="tern.js"></script>${GUARD_EN}\n`, 'the overwritten file');
   exits(run(['new', 'r/dir.html']), 1, 'a directory');
   exits(run(['new', 'r/nowhere/n.html']), 1, 'a missing directory');
   const notTern = run(['new', 'r/min.html', '--tern=lib/tern.min.js']);
   exits(notTern, 1, '--tern naming another file');
   ok(/must name a file called tern\.js/.test(notTern.err) && !fs.existsSync(at('r/min.html')), 'nothing written for --tern=lib/tern.min.js');
-  for (const args of [['new'], ['new', 'r/'], ['new', '.'], ['new', 'r/..'], ['new', 'a.html', 'b.html'], ['new', 'r/t.html', '--title='], ['new', 'r/t.html', '--bogus']]) {
+  for (const args of [['new'], ['new', 'r/'], ['new', '.'], ['new', 'r/..'], ['new', 'a.html', 'b.html'], ['new', 'r/t.html', '--title='], ['new', 'r/t.html', '--bogus'], ['new', 'r/t.html', '--lang='], ['new', 'r/t.html', '--lang=en us'], ['new', 'r/t.html', '--bare', '--guarded']]) {
     const r = run(args);
     exits(r, 2, args.join(' '));
     ok(/usage: tern new FILE/.test(r.err), `${args.join(' ')} prints the synopsis`);
