@@ -9,7 +9,6 @@
 :root {
   --t-width: 42rem;
   --docs-nav: 15.5rem;
-  --docs-ex: 54rem;          /* a live example's width when it breaks out wide */
   --docs-r: 10px;            /* a panel's radius */
   --docs-r-sm: 6px;
   --docs-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 1px 1px rgb(0 0 0 / .03);
@@ -39,9 +38,9 @@
 .tern .docs-nav-home:hover { color: var(--t-link); }
 /* The mark: docs.js picks tern.png or tern-white.png for the theme. */
 .tern .docs-nav-logo { display: block; inline-size: 1.6em; block-size: 1.6em; }
-.tern > .logo { margin-block: 0; }
-.tern .docs-logo { display: block; inline-size: 7rem; block-size: 7rem; }
-.tern > .logo + h1 { margin-block-start: .75rem; }
+/* The mark before the home page's title: docs.js moves it into the heading. */
+.tern .docs-title { display: flex; align-items: center; gap: .4em; }
+.tern .docs-logo { display: block; inline-size: 1.15em; block-size: 1.15em; flex: none; }
 .docs-nav-toggle {
   font: inherit; color: var(--t-fg); background: var(--t-soft); border: 1px solid var(--t-line); border-radius: var(--docs-r-sm);
   padding: .35rem .8rem; cursor: pointer;
@@ -62,10 +61,8 @@
 }
 .tern .docs-nav-list ul a { padding-inline-start: 1.4rem; }
 /* The heading after the navigation starts the page. */
-.tern > .site-nav + :is(h1, h2, .logo) { margin-block-start: .5rem; }
+.tern > .site-nav + :is(h1, h2, .logo), .tern > .site-nav + .logo + h1 { margin-block-start: .5rem; }
 .docs-nav-heading { display: block; padding: .9rem .7rem .3rem; color: var(--t-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.tern .docs-nav-themes .t-themes { padding: 1rem .7rem .2rem; }
-.tern .docs-nav-themes .t-themes select { flex: 1; min-inline-size: 0; }
 
 @media (min-width: 64rem) {
   body:has(> main.tern > .site-nav) { padding-inline-start: calc(var(--docs-nav) + 2.5rem); }
@@ -77,7 +74,7 @@
   .docs-nav-bar { border: 0; padding-inline: .7rem; margin-block-end: .25rem; }
   .docs-nav-toggle { display: none; }
   .tern .docs-nav-list { display: block; }
-  .tern > .site-nav + :is(h1, h2, .logo) { margin-block-start: 0; }
+  .tern > .site-nav + :is(h1, h2, .logo), .tern > .site-nav + .logo + h1 { margin-block-start: 0; }
 }
 
 /* ---- the page's contents: a quiet card, links without underlines until
@@ -122,8 +119,8 @@
 
 /* ---- live examples: source, result, diagnostics (when any), HTML.
    Each part carries a small tracked label; the parts are divided by hairlines.
-   On wide screens an example breaks out past the prose column and shows its
-   source and result side by side (see the media query below). */
+   The parts stand one under the other at every width: the source first, then
+   the result. */
 .docs-live { border: 1px solid var(--t-line); border-radius: var(--docs-r); box-shadow: var(--docs-shadow); margin-block: 0 1.5rem; overflow: hidden; background: var(--t-bg); }
 .docs-live-part { padding: .7rem 1.1rem .85rem; min-inline-size: 0; }
 .docs-live-part + .docs-live-part, .docs-live-problem { border-block-start: 1px solid var(--t-line); }
@@ -158,24 +155,6 @@
 .docs-live-problem { margin: 0; padding: .6rem 1.1rem; font: .9rem/1.4 var(--t-sans); color: var(--t-error); background: var(--t-error-bg); }
 .tern .docs-live-script { font-size: .8em; }
 .docs-live-note { font-family: var(--t-sans); color: var(--t-muted); }
-
-/* On wide screens: break the example out past the prose column (centred on
-   it) and set source beside result. Diagnostics, HTML and any problem run the
-   full width beneath. Hairlines come from a 1px grid gap over a lined
-   background, so dividers fall between columns and rows alike. */
-@media (min-width: 80rem) {
-  .docs-live {
-    inline-size: var(--docs-ex); margin-inline: calc((var(--docs-ex) - 100%) / -2);
-    display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--t-line);
-  }
-  .docs-live > * { background: var(--t-bg); }
-  .docs-live-source { grid-column: 1; grid-row: 1; background: color-mix(in srgb, var(--t-soft) 55%, var(--t-bg)); }
-  .docs-live-result { grid-column: 2; grid-row: 1; }
-  .docs-live-diagnostics { grid-column: 1 / -1; background: color-mix(in srgb, var(--t-soft) 55%, var(--t-bg)); }
-  .docs-live-markup, .docs-live-problem { grid-column: 1 / -1; }
-  /* the grid gap draws the dividers now */
-  .docs-live-part + .docs-live-part, .docs-live-problem { border-block-start: 0; }
-}
 
 /* ---- highlighting (docs.js): Tern in fences, HTML in examples */
 .tk-mark { color: var(--tk-mark); }
