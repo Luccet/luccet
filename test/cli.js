@@ -321,7 +321,7 @@ test('index: notes.json and search.json, paths relative to -o, titles, descripti
   write('i/plain.html', 'not a note', { tern: false });
   let r = run(['index', 'i']);
   exits(r, 0, 'index');
-  eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex → i/notes.json, i/search.json\n', 'the summary');
+  eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex → i/notes.json, i/search.json, i/glossary.json\n', 'the summary');
   const notes = JSON.parse(read('i/notes.json'));
   eq(notes.tern, tern.version, 'the version that wrote it');
   eq(notes.notes.map((n) => [n.url, n.title, n.description, n.date, n.links]), [['a.html', 'A note', 'About A & B', '2026-01-02', ['sub/b.html']], ['sub/b.html', 'Bee', 'From meta', TODAY, ['a.html']]], 'the catalogue: the head\'s title and description, else :::meta\'s; the meta date, else the file\'s day; links to notes in the catalogue only, as paths like the notes\', each once');
@@ -333,17 +333,18 @@ test('index: notes.json and search.json, paths relative to -o, titles, descripti
   eq(Object.keys(idx.terms), Object.keys(idx.terms).slice().sort(), 'the terms are sorted');
   ok(Array.isArray(idx.lengths) && idx.lengths.length === 3 && idx.avg > 0, 'lengths and avg');
   ok(/\n "pythagora": \[\[1,1\]\],?\n/.test(read('i/search.json')), `one term per line: ${read('i/search.json').slice(0, 200)}`);
+  eq(JSON.parse(read('i/glossary.json')), { tern: tern.version, notes: [{ url: 'a.html', title: 'A note' }, { url: 'sub/b.html', title: 'Bee' }], terms: [] }, 'glossary.json: the notes and no term, since none is defined');
   r = run(['index', 'i', '--check']);
   exits(r, 0, '--check, up to date');
-  eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex; both files are up to date\n', 'the check\'s summary');
+  eq(r.err, 'tern index: 2 notes, 3 entries; 1 noindex; all three files are up to date\n', 'the check\'s summary');
   write('i/sub/b.html', `${FIRST}<script src="../tern.js"></script>\n:::meta\ntitle: Bee\ndescription: From meta\n:::\n\n# Bee\n\nBack to [a](../a.html), and a new word: quux.\n`);
   r = run(['index', 'i', '--check']);
   exits(r, 1, '--check, stale');
-  eq(r.err, 'tern index: i/search.json is stale: run tern index i\ntern index: 2 notes, 3 entries; 1 noindex; 1 of 2 files to write\n', 'the stale file named (the catalogue did not change)');
+  eq(r.err, 'tern index: i/search.json is stale: run tern index i\ntern index: 2 notes, 3 entries; 1 noindex; 1 of 3 files to write\n', 'the stale file named (the catalogue and the glossary did not change)');
   fs.rmSync(at('i/notes.json'));
   r = run(['index', 'i', '--check']);
   exits(r, 1, '--check, missing');
-  ok(/tern index: i\/notes\.json is missing: run tern index i\n/.test(r.err) && /2 of 2 files to write/.test(r.err), r.err);
+  ok(/tern index: i\/notes\.json is missing: run tern index i\n/.test(r.err) && /2 of 3 files to write/.test(r.err), r.err);
   ok(!fs.existsSync(at('i/notes.json')), '--check wrote nothing');
   r = run(['index', 'i/a.html', 'i/sub', '-o', 'i/out']);
   exits(r, 0, '-o');
@@ -398,7 +399,7 @@ test('index: in a git repository, tracked files only; the date is the last commi
   let r = run(['index', 'gi']);
   exits(r, 0, 'index, staged but not committed');
   eq(JSON.parse(read('gi/notes.json')).notes.map((n) => [n.url, n.date]), [['t.html', TODAY]], 'the tracked note alone, dated today (no commit yet)');
-  eq(r.err, 'tern index: 1 note, 1 entry; 2 left out (not tracked by git) → gi/notes.json, gi/search.json\n', 'the summary counts the files left out');
+  eq(r.err, 'tern index: 1 note, 1 entry; 2 left out (not tracked by git) → gi/notes.json, gi/search.json, gi/glossary.json\n', 'the summary counts the files left out');
   r = run(['index', 'gi', '--all']);
   exits(r, 0, '--all');
   eq(JSON.parse(read('gi/notes.json')).notes.map((n) => n.url), ['secret.html', 't.html', 'u.html'], '--all indexes every file');
@@ -676,12 +677,40 @@ test('build --json, mv --json, index --json: one object on stdout, the lines on 
   r = run(['index', 'j', '-o', 'j/idx', '--json']);
   exits(r, 0, 'index --json');
   j = JSON.parse(r.out);
-  eq(j, { notes: 2, entries: 2, leftOut: 0, noindex: 0, unreadable: false, files: { notes: 'j/idx/notes.json', search: 'j/idx/search.json' }, wrote: true }, 'the object');
+  eq(j, { notes: 2, entries: 2, terms: 0, leftOut: 0, noindex: 0, unreadable: false, files: { notes: 'j/idx/notes.json', search: 'j/idx/search.json', glossary: 'j/idx/glossary.json' }, wrote: true }, 'the object');
   write('j/b.html', `${FIRST}<script src="tern.js"></script>\n# B\n\n[a](a.html#a) and more.\n`);
   r = run(['index', 'j', '-o', 'j/idx', '--check', '--json']);
   exits(r, 1, 'index --check --json, stale');
   j = JSON.parse(r.out);
   eq([j.wrote, j.stale], [false, ['j/idx/search.json']], 'the stale file named');
+});
+
+test('index: glossary.json holds the terms the notes define, by key then note, at file lines, with their definitions; a term defined twice and a :term no note defines are said on stderr; --check counts the file', () => {
+  write('gl/tern.js', '');
+  write('gl/a.html', `${FIRST}<title>Alpha</title><script src="tern.js" data-use="addons/glossary.js"></script>\n# Alpha {#top}\n\nA :dfn[truism] is obvious, see [b](sub/b.html).\n\n:::definition[Kernel]{#k}\nThe $v$ with $T(v)=0$.\n:::\n\nUses: :term[truism], :term[kernels]{title=kernel} and :term[nothing].\n`);
+  write('gl/sub/b.html', `${FIRST}<title>Bee</title><script src="../tern.js"></script>\n## Terms {#t}\n\nA :dfn[Truism] again, and :dfn[Widgets]{title=widget}.\n`);
+  fs.mkdirSync(at('gl/addons'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'addons', 'glossary.js'), at('gl/addons/glossary.js'));
+  let r = run(['index', 'gl']);
+  exits(r, 0, 'index');
+  eq(r.err, 'tern index: the term "truism" is defined in gl/a.html:4 and gl/sub/b.html:4; the glossary lists both\ntern index: gl/a.html:10: the term "nothing" has no definition in these notes\ntern index: 2 notes, 3 entries, 4 terms → gl/notes.json, gl/search.json, gl/glossary.json\n', 'the duplicate and the undefined use, at file lines; the terms counted');
+  const g = JSON.parse(read('gl/glossary.json'));
+  eq([g.tern, g.notes], [tern.version, [{ url: 'a.html', title: 'Alpha' }, { url: 'sub/b.html', title: 'Bee' }]], 'the version and the notes');
+  eq(g.terms.map((t) => [t.term, t.key, t.slug, t.url, t.id, t.line, t.how]), [['Kernel', 'kernel', 'glossary-kernel', 'a.html', 'k', 6, 'definition'], ['truism', 'truism', 'glossary-truism', 'a.html', 'top', 4, 'dfn'], ['Truism', 'truism', 'glossary-truism', 'sub/b.html', 't', 4, 'dfn'], ['widget', 'widget', 'glossary-widget', 'sub/b.html', 't', 4, 'dfn']], 'the terms by key then note, each with its anchor, at file lines');
+  eq(tern.emit({ type: 'root', children: g.terms[1].definition }, { positions: false }), '<p>A <dfn class="dfn" data-t="dfn">truism</dfn> is obvious, see <a href="sub/b.html">b</a>.</p>\n', 'a definition emits as on its page');
+  eq(g.terms.some((t) => 'shown' in t || 'title' in t), false, 'no paths of this machine, no note titles (the notes list has them)');
+  ok(/\n {"term":"Kernel",/.test(read('gl/glossary.json')), 'one term per line');
+  r = run(['index', 'gl', '--check']);
+  exits(r, 0, '--check, up to date');
+  ok(/all three files are up to date/.test(r.err), r.err);
+  fs.rmSync(at('gl/glossary.json'));
+  r = run(['index', 'gl', '--check']);
+  exits(r, 1, '--check, the glossary missing');
+  ok(/gl\/glossary\.json is missing/.test(r.err) && /1 of 3 files to write/.test(r.err), r.err);
+  r = run(['index', 'gl', '--json']);
+  exits(r, 0, '--json');
+  const j = JSON.parse(r.out);
+  eq([j.terms, j.files.glossary], [4, 'gl/glossary.json'], 'the count and the file');
 });
 
 test('index: a date that is not YYYY-MM-DD is written as it is and said on stderr', () => {

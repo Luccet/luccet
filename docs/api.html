@@ -558,6 +558,42 @@ tern.search.snippet(entries[1].text, ['pythagora']);
 - **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
 - **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share.
 
+### `tern.glossary` {#glossary}
+
+:::syntax
+```js
+tern.glossary.terms(ast, { blocks }) → [{ term, key, slug, id, line, how, definition }]
+tern.glossary.uses(ast) → [{ term, key, line }]
+tern.glossary.key(text) → string
+tern.glossary.slug(text) → string
+```
+:::
+
+The terms a note defines, for the [glossary add-on](addons.html#glossary) and [`tern index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
+
+```js
+const { ast } = tern.parse('# Terms {#terms}
+
+A :dfn[truism] is a claim so obviously true that it goes without saying.
+
+:::definition[Kernel]{#k}
+The $v$ with $T(v) = 0$.
+:::
+
+Every :term[truism] links.
+');
+tern.transform(ast);
+tern.glossary.terms(ast);
+// → [ { term: 'truism', key: 'truism', slug: 'glossary-truism', id: 'terms', line: 3, how: 'dfn', definition: [ { type: 'paragraph', children: [ … ] } ] },
+//     { term: 'Kernel', key: 'kernel', slug: 'glossary-kernel', id: 'k', line: 5, how: 'definition', definition: [ { type: 'paragraph', children: [ … ] } ] } ]
+tern.glossary.uses(ast);
+// → [ { term: 'truism', key: 'truism', line: 9 } ]
+```
+
+- **`terms(ast, {blocks})`** walks a transformed tree and returns every term in note order. `term` is the text as written, or the `title=` of a `dfn`, which HTML takes as the term's canonical form (`:dfn[truisms]{title=truism}` defines "truism"). `key` is the term folded as [search](#search) folds words, one form for `Café` and `cafe`; `slug` is an id for the term on a glossary page, `glossary-` and the key with hyphens. `id` is the anchor nearest above the term: its own, else its block's, else its section's heading's, `''` at the top of the note. `how` is `'dfn'` or the block's name. `definition` holds the definition's nodes, positions removed, for `tern.emit` on another page: a `dfn`'s paragraph (the paragraph after its heading when it stands in one; its cell, as a paragraph, in a table), a block's body without its title. A `dfn` inside a block that names the block's own term is not a second term. `blocks` lists the names of the blocks that define, `['definition']` by default; a block without a title defines nothing.
+- **`uses(ast)`** lists every `:term[…]`, with `title=` as the term, so a tool can say which has no definition.
+- **`key(text)`** and **`slug(text)`** are the folding and the id, for an add-on that links a use to a glossary page's entry.
+
 ### The registry {#registry}
 
 :::syntax

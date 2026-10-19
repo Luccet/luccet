@@ -54,7 +54,7 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://ozkrac.github.io/tern/docs/schema.html#themes).
 
-**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `switcher.js` gives a `::themes` control that picks a theme and remembers it; `katex.js` and `mathml.js` typeset math; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `tern index` writes; `notes.js` lists the notes of a folder from the same command's catalogue. List them in `:::use`, one per line. See [add-ons](https://ozkrac.github.io/tern/docs/addons.html).
+**Add-ons:** [`addons/`](addons/) holds add-ons that come with Tern: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `switcher.js` gives a `::themes` control that picks a theme and remembers it; `katex.js` and `mathml.js` typeset math; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `tern index` writes; `notes.js` lists the notes of a folder from the same command's catalogue; `glossary.js` lists the terms the notes define (`:dfn[…]`, `:::definition` blocks) from its glossary, and links every `:term[…]` to the entry. List them in `:::use`, one per line. See [add-ons](https://ozkrac.github.io/tern/docs/addons.html).
 
 
 **With npm, from this repository:** `npm install github:OzkrAC/tern#vX.Y.Z` (a tag) puts the same `tern.js`, `tern.css`, the add-ons and the themes under `node_modules/@ozkrac/tern/`, with type declarations and the `tern` command ([Under node](https://ozkr.ac/tern/docs/api.html#under-node)). The package is not on the npm registry.
@@ -70,7 +70,7 @@ node tern-cli.js build notes/linear-maps.html -o out.html   # a static, pre-rend
 node tern-cli.js mv notes/linear-maps.html notes/algebra/    # move it, rewriting the links to and from it
 node tern-cli.js vendor vendor/                  # local copies of KaTeX, highlight.js, Mermaid and Temml, for ?base=
 node tern-cli.js search "rank nullity" notes/              # the sections and blocks that use these words, with lines
-node tern-cli.js index notes/                    # notes.json and search.json, what ::notes and ::search read
+node tern-cli.js index notes/                    # notes.json, search.json and glossary.json, what ::notes, ::search and ::glossary read
 node tern-cli.js lsp                              # the language server, over stdio
 ```
 

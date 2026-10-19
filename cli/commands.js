@@ -83,14 +83,17 @@ const usage = () =>
       Write what a site's add-ons read about the notes under each PATH
       (default: the current folder): DIR/notes.json, a catalogue — each
       note's path, title, description, date, headings and links — for the
-      ::notes list, and DIR/search.json, the index ::search{index=…} loads
-      instead of fetching every note. DIR is -o, else the first PATH's
-      folder; the paths in both files are relative to it. In a git
-      repository only tracked files are indexed, so a private note is never
-      published (--all indexes every file); a note whose meta says
-      robots: noindex is left out. --check writes nothing and exits 1 when
-      a file is missing or differs from what would be written. --json
-      prints the summary as one object.
+      ::notes list; DIR/search.json, the index ::search{index=…} loads
+      instead of fetching every note; and DIR/glossary.json, the terms the
+      notes define (:dfn[…], :::definition blocks) with their definitions,
+      for the ::glossary list. DIR is -o, else the first PATH's folder; the
+      paths in the files are relative to it. In a git repository only
+      tracked files are indexed, so a private note is never published
+      (--all indexes every file); a note whose meta says robots: noindex is
+      left out. A term defined twice, and a :term[…] no note defines, are
+      said on stderr. --check writes nothing and exits 1 when a file is
+      missing or differs from what would be written. --json prints the
+      summary as one object.
   ${SYNOPSIS.corpus}
       Print the live examples of documentation pages (tern fences with the
       class live) as conformance-corpus cases. A case's spec: line is the
@@ -497,6 +500,7 @@ function searchIndex(file, query, limit, json) {
 
 const NOTES_JSON = 'notes.json';
 const SEARCH_JSON = 'search.json';
+const GLOSSARY_JSON = 'glossary.json';
 
 // git, run in a repository: {out, truncated}, or null when it fails or is
 // not there. Output past the buffer's size is cut, and said so, rather than
@@ -620,6 +624,8 @@ function index(args) {
 
   const notes = [];
   const entries = [];
+  const terms = []; // what the notes define (tern.glossary), for glossary.json
+  const uses = []; // every :term[…], to say which has no definition
   let robots = 0;
   let broken = false;
   let undated = 0;
@@ -666,6 +672,9 @@ function index(args) {
       if (file && file !== abs && !links.includes(file)) links.push(file);
     }
     notes.push({ url, title, description: d.description, date, headings: d.headings, links, abs });
+    const fileLine = (line) => (line ? a.toFile({ start: { line, column: 1 }, end: { line, column: 1 } }).start.line : 0);
+    for (const t of tern.glossary.terms(a.ast)) terms.push({ ...t, url, title, line: fileLine(t.line), shown: f.shown });
+    for (const u of tern.glossary.uses(a.ast)) uses.push({ ...u, url, line: fileLine(u.line), shown: f.shown });
     for (const r of tern.search.records(a.ast, { url, title })) {
       const pos = r.line ? a.toFile({ start: { line: r.line, column: 1 }, end: { line: r.endLine || r.line, column: 1 } }) : null;
       const e = { ...r, url };
@@ -680,15 +689,28 @@ function index(args) {
     delete n.abs;
   }
   const idx = tern.search.index(entries);
+  // The glossary: the terms by key, then by note; a key defined more than
+  // once is said, and so is a use no note defines. Both are kept as they
+  // are: the list shows every definition, and a use links to the page.
+  terms.sort((x, y) => (x.key < y.key ? -1 : x.key > y.key ? 1 : x.url < y.url ? -1 : x.url > y.url ? 1 : x.line - y.line));
+  const defined = new Map();
+  for (const t of terms) (defined.get(t.key) || defined.set(t.key, []).get(t.key)).push(t);
+  for (const list of defined.values()) {
+    if (list.length < 2) continue;
+    const at = list.map((t) => `${t.shown}:${t.line}`);
+    warn(`tern index: the term "${clean(list[0].term)}" is defined in ${at.slice(0, -1).join(', ')} and ${at[at.length - 1]}; the glossary lists ${list.length === 2 ? 'both' : 'all of them'}`);
+  }
+  for (const u of uses) if (!defined.has(u.key)) warn(`tern index: ${u.shown}:${u.line}: the term "${clean(u.term)}" has no definition in these notes`);
   const outputs = [
     [NOTES_JSON, `${JSON.stringify({ tern: tern.version, notes }, null, 2)}\n`],
     [SEARCH_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
+    [GLOSSARY_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), terms: terms.map(({ shown, title, ...t }) => t) })],
   ];
   const where = (name) => slash(path.join(dir, name));
   if (undated) warn(`tern index: the git log was longer than ${GIT_BUFFER >> 20} MB and was cut, so ${plural(undated, 'note')} ${undated === 1 ? 'is' : 'are'} dated by ${undated === 1 ? 'its' : 'their'} modification time`);
-  const summary = `${plural(notes.length, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${left ? `; ${left} left out (not tracked by git)` : ''}${robots ? `; ${robots} noindex` : ''}`;
+  const summary = `${plural(notes.length, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${terms.length ? `, ${plural(terms.length, 'term')}` : ''}${left ? `; ${left} left out (not tracked by git)` : ''}${robots ? `; ${robots} noindex` : ''}`;
   // --json: the summary as one object, on stdout.
-  const report = (extra) => say(JSON.stringify({ notes: notes.length, entries: entries.length, leftOut: left, noindex: robots, unreadable: broken, files: { notes: where(NOTES_JSON), search: where(SEARCH_JSON) }, ...extra }, null, 2));
+  const report = (extra) => say(JSON.stringify({ notes: notes.length, entries: entries.length, terms: terms.length, leftOut: left, noindex: robots, unreadable: broken, files: { notes: where(NOTES_JSON), search: where(SEARCH_JSON), glossary: where(GLOSSARY_JSON) }, ...extra }, null, 2));
   if (o.check) {
     const stale = [];
     for (const [name, text] of outputs) {
@@ -700,7 +722,7 @@ function index(args) {
       stale.push(where(name));
       warn(`tern index: ${where(name)} is ${have === null ? 'missing' : 'stale'}: run tern index${o.output !== undefined ? ` -o ${o.output}` : ''} ${paths.join(' ')}`);
     }
-    warn(`tern index: ${summary}; ${stale.length ? `${stale.length} of 2 files to write` : 'both files are up to date'}`);
+    warn(`tern index: ${summary}; ${stale.length ? `${stale.length} of 3 files to write` : 'all three files are up to date'}`);
     if (o.json) report({ wrote: false, stale });
     return broken ? 2 : stale.length ? 1 : 0;
   }
@@ -710,7 +732,7 @@ function index(args) {
   } catch (e) {
     throw new UsageError(`cannot write ${dir}: ${e.message}`, false);
   }
-  warn(`tern index: ${summary} → ${where(NOTES_JSON)}, ${where(SEARCH_JSON)}`);
+  warn(`tern index: ${summary} → ${where(NOTES_JSON)}, ${where(SEARCH_JSON)}, ${where(GLOSSARY_JSON)}`);
   if (o.json) report({ wrote: true });
   return broken ? 2 : 0;
 }

@@ -41,6 +41,7 @@ From jsDelivr, give each add-on the same tag as `tern.js`: `https://cdn.jsdelivr
 | [`mermaid.js`](#mermaid) | draws `mermaid` fences as diagrams, with Mermaid, in the theme's colours |
 | [`search.js`](#search) | a `::search` box over a set of notes, indexed in the browser or from the index `tern index` writes, each hit linking to its heading or block |
 | [`notes.js`](#notes) | a `::notes` list of the notes in a folder, from the catalogue `tern index` writes |
+| [`glossary.js`](#glossary) | a `::glossary` list of the terms a folder's notes define, from the glossary `tern index` writes; `:term[…]` links a use to it |
 :::
 
 ## Code highlighting {#code}
@@ -389,6 +390,37 @@ The version and its hashes live in a table in `addons/mathml.js`. To move to ano
 - **The element** is a `<nav aria-label="Notes">` with the classes `t-notes`, `t-notes-list` (a `<ul role="list">`), `t-notes-title`, its words (the label Notes, No notes., the failure line) from [`window.TERN.strings`](api.html#strings) when the page sets them, `t-notes-date`, `t-notes-desc` and `t-notes-status`, styled from the theme's variables; a stylesheet add-on can restyle them.
 - **When the catalogue cannot be loaded,** or `from=` is not a URL, the leaf says so in place, with the reason in the console. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
 - **Without the page.** `tern check` and `tern build` know the leaf and do nothing with it: the list is built when `tern.js` runs.
+
+## Glossary {#glossary}
+
+`glossary.js` declares a `::glossary` leaf: the terms the notes of a folder define, read from the glossary [`tern index`](tools.html#index) writes, `glossary.json`, each term linked to where it is defined, with its definition as it reads on its own page; and a `:term[…]` inline, a use of a term, linked to the glossary page's entry. A term is defined where the word is explained: by `:dfn[…]`, HTML's element for the defining instance of a word, whose paragraph is the definition, or by a titled `:::definition` block, whose body is ([`tern.glossary`](api.html#glossary)). No note needs a build: run `tern index` when the notes change, and the page lists the terms when it opens.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/glossary.js"></script>
+```
+```tern
+A :dfn[truism] is a claim so obviously true that it goes without saying.
+
+:::definition[Kernel]{#ker}
+The set of vectors $v$ with $T(v) = 0$.
+:::
+
+::glossary
+::glossary{from=../wiki/glossary.json in=algebra/}
+
+Every :term[truism], and the :term[kernels]{title=kernel} too, link to the glossary page.
+```
+:::
+
+- **Defining a term.** `:dfn[truism]` in the sentence that explains it; `title=` gives the canonical form when the text is not it (`:dfn[truisms]{title=truism}`), as HTML's rule says. A `:::definition[Kernel]` block defines its title by its body, as math notes do. A `dfn` in a heading is defined by the paragraph after it. The same word defined in two notes is listed twice, and `tern index` says so.
+- **Which terms.** `::glossary` alone reads `glossary.json` next to the page; `from=PATH` names the file, an `http(s)` URL. `in=FOLDER` keeps the terms of the notes under a folder, a prefix of their path in the file. A note's URL resolves against the file and must be a page on its origin, as `tern index` writes them; any other is left out, with a warning in the console.
+- **What an entry shows.** The terms in the order of their folded key (`Café` with `cafe`), each a `<dt>` whose id is the term's slug (`glossary-truism`) and whose text links to the definition in its note, then a `<dd>` with the definition rendered as on its page: its links lead back to the note, its formulas are typeset by the page's math add-on (load it on the glossary page too), and a line names the note. Raw HTML in a definition is escaped, as in a note rendered `safe`.
+- **Uses.** `:term[truism]` is a link to the glossary page, `glossary.html` beside the note unless `page=` says otherwise (`addons/glossary.js?page=/wiki/glossary.html` for notes in several folders), with `title=` as the term when the text is inflected. The link is in the tree, so `tern check` reports a page that is not there as [`link.missing`](diagnostics.html#link-missing) at the use, and `tern build` writes it; the entry's `#` is added when the page shows, since the entries exist once the list is built. The link is drawn with a dotted underline.
+- **Options** go on the leaf, on the add-on (`addons/glossary.js?page=…`), or in `window.TERN = {use: {glossary: {…}}}`; the leaf's win.
+- **The element** is a `<div role="region" aria-label="Glossary">` with the classes `t-glossary`, `t-glossary-list` (a `<dl>`), `t-glossary-source` and `t-glossary-status`, its words (the label Glossary, No terms., From {title}, the failure lines) from [`window.TERN.strings`](api.html#strings) when the page sets them; a use is a `<span class="term">` around its link.
+- **When the file cannot be loaded,** or was written by another version of Tern (the definitions are trees of the version that wrote them), the leaf says so in place, with the reason in the console; run `tern index` again. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
+- **Without the page.** `tern check` and `tern build` know the leaf and do nothing with it: the list is built when `tern.js` runs. A use's link is theirs.
 
 ## Citations {#cite}
 

@@ -154,6 +154,34 @@ const BIB = `:::bibliography
 :::
 `;
 
+test('glossary.js: under tern check and tern build, :term[x] is a link to the glossary page (page= as written; a page that is not there is link.missing), ::glossary stays empty, and tern index gathers the terms', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-glossary-'));
+  const cli = (args) => spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), ...args], { cwd: tmp, encoding: 'utf8' });
+  try {
+    fs.writeFileSync(path.join(tmp, 'tern.js'), '');
+    const use = path.relative(tmp, path.join(DIR, 'glossary.js')).split(path.sep).join('/');
+    fs.writeFileSync(path.join(tmp, 'a.html'), `<!doctype html><meta charset="utf-8"><title>A</title><script src="tern.js" data-use="${use}"></script>\n# A {#top}\n\nA :dfn[truism] is obvious. Every :term[truism] and :term[kernels]{title=kernel} links.\n\n::glossary\n`);
+    fs.writeFileSync(path.join(tmp, 'b.html'), `<!doctype html><meta charset="utf-8"><title>B</title><script src="tern.js" data-use="${use}?page=/wiki/glossary.html"></script>\nSee :term[truism].\n`);
+    let r = cli(['check', 'a.html']);
+    assert(r.status === 0 && /link\.missing/.test(r.stdout) && /glossary\.html does not exist/.test(r.stdout), `a missing glossary page is link.missing: ${r.stdout}${r.stderr}`);
+    fs.writeFileSync(path.join(tmp, 'glossary.html'), `<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="${use}"></script>\n::glossary\n`);
+    r = cli(['check', 'a.html', 'b.html', 'glossary.html']);
+    assert(r.status === 0 && /3 notes: 0 errors, 0 warnings, 0 infos/.test(r.stderr), `with the page: ${r.stdout}${r.stderr}`);
+    r = cli(['build', 'a.html']);
+    assert(r.status === 0, `tern build: ${r.stderr}`);
+    const links = [...r.stdout.matchAll(/<span class="term" data-t="term"([^>]*)><a href="([^"]*)">([^<]*)<\/a><\/span>/g)].map((m) => `${m[3]}→${m[2]}${/ title="([^"]*)"/.test(m[1]) ? ` (${/ title="([^"]*)"/.exec(m[1])[1]})` : ''}`);
+    assert(links.join(' ') === 'truism→glossary.html kernels→glossary.html (kernel)', `the uses in the built page: ${links.join(' ')}; the entry's # is added when the page shows`);
+    assert(/<div class="glossary t-glossary" data-t="glossary" role="region" aria-label="Glossary"><\/div>|<div id="[^"]*" class="glossary t-glossary"[^>]*><\/div>|<div class="glossary"[^>]*><\/div>/.test(r.stdout), `the leaf, empty: ${/<div[^>]*glossary[^>]*>[^]*?<\/div>/.exec(r.stdout)}`);
+    assert(/<a href="\/wiki\/glossary\.html">truism<\/a>/.test(cli(['build', 'b.html']).stdout), 'page= as written');
+    r = cli(['index', '.']);
+    assert(r.status === 0 && /3 notes, [0-9]+ entries, 1 term → /.test(r.stderr), `tern index: ${r.stderr}`);
+    const g = JSON.parse(fs.readFileSync(path.join(tmp, 'glossary.json'), 'utf8'));
+    assert(g.terms.length === 1 && g.terms[0].term === 'truism' && g.terms[0].url === 'a.html' && g.terms[0].id === 'top', `glossary.json: ${JSON.stringify(g.terms)}`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('cite.js: a BibTeX bibliography lists the cited sources in author order, formatted; @key reads [n], ref=number n, ref=title the title', () => {
   loadCite();
   const out = html(`See @vdb, @knuth84, @knuth84{ref=number}, @knuth84{ref=title} and @knuth84{ref=label}.\n\n${BIB}`);
