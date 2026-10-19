@@ -35,8 +35,15 @@
    aria-current, not by colour alone. */
 .tern .site-nav:not(.docs-live-out *) { font-family: var(--t-sans); font-size: .9rem; line-height: 1.4; margin-block: -1.5rem 2rem; }
 .docs-nav-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .25rem; border-block-end: 1px solid var(--t-line); }
-.tern .docs-nav-home { font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
+.tern .docs-nav-home { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
 .tern .docs-nav-home:hover { color: var(--t-link); }
+/* The mark, tern.png, is a mask filled with the current text colour, so it
+   follows every theme and the link's hover colour. */
+.docs-nav-logo, .tern > .logo { display: inline-block; background: currentColor; -webkit-mask: url(tern.png) center / contain no-repeat; mask: url(tern.png) center / contain no-repeat; }
+.docs-nav-logo { inline-size: 1.6em; block-size: 1.6em; }
+.tern > .logo { display: block; inline-size: 7rem; block-size: 7rem; margin-block: 0; }
+.tern > .logo + h1 { margin-block-start: .75rem; }
+@media (forced-colors: active) { .docs-nav-logo, .tern > .logo { background: CanvasText; } }
 .docs-nav-toggle {
   font: inherit; color: var(--t-fg); background: var(--t-soft); border: 1px solid var(--t-line); border-radius: var(--docs-r-sm);
   padding: .35rem .8rem; cursor: pointer;
@@ -57,7 +64,7 @@
 }
 .tern .docs-nav-list ul a { padding-inline-start: 1.4rem; }
 /* The heading after the navigation starts the page. */
-.tern > .site-nav + :is(h1, h2) { margin-block-start: .5rem; }
+.tern > .site-nav + :is(h1, h2, .logo) { margin-block-start: .5rem; }
 .docs-nav-heading { display: block; padding: .9rem .7rem .3rem; color: var(--t-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 
 @media (min-width: 64rem) {
@@ -70,7 +77,7 @@
   .docs-nav-bar { border: 0; padding-inline: .7rem; margin-block-end: .25rem; }
   .docs-nav-toggle { display: none; }
   .tern .docs-nav-list { display: block; }
-  .tern > .site-nav + :is(h1, h2) { margin-block-start: 0; }
+  .tern > .site-nav + :is(h1, h2, .logo) { margin-block-start: 0; }
 }
 
 /* ---- the page's contents: a quiet card, links without underlines until

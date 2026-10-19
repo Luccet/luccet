@@ -1,3 +1,5 @@
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/tern-white.png"><img src="docs/tern.png" alt="" width="112" height="112"></picture>
+
 # Tern
 
 Documents with the full power of HTML, CSS and JavaScript. A note is one HTML file: its first line loads `tern.js`, and everything below it is written in Tern's syntax and rendered in place when the file is opened.

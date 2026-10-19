@@ -39,12 +39,13 @@ description: Every block-level construct of Tern: paragraphs, headings, fences, 
 
 - **Paths.** Pages in `docs/` load `../tern.js`, and `docs.js` and `docs.css` from `docs/`. `index.html` loads `tern.js`, `docs/docs.js` and `docs/docs.css`. Examples load `../tern.js` and declare their own vocabulary (below).
 - **The page's own markup.**
-  - `::site-nav` is the site navigation, drawn by docs.js.
+  - `::site-nav` is the site navigation, drawn by docs.js, with the mark before the home link.
+  - `::logo` is the mark alone (the home page has it above its title). docs.css draws it from `docs/tern.png` as a mask in the theme's text colour; `docs/tern-white.png` is for places that cannot do that, such as the README on GitHub.
   - `::toc` is the page's contents, levels 2 and 3.
   - The title in the head is "Page · Tern".
 - **docs.js vocabulary.** It declares what the pages use:
   - `toc`;
-  - `site-nav`;
+  - `site-nav` and `logo`;
   - the callouts `note`, `tip`, `warning` and `important`;
   - `figure`, `table` and `code` with counters;
   - `kbd`, `syntax` (a construct's spelling, shown as a summary box).
