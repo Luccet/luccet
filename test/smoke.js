@@ -495,8 +495,13 @@ function cliPage(name) {
       fs.symlinkSync(path.join(ROOT, 'tern.js'), path.join(dir, 'tern.js'), 'file');
       fs.symlinkSync(path.join(ROOT, 'addons'), path.join(dir, 'addons'), 'dir');
       fs.writeFileSync(path.join(dir, 'n.html'), '<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/mermaid.js"></script>\n\n# Smoke: diagrams drawn ahead {#top}\n\n```mermaid {#flow}\nflowchart LR\n  A --> B\n```\n\n```mermaid [A listing]{#lst}\npie\n  "a": 1\n  "b": 2\n```\n');
-      html = cli(['build', path.join(dir, 'n.html'), '--diagrams']).replace('src="tern.js"', 'src="/tern.js"').replace(/(src|data-use)="addons\/mermaid\.js"/g, '$1="/addons/mermaid.js"');
-      if (!/<svg[^>]*class="t-mermaid-screen t-mermaid-light"/.test(html)) throw new Error('tern build --diagrams drew no diagram');
+      // The build's own Chromium may be missing (the WebKit job installs
+      // WebKit alone): the build then warns and draws nothing, and the test
+      // reads why from cliPages and skips.
+      const r = spawnSync(process.execPath, [CLI, 'build', path.join(dir, 'n.html'), '--diagrams'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
+      if (r.status !== 0) throw new Error(`tern build --diagrams exited ${r.status}: ${r.stderr.trim()}`);
+      html = r.stdout.replace('src="tern.js"', 'src="/tern.js"').replace(/(src|data-use)="addons\/mermaid\.js"/g, '$1="/addons/mermaid.js"');
+      if (!/<svg[^>]*class="t-mermaid-screen t-mermaid-light"/.test(html)) cliPages.set('built-diagrams:why', (r.stderr.match(/tern build: (.*(?:could not be drawn|cannot be required).*)/) || [, r.stderr.trim()])[1]);
     } else if (name === 'built-mathml') {
       const pkg = path.join(tmp, 'node_modules', 'temml');
       fs.mkdirSync(pkg, { recursive: true });
@@ -2068,6 +2073,9 @@ const TESTS = [
     context: { colorScheme: 'light' },
     async setup(_context, page, ctx) {
       cliPage('built-diagrams');
+      const why = cliPages.get('built-diagrams:why');
+      if (why && /Executable doesn't exist|playwright install|cannot be required/.test(why)) ctx.skip(`tern build --diagrams could not draw here: ${why}`);
+      if (why) throw new Error(`tern build --diagrams drew no diagram: ${why}`);
       ctx.mermaid = 0;
       page.on('request', (q) => /mermaid\.min\.js/.test(q.url()) && ctx.mermaid++);
     },
