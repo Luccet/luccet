@@ -4,8 +4,10 @@
 //
 // It declares the pages' vocabulary, exposes the demo schema that live
 // examples use with schema=demo, and adds two behaviours:
-//   - site-nav: draws the site navigation, with the mark (tern.png) before
-//     the home link; `::logo` is the same mark alone, for the home page;
+//   - site-nav: draws the site navigation, with the mark before the home
+//     link; `::logo` is the same mark alone, for the home page. The mark is
+//     tern.png on a light theme and tern-white.png on a dark one, chosen by
+//     the text colour and followed when the theme changes;
 //   - code: turns each live example (a `tern` fence with the class `live`)
 //     into source, result, diagnostics and generated HTML, computed here by
 //     the engine, and highlights every `tern` fence. A result is isolated
@@ -26,7 +28,7 @@
   const callout = (label) => ({ label, attrs: { role: 'note' } });
   T.leaf('toc', { tag: 'nav', transform: 'toc', depth: '2-3', attrs: { 'aria-label': 'Contents' } });
   T.leaf('site-nav', { tag: 'nav', attrs: { 'aria-label': 'Site' } });
-  T.leaf('logo', { tag: 'div', attrs: { 'aria-hidden': 'true' } }); // the mark, drawn by docs.css from tern.png in the theme's text colour
+  T.leaf('logo', { tag: 'div', attrs: { 'aria-hidden': 'true' } }); // the mark alone, filled by logoImage() below
   T.block('note', callout('Note'));
   T.block('tip', callout('Tip'));
   T.block('warning', callout('Warning'));
@@ -154,6 +156,45 @@
   // result shows the note as it renders without this add-on.
   const inResult = (node) => !!node.closest('.docs-live-out');
 
+  // ---------------------------------------------------------------- the mark
+
+  // The mark is an <img>, not a CSS mask: a browser fetches a mask image
+  // with CORS rules and will not paint one for a note opened from disk. It
+  // is tern.png where the text is dark and tern-white.png where it is light,
+  // which is how a theme, including one that follows the system, says it is
+  // dark; rechecked when the system scheme changes, after a render (a theme
+  // may arrive late) and when a theme switcher says so.
+  const logos = new Set();
+  function darkTheme() {
+    const c = getComputedStyle(document.querySelector('main.tern') || document.body).color.match(/[\d.]+/g) || [];
+    const [r = 0, g = 0, b = 0] = c.map(Number);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 128; // light text, so a dark theme
+  }
+  function paint(img) {
+    const want = img.getAttribute(darkTheme() ? 'data-dark' : 'data-light');
+    if (img.getAttribute('src') !== want) img.setAttribute('src', want);
+  }
+  function repaint() {
+    for (const m of logos) m.isConnected ? paint(m) : logos.delete(m);
+  }
+  function logoImage(at, cls) {
+    const img = el('img', { class: cls, alt: '', width: '256', height: '256', 'data-light': link('docs/tern.png', at), 'data-dark': link('docs/tern-white.png', at) });
+    logos.add(img);
+    paint(img);
+    return img;
+  }
+  if (typeof matchMedia === 'function') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
+  window.addEventListener('load', repaint);
+  window.addEventListener('tern:theme', repaint);
+  T.on('render', (root, info) => {
+    if (!(info && info.safe)) repaint();
+  });
+
+  T.define('logo', (node) => {
+    if (inResult(node)) return;
+    node.replaceChildren(logoImage(here(), 'docs-logo'));
+  });
+
   // ---------------------------------------------------------------- site-nav
 
   T.define('site-nav', (nav) => {
@@ -172,7 +213,7 @@
       toggle.setAttribute('aria-expanded', String(open));
       nav.classList.toggle('docs-nav-open', open);
     });
-    const logo = el('span', { class: 'docs-nav-logo', 'aria-hidden': 'true' }); // docs.css draws tern.png here
+    const logo = logoImage(at, 'docs-nav-logo');
     const bar = el('div', { class: 'docs-nav-bar' }, el('a', { class: 'docs-nav-home', href: link(home[0], at), 'aria-current': current(home[0]) }, logo, home[1]), toggle);
     nav.setAttribute('aria-label', nav.getAttribute('aria-label') || 'Site');
     nav.replaceChildren(bar, list);
