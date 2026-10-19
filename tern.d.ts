@@ -128,6 +128,8 @@ declare namespace tern {
     snippet(text: string, matched: string[], opts?: { width?: number }): { text: string; marks: Array<[number, number]> };
     title(head: string, ast: Root): string;
     describe(head: string, ast: Root): { title: string; description: string; meta: Record<string, string>; headings: Outline['headings']; links: string[] };
+    /** The format of search.json, which `tern index` writes into the file: a reader takes a file of its own format, whatever version wrote it. 1 since 1.0; changes only in a major release. */
+    readonly format: number;
   }
 
   /** A term a note defines (docs/api.html#glossary): a `:dfn[…]` or a titled `:::definition` block. */
@@ -151,6 +153,8 @@ declare namespace tern {
     uses(ast: Root): Array<{ term: string; key: string; line: number }>;
     key(text: string): string;
     slug(text: string): string;
+    /** The format of glossary.json, as `search.format` for search.json. */
+    readonly format: number;
   }
 
   export type TernEvent = 'render' | 'math' | 'ready' | 'diagnostic';

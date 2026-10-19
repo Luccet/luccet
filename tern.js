@@ -2908,12 +2908,18 @@ module.exports = { outline };
 // add-ons fetch and draw, the command line reads and writes files.
 //
 // An index is written out by `tern index` and read back by the add-on and
-// `tern search --index`, so its words must be the reader's: the folding,
-// the segmentation and the stemmer change only in a minor release, and an
-// index records the version that wrote it (its `tern`); a reader of the
-// same major and minor can use it.
+// `tern search --index`, so its words must be the reader's. The file
+// records the format of its words and its data (`format`, FORMAT below)
+// beside the version that wrote it (`tern`), and a reader takes a file of
+// its own format whatever version wrote it: the folding, the segmentation
+// and the stemmer change only with the number, in a major release.
 
 const { decode } = require('./entities');
+
+// The format of an index file: the words' folding, segmentation and
+// stemming, and the shape of the data. 1 since 1.0; the next number comes
+// with a major release.
+const FORMAT = 1;
 
 // The plain text of a node's content: words, code and TeX as written; raw
 // HTML and footnote marks left out; an image by its alt; a hard break a
@@ -3258,7 +3264,7 @@ function snippet(text, matched, { width = 160 } = {}) {
   return { text: `${pre}${piece}${end < flat.length ? '…' : ''}`, marks };
 }
 
-module.exports = { plain, title, describe, records, fold, stem, tokens, index, query, snippet };
+module.exports = { plain, title, describe, records, fold, stem, tokens, index, query, snippet, format: FORMAT };
   };
   // ---- src/glossary.js
   defs['glossary'] = function (module, exports, require) {
@@ -3284,8 +3290,14 @@ module.exports = { plain, title, describe, records, fold, stem, tokens, index, q
 //     on another page (empty for a term with no paragraph).
 //   uses(ast) -> [{term, key, line}]   every `:term[…]`, for tern index's check
 //   key(text), slug(text)              the folding and the id, for add-ons
+//   format                             the number of glossary.json's format
 
 const { plain, fold } = require('./search');
+
+// The format of a glossary file: the terms' fields and the definitions'
+// trees. 1 since 1.0; the next number comes with a major release. The
+// add-on takes a file of its own format whatever version wrote it.
+const FORMAT = 1;
 
 const key = (text) => fold(String(text)).replace(/\s+/g, ' ').trim();
 const slug = (text) => `glossary-${key(text).replace(/[^\p{L}\p{M}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'term'}`;
@@ -3376,7 +3388,7 @@ function uses(ast) {
   return out;
 }
 
-module.exports = { terms, uses, key, slug };
+module.exports = { terms, uses, key, slug, format: FORMAT };
   };
   // ---- src/schema.js
   defs['schema'] = function (module, exports, require) {

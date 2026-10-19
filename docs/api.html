@@ -524,6 +524,7 @@ tern.search.query(index, text, { limit }) → [{ entry, score, matched }]
 tern.search.snippet(text, matched, { width }) → { text, marks }
 tern.search.title(head, ast) → string
 tern.search.describe(head, ast) → { title, description, meta, headings, links }
+tern.search.format → 1
 ```
 :::
 
@@ -550,13 +551,14 @@ tern.search.snippet(entries[1].text, ['pythagora']);
 ```
 
 - **`records(ast, {url, title})`** splits a transformed AST into entries: one per heading's section and one per named block with an id. A block's text is its own, not its section's; a block without an id gives its text to the entry it is in. `kind` is `'page'` (the text before the first heading), `'heading'`, or the block's name; `label` is the heading's text, the page's title, or the block's label ("Exercise 3"); `title` a block's bracket title. `line` and `endLine` are note lines. An entry with nothing to search is left out.
-- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`tern index`](tools.html#index-files) writes as `search.json`. Its words are `tokens`'s, whose folding, segmentation and stemming change only in a minor release, so an index serves the readers of its own version series. A word in an entry's label or title weighs three times one in its text.
+- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`tern index`](tools.html#index-files) writes as `search.json`. Its words are `tokens`'s, whose folding, segmentation and stemming change only with `format`, in a major release, so an index serves every reader of its format. A word in an entry's label or title weighs three times one in its text.
 - **`query(index, text, {limit})`** ranks the entries BM25-style for the words of `text`, best first, at most `limit` (20; `Infinity` for all). `matched` lists the stems the hit matched, for `snippet`.
 - **`snippet(text, matched, {width})`** cuts a passage of about `width` characters (160) around the first matching word, `…` where it is cut, with the `[start, end)` ranges of every matching word in it.
 - **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.
 - **`describe(head, ast)`** is what a catalogue holds for a note ([`tern index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
 - **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
 - **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share.
+- **`format`** is the number of the index's format, 1: `tern index` writes it into `search.json`, and the [search add-on](addons.html#search) and [`tern search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
 
 ### `tern.glossary` {#glossary}
 
@@ -566,6 +568,7 @@ tern.glossary.terms(ast, { blocks }) → [{ term, key, slug, id, line, how, defi
 tern.glossary.uses(ast) → [{ term, key, line }]
 tern.glossary.key(text) → string
 tern.glossary.slug(text) → string
+tern.glossary.format → 1
 ```
 :::
 
@@ -593,6 +596,7 @@ tern.glossary.uses(ast);
 - **`terms(ast, {blocks})`** walks a transformed tree and returns every term in note order. `term` is the text as written, or the `title=` of a `dfn`, which HTML takes as the term's canonical form (`:dfn[truisms]{title=truism}` defines "truism"). `key` is the term folded as [search](#search) folds words, one form for `Café` and `cafe`; `slug` is an id for the term on a glossary page, `glossary-` and the key with hyphens. `id` is the anchor nearest above the term: its own, else its block's, else its section's heading's, `''` at the top of the note. `how` is `'dfn'` or the block's name. `definition` holds the definition's nodes, positions removed, for `tern.emit` on another page: a `dfn`'s paragraph (the paragraph after its heading when it stands in one; its cell, as a paragraph, in a table), a block's body without its title. A `dfn` inside a block that names the block's own term is not a second term. `blocks` lists the names of the blocks that define, `['definition']` by default; a block without a title defines nothing.
 - **`uses(ast)`** lists every `:term[…]`, with `title=` as the term, so a tool can say which has no definition.
 - **`key(text)`** and **`slug(text)`** are the folding and the id, for an add-on that links a use to a glossary page's entry.
+- **`format`** is the number of `glossary.json`'s format, 1, as [`tern.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](addons.html#glossary) takes a file of its format whatever version wrote it.
 
 ### The registry {#registry}
 

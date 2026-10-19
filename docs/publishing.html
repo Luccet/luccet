@@ -109,7 +109,7 @@ Everything after the line holding the tag is the note, to the end of the file, i
 
 ## Opening locally {#local}
 
-Double-click the note, or drag it onto a browser window. It renders from disk, from a `file:` URL, with no server. This works in Chromium and Firefox, the two browsers the test suite runs.
+Double-click the note, or drag it onto a browser window. It renders from disk, from a `file:` URL, with no server. This works in Chromium and Firefox; in Safari it is not verified ([Browsers](#browsers)).
 
 - **Relative paths work.** `tern.js`, add-ons, stylesheets and images found next to the note, or in folders below or above it, load from disk.
 - **Root-relative paths do not.** `/tern.js` means the root of your disk when the note is opened from a file. Use relative paths (`../tern.js`).
@@ -371,7 +371,7 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 
 ## Browsers {#browsers}
 
-**What is tested.** The browser smoke suite (`npm run smoke`, `test/smoke.js`) drives **Chromium** and **Firefox** through Playwright, at the versions Playwright 1.61.1 installs (Chromium 149 and Firefox 151 when this page was written). It runs on every push. It covers, among others:
+**What is tested.** The browser smoke suite (`npm run smoke`, `test/smoke.js`) drives **Chromium**, **Firefox** and **WebKit** through Playwright, at the versions Playwright 1.61.1 installs (Chromium 149, Firefox 151 and WebKit 26.5 when this page was written). It runs on every push, WebKit in CI alone. It covers, among others:
 
 - mounting in place, references, math, and note scripts run in order (inline, a large external script, a slow second origin);
 - UTF-8 without a charset header, a note without a doctype, a right-to-left note;

@@ -127,8 +127,6 @@
     return nodes;
   }
 
-  const series = (v) => String(v || '').split('.').slice(0, 2).join('.');
-
   async function build(host) {
     const defaults = options();
     const attr = (k) => (host.hasAttribute(k) ? host.getAttribute(k) : defaults[k]);
@@ -151,10 +149,11 @@
       }
     }
     if (!data || !Array.isArray(data.terms)) return status(str('glossaryFailed', { from: o.from }, 'The glossary could not be loaded ({from}).'));
-    // The definitions are trees of the version that wrote them: another
-    // series may emit them otherwise, so the file is written again.
-    if (series(data.tern) !== series(T.version)) {
-      console.warn(`Tern glossary.js: ${url.href} was written by tern ${data.tern} and this is ${T.version}; run tern index again`);
+    // The file's format decides, not the version that wrote it: the terms'
+    // fields and the definitions' trees change only with the number, in a
+    // major release; a file with no format is from before 1.0.
+    if (data.format !== T.glossary.format) {
+      console.warn(`Tern glossary.js: ${url.href} was written by tern ${data.tern} in a format this tern (${T.version}) does not read: run tern index again`);
       return status(str('glossaryStale', { version: String(data.tern) }, 'The glossary was written by tern {version}; run tern index again.'));
     }
     const titles = new Map((Array.isArray(data.notes) ? data.notes : []).filter((n) => n && typeof n.url === 'string').map((n) => [n.url, n.title]));

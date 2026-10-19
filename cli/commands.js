@@ -386,12 +386,10 @@ function filesOf(positionals) {
   return files;
 }
 
-// The version series an index must share with this tern.js: its stems are
-// the stemmer's, which changes only in a minor release (src/search.js).
-const series = (v) => String(v).split('.').slice(0, 2).join('.');
-
 // A search.json `tern index` wrote, read back: its entries' URLs are
-// relative to the file's folder, and its lines are file lines.
+// relative to the file's folder, and its lines are file lines. It must be
+// of the format this tern.js reads (src/search.js FORMAT), whatever
+// version wrote it; a file with no format is from before 1.0.
 function readIndex(file) {
   let data;
   try {
@@ -403,7 +401,7 @@ function readIndex(file) {
   if (!data || typeof data !== 'object' || !Array.isArray(data.entries) || !data.terms || typeof data.terms !== 'object' || !Array.isArray(data.lengths)) {
     throw new UsageError(`${file} is not a search index written by tern index`, false);
   }
-  if (series(data.tern) !== series(tern.version)) throw new UsageError(`${file} was written by tern ${data.tern || '?'} and this is ${tern.version}: run tern index again`, false);
+  if (data.format !== tern.search.format) throw new UsageError(`${file} was written by tern ${data.tern || '?'} in a format this tern (${tern.version}) does not read: run tern index again`, false);
   return data;
 }
 
@@ -703,8 +701,8 @@ function index(args) {
   for (const u of uses) if (!defined.has(u.key)) warn(`tern index: ${u.shown}:${u.line}: the term "${clean(u.term)}" has no definition in these notes`);
   const outputs = [
     [NOTES_JSON, `${JSON.stringify({ tern: tern.version, notes }, null, 2)}\n`],
-    [SEARCH_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
-    [GLOSSARY_JSON, lineJSON({ tern: tern.version, notes: notes.map((n) => ({ url: n.url, title: n.title })), terms: terms.map(({ shown, title, ...t }) => t) })],
+    [SEARCH_JSON, lineJSON({ tern: tern.version, format: tern.search.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
+    [GLOSSARY_JSON, lineJSON({ tern: tern.version, format: tern.glossary.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), terms: terms.map(({ shown, title, ...t }) => t) })],
   ];
   const where = (name) => slash(path.join(dir, name));
   if (undated) warn(`tern index: the git log was longer than ${GIT_BUFFER >> 20} MB and was cut, so ${plural(undated, 'note')} ${undated === 1 ? 'is' : 'are'} dated by ${undated === 1 ? 'its' : 'their'} modification time`);

@@ -213,6 +213,11 @@ test('glossary.terms: a dfn is defined by its paragraph, by the paragraph after 
   eq([tern.glossary.key('  Café  AU lait '), tern.glossary.slug('Abelian group'), tern.glossary.slug('Café au lait!'), tern.glossary.slug('東京'), tern.glossary.slug('')], ['cafe au lait', 'glossary-abelian-group', 'glossary-cafe-au-lait', 'glossary-東京', 'glossary-term'], 'key and slug');
 });
 
+test('search.format and glossary.format: the number of the format tern index writes, which a reader of any version of the same major takes; 1 since 1.0', () => {
+  eq([tern.search.format, tern.glossary.format], [1, 1], 'the formats');
+  eq([Number.isInteger(tern.search.format) && tern.search.format > 0, Number.isInteger(tern.glossary.format) && tern.glossary.format > 0], [true, true], 'positive integers, written as JSON');
+});
+
 test('search: words that name Object.prototype members are words like any, before and after a JSON round trip', () => {
   const { ast } = tern.parse('# The constructor {#c}\n\nA constructor, toString and hasOwnProperty; __proto__ too.\n\n## Other {#o}\n\nNothing of the kind.\n');
   tern.transform(ast);

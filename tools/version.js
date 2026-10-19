@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Tern's version, everywhere it is written. package.json holds it; the
 // PLACES below repeat it (tern.version in src/index.js, the README's
-// jsDelivr tag and release series, the docs' examples of output), each
+// jsDelivr tag, release series and major, the docs' examples of output), each
 // found by the text around it. tern.js is rebuilt from src/, not edited.
 //
 //   node tools/version.js                    list the places and what each says
@@ -32,7 +32,8 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 
-// [file, text]: {v} is the version, {xy} its release series (X.Y for X.Y.Z).
+// [file, text]: {v} is the version, {xy} its release series (X.Y for X.Y.Z),
+// {x} its major (X).
 // `built` places are tools/concat.js's to write.
 const PLACES = [
   ['package.json', '"version": "{v}"'],
@@ -43,6 +44,7 @@ const PLACES = [
   ['tern.js', "const version = '{v}';", { built: true }],
   ['README.md', 'cdn.jsdelivr.net/gh/OzkrAC/tern@v{v}/tern.js'],
   ['README.md', 'use `@{xy}` (the newest {xy}.x)'],
+  ['README.md', '`@{x}` (the newest {x}.x'],
   ['docs/api.html', "| engine | `'{v}'` |"],
   ['docs/api.html', "tern.version;                    // → '{v}'"],
   ['docs/api.html', "as a string: `'{v}'`"],
@@ -52,23 +54,26 @@ const PLACES = [
   ['docs/tools.html', '"tern": "{v}",'],
   ['index.html', 'is at version {v} (`tern.version`'],
   ['index.html', 'Pin a release (`@v{v}`) to be sure; `@{xy}` follows the fixes of a series.'],
+  ['index.html', '`@{x}` follows every release of a major'],
 ];
 
 const CHANGELOG = 'CHANGELOG.md';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 const series = (v) => v.split('.').slice(0, 2).join('.');
+const major = (v) => v.split('.')[0];
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const lineOf = (text, at) => text.slice(0, at).split('\n').length;
 
-// A place's text as a regex, a group for each {v} and {xy}, in order.
+// A place's text as a regex, a group for each {v}, {xy} and {x}, in order.
 function compile(text) {
   const kinds = [];
   const source = text
-    .split(/(\{v\}|\{xy\})/)
+    .split(/(\{v\}|\{xy\}|\{x\})/)
     .map((part) => {
       if (part === '{v}') return kinds.push('v'), '(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)';
       if (part === '{xy}') return kinds.push('xy'), '(\\d+\\.\\d+)';
+      if (part === '{x}') return kinds.push('x'), '(\\d+)';
       return esc(part);
     })
     .join('');
@@ -117,7 +122,7 @@ function problems(v) {
       if (!covered.has(p.file)) covered.set(p.file, []);
       covered.get(p.file).push(f.span);
       for (const x of f.values) {
-        const want = x.kind === 'v' ? v : series(v);
+        const want = x.kind === 'v' ? v : x.kind === 'xy' ? series(v) : major(v);
         if (x.value !== want) out.push(`${p.file}:${f.line}: says ${x.value}, not ${want}${p.built ? ' (run node tools/concat.js)' : ''}`);
       }
     }
@@ -250,7 +255,7 @@ function main() {
     console.log(`tern ${current} (package.json)`);
     for (const p of places()) {
       if (!p.found.length) console.log(`  ✗ ${p.file}: ${JSON.stringify(p.text)} not found`);
-      for (const f of p.found) console.log(`  ${f.values.every((x) => x.value === (x.kind === 'v' ? current : series(current))) ? '✓' : '✗'} ${p.file}:${f.line}  ${f.values.map((x) => x.value).join(', ')}`);
+      for (const f of p.found) console.log(`  ${f.values.every((x) => x.value === (x.kind === 'v' ? current : x.kind === 'xy' ? series(current) : major(current))) ? '✓' : '✗'} ${p.file}:${f.line}  ${f.values.map((x) => x.value).join(', ')}`);
     }
     const p = problems(current);
     if (p.length) fail(p);
@@ -271,7 +276,7 @@ function main() {
     for (const f of p.found)
       for (const x of f.values) {
         if (!edits.has(p.file)) edits.set(p.file, []);
-        edits.get(p.file).push([x.at[0], x.at[1], x.kind === 'v' ? want : series(want)]);
+        edits.get(p.file).push([x.at[0], x.at[1], x.kind === 'v' ? want : x.kind === 'xy' ? series(want) : major(want)]);
       }
   }
   for (const [file, list] of edits) {
