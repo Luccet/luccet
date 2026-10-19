@@ -1,4 +1,4 @@
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/tern-white.png"><img src="docs/tern.png" alt="" width="112" height="112"></picture>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/tern-white.png"><img src="docs/tern.png" alt="" width="128" height="128"></picture></p>
 
 # Tern
 

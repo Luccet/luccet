@@ -37,13 +37,11 @@
 .docs-nav-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .25rem; border-block-end: 1px solid var(--t-line); }
 .tern .docs-nav-home { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
 .tern .docs-nav-home:hover { color: var(--t-link); }
-/* The mark, tern.png, is a mask filled with the current text colour, so it
-   follows every theme and the link's hover colour. */
-.docs-nav-logo, .tern > .logo { display: inline-block; background: currentColor; -webkit-mask: url(tern.png) center / contain no-repeat; mask: url(tern.png) center / contain no-repeat; }
-.docs-nav-logo { inline-size: 1.6em; block-size: 1.6em; }
-.tern > .logo { display: block; inline-size: 7rem; block-size: 7rem; margin-block: 0; }
+/* The mark: docs.js picks tern.png or tern-white.png for the theme. */
+.tern .docs-nav-logo { display: block; inline-size: 1.6em; block-size: 1.6em; }
+.tern > .logo { margin-block: 0; }
+.tern .docs-logo { display: block; inline-size: 7rem; block-size: 7rem; }
 .tern > .logo + h1 { margin-block-start: .75rem; }
-@media (forced-colors: active) { .docs-nav-logo, .tern > .logo { background: CanvasText; } }
 .docs-nav-toggle {
   font: inherit; color: var(--t-fg); background: var(--t-soft); border: 1px solid var(--t-line); border-radius: var(--docs-r-sm);
   padding: .35rem .8rem; cursor: pointer;
