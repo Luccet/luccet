@@ -2493,9 +2493,13 @@ const TESTS = [
       await page.addInitScript(() => {
         window.__themes = [];
         window.addEventListener('tern:theme', (e) => window.__themes.push(e.detail.theme));
-        // When the note is first put in the page, for "requested before the note renders".
+        // When a theme's link first enters the head and when the note is first
+        // put in the page, for "requested before the note renders" (the DOM, not
+        // Resource Timing: WebKit has no entry for a sheet from its memory cache).
+        window.__linkAt = null;
         window.__mountAt = null;
         new MutationObserver(() => {
+          if (window.__linkAt === null && document.querySelector('head link[href*="/themes/"]')) window.__linkAt = performance.now();
           if (window.__mountAt === null && document.querySelector('main.tern')) window.__mountAt = performance.now();
         }).observe(document, { childList: true, subtree: true });
       });
@@ -2549,7 +2553,9 @@ const TESTS = [
       const again = await page.evaluate(() => ({
         bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
         value: document.querySelector('.tern > .t-themes select').value,
-        early: performance.getEntriesByType('resource').some((e) => /\/themes\/nord\.css/.test(e.name) && e.startTime < window.__mountAt),
+        linkAt: window.__linkAt,
+        mountAt: window.__mountAt,
+        early: window.__linkAt !== null && window.__mountAt !== null && window.__linkAt <= window.__mountAt,
         events: window.__themes.join(),
       }));
       if (again.bg !== bgOf('nord') || again.value !== 'nord' || !again.early) throw new Error(`after a reload: ${JSON.stringify(again)}`);

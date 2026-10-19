@@ -7,7 +7,10 @@ name: ci
 on:
   push:
     branches: ['**']
+  # Labelling runs the checks again: the changelog job reads the labels from
+  # the event that started the run, so a re-run after labelling sees none.
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # One run per branch at a time: a push cancels the run of the push before it.
 concurrency:
