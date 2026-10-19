@@ -2698,7 +2698,9 @@ const TESTS = [
 
       // Nord: the link after the base style, the variables in effect, the choice kept and announced, the diagram redrawn.
       await page.selectOption('.tern > .t-themes select', 'nord');
-      await expect(page, (bg) => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Nord in effect', 8000, bgOf('nord'));
+      // A sheet's variables can be in effect before its load event, which is when the add-on announces the theme
+      // and drops the old sheet (WebKit does), so the wait is for the announcement and the links, not the style alone.
+      await expect(page, (bg) => window.__themes.join() === 'nord' && [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)).join() === '/themes/nord.css' && getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Nord announced, its sheet alone and in effect', 8000, bgOf('nord'));
       s = await state();
       if (s.value !== 'nord' || s.stored !== 'nord' || s.events !== 'nord') throw new Error(`after choosing Nord: ${JSON.stringify(s)}`);
       if (s.themes.join() !== '/themes/nord.css') throw new Error(`theme links: ${s.themes}`);
@@ -2729,7 +2731,7 @@ const TESTS = [
 
       // A light file, then Default: the old sheet goes once the new is in, then none is left.
       await page.selectOption('.tern > .t-themes select', 'solarized-light');
-      await expect(page, (bg) => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Solarized light in effect', 8000, bgOf('solarized-light'));
+      await expect(page, (bg) => window.__themes.join() === 'nord,solarized-light' && [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)).join() === '/themes/solarized-light.css' && getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Solarized light announced, its sheet alone and in effect', 8000, bgOf('solarized-light'));
       s = await state();
       if (s.themes.join() !== '/themes/solarized-light.css' || s.stored !== 'solarized-light') throw new Error(`after choosing Solarized light: ${JSON.stringify(s)}`);
       await page.selectOption('.tern > .t-themes select', '');
@@ -2758,7 +2760,7 @@ const TESTS = [
       // A remembered theme the list does not offer is shown by its name, while it lasts.
       await page.evaluate(() => localStorage.setItem('tern.theme', 'dracula'));
       await page.reload();
-      await expect(page, () => window.tern && window.tern.ready && document.querySelector('.tern > .t-themes select option.t-themes-other'), 'the unlisted theme named in the select', 20000);
+      await expect(page, (bg) => window.tern && window.tern.ready && document.querySelector('.tern > .t-themes select option.t-themes-other') && getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'the unlisted theme named in the select and in effect', 20000, bgOf('dracula'));
       const other = await page.evaluate(() => {
         const s = document.querySelector('.tern > .t-themes select');
         return { value: s.value, text: s.selectedOptions[0].textContent, bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() };
