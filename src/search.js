@@ -9,9 +9,10 @@
 // add-ons fetch and draw, the command line reads and writes files.
 //
 // An index is written out by `tern index` and read back by the add-on and
-// `tern search --index`, so its stems must be the reader's: the stemmer
-// changes only in a minor release, and an index records the version that
-// wrote it (its `tern`); a reader of the same major and minor can use it.
+// `tern search --index`, so its words must be the reader's: the folding,
+// the segmentation and the stemmer change only in a minor release, and an
+// index records the version that wrote it (its `tern`); a reader of the
+// same major and minor can use it.
 'use strict';
 
 const { decode } = require('./entities');
@@ -193,7 +194,54 @@ function records(ast, { url = '', title: pageTitle = '' } = {}) {
 
 // ---------------------------------------------------------------- words
 
-const words = (s) => (String(s).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length > 1);
+// fold(s) -> the form text is indexed and searched in: compatibility forms
+// composed (NFKC: ﬁ is fi, full-width letters are ASCII), lower case, and
+// the diacritics of Latin, Greek and Cyrillic letters removed, whichever
+// Unicode form they were written in (café is cafe, İstanbul is istanbul, ё
+// is е). The marks of other scripts (Devanagari, Thai, Arabic, the kana
+// voicing marks) are letters' own and are kept.
+const MARKS = /[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f]/g;
+const fold = (s) => String(s).normalize('NFKC').toLowerCase().normalize('NFD').replace(MARKS, '').normalize('NFC');
+
+// A word: letters, digits and the marks on them (a vowel sign, an accent
+// written as a combining character); a run of Han, Kana or Hangul, which
+// write no spaces between words, is searched as its pairs of characters
+// (bigrams), at index and query time alike, so no segmenter is needed and
+// an index written under node serves every browser; a run of one character
+// is that character. Other words stand whole, two characters or more.
+const WORD = /[\p{L}\p{N}\p{M}]+/gu;
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\u30fc]/u;
+// pieces(run, base) -> [{t, a, b}]: the tokens of one word match, with
+// their [a, b) in UTF-16 units from `base`.
+function pieces(run, base = 0) {
+  const out = [];
+  let plain = null; // {a, s}
+  let cjk = []; // [{c, a, b}]
+  const flushPlain = () => {
+    if (plain && plain.s.length > 1) out.push({ t: plain.s, a: plain.a, b: plain.a + plain.s.length });
+    plain = null;
+  };
+  const flushCjk = () => {
+    if (cjk.length === 1) out.push({ t: cjk[0].c, a: cjk[0].a, b: cjk[0].b });
+    else for (let i = 0; i + 1 < cjk.length; i++) out.push({ t: cjk[i].c + cjk[i + 1].c, a: cjk[i].a, b: cjk[i + 1].b });
+    cjk = [];
+  };
+  let at = base;
+  for (const ch of run) {
+    const next = at + ch.length;
+    if (CJK.test(ch)) (flushPlain(), cjk.push({ c: ch, a: at, b: next }));
+    else {
+      flushCjk();
+      if (!plain) plain = { a: at, s: '' };
+      plain.s += ch;
+    }
+    at = next;
+  }
+  flushPlain();
+  flushCjk();
+  return out;
+}
+const words = (s) => (fold(s).match(WORD) || []).flatMap((w) => pieces(w).map((p) => p.t));
 
 // A light stem, the same for a word and its forms: plurals, -ed and -ing
 // lose their ending, and a final e goes, so "prove", "proves", "proved"
@@ -272,18 +320,24 @@ function query(idx, text, { limit = 20 } = {}) {
 function snippet(text, matched, { width = 160 } = {}) {
   const flat = String(text).replace(/\s+/g, ' ').trim();
   const list = [...matched];
-  // Every word that matches: it begins with a matched stem, or stems to one.
-  // The words are scanned once, so the cost is linear in the text (a regex
-  // with letters around each stem backtracked from every position of a long
-  // token); `first` stops at the first.
+  // Every word that matches: it begins with a matched stem, or stems to one;
+  // in a run of Han, Kana or Hangul each pair of characters, as it was
+  // indexed, the pairs that touch marked as one range. The words are
+  // scanned once, so the cost is linear in the text (a regex with letters
+  // around each stem backtracked from every position of a long token);
+  // `first` stops at the first.
   const matches = (w) => list.some((k) => w.startsWith(k) || stem(w) === k);
   const hits = (s, first = false) => {
     const out = [];
     if (!list.length) return out;
-    for (const m of s.matchAll(/[\p{L}\p{N}]+/gu)) {
-      if (!matches(m[0].toLowerCase())) continue;
-      out.push([m.index, m.index + m[0].length]);
-      if (first) break;
+    scan: for (const m of s.matchAll(WORD)) {
+      for (const p of pieces(m[0], m.index)) {
+        if (!matches(fold(p.t))) continue;
+        const last = out[out.length - 1];
+        if (last && p.a <= last[1]) last[1] = Math.max(last[1], p.b);
+        else out.push([p.a, p.b]);
+        if (first) break scan;
+      }
     }
     return out;
   };
@@ -306,4 +360,4 @@ function snippet(text, matched, { width = 160 } = {}) {
   return { text: `${pre}${piece}${end < flat.length ? '…' : ''}`, marks };
 }
 
-module.exports = { plain, title, describe, records, stem, tokens, index, query, snippet };
+module.exports = { plain, title, describe, records, fold, stem, tokens, index, query, snippet };
