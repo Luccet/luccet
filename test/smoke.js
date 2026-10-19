@@ -2652,7 +2652,7 @@ const TESTS = [
     },
   },
   {
-    name: 'switcher add-on: ::themes lists the themes; a choice applies one beside tern.css, is remembered across pages, announced as tern:theme and drawn by Mermaid; a page\'s own theme and a short list; at= puts the control in the docs nav',
+    name: 'switcher add-on: ::themes lists the themes; a choice applies one beside tern.css, is remembered across pages, announced as tern:theme and drawn by Mermaid; a page\'s own theme and a short list; at= puts the control in a page\'s own element',
     url: '/test/smoke/switcher.html',
     timeout: 120000,
     context: { colorScheme: 'light' },
@@ -2767,17 +2767,17 @@ const TESTS = [
       await page.selectOption('.tern > .t-themes select', 'solarized-dark');
       await expect(page, () => !document.querySelector('.tern > .t-themes select option.t-themes-other'), 'the extra option gone once another theme is chosen');
 
-      // The docs: at=.docs-nav-themes puts the control in the site navigation, and the choice holds there.
+      // at=SELECTOR puts the control in the page's own element (a site navigation), and the choice holds there.
       await page.evaluate(() => localStorage.setItem('tern.theme', 'gruvbox-dark'));
-      await page.goto(`${ctx.origin}/docs/api.html`);
-      await expect(page, () => window.tern && window.tern.ready && document.querySelector('.site-nav .docs-nav-themes .t-themes select'), 'the docs nav has the control', 30000);
+      await page.goto(`${ctx.origin}/test/smoke/switcher-at.html`);
+      await expect(page, () => window.tern && window.tern.ready && document.querySelector('nav.smoke-slot .t-themes select'), 'the page\'s navigation has the control', 30000);
       await page.evaluate(() => window.tern.ready);
       const docs = await page.evaluate(() => ({
-        value: document.querySelector('.site-nav .docs-nav-themes .t-themes select').value,
+        value: document.querySelector('nav.smoke-slot .t-themes select').value,
         controls: document.querySelectorAll('.t-themes').length,
         bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
       }));
-      if (docs.value !== 'gruvbox-dark' || docs.controls !== 1 || docs.bg !== bgOf('gruvbox-dark')) throw new Error(`on the docs page: ${JSON.stringify(docs)}`);
+      if (docs.value !== 'gruvbox-dark' || docs.controls !== 1 || docs.bg !== bgOf('gruvbox-dark')) throw new Error(`with at=: ${JSON.stringify(docs)}`);
       await page.evaluate(() => localStorage.removeItem('tern.theme'));
     },
   },
