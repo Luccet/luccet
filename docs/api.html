@@ -32,7 +32,7 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`tern.block`, `tern.leaf`, `tern.inline`](#registry) | engine | declare a name | works |
 | [`tern.transforms`](#tern-transforms) | engine | the transform order | works |
 | [`tern.css`](#tern-css) | engine | the base stylesheet, as a string | works |
-| [`tern.version`](#tern-version) | engine | `'0.6.0'` | works |
+| [`tern.version`](#tern-version) | engine | `'1.0.0'` | works |
 | [`tern.define`, `tern.undefine`](#define) | runtime | DOM behaviours | registers; nothing runs |
 | [`tern.on(event, fn)`](#on) | runtime | `render`, `math`, `ready`, `diagnostic` | registers; nothing fires |
 | [`tern.render(root, source)`](#render) | runtime | renders into an element | resolves to `[]` |
@@ -75,7 +75,7 @@ npm install github:OzkrAC/tern#vX.Y.Z
 const tern = require('@ozkrac/tern');          // from the package, or
 const tern = require('./tern.js');             // from a checkout: the same file
 
-tern.version;                    // → '0.6.0'
+tern.version;                    // → '1.0.0'
 tern.toHTML('Hello *world*.');   // → '<p>Hello <em>world</em>.</p>\n'
 ```
 
@@ -678,7 +678,7 @@ tern.css.slice(0, 26);   // → ':root {\n  color-scheme: li'
 
 #### `tern.version` {#tern-version}
 
-The version of this tern.js, as a string: `'0.6.0'`. A script can check it to tell whether `window.tern` is Tern's object, as tern.js itself does before taking over.
+The version of this tern.js, as a string: `'1.0.0'`. A script can check it to tell whether `window.tern` is Tern's object, as tern.js itself does before taking over.
 
 ## The runtime {#runtime}
 
