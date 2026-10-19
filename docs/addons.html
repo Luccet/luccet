@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js ../addons/copy.js"></script>
 
 :::meta
-description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, diagrams with Mermaid, citations from BibTeX or CSL-JSON, a search box over a set of notes, and a list of them.
+description: The add-ons that come with Tern, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, copy buttons on code, diagrams with Mermaid, a lightbox for figures, citations from BibTeX or CSL-JSON, a search box over a set of notes, and a list of them.
 :::
 
 ::site-nav
@@ -206,6 +206,53 @@ The add-on sets Mermaid's `base` theme from the page's [custom properties](schem
 ### A newer Mermaid {#mermaid-updating}
 
 The version and its hash live in a table in `addons/mermaid.js`. To move to another version, run `node tools/mermaid.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
+
+## Copy buttons {#copy}
+
+`copy.js` puts a button on every fence and listing that copies its code to the clipboard: the code alone, as written, without line numbers or highlighting. The button says "Copy", then "Copied" for a moment, and a status line says the same to a screen reader. It is not printed.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/copy.js"></script>
+```
+````tern
+```js {data-copy=false}
+no button on this one
+```
+````
+:::
+
+- **Where.** Inside the `<pre>`, first, as `<button type="button" class="t-copy">`, positioned in the fence's top corner; the `<pre>` gets the class `t-copyable`. Because the button is inside the fence, a fence another add-on moves or hides, a [diagram](#mermaid), takes it along. `{data-copy=false}` on a fence (on the listing, for a titled one) gives it none.
+- **What is copied** is the text of the fence's `<code>`: the lines as written, with their line breaks, without the numbers, which are CSS counters, and without the highlighting, which is markup.
+- **How.** The clipboard API where the page may use it (a secure context: `https`, a local file, `localhost`); elsewhere the copy goes through a selection and `execCommand`, which works inside a click everywhere. When neither works the button says "Copy failed".
+- **The words** `copy`, `copied` and `copyFailed` come from [`window.TERN.strings`](api.html#strings) when the page sets them. The status line is `div.t-copy-status[role=status]`, visually hidden, appended to the body.
+- **Styling.** The button uses the theme's colours (`--t-fg` on `--t-bg`, a `--t-line-strong` border) and is faded until the fence is hovered or the button focused; a stylesheet add-on can restyle `.t-copy`. Under a strict CSP its styles carry the page's nonce, as every `tern.style` does.
+- **Without the page,** `tern check` and `tern build` load the add-on and nothing happens: a built page gets its buttons when `tern.js` runs. An [untrusted root](api.html#render) gets no behaviour, so no buttons.
+
+## Lightbox {#lightbox}
+
+`lightbox.js` opens a figure's image full size, in a dialog, on a click or on Enter, with the figure's caption under it. Escape, the close button or a click beside the image closes it, and focus returns to the image.
+
+:::syntax
+```html
+<script src="tern.js" data-use="addons/lightbox.js"></script>
+<script src="tern.js" data-use="addons/lightbox.js?images=all"></script>
+```
+```tern
+![A tern in flight](tern.jpg){#fig-tern}
+
+:::figure[Left as it is]{data-lightbox=false}
+![A map](map.png)
+:::
+```
+:::
+
+- **Which images.** Every `<img>` in a [figure](elements.html#figures), implicit or `:::figure`. `images=all`, on the add-on or in `window.TERN = {use: {lightbox: {images: 'all'}}}`, takes every image of the note. An image inside a link is left to its link, and `{data-lightbox=false}` on a figure or an image leaves it alone.
+- **The image** gets the class `t-zoomable` (a zoom cursor), `tabindex="0"`, `role="button"`, `aria-haspopup="dialog"` and an `aria-label` of "View full size" with its alt text, so it is a control a keyboard and a screen reader reach; it stays an `<img>` where it was, so the page's own CSS keeps applying.
+- **The dialog** is one `<dialog class="t-lightbox">` for the page, appended to the body when first needed: a close button (`t-lightbox-close`, labelled Close), the image at up to 94% of the viewport's width and 86% of its height, and the caption (`t-lightbox-caption`, the figure's `<figcaption>` text, with its label, else the alt text). Its `aria-label` is the caption. While it is open the page behind does not scroll (in browsers with `:has()`).
+- **The words** `viewFullSize` and `close` come from [`window.TERN.strings`](api.html#strings) when the page sets them.
+- **Needs `<dialog>`** (Chrome 37, Firefox 98, Safari 15.4). In an older browser inside [the support floor](publishing.html#browsers) the add-on does nothing and images stay as they are.
+- **Without the page,** `tern check` and `tern build` load the add-on and nothing happens; a built page gets the behaviour when `tern.js` runs. An untrusted root gets none.
 
 ## Math with KaTeX {#katex}
 
