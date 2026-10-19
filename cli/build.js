@@ -24,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { analyse, attributes, tern } = require('./note');
+const { styleTag } = require('./diagrams');
 
 const escAttr = (s) => String(s).replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c]);
 const escText = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c]);
@@ -225,10 +226,13 @@ function htmlAttributes(head, add) {
 
 // ---------------------------------------------------------------- build
 
-// build(text, file, {math, noScripts}) -> null when the file is not a note,
-// else {html, diagnostics, failures, warnings, math:{total, prerendered, engine}, toFile}.
-// math is 'katex' (pre-render with KaTeX), 'mathml' (native MathML with Temml)
-// or absent (formulas left for tern.js at view time).
+// build(text, file, {math, noScripts, diagrams}) -> null when the file is not
+// a note, else {html, diagnostics, failures, warnings, math:{total,
+// prerendered, engine}, use, nonce, toFile}. math is 'katex' (pre-render with
+// KaTeX), 'mathml' (native MathML with Temml) or absent (formulas left for
+// tern.js at view time). With diagrams, the head carries the stylesheet the
+// diagrams cli/diagrams.js draws into the page need (removed again if none
+// is drawn).
 function build(text, file, opts = {}) {
   const a = analyse(text, file, { noScripts: opts.noScripts });
   if (!a) return null;
@@ -343,6 +347,7 @@ function build(text, file, opts = {}) {
   const base = sheets.find((s) => s.href != null && (s.href === css || /(?:^|\/)tern(?:\.min)?\.css$/i.test(s.href.replace(/[?#].*$/, ''))));
   const before = sheet ? [sheet.inlineCss ? `<style id="tern-temml-style"${n}>\n${sheet.inlineCss}</style>` : link(sheet.href, sheet.integrity)] : [];
   const after = use.filter(isCss).map((u) => link(u));
+  if (opts.diagrams) after.push(styleTag(attrs['data-nonce']));
   if (base) {
     head = [head.slice(0, base.start), ...before.map((x) => `${x}\n`), head.slice(base.start, base.end), ...after.map((x) => `\n${x}`), head.slice(base.end)].join('');
   } else {
@@ -373,7 +378,7 @@ function build(text, file, opts = {}) {
     ...(notes.length ? [`<script type="application/json" id="tern-diagnostics">${scriptJson(notes.map(({ filePosition, ...d }) => d))}</script>`] : []),
     '',
   ].join('\n');
-  return { html: page, diagnostics: notes, failures: pre ? pre.failures : [], warnings, math: { total, prerendered, engine: pre ? (mathml ? 'mathml' : 'katex') : null }, toFile: a.toFile };
+  return { html: page, diagnostics: notes, failures: pre ? pre.failures : [], warnings, math: { total, prerendered, engine: pre ? (mathml ? 'mathml' : 'katex') : null }, use, nonce: attrs['data-nonce'] || null, toFile: a.toFile };
 }
 
 module.exports = { build, decodeSource, escAttr };

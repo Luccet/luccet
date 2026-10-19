@@ -1196,6 +1196,71 @@ test('build --katex: formulas pre-rendered to HTML and MathML, with data-tex and
   ok(/data-katex="none"/.test(run(['build', 'k/none.html', '--katex'], { env }).err), 'data-katex="none" is not pre-rendered');
 });
 
+// `build --diagrams` draws the mermaid fences in a headless Chromium: tested
+// when playwright and its Chromium are there and the smoke tests' Mermaid
+// copy is cached (node_modules/.cache/tern-smoke/mermaid-*); else skipped.
+test('build --diagrams: mermaid fences drawn ahead with light, dark and print copies; a broken one kept with diagram.error; no add-on, no fence', async () => {
+  const cache = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
+  const mermaid = fs.existsSync(cache) && fs.readdirSync(cache).find((d) => /^mermaid-\d/.test(d) && fs.existsSync(path.join(cache, d, 'dist', 'mermaid.min.js')));
+  // The note loads the real tern.js and add-ons, since a browser runs them.
+  fs.mkdirSync(at('dg'), { recursive: true });
+  for (const [name, target] of [['tern.js', path.join(ROOT, 'tern.js')], ['addons', path.join(ROOT, 'addons')]]) {
+    try {
+      fs.symlinkSync(target, at('dg', name), name === 'addons' ? 'dir' : 'file');
+    } catch {
+      fs.cpSync(target, at('dg', name), { recursive: true });
+    }
+  }
+  const note = `${FIRST}<script src="tern.js" data-use="addons/mermaid.js"></script>\n\n# D\n\n\`\`\`mermaid {#flow .wide}\nflowchart LR\n  A --> B\n\`\`\`\n\n\`\`\`mermaid [A listing]{#lst}\npie\n  "a": 1\n\`\`\`\n\n\`\`\`mermaid\nnot a diagram ((\n\`\`\`\n`;
+  fs.writeFileSync(at('dg', 'n.html'), note);
+  // Without the add-on the diagrams are not drawn, and the build says so; a note without a fence gets no stylesheet.
+  write('dg/plain.html', `${FIRST}<script src="tern.js"></script>\n\n\`\`\`mermaid\nflowchart LR\n  A --> B\n\`\`\`\n`, { tern: false });
+  let r = run(['build', 'dg/plain.html', '--diagrams']);
+  exits(r, 0, 'build --diagrams without the add-on');
+  ok(/does not load addons\/mermaid\.js, so its diagrams are not drawn/.test(r.err) && /1 diagram, 0 drawn ahead/.test(r.err) && !/tern-mermaid-style/.test(r.out), `without the add-on: ${r.err}`);
+  write('dg/none.html', `${FIRST}<script src="tern.js" data-use="addons/mermaid.js"></script>\n\nNo diagram.\n`, { tern: false });
+  r = run(['build', 'dg/none.html', '--diagrams']);
+  exits(r, 0, 'build --diagrams without a fence');
+  ok(/0 formulas; 0 diagrams$/m.test(r.err) && !/tern-mermaid-style/.test(r.out), `without a fence: ${r.err}`);
+  if (!mermaid) throw new Skip('no Mermaid in node_modules/.cache/tern-smoke (run the smoke tests once)');
+  let pw = null;
+  try {
+    pw = require('playwright');
+  } catch {
+    throw new Skip('playwright cannot be required');
+  }
+  try {
+    await (await pw.chromium.launch()).close();
+  } catch (e) {
+    throw new Skip(`Chromium cannot launch: ${String(e.message).split('\n')[0]}`);
+  }
+  r = run(['build', 'dg/n.html', '--diagrams', '--json']);
+  exits(r, 0, 'build --diagrams');
+  const j = JSON.parse(r.out);
+  eq(j.diagrams, { total: 3, drawn: 2, from: `the cached ${mermaid.replace('-', ' ')}` }, '--json diagrams');
+  ok(/3 diagrams, 2 drawn ahead with Mermaid from the cached mermaid/.test(r.err), `summary: ${r.err}`);
+  ok(/^dg\/n\.html:15:1: warning diagram\.error: Mermaid cannot draw this diagram, so the page keeps the fence: /m.test(r.err), `the broken fence's warning: ${r.err}`);
+  eq(j.diagnostics.map((d) => `${d.code} ${d.filePosition.start.line}:${d.filePosition.start.column}`), ['diagram.error 15:1'], '--json diagnostics');
+  const html = j.html;
+  const p = pageParts(html);
+  wellFormed(html);
+  ok(/<style id="tern-mermaid-style">\n\.t-mermaid \{/.test(p.head), 'the diagrams stylesheet in the head');
+  // The fence's id and data-pos on the wrapper, the fence hidden inside; a listing keeps its figure.
+  ok(/<div class="t-mermaid" id="flow" data-pos="4:1"><svg[^>]*class="t-mermaid-screen t-mermaid-light"[^>]*data-palette="#[0-9a-f]{6},/.test(p.main), `the first wrapper: ${p.main.slice(0, 300)}`);
+  ok(/<figure id="lst" class="t-block code" data-t="code" data-pos="9:1"><div class="t-mermaid"><svg/.test(p.main), 'the listing wrapped inside its figure');
+  const copies = [...p.main.matchAll(/<svg\b[^>]*class="(t-mermaid-[a-z -]+)"/g)].map((m) => m[1]);
+  eq(copies, ['t-mermaid-screen t-mermaid-light', 't-mermaid-screen t-mermaid-dark', 't-mermaid-print', 't-mermaid-screen t-mermaid-light', 't-mermaid-screen t-mermaid-dark', 't-mermaid-print'], 'a light, a dark and a print copy per diagram (tern.css follows the system)');
+  ok(/<pre class="wide" data-t="code" data-pos="4:1" hidden><code class="language-mermaid">flowchart LR/.test(p.main), 'the fence kept, hidden, without its id');
+  ok(/<pre data-t="code" data-pos="14:1"><code class="language-mermaid">not a diagram \(\(/.test(p.main) && !/t-mermaid-error/.test(p.main), 'the broken fence kept as a fence, no error in the page');
+  const ids = [...p.main.matchAll(/<svg id="([^"]+)"/g)].map((m) => m[1]);
+  ok(new Set(ids).size === 6 && ids.every((i) => /^t-mermaid-\d+-p\d+$/.test(i)), `unique ids per copy: ${ids}`);
+  const keys = [...p.main.matchAll(/data-palette="([^"]*)"/g)].map((m) => m[1]);
+  ok(keys[0] !== keys[1] && keys[1] !== keys[2] && keys[0] === keys[3] && keys[2] === keys[5], 'palette keys: light, dark and print differ; the same per scheme across diagrams');
+  // Without --diagrams nothing of this is written.
+  const plain = run(['build', 'dg/n.html']);
+  ok(!/tern-mermaid-style|<svg/.test(plain.out), 'no drawing without the flag');
+});
+
 test('build --math=mathml: formulas pre-rendered to native MathML with Temml, self-contained', () => {
   const cache = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
   const version = fs.existsSync(cache) && fs.readdirSync(cache).find((d) => /^temml-\d/.test(d) && fs.existsSync(path.join(cache, d, 'dist', 'temml.cjs')));

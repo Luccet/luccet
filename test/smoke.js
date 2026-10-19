@@ -20,7 +20,9 @@
 //                        built-note-config.html, built-addon-throws.html
 //                        built-poster.html and built-cite.html are
 //                        test/smoke/own-schema.html, note-config.html,
-//                        addon-throws.html, poster.html and cite.html built
+//                        addon-throws.html, poster.html and cite.html built;
+//                        built-diagrams.html a note made beside tern.js,
+//                        built with --diagrams
 //   /gen/poster.png      a 1-pixel PNG, poster.html's poster
 //   /gen/indexed/…       a copy of test/smoke/search/ after `tern index`
 //                        ran in it: notes.json and search.json beside the
@@ -432,6 +434,7 @@ const GENERATED = {
   'built-addon-throws.html': () => ['text/html', cliPage('built-addon-throws')],
   'built-poster.html': () => ['text/html', cliPage('built-poster')],
   'built-cite.html': () => ['text/html', cliPage('built-cite')],
+  'built-diagrams.html': () => ['text/html', cliPage('built-diagrams')],
   'poster.png': () => ['image/png', PNG_1PX],
   'guarded.html': () => ['text/html', cliPage('guarded')],
 };
@@ -484,6 +487,16 @@ function cliPage(name) {
       fs.symlinkSync(path.join(CACHE, `katex-${KATEX_VERSION}`, 'dist'), path.join(pkg, 'dist'), 'dir');
       html = cli(['build', 'test/smoke/built.html', '--katex'], { NODE_PATH: path.join(tmp, 'node_modules') });
       if (!/<script data-built src=/.test(html)) throw new Error('tern build --katex left formulas to tern.js');
+    } else if (name === 'built-diagrams') {
+      // A note next to the real tern.js and add-ons, since a browser runs
+      // them; the page's URLs are then made the server's.
+      const dir = path.join(tmp, 'diagrams');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.symlinkSync(path.join(ROOT, 'tern.js'), path.join(dir, 'tern.js'), 'file');
+      fs.symlinkSync(path.join(ROOT, 'addons'), path.join(dir, 'addons'), 'dir');
+      fs.writeFileSync(path.join(dir, 'n.html'), '<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/mermaid.js"></script>\n\n# Smoke: diagrams drawn ahead {#top}\n\n```mermaid {#flow}\nflowchart LR\n  A --> B\n```\n\n```mermaid [A listing]{#lst}\npie\n  "a": 1\n  "b": 2\n```\n');
+      html = cli(['build', path.join(dir, 'n.html'), '--diagrams']).replace('src="tern.js"', 'src="/tern.js"').replace(/(src|data-use)="addons\/mermaid\.js"/g, '$1="/addons/mermaid.js"');
+      if (!/<svg[^>]*class="t-mermaid-screen t-mermaid-light"/.test(html)) throw new Error('tern build --diagrams drew no diagram');
     } else if (name === 'built-mathml') {
       const pkg = path.join(tmp, 'node_modules', 'temml');
       fs.mkdirSync(pkg, { recursive: true });
@@ -2046,6 +2059,56 @@ const TESTS = [
       await expect(page, () => !!document.querySelector('main.tern h1'), 'main.tern');
       const failed = ctx.diagnostics.filter((d) => d.code === 'addon.failed').map((d) => d.message);
       if (failed.length !== 1 || !failed[0].includes('missing-addon.js')) throw new Error(`addon.failed ${JSON.stringify(failed)}, expected one naming missing-addon.js`);
+    },
+  },
+  {
+    name: 'built page with --diagrams: the drawings shown per scheme and in print with no Mermaid request; a theme switch draws afresh',
+    url: '/gen/built-diagrams.html',
+    timeout: 90000,
+    context: { colorScheme: 'light' },
+    async setup(_context, page, ctx) {
+      cliPage('built-diagrams');
+      ctx.mermaid = 0;
+      page.on('request', (q) => /mermaid\.min\.js/.test(q.url()) && ctx.mermaid++);
+    },
+    async check(page, ctx) {
+      const shown = () =>
+        page.evaluate(() =>
+          ['#flow', '#lst > .t-mermaid'].map((sel) =>
+            [...document.querySelectorAll(`${sel} > svg`)].map((s) => `${s.className.baseVal.replace(/t-mermaid-/g, '')}:${getComputedStyle(s).display}`).join(' '),
+          ),
+        );
+      const keyOf = (sel) => page.evaluate((sel) => document.querySelector(`${sel} > svg.t-mermaid-screen`).getAttribute('data-palette'), sel);
+      await page.waitForTimeout(300);
+      let s = await shown();
+      if (s[0] !== 'screen:block alt:none print:none' || s[1] !== 'screen:block alt:none print:none') throw new Error(`in the light scheme: ${JSON.stringify(s)}`);
+      const light = await keyOf('#flow');
+      if (ctx.mermaid) throw new Error('Mermaid was requested for a page whose diagrams are drawn');
+      // The dark scheme: the dark copy, still without Mermaid.
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await expect(page, (was) => document.querySelector('#flow > svg.t-mermaid-screen').getAttribute('data-palette') !== was, 'the dark copy shown', 8000, light);
+      s = await shown();
+      if (s[0] !== 'alt:none screen:block print:none' || s[1] !== 'alt:none screen:block print:none') throw new Error(`in the dark scheme: ${JSON.stringify(s)}`);
+      if (ctx.mermaid) throw new Error('Mermaid was requested for the dark scheme');
+      // Print: the print copy alone.
+      await page.emulateMedia({ media: 'print' });
+      s = await shown();
+      if (s[0] !== 'alt:none screen:none print:block') throw new Error(`in print: ${JSON.stringify(s)}`);
+      await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
+      // A theme no copy was drawn for: the add-on draws afresh, once Mermaid is loaded, and the kept copies go.
+      const built = await page.evaluate(() => [...document.querySelectorAll('#flow > svg, #lst > .t-mermaid > svg')].map((e) => Number(/-p(\d+)$/.exec(e.id)[1])));
+      await page.evaluate(async () => {
+        const l = document.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = '/themes/nord.css';
+        document.head.append(l);
+        await new Promise((r) => (l.onload = r));
+        window.dispatchEvent(new CustomEvent('tern:theme', { detail: { theme: 'nord', href: l.href } }));
+      });
+      await expect(page, () => document.querySelectorAll('#flow > svg').length === 2 && document.querySelectorAll('#lst > .t-mermaid > svg').length === 2 && !document.querySelector('.t-mermaid-alt') && getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === 'rgb(59, 66, 82)', 'both diagrams drawn afresh in Nord, the kept copies gone', 60000);
+      if (ctx.mermaid !== 1) throw new Error(`${ctx.mermaid} Mermaid requests for the fresh drawing, expected 1`);
+      // The print copies follow the screen ones; every fresh id suffix comes after the build's.
+      await expect(page, (max) => [...document.querySelectorAll('#flow > svg, #lst > .t-mermaid > svg')].every((e) => Number(/-p(\d+)$/.exec(e.id)[1]) > max), `fresh id suffixes after the build's (${built})`, 30000, Math.max(...built));
     },
   },
   {

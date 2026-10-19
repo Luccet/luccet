@@ -20,6 +20,12 @@
 // fence stays, hidden, inside the diagram's element; one that Mermaid
 // cannot read stays as it is, with the error after it.
 //
+// A page `tern build --diagrams` wrote has its diagrams drawn already, a
+// copy per palette the build saw (light, dark) and the print copy, each
+// marked with its palette (data-palette). The add-on adopts them: it shows
+// the copy for the palette in effect, and asks for Mermaid only when none
+// fits (a theme switched in).
+//
 // A strict CSP blocks inline styles, which Mermaid writes while it draws
 // and measures, and puts in its SVG. On a page with a nonce (data-nonce),
 // they go through the CSSOM instead, which a CSP allows, and its <style>
@@ -44,7 +50,7 @@
       '.t-mermaid { font-family: var(--t-sans); font-size: 16px; line-height: 1.5; }',
       '.tern .t-mermaid { margin-block: 0 1rem; }',
       '.t-mermaid > svg { display: block; margin-inline: auto; max-inline-size: 100%; height: auto; }',
-      '.t-mermaid > .t-mermaid-print { display: none; }',
+      '.t-mermaid > .t-mermaid-print, .t-mermaid > .t-mermaid-alt { display: none; }',
       '.t-mermaid-box { position: absolute; inset-inline-start: -10000px; inset-block-start: 0; inline-size: var(--t-width); visibility: hidden; }',
       '@media print { .t-mermaid > .t-mermaid-print { display: block; } .t-mermaid:has(> .t-mermaid-print) > .t-mermaid-screen { display: none; } }',
     ].join('\n'),
@@ -409,14 +415,17 @@
     }
   }
 
-  function place(wrap, svg, cls) {
+  function place(wrap, svg, cls, key) {
     const el = nodes(svg);
     if (!el) return;
     el.classList.add(cls);
+    el.setAttribute('data-palette', key);
     uniqueIds(el);
-    const old = wrap.querySelector(`:scope > .${cls}`);
-    if (old) old.replaceWith(el);
+    // A screen copy supersedes every copy of the build's, the kept ones too.
+    const olds = [...wrap.querySelectorAll(`:scope > .${cls}${cls === 't-mermaid-screen' ? ', :scope > .t-mermaid-alt' : ''}`)];
+    if (olds.length) olds.shift().replaceWith(el);
     else wrap.insertBefore(el, wrap.querySelector(':scope > pre'));
+    for (const o of olds) o.remove();
     restyle(el);
   }
 
@@ -433,7 +442,7 @@
     const r = await draw(sources.get(wrap), screen);
     if (!r || !current()) return;
     if (r.error) return fail(wrap, r.error);
-    place(wrap, r.svg, 't-mermaid-screen');
+    place(wrap, r.svg, 't-mermaid-screen', key);
     wrap.querySelector(':scope > pre').hidden = true;
     // The print copy, in tern.css's print palette, for every palette that is
     // not it: a light theme's colours are not print's black on white either.
@@ -441,7 +450,36 @@
     const print = Object.assign({}, PRINT, { font: screen.font });
     if (keyOf(print) === key) return void (old && old.remove());
     const pr = await draw(sources.get(wrap), print);
-    if (pr && pr.svg && current()) place(wrap, pr.svg, 't-mermaid-print');
+    if (pr && pr.svg && current()) place(wrap, pr.svg, 't-mermaid-print', keyOf(print));
+  }
+
+  // Among the copies the build drew, the one for the palette in effect, if
+  // any, made the screen copy, the others kept aside; false when none fits.
+  function pick(wrap) {
+    const key = keyOf(palette(wrap));
+    const copies = [...wrap.querySelectorAll(':scope > svg.t-mermaid-screen, :scope > svg.t-mermaid-alt')];
+    const hit = copies.find((c) => c.getAttribute('data-palette') === key);
+    if (!hit) return false;
+    for (const c of copies) {
+      c.classList.toggle('t-mermaid-screen', c === hit);
+      c.classList.toggle('t-mermaid-alt', c !== hit);
+      c.classList.remove('t-mermaid-light', 't-mermaid-dark');
+    }
+    drawnFor.set(wrap, key);
+    return true;
+  }
+
+  // A fence the build drew already: its wrapper is adopted as if drawn here.
+  function adopt(wrap, code) {
+    sources.set(wrap, code.textContent);
+    // Later placements must not repeat the build's id suffixes.
+    for (const el of wrap.querySelectorAll('[id]')) {
+      const m = /-p(\d+)$/.exec(el.id);
+      if (m) placed = Math.max(placed, Number(m[1]));
+    }
+    // Under a nonce the parser applied none of the style attributes: the CSSOM may.
+    if (T.config && T.config.nonce) for (const svg of wrap.querySelectorAll(':scope > svg')) for (const el of [svg, ...svg.querySelectorAll('[style]')]) if (el.hasAttribute('style')) el.style.cssText = el.getAttribute('style');
+    if (!pick(wrap)) show(wrap);
   }
 
   // A diagram Mermaid cannot read: the fence back where it was, with the id
@@ -460,16 +498,19 @@
   // Redraw what a palette change leaves stale: the reader's light or dark
   // preference, or a theme switched in (the switcher add-on's tern:theme).
   const repaint = () => {
-    for (const wrap of document.querySelectorAll('.t-mermaid:not(.t-mermaid-box)')) if (sources.has(wrap) && keyOf(palette(wrap)) !== drawnFor.get(wrap)) show(wrap);
+    for (const wrap of document.querySelectorAll('.t-mermaid:not(.t-mermaid-box)')) if (sources.has(wrap) && keyOf(palette(wrap)) !== drawnFor.get(wrap) && !pick(wrap)) show(wrap);
   };
   if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
   window.addEventListener('tern:theme', repaint);
 
-  // Fences are pre[data-t=code], listings figure[data-t=code] holding one.
+  // Fences are pre[data-t=code], listings figure[data-t=code] holding one
+  // (inside the build's wrapper on a built page).
   T.define('code', (el) => {
-    const pre = el.matches('pre') ? el : el.querySelector(':scope > pre');
+    const pre = el.matches('pre') ? el : el.querySelector(':scope > pre, :scope > .t-mermaid > pre');
     const code = pre && pre.querySelector(':scope > code');
     if (!code || !/(?:^|\s)language-mermaid(?:\s|$)/i.test(code.className)) return;
+    const built = pre.parentElement;
+    if (built && built.classList.contains('t-mermaid') && built.querySelector(':scope > svg.t-mermaid-screen')) return adopt(built, code);
     const wrap = document.createElement('div');
     wrap.className = 't-mermaid';
     if (pre.id) (wrap.id = pre.id), pre.removeAttribute('id');

@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 54 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, `math.error` from `tern build --math`, and `output.limit` from the emitter, wherever it runs.
+The first 54 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, `math.error` from `tern build --math`, `diagram.error` from `tern build --diagrams`, and `output.limit` from the emitter, wherever it runs.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -88,6 +88,7 @@ The first 54 codes come from the parser and the transforms, so `tern.check`, `te
 | [`script.domcontentloaded`](#script-domcontentloaded) | error | A note script listens for `DOMContentLoaded`. |
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
 | [`math.error`](#math-error) | warning | `tern build --math` cannot pre-render a formula. |
+| [`diagram.error`](#diagram-error) | warning | `tern build --diagrams` cannot draw a diagram. |
 | [`output.limit`](#output-limit) | error | The note's HTML is longer than the emitter's budget and was cut short. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
 | [`addon.remote`](#addon-remote) | info | A remote add-on was not loaded under node. |
@@ -131,7 +132,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
 | `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
 | `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 
-Of the 54 parser and transform codes, 8 are errors, 33 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling` and `math.error` are warnings.
+Of the 54 parser and transform codes, 8 are errors, 33 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling`, `math.error` and `diagram.error` are warnings.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -2831,6 +2832,26 @@ A `:::macros` block that does not parse reads `the :::macros block does not pars
 **Fix.** Correct the TeX, such as `$\frac{a}{b}$`, or leave the formula to a math add-on in the browser.
 
 **Related.** [`math.opener-tail`](#math-opener-tail), [`addon.failed`](#addon-failed).
+
+### `diagram.error` {#diagram-error}
+
+**Warning.** `tern build --diagrams` cannot draw a diagram.
+
+- **Trigger.** With `--diagrams`, the Mermaid add-on, run in the build's headless browser, rejects a `mermaid` fence's text, or the fence was not drawn before the build stopped waiting ([diagrams drawn ahead](tools.html#build-diagrams)). Tern passes the text to Mermaid unchanged, so this is a Mermaid error, not a Tern one.
+- **Position.** The fence's opening line, from its element's `data-pos`.
+- **Content.** The fence is kept as a fence in the built page; the build draws every other diagram and still writes the page. At view time the add-on draws the fence again, loading Mermaid, and shows its error after the fence.
+- **Where.** `tern build` only. At runtime the add-on reports a diagram it cannot draw in the page and to the console, not as a diagnostic ([Runtime](#runtime)).
+
+```sh
+$ tern build notes/flow.html --diagrams
+notes/flow.html:15:1: warning diagram.error: Mermaid cannot draw this diagram, so the page keeps the fence: No diagram type detected matching given configuration for text: not a diagram ((
+```
+
+A fence that was not drawn in time reads `this diagram was not drawn in time, so the page keeps the fence`.
+
+**Fix.** Correct the diagram, or leave it to the add-on in the browser.
+
+**Related.** [`math.error`](#math-error), [`addon.failed`](#addon-failed).
 
 ### `output.limit` {#output-limit}
 

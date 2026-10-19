@@ -21,6 +21,7 @@ const { parseArgs } = require('util');
 const { spawnSync } = require('child_process');
 const { split, notNote, attributes, analyse, htmlFiles, repository, tern, clean, readText } = require('./note');
 const { build, escAttr } = require('./build');
+const { drawInto } = require('./diagrams');
 const links = require('./links');
 const examples = require('./examples');
 const { relocate, apply } = require('./relocate');
@@ -29,7 +30,7 @@ const SYNOPSIS = {
   new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--guarded] [--force]',
   check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'tern build FILE [-o OUT] [--math katex|mathml] [--json] [--no-scripts]',
+  build: 'tern build FILE [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]',
   mv: 'tern mv FROM… TO [--root=DIR] [--dry-run] [--json]',
   search: 'tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
@@ -59,9 +60,10 @@ const usage = () =>
       Write a static, pre-rendered page (to stdout without -o) that still
       loads tern.js; --math katex pre-renders formulas with the katex
       package (--katex is the same), --math mathml renders native MathML
-      with the temml package and turns KaTeX off. --json prints one object
-      instead (the page in it without -o). --no-scripts builds without
-      running the note's own code.
+      with the temml package and turns KaTeX off. --diagrams draws the
+      mermaid fences ahead, in a headless Chromium (the playwright package).
+      --json prints one object instead (the page in it without -o).
+      --no-scripts builds without running the note's own code.
   ${SYNOPSIS.mv}
       Move or rename notes, files and folders, and rewrite the relative URLs
       that point at them, in every note under DIR (default: the repository
@@ -709,8 +711,8 @@ function parse(args) {
 // -o OUT: a directory when it ends in a slash or is an existing directory
 // (created, with its parents, if missing), and the page is DIR/FILE's name;
 // otherwise the page's own path, its directory created if missing.
-function buildPage(args) {
-  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
+async function buildPage(args) {
+  const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, diagrams: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
   const math = o.math || (o.katex ? 'katex' : null);
   if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
@@ -731,17 +733,20 @@ function buildPage(args) {
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
   const text = read(file, 'build');
-  const r = build(text, file, { math, noScripts: o['no-scripts'] });
+  const r = build(text, file, { math, noScripts: o['no-scripts'], diagrams: !!o.diagrams });
   if (!r) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
+  // --diagrams: the mermaid fences drawn into the page by a headless browser.
+  const dg = o.diagrams ? await drawInto(r, file) : null;
   // --json: the warnings and diagnostics in one object on stdout, with the
   // page when no -o takes it; the summary and the warnings go to stderr too.
   const warnings = [];
-  const diagnostics = [...r.diagnostics, ...r.failures.map((f) => ({ severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) }))];
+  const diagnostics = [...r.diagnostics, ...r.failures.map((f) => ({ severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) })), ...(dg ? dg.failures : [])];
   const said = (w) => {
     warnings.push(clean(w));
     warn(`tern build: ${clean(w)}`);
   };
   for (const w of r.warnings) said(w);
+  if (dg) for (const w of dg.warnings) said(w);
   for (const d of diagnostics) warn(format(file, d));
   if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
   if (!out && !o.json) process.stdout.write(r.html);
@@ -758,10 +763,11 @@ function buildPage(args) {
     }
   }
   const m = r.math;
-  warn(`tern build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}`);
+  const drawn = dg ? `; ${plural(dg.total, 'diagram')}${dg.total ? `, ${dg.drawn} drawn ahead${dg.drawn ? ` with Mermaid from ${dg.from}` : ''}` : ''}` : '';
+  warn(`tern build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}${drawn}`);
   if (out && !asDir && !path.extname(out)) said(`${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`);
   if (o.json) {
-    const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+    const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
     if (!out) json.html = r.html;
     say(JSON.stringify(json, null, 2));
   }
