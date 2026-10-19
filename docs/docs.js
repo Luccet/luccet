@@ -5,7 +5,7 @@
 // It declares the pages' vocabulary, exposes the demo schema that live
 // examples use with schema=demo, and adds two behaviours:
 //   - site-nav: draws the site navigation, with the mark before the home
-//     link; `::logo` is the same mark alone, for the home page. The mark is
+//     link and a place for the theme switcher at its end; `::logo` is the same mark alone, for the home page. The mark is
 //     tern.png on a light theme and tern-white.png on a dark one, chosen by
 //     the text colour and followed when the theme changes;
 //   - code: turns each live example (a `tern` fence with the class `live`)
@@ -207,6 +207,8 @@
     if (EXAMPLES.length) {
       list.append(el('li', { class: 'docs-nav-group' }, el('span', { class: 'docs-nav-heading', id: 'docs-nav-examples' }, 'Examples'), el('ul', { 'aria-labelledby': 'docs-nav-examples' }, ...EXAMPLES.map(item))));
     }
+    // The theme switcher's place: the pages load addons/switcher.js?at=.docs-nav-themes.
+    list.append(el('li', { class: 'docs-nav-group docs-nav-themes' }));
     const toggle = el('button', { type: 'button', class: 'docs-nav-toggle', 'aria-expanded': 'false', 'aria-controls': 'docs-nav-list' }, 'Menu');
     toggle.addEventListener('click', () => {
       const open = toggle.getAttribute('aria-expanded') !== 'true';
