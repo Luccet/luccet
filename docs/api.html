@@ -527,7 +527,7 @@ tern.search.describe(head, ast) → { title, description, meta, headings, links 
 ```
 :::
 
-The pipeline behind the [search add-on](addons.html#search) and [`tern search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are stemmed lightly, and a query word stands for every indexed word it begins.
+The pipeline behind the [search add-on](addons.html#search) and [`tern search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
 
 ```js
 const { ast } = tern.parse('# Triangles {#tri}
@@ -550,12 +550,13 @@ tern.search.snippet(entries[1].text, ['pythagora']);
 ```
 
 - **`records(ast, {url, title})`** splits a transformed AST into entries: one per heading's section and one per named block with an id. A block's text is its own, not its section's; a block without an id gives its text to the entry it is in. `kind` is `'page'` (the text before the first heading), `'heading'`, or the block's name; `label` is the heading's text, the page's title, or the block's label ("Exercise 3"); `title` a block's bracket title. `line` and `endLine` are note lines. An entry with nothing to search is left out.
-- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`tern index`](tools.html#index-files) writes as `search.json`. Its stems are `stem`'s, which changes only in a minor release, so an index serves the readers of its own version series. A word in an entry's label or title weighs three times one in its text.
+- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`tern index`](tools.html#index-files) writes as `search.json`. Its words are `tokens`'s, whose folding, segmentation and stemming change only in a minor release, so an index serves the readers of its own version series. A word in an entry's label or title weighs three times one in its text.
 - **`query(index, text, {limit})`** ranks the entries BM25-style for the words of `text`, best first, at most `limit` (20; `Infinity` for all). `matched` lists the stems the hit matched, for `snippet`.
 - **`snippet(text, matched, {width})`** cuts a passage of about `width` characters (160) around the first matching word, `…` where it is cut, with the `[start, end)` ranges of every matching word in it.
 - **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.
 - **`describe(head, ast)`** is what a catalogue holds for a note ([`tern index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
-- **`stem(word)`** and **`tokens(text)`** are the stemmer and the tokeniser the index and the query share.
+- **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
+- **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share.
 
 ### The registry {#registry}
 

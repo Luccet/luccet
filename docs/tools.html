@@ -847,11 +847,11 @@ Each hit is two lines: `FILE:LINE:` the entry's label and title, with its id in 
 
 | Option | What it does |
 |---|---|
-| `QUERY` | One or more words, as one argument (`"strong induction"`). Each word is stemmed and stands for every word it begins: `pythag` finds Pythagoras and Pythagorean; `triangle` finds triangles. TeX is searched as written: `sqrt` finds `\sqrt`. |
+| `QUERY` | One or more words, as one argument (`"strong induction"`). Each word is folded and stemmed and stands for every word it begins: `pythag` finds Pythagoras and Pythagorean; `triangle` finds triangles; `cafe` finds Café. Chinese, Japanese and Korean are searched by pairs of characters, so `東京` finds 東京タワー. TeX is searched as written: `sqrt` finds `\sqrt`. See [Words](api.html#search). |
 | `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [tern check](#check-folders) does. |
 | `--limit=N` | At most N results (20), or `all`. |
 | `--json` | Prints one JSON array of the hits instead: `file`, `line`, `endLine`, `id`, `kind`, `label`, `title`, `page` (the note's title), `score`, `snippet` and `marks` (the matching words' ranges in it). [tern.nvim](#neovim)'s `:TernSearch` reads this into the quickfix list. |
-| `--index=FILE` | Searches the `search.json` that [tern index](#index) wrote instead of reading the notes: the same hits, from one file, no note read, so it also shows what a published site's search box finds. Takes no `PATH`: the index names the notes, and they print relative to the current folder. The file must be from this version series of Tern (its stems are the stemmer's); one from another is refused, with the version that wrote it. |
+| `--index=FILE` | Searches the `search.json` that [tern index](#index) wrote instead of reading the notes: the same hits, from one file, no note read, so it also shows what a published site's search box finds. Takes no `PATH`: the index names the notes, and they print relative to the current folder. The file must be from this version series of Tern (its words are the tokeniser's); one from another is refused, with the version that wrote it. |
 | `--no-scripts` | Searches without running the notes' head scripts and add-ons ([Running a note's code](#sandbox)): their vocabulary is unknown, so blocks declared there keep no label. |
 
 The notes are parsed with their own vocabulary, as `tern check` parses them ([Vocabulary under Node](#vocabulary)), so a hit in `:::exercise[10.3]{#ex-10-3}` reads "Exercise 10.3". A remote add-on is not loaded; a note whose vocabulary lives only on a CDN is still searched, with its blocks' names for labels. The ranking is [`tern.search`](api.html#search)'s: a word in a heading or a block's title weighs more than one in the text.

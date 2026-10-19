@@ -253,6 +253,27 @@ test('search: FILE:LINE, the label and id, the passage; file lines; exit 1 on a 
   exits(r, 2, 'a missing path');
 });
 
+test('search: accents in either form, ligatures and Turkish İ meet their plain forms; Han, Kana and Hangul are searched by pairs; an index written here answers the same', () => {
+  write('i18n/n.html', `${FIRST}<title>Café</title><script src="tern.js"></script>\n# Café in İstanbul {#c}\n\nThe café serves ﬁne coffee.\n\n## 東京 {#t}\n\n東京タワーは高い。한국어 검색。\n`);
+  const ids = (r) => r.out.split('\n').filter((l) => /^i18n\//.test(l)).map((l) => /\(#([^)]*)\)/.exec(l)[1]);
+  for (const q of ['cafe', 'CAFÉ', 'café', 'fine', 'istanbul', 'İSTANBUL']) {
+    const r = run(['search', q, 'i18n']);
+    exits(r, 0, q);
+    eq(ids(r), ['c'], `${q} finds the café`);
+  }
+  for (const q of ['東京タワー', '京', '검색']) {
+    const r = run(['search', q, 'i18n']);
+    exits(r, 0, q);
+    eq(ids(r), ['t'], `${q} finds the Japanese section`);
+  }
+  const j = JSON.parse(run(['search', '東京タワー', 'i18n', '--json']).out);
+  eq([j[0].snippet, j[0].marks], ['東京タワーは高い。한국어 검색。', [[0, 5]]], 'the touching pairs marked as one range');
+  exits(run(['search', '京都', 'i18n']), 1, 'a pair not in the text');
+  exits(run(['index', 'i18n']), 0, 'index');
+  eq(ids(run(['search', 'cafe', '--index=i18n/search.json'])), ['c'], 'from the index');
+  eq(ids(run(['search', 'タワ', '--index=i18n/search.json'])), ['t'], 'a pair from the index');
+});
+
 // Today, as tern index dates a file outside a repository: YYYY-MM-DD, local time.
 const TODAY = (() => {
   const d = new Date();

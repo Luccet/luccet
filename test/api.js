@@ -161,6 +161,26 @@ test('search.query: a word stands for the stems it begins, a title hit weighs mo
   eq(tern.search.query(idx, 'triangle')[0].matched, ['triangl'], 'the stems matched');
 });
 
+test('search: folding: accents in either Unicode form, ligatures, full-width letters, Turkish İ and ё meet their plain forms; Han, Kana and Hangul runs are searched as pairs; snippets mark the pairs as one range', () => {
+  eq(tern.search.fold('Café café ﬁne İstanbul ISTANBUL Ёлка ＡＢＣ Straße'), 'cafe cafe fine istanbul istanbul елка abc straße', 'fold');
+  eq(tern.search.tokens('Café, the café!'), ['caf', 'the', 'caf'], 'one stem for both forms');
+  eq(tern.search.tokens('東京タワーは高い。'), ['東京', '京タ', 'タワ', 'ワー', 'ーは', 'は高', '高い'], 'bigrams over a run, the prolonged sound mark included');
+  eq(tern.search.tokens('한국어 검색 日本 x 1 ab'), ['한국', '국어', '검색', '日本', 'ab'], 'runs split by spaces; a one-letter word dropped, a one-character run kept');
+  eq(tern.search.tokens('日'), ['日'], 'a single character');
+  eq(tern.search.tokens('नमस्ते'), ['नमस्ते'], 'other scripts keep their marks and stand whole');
+  const { ast } = tern.parse('# Café {#c}\n\nThe café in İstanbul.\n\n## 東京 {#t}\n\n東京タワーは高い。한국어 검색。\n');
+  tern.transform(ast);
+  const idx = tern.search.index(tern.search.records(ast, { url: 'a.html' }));
+  for (const q of ['cafe', 'café', 'café', 'CAFÉ']) eq(tern.search.query(idx, q).map((h) => h.entry.id), ['c'], `${q} finds the café`);
+  for (const q of ['istanbul', 'İstanbul', 'ISTANBUL']) eq(tern.search.query(idx, q).map((h) => h.entry.id), ['c'], `${q} finds İstanbul`);
+  for (const q of ['東京', '東京タワー', '京', 'タワー', '검색', '한국어']) eq(tern.search.query(idx, q).map((h) => h.entry.id), ['t'], `${q} finds the Japanese section`);
+  eq(tern.search.query(idx, '京都'), [], 'a pair not in the text misses');
+  const m = tern.search.query(idx, '東京タワー')[0].matched;
+  eq(m.sort(), ['タワ', 'ワー', '京タ', '東京'], 'the pairs matched');
+  eq(tern.search.snippet('東京タワーは高い。', m), { text: '東京タワーは高い。', marks: [[0, 5]] }, 'touching pairs marked as one range');
+  eq(tern.search.snippet('Visit 東京 and the café now.', ['東京', 'caf']), { text: 'Visit 東京 and the café now.', marks: [[6, 8], [17, 22]] }, 'the word as written, in its own form, is marked whole');
+});
+
 test('search: words that name Object.prototype members are words like any, before and after a JSON round trip', () => {
   const { ast } = tern.parse('# The constructor {#c}\n\nA constructor, toString and hasOwnProperty; __proto__ too.\n\n## Other {#o}\n\nNothing of the kind.\n');
   tern.transform(ast);

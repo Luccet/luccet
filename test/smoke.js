@@ -2331,6 +2331,17 @@ const TESTS = [
       if (url !== '?q=circle') throw new Error(`the URL after typing: "${url}", expected ?q=circle`);
       const fetched = [...new Set(ctx.fetched)].sort();
       if (fetched.join() !== 'alpha.html,beta.html,missing.html,vocab.js') throw new Error(`fetched ${fetched.join(', ')}: expected the two notes and the missing one, not hidden.html or notes.txt`);
+      // The arrow keys walk the results: down from the box, along them, up to the box again; Escape returns to the box.
+      await page.fill('.t-search-box', 'circumference');
+      await expect(page, () => document.querySelectorAll('.t-search-results a').length === 2, 'two hits to walk');
+      await page.focus('.t-search-box');
+      const active = () => page.evaluate(() => (document.activeElement.matches('.t-search-box') ? 'box' : document.activeElement.matches('.t-search-results a') ? `hit ${[...document.querySelectorAll('.t-search-results a')].indexOf(document.activeElement) + 1}` : document.activeElement.localName));
+      const walk = [];
+      for (const key of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowUp', 'ArrowUp', 'ArrowDown', 'Escape', 'ArrowUp']) {
+        await page.keyboard.press(key);
+        walk.push(await active());
+      }
+      if (walk.join() !== 'hit 1,hit 2,hit 2,hit 1,box,hit 1,box,box') throw new Error(`the arrow keys walked ${walk.join(', ')}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /missing\.html could not be fetched/.test(m.text))) throw new Error(`no warning for missing.html; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },

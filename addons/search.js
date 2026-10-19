@@ -279,6 +279,26 @@
       const first = results.querySelector('a');
       if (first) (e.preventDefault(), (location.href = first.href));
     });
+    // The arrow keys walk the results: down from the box to the first hit,
+    // down and up along them, up from the first back to the box, Escape
+    // back to the box from any; Tab still works as it does.
+    host.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Escape') return;
+      const links = [...results.querySelectorAll('a')];
+      const i = links.indexOf(document.activeElement);
+      if (e.key === 'Escape') {
+        if (i >= 0) (e.preventDefault(), box.focus());
+        return;
+      }
+      if (document.activeElement === box) {
+        if (e.key === 'ArrowDown' && links[0]) (e.preventDefault(), links[0].focus());
+        return;
+      }
+      if (i < 0) return;
+      e.preventDefault();
+      if (e.key === 'ArrowDown') (links[i + 1] || links[i]).focus();
+      else (i === 0 ? box : links[i - 1]).focus();
+    });
     const q = new URL(location.href).searchParams.get('q');
     if (q) (box.value = q), show(q);
   }
