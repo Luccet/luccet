@@ -27,6 +27,8 @@
 //   /gen/indexed/…       a copy of test/smoke/search/ after `tern index`
 //                        ran in it: notes.json and search.json beside the
 //                        notes, for the notes add-on and ::search{index=}
+//   /gen/glossary/…      a copy of test/smoke/glossary/ after `tern index`
+//                        ran in it: glossary.json beside the notes
 //   {{CDN}}              in test/smoke/*.html: a second, slow origin (a "CDN")
 //   /test/samples/…      tern.js and tern.css resolve to the
 //                        repository's; images, videos and component scripts
@@ -163,6 +165,7 @@ function staticHandler(cdnOrigin) {
     if (url.startsWith('/vendor/temml/')) file = path.join(CACHE, `temml-${TEMML_VERSION}`, 'dist', path.normalize(url.slice('/vendor/temml/'.length)));
     // The search fixtures with the files `tern index` writes beside them.
     if (url.startsWith('/gen/indexed/')) file = path.join(indexedDir(), path.normalize(url.slice('/gen/indexed/'.length)));
+    if (url.startsWith('/gen/glossary/')) file = path.join(indexedDir('glossary'), path.normalize(url.slice('/gen/glossary/'.length)));
     // A sample's add-ons (addons/katex.js …) resolve to the repository's, as tern.js does.
     if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
     // A folder's address is its index.html, as GitHub Pages and most servers serve it; a page without its extension is the page.
@@ -184,7 +187,7 @@ function staticHandler(cdnOrigin) {
       }
     }
     if (file === path.join(ROOT, 'tern.js')) file = TERN_JS;
-    if ((file !== TERN_JS && !file.startsWith(ROOT) && !(INDEXED && file.startsWith(INDEXED))) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    if ((file !== TERN_JS && !file.startsWith(ROOT) && ![...INDEXED.values()].some((d) => file.startsWith(d))) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);
       res.end('not found');
       return;
@@ -451,17 +454,18 @@ const KATEX_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT,
 const GUARDED_NOTE = '# Smoke: a guarded note\n\nRendered by tern.js, or shown as its source when tern.js does not load.\n';
 const cliPages = new Map();
 
-// test/smoke/search/ copied to a temporary folder and indexed there with
-// `tern index`, so notes.json and search.json sit beside the notes without
-// being written into the repository; served as /gen/indexed/. Once.
-let INDEXED = null;
-function indexedDir() {
-  if (INDEXED) return INDEXED;
-  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tern-smoke-indexed-')), 'search');
-  fs.cpSync(path.join(ROOT, 'test', 'smoke', 'search'), dir, { recursive: true });
+// test/smoke/search/ (or another fixture folder) copied to a temporary
+// folder and indexed there with `tern index`, so notes.json, search.json and
+// glossary.json sit beside the notes without being written into the
+// repository; served as /gen/indexed/ (search) and /gen/glossary/. Once each.
+const INDEXED = new Map();
+function indexedDir(name = 'search') {
+  if (INDEXED.has(name)) return INDEXED.get(name);
+  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tern-smoke-indexed-')), name);
+  fs.cpSync(path.join(ROOT, 'test', 'smoke', name), dir, { recursive: true });
   const r = spawnSync(process.execPath, [CLI, 'index', dir], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
   if (r.status !== 0) throw new Error(`tern index exited ${r.status}: ${r.stderr.trim()}`);
-  INDEXED = dir;
+  INDEXED.set(name, dir);
   return dir;
 }
 
@@ -2469,6 +2473,43 @@ const TESTS = [
       if (JSON.stringify(r[2].items.map((i) => i[0])) !== JSON.stringify(['Alpha: triangles', 'Beta: circles'])) throw new Error(`sort=title limit=2: ${JSON.stringify(r[2].items)}`);
       if (r[3].items.length || !/could not be loaded \(missing\.json\)/.test(r[3].status)) throw new Error(`the missing catalogue: ${JSON.stringify(r[3])}`);
       if (r.some((n) => n.label !== 'Notes' || n.tag !== 'NAV')) throw new Error(`the element: ${JSON.stringify(r.map((n) => [n.tag, n.label]))}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
+    },
+  },
+  {
+    name: 'glossary add-on: ::glossary lists the terms tern index gathered, by key, each linked to its definition, the definition rendered with its links led back to its note and its math typeset; in= keeps a folder; a missing file says so; :term links to the entry',
+    url: '/gen/glossary/glossary.html',
+    allowConsole: /Failed to load resource/,
+    async check(page, ctx) {
+      await expect(page, () => document.querySelectorAll('.t-glossary').length === 3 && [...document.querySelectorAll('.t-glossary')].every((n) => n.querySelector('.t-glossary-list, .t-glossary-status')) && document.querySelectorAll('#list .katex').length >= 3, 'the three lists to settle and the math to typeset');
+      const r = await page.evaluate(() => {
+        const rel = (h) => (h || '').replace(/^.*\/gen\/glossary\//, '');
+        const list = (id) => ({
+          entries: [...document.querySelectorAll(`#${id} dt`)].map((dt) => [dt.id, dt.textContent, rel(dt.querySelector('a').getAttribute('href')), dt.nextElementSibling.querySelector('.t-glossary-source a').textContent, dt.nextElementSibling.querySelector('p').textContent.replace(/\s+/g, ' ').trim()]),
+          links: [...document.querySelectorAll(`#${id} dd a`)].map((a) => rel(a.getAttribute('href'))),
+          status: (document.querySelector(`#${id} .t-glossary-status`) || {}).textContent || '',
+          katex: document.querySelectorAll(`#${id} .katex`).length,
+          math: [...document.querySelectorAll(`#${id} .t-math`)].filter((m) => !m.querySelector('.katex')).length,
+        });
+        return { list: list('list'), sub: list('sub'), missing: list('missing'), uses: [...document.querySelectorAll('.term > a')].map((a) => [a.textContent, rel(a.getAttribute('href'))]), label: document.querySelector('#list').getAttribute('aria-label'), tag: document.querySelector('#list .t-glossary-list').tagName };
+      });
+      const want = [
+        ['glossary-kernel', 'Kernel', 'defs.html#ker', 'From Smoke: definitions', 'The set of vectors v with T(v)=0, written \\ker T.'],
+        ['glossary-nullity', 'nullity', 'defs.html#defs', 'From Smoke: definitions', 'The nullity of T is the dimension of its kernel, see Kernel.'],
+        ['glossary-truism', 'truism', 'defs.html#defs', 'From Smoke: definitions', 'A truism is a claim so obviously true that it goes without saying; see the glossary and Kernel.'],
+        ['glossary-widget', 'widget', 'sub/more.html#more', 'From Smoke: more', 'Widgets are things, with a relative link.'],
+      ];
+      const got = r.list.entries.map((e) => [e[0], e[1], e[2], e[3], e[4].replace(/\u200b|\s*(?=[.,;])/g, '')]);
+      for (let i = 0; i < want.length; i++) if (!got[i] || got[i].slice(0, 4).join('|') !== want[i].slice(0, 4).join('|')) throw new Error(`entry ${i}: ${JSON.stringify(got[i])}, expected ${JSON.stringify(want[i])} (all: ${JSON.stringify(r.list.entries)})`);
+      if (got.length !== 4) throw new Error(`${got.length} entries: ${JSON.stringify(got)}`);
+      if (!/^A truism is a claim so obviously true/.test(got[2][4]) || !/see the glossary and/.test(got[2][4])) throw new Error(`the truism's definition: ${JSON.stringify(got[2][4])}`);
+      for (const l of ['defs.html#ker', 'glossary.html', 'sub/more.txt']) if (!r.list.links.includes(l)) throw new Error(`the definitions' links ${JSON.stringify(r.list.links)} lack ${l}: a fragment, a relative link and a link from a subfolder, led back to their notes`);
+      if (r.list.katex < 3 || r.list.math) throw new Error(`${r.list.katex} formulas typeset, ${r.list.math} not: the page's math add-on typesets the definitions`);
+      if (r.sub.entries.map((e) => e[1]).join() !== 'widget') throw new Error(`in=sub/: ${JSON.stringify(r.sub.entries)}`);
+      if (!/could not be loaded \(missing\.json\)/.test(r.missing.status)) throw new Error(`the missing file: ${JSON.stringify(r.missing)}`);
+      if (JSON.stringify(r.uses) !== JSON.stringify([['truism', 'glossary.html#glossary-truism'], ['kernels', 'glossary.html#glossary-kernel'], ['nothing', 'glossary.html#glossary-nothing']])) throw new Error(`the uses ${JSON.stringify(r.uses)}: expected links to this page's entries, title= as the term`);
+      if (r.label !== 'Glossary' || r.tag !== 'DL') throw new Error(`the element: ${r.tag} labelled ${r.label}`);
       if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },

@@ -865,7 +865,7 @@ The notes are parsed with their own vocabulary, as `tern check` parses them ([Vo
 
 ## tern index {#index}
 
-`tern index` writes what a site's add-ons read about a folder of notes, so that a page can list them and search them without fetching every note: `notes.json`, a catalogue, and `search.json`, the search index. Both are plain JSON derived from the notes, to be written again whenever the notes change: by hand, by a git hook, or in a workflow. No note needs them. [`::search`](addons.html#search) without `index=` indexes the notes in the browser, and the files make it one request instead of one per note; [`::notes`](addons.html#notes) is the list a hub page draws from the catalogue.
+`tern index` writes what a site's add-ons read about a folder of notes, so that a page can list them, search them and define their terms without fetching every note: `notes.json`, a catalogue, `search.json`, the search index, and `glossary.json`, the terms the notes define with their definitions. All three are plain JSON derived from the notes, to be written again whenever the notes change: by hand, by a git hook, or in a workflow. No note needs them. [`::search`](addons.html#search) without `index=` indexes the notes in the browser, and the files make it one request instead of one per note; [`::notes`](addons.html#notes) is the list a hub page draws from the catalogue.
 
 :::syntax[tern index]
 ```sh
@@ -875,9 +875,9 @@ tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]
 
 ```sh
 $ tern index
-tern index: 17 notes, 410 entries; 1 left out (not tracked by git) → notes.json, search.json
+tern index: 17 notes, 410 entries, 23 terms; 1 left out (not tracked by git) → notes.json, search.json, glossary.json
 $ tern index --check
-tern index: 17 notes, 410 entries; 1 left out (not tracked by git); both files are up to date
+tern index: 17 notes, 410 entries, 23 terms; 1 left out (not tracked by git); all three files are up to date
 $ echo $?
 0
 ```
@@ -885,10 +885,10 @@ $ echo $?
 | Option | What it does |
 |---|---|
 | `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [tern check](#check-folders) does. |
-| `-o DIR` | Where the two files go, and what the paths in them are relative to. Without it, the first `PATH` when it is a folder, else that file's folder. Created if missing. |
-| `--check` | Writes nothing. Exits 1, naming the file, when `notes.json` or `search.json` is missing or differs from what would be written: for a workflow that keeps them honest. |
+| `-o DIR` | Where the three files go, and what the paths in them are relative to. Without it, the first `PATH` when it is a folder, else that file's folder. Created if missing. |
+| `--check` | Writes nothing. Exits 1, naming the file, when one of the three files is missing or differs from what would be written: for a workflow that keeps them honest. |
 | `--all` | Indexes every note found. Without it, in a git repository, only tracked files are indexed ([What is left out](#index-left-out)). |
-| `--json` | Prints the summary as one JSON object on stdout: `notes`, `entries`, `leftOut`, `noindex`, `unreadable` (true when a file could not be read, exit 2), `files` (the paths of `notes` and `search`), `wrote`; with `--check`, `wrote` is false and `stale` lists the files missing or differing. The summary line still goes to stderr. |
+| `--json` | Prints the summary as one JSON object on stdout: `notes`, `entries`, `terms`, `leftOut`, `noindex`, `unreadable` (true when a file could not be read, exit 2), `files` (the paths of `notes`, `search` and `glossary`), `wrote`; with `--check`, `wrote` is false and `stale` lists the files missing or differing. The summary line still goes to stderr. |
 | `--no-scripts` | Indexes without running the notes' head scripts and add-ons ([Running a note's code](#sandbox)): their vocabulary is unknown, so blocks declared there keep no label. |
 
 ### What is written {#index-files}
@@ -918,10 +918,12 @@ $ echo $?
 
 **`search.json`** is the search index: `tern`, `notes` (each note's `url` and `title`), and the index [`tern.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The stems in `terms` are the stemmer's, which changes only in a minor release of Tern, so an index serves the readers of its own series (`0.4.x`); a reader from another says so and does without it.
 
+**`glossary.json`** is the glossary: `tern`, `notes` (each note's `url` and `title`) and `terms`, the terms the notes define ([`tern.glossary`](api.html#glossary)), in the order of their folded key, then by note: each with `term`, `key`, `slug` (its id on a glossary page), `url` (the note, relative to the file), `id` (the anchor to jump to), `line` (a file line), `how` (`dfn`, or the block's name) and `definition`, the definition's nodes, which the [glossary add-on](addons.html#glossary) renders. One term per line. A term is a `:dfn[…]`, defined by its paragraph, or a titled `:::definition` block, defined by its body. The summary counts the terms when there are any, and two things are said on stderr, as notes, the exit code unchanged: a term defined more than once, `the term "kernel" is defined in a.html:12 and b.html:3; the glossary lists both`, and a `:term[…]` no note defines, `c.html:5: the term "x" has no definition in these notes`.
+
 ### What is left out {#index-left-out}
 
 - **Files git does not track.** In a repository, a note that is untracked or ignored is not indexed, so that a private note never reaches the published files; the summary counts them. A staged new file is tracked, so a hook sees it. `--all` indexes every note found, and a file named on the command line is always indexed. Outside a repository, or when git is not installed (said once on stderr), every note found is indexed.
-- **`robots: noindex`.** A note whose `:::meta` or head says so (`<meta name="robots" content="noindex">`, the convention search engines follow) is left out of both files: a search page, a draft, the page that lists the others.
+- **`robots: noindex`.** A note whose `:::meta` or head says so (`<meta name="robots" content="noindex">`, the convention search engines follow) is left out of the three files: a search page, a draft, the page that lists the others.
 - **Files that are not notes,** and pages `tern build` wrote.
 
 ### Keeping the files current {#index-hook}
@@ -932,9 +934,9 @@ The files describe the notes as they were when written. A git hook writes them a
 $ mkdir -p .githooks
 $ cat > .githooks/pre-commit <<'EOF'
 #!/bin/sh
-# The notes' catalogue and search index, written again and staged.
+# The notes' catalogue, search index and glossary, written again and staged.
 tern index || exit 1
-git add notes.json search.json
+git add notes.json search.json glossary.json
 EOF
 $ printf '#!/bin/sh\nexec "$(dirname "$0")/pre-commit"\n' > .githooks/pre-merge-commit
 $ chmod +x .githooks/pre-commit .githooks/pre-merge-commit

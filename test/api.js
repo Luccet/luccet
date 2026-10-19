@@ -181,6 +181,38 @@ test('search: folding: accents in either Unicode form, ligatures, full-width let
   eq(tern.search.snippet('Visit 東京 and the café now.', ['東京', 'caf']), { text: 'Visit 東京 and the café now.', marks: [[6, 8], [17, 22]] }, 'the word as written, in its own form, is marked whole');
 });
 
+test('glossary.terms: a dfn is defined by its paragraph, by the paragraph after its heading or by its cell, title= being the canonical term; a titled definition block defines its title by its body, a dfn of the same term inside it being no second term; anchors: the term\'s id, its block\'s, its section\'s; uses; key and slug', () => {
+  const src = '# Intro {#intro}\n\nA :dfn[truism] is obvious; so are :dfn[truisms]{title=truism #tr}.\n\n- An item with :dfn[widget]: a thing.\n\n:::definition[Kernel]{#k}\nThe :dfn[kernel] of $T$: the $v$ with $T(v)=0$. Its :dfn[nullity] is a number.\n:::\n\n:::definition\nNo title, a :dfn[stray] one.\n:::\n\n## :dfn[Heading term] {#ht}\n\nThe paragraph after.\n\n:::note{#n1}\nA :dfn[nested] term.\n:::\n\n| :dfn[cell] | x |\n|---|---|\n| 1 | 2 |\n\nUses: :term[truism], :term[Kernels]{title=kernel} and :term[nothing].\n';
+  const { ast } = tern.parse(src);
+  tern.transform(ast);
+  const list = tern.glossary.terms(ast);
+  eq(
+    list.map((t) => [t.term, t.key, t.slug, t.id, t.line, t.how]),
+    [
+      ['truism', 'truism', 'glossary-truism', 'intro', 3, 'dfn'],
+      ['truism', 'truism', 'glossary-truism', 'tr', 3, 'dfn'],
+      ['widget', 'widget', 'glossary-widget', 'intro', 5, 'dfn'],
+      ['Kernel', 'kernel', 'glossary-kernel', 'k', 7, 'definition'],
+      ['nullity', 'nullity', 'glossary-nullity', 'k', 8, 'dfn'],
+      ['stray', 'stray', 'glossary-stray', 'intro', 12, 'dfn'],
+      ['Heading term', 'heading term', 'glossary-heading-term', 'ht', 15, 'dfn'],
+      ['nested', 'nested', 'glossary-nested', 'n1', 20, 'dfn'],
+      ['cell', 'cell', 'glossary-cell', 'ht', 23, 'dfn'],
+    ],
+    'the terms in note order: title= as the term, the block\'s title as its term and its own dfn of it skipped, anchors from the term, the block or the section',
+  );
+  const html = (t) => tern.emit({ type: 'root', children: t.definition }, { positions: false }).trim();
+  eq(html(list[0]), '<p>A <dfn class="dfn" data-t="dfn">truism</dfn> is obvious; so are <dfn id="tr" class="dfn" data-t="dfn" title="truism">truisms</dfn>.</p>', 'the paragraph a dfn stands in');
+  eq(html(list[3]), '<p>The <dfn class="dfn" data-t="dfn">kernel</dfn> of <span class="t-math">T</span>: the <span class="t-math">v</span> with <span class="t-math">T(v)=0</span>. Its <dfn class="dfn" data-t="dfn">nullity</dfn> is a number.</p>', "the block's body, without its title");
+  eq(html(list[6]), '<p>The paragraph after.</p>', 'the paragraph after a heading');
+  eq(html(list[8]), '<p><dfn class="dfn" data-t="dfn">cell</dfn></p>', 'a cell, as a paragraph');
+  eq(/"position"|Position"/.test(JSON.stringify(list)), false, 'no positions in the definitions');
+  eq(tern.glossary.uses(ast).map((u) => [u.term, u.key, u.line]), [['truism', 'truism', 27], ['kernel', 'kernel', 27], ['nothing', 'nothing', 27]], 'the uses, title= as the term');
+  eq(tern.glossary.terms(ast, { blocks: ['note'] }).filter((t) => t.how !== 'dfn'), [], 'blocks= names the blocks that define; one without a title defines nothing');
+  eq(tern.glossary.terms(ast, { blocks: ['note'] }).map((t) => t.term).includes('kernel'), true, 'then the dfn inside the definition block is a term of its own');
+  eq([tern.glossary.key('  Café  AU lait '), tern.glossary.slug('Abelian group'), tern.glossary.slug('Café au lait!'), tern.glossary.slug('東京'), tern.glossary.slug('')], ['cafe au lait', 'glossary-abelian-group', 'glossary-cafe-au-lait', 'glossary-東京', 'glossary-term'], 'key and slug');
+});
+
 test('search: words that name Object.prototype members are words like any, before and after a JSON round trip', () => {
   const { ast } = tern.parse('# The constructor {#c}\n\nA constructor, toString and hasOwnProperty; __proto__ too.\n\n## Other {#o}\n\nNothing of the kind.\n');
   tern.transform(ast);

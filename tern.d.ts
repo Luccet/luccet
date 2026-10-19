@@ -130,6 +130,29 @@ declare namespace tern {
     describe(head: string, ast: Root): { title: string; description: string; meta: Record<string, string>; headings: Outline['headings']; links: string[] };
   }
 
+  /** A term a note defines (docs/api.html#glossary): a `:dfn[…]` or a titled `:::definition` block. */
+  export interface GlossaryTerm {
+    term: string;
+    /** The term folded as search folds words. */
+    key: string;
+    /** An id for the term on a glossary page, from the key. */
+    slug: string;
+    /** The anchor nearest above the term: its own, its block's, else its section's heading's. */
+    id: string;
+    line: number;
+    /** 'dfn', or the block's name. */
+    how: string;
+    /** The definition's nodes, positions removed, for emit on another page. */
+    definition: Node[];
+    [key: string]: any;
+  }
+  export interface Glossary {
+    terms(ast: Root, opts?: { blocks?: string[] }): GlossaryTerm[];
+    uses(ast: Root): Array<{ term: string; key: string; line: number }>;
+    key(text: string): string;
+    slug(text: string): string;
+  }
+
   export type TernEvent = 'render' | 'math' | 'ready' | 'diagnostic';
   export type Remove = () => void;
 
@@ -166,6 +189,7 @@ declare namespace tern {
     visit(tree: Node, type: string, fn: Visitor): void;
     outline(ast: Root): Outline;
     readonly search: Search;
+    readonly glossary: Glossary;
     /** The names of the registered transforms, in order. */
     readonly transforms: string[];
     /** The base stylesheet, tern.css. */
