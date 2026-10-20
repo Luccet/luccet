@@ -1,0 +1,65 @@
+# The site between releases. Run by hand from the Actions tab (on main): it
+# publishes the pages of main (index.html, docs/, examples/) with the engine
+# of the newest release (tern.js, tern.css, addons/, themes/ from the newest
+# v* tag), so a documentation fix reaches ozkr.ac/tern without a tag, and
+# what the site serves to notes that load its tern.js stays a release. The
+# docs and samples suites run against that engine first: a page that needs
+# what the release does not have is refused here, not published.
+# release.yml publishes the whole tree of a tag; the two share the pages
+# concurrency group, so a deploy waits for the one before it.
+name: site
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  site:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: on main only
+        run: |
+          test "$GITHUB_REF_NAME" = main || { echo "run this workflow on main, not $GITHUB_REF_NAME"; exit 1; }
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: the engine of the newest release
+        run: |
+          tag="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+          test -n "$tag" || { echo "no v* tag: nothing released yet"; exit 1; }
+          rm -rf addons themes
+          git checkout "$tag" -- tern.js tern.css addons themes
+          engine="$(node -p "require('./tern.js').version")"
+          echo "pages from main at ${GITHUB_SHA::7}, engine $engine from $tag"
+          test "v$engine" = "$tag"
+          echo "Pages from \`main\` at ${GITHUB_SHA::7}, engine $engine from \`$tag\`." >> "$GITHUB_STEP_SUMMARY"
+      - name: the pages render with that engine
+        run: |
+          node test/docs.js
+          node test/samples.js
+      - name: the site
+        run: |
+          mkdir -p _site
+          cp -r index.html docs examples themes addons tern.js tern.css LICENSE _site/
+          rm -f _site/docs/README.md
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v5

@@ -4,7 +4,8 @@
 # and drafts the GitHub Release with a minified tern.js (under the same
 # name), tern.css and a zip of the distribution attached; the maintainer
 # publishes the draft. The npm package is installed from the tag
-# (npm install github:OzkrAC/tern#vX.Y.Z), not from the registry.
+# (npm install github:OzkrAC/tern#vX.Y.Z), not from the registry. Between
+# releases, site.yml publishes the pages of main with this tag's engine.
 name: release
 
 on:
