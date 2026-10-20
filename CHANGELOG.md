@@ -2,7 +2,12 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `tern index` writes, after a deprecation announced one minor release ahead. Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 1.0.0 (unreleased)
+## 1.0.1 (unreleased)
+
+- The documentation site can be published between releases: the `site` workflow, run by hand from the Actions tab on `main`, publishes `index.html`, `docs/` and `examples/` from `main` with `tern.js`, `tern.css`, the add-ons and the themes of the newest tag, after the docs and samples suites pass against that engine, so what the site serves to notes that load its `tern.js` stays a release.
+- The documentation site: a live example sets its result under its source at every width, where a wide screen set them side by side; the home page's mark is small and stands before its title; the theme switcher is no longer in the site navigation (the add-on itself is unchanged).
+
+## 1.0.0 (2026-10-19)
 
 - Tern 1.0.0. The syntax the documentation describes and the engine carry one number from here on, and the versioning promise above holds without the 0.x caveat: how a note renders, what an add-on receives, the command line and the files `tern index` writes change only in a major release, after a deprecation. The home page's Status section, `SECURITY.md` and this preamble say so; `@1` on jsDelivr follows every 1.x release.
 - `search.json` and `glossary.json` carry the number of their format (`"format": 1`, `tern.search.format` and `tern.glossary.format`), and `tern search --index`, the search add-on and the glossary add-on take a file of the format they read whatever version wrote it, where they refused a file from another minor version. The number changes only in a major release. A file with no format, written before 1.0, is refused as before: run `tern index` again.
