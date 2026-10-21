@@ -924,6 +924,62 @@ test("check, parse, build: an add-on's transforms run for its note only; one tha
   ok(/error addon\.failed: the add-on builtin\.js did not load: it threw: tern\.transform: "figures" is a built-in transform/.test(run(['check', 'x/builtin.html']).out), 'a built-in name');
 });
 
+// The host parse (cli/sandbox.js): when a note's code adds no transform and
+// declares plain data, the sandbox returns the schema and the note is parsed
+// here, warm; otherwise the sandbox parses, as before. Either way the
+// analysis is the same as with the whole of it in the sandbox (hostParse:
+// false).
+const sameAnalysis = (a, b, what) => {
+  const keep = (x) => x && { ast: x.ast, diagnostics: x.diagnostics, schema: x.schema, opts: x.opts, demo: x.demo, ternDocs: x.ternDocs, use: x.use, files: x.files };
+  eq(keep(a), keep(b), what);
+};
+
+test("analyse: a note whose code declares plain data is parsed here; one whose code adds a transform, a label function or a getter is parsed in the sandbox; the analysis is the same", () => {
+  const note = require(path.join(ROOT, 'cli', 'note.js'));
+  const body = ':::box[One]{#one}\nx\n:::\n\nSee @one, :k[Ctrl] and @thm.\n\n:::thm{#thm}\ny\n:::\n';
+  write('hp/plain.js', "tern.block('box', { tag: 'aside', counter: 'box', label: { en: 'Box', fr: 'Boîte' }, ref: '{label} {n}', attrs: { role: 'note' }, dom(el) { el.hidden = false; } });\ntern.inline('k', { tag: 'kbd' });\ntern.block('thm', { counter: 'thm', label: 'Theorem' });\n");
+  write('hp/transform.js', "tern.block('box', { tag: 'aside' });\ntern.transform('mark', (ast, ctx) => ctx.report('mark.ran', ast, 'mark ran', null, 'info'));\n");
+  write('hp/label.js', "tern.block('thm', { counter: 'thm', label: (n) => 'Satz ' + n });\n");
+  write('hp/getter.js', "tern.block('box', { get tag() { return 'aside'; } });\n");
+  const ways = {};
+  for (const name of ['plain', 'transform', 'label', 'getter']) {
+    write(`hp/${name}.html`, `${FIRST}<script src="tern.js" data-use="${name}.js"></script>\n${body}`);
+    const text = read(`hp/${name}.html`);
+    const a = note.analyse(text, at(`hp/${name}.html`));
+    const b = note.analyse(text, at(`hp/${name}.html`), { hostParse: false });
+    ways[name] = a.vocab.hostParse;
+    eq(b.vocab.hostParse, false, `${name}: hostParse false parses in the sandbox`);
+    sameAnalysis(a, b, `${name}: the analysis parsed here and in the sandbox`);
+  }
+  eq(ways, { plain: true, transform: false, label: false, getter: false }, 'parsed here');
+  // What each way's analysis holds: the vocabulary applies, the transform and the label function run.
+  const html = (name) => pageParts(run(['build', `hp/${name}.html`]).out).main;
+  ok(/<aside id="one" class="t-block box"[^>]* role="note">/.test(html('plain')) && /<kbd class="k"[^>]*>Ctrl<\/kbd>/.test(html('plain')) && />Theorem 1</.test(html('plain')), `plain: ${html('plain')}`);
+  ok(JSON.parse(run(['check', 'hp/transform.html', '--json']).out).some((d) => d.code === 'mark.ran'), 'the transform ran');
+  ok(/>Satz 1</.test(html('label')), `the label function ran: ${html('label')}`);
+  ok(/<aside id="one"/.test(html('getter')), `the getter's tag: ${html('getter')}`);
+});
+
+test("analyse: every note of the repository gets the same analysis parsed here as in the sandbox; the documentation's pages are parsed here", () => {
+  const note = require(path.join(ROOT, 'cli', 'note.js'));
+  const files = [path.join(ROOT, 'index.html')];
+  for (const dir of ['docs', 'examples', 'test/samples', 'test/smoke']) files.push(...note.htmlFiles(path.join(ROOT, dir)));
+  let notes = 0;
+  const docs = [];
+  for (const f of files) {
+    const text = fs.readFileSync(f, 'utf8');
+    const a = note.analyse(text, f);
+    if (!a) continue;
+    notes++;
+    sameAnalysis(a, note.analyse(text, f, { hostParse: false }), path.relative(ROOT, f));
+    if (path.dirname(f) === path.join(ROOT, 'docs') && a.files.length && !a.vocab.hostParse) docs.push(path.relative(ROOT, f));
+  }
+  ok(notes > 60, `${notes} notes`);
+  // The docs' add-ons declare plain data, so the tools parse their pages warm:
+  // a page that stays in the sandbox costs several times as much.
+  eq(docs, [], 'docs pages parsed in the sandbox');
+});
+
 test('check: every data-use entry not ending in .css is a script, .mjs and no extension included; one that cannot run says why', () => {
   write('m/mod.mjs', "tern.block('frommjs', { tag: 'aside' });\n");
   write('m/plain', "tern.block('fromplain', { tag: 'aside' });\n");

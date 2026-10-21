@@ -14,9 +14,13 @@
 //     object; a time limit stops a runaway script or transform, and dynamic
 //     import() is off.
 // Only data crosses back — the schema the note declares, its transformed AST
-// and the diagnostics — as JSON. The host reads the add-on files (the child
-// cannot) and sends their source; it emits HTML and checks links itself, on
-// that data. The bridge is length-framed JSON over the child's stdin and
+// and the diagnostics — as JSON. When the note's code adds no transform and
+// its schema holds no function but `dom` (which only the browser calls), the
+// schema alone crosses: the host parses and transforms with it as data, which
+// gives the same tree, and the child's cold engine and a tree several times
+// the note's size in JSON are spared. The host reads the add-on files (the
+// child cannot) and sends their source; it emits HTML and checks links
+// itself, on that data. The bridge is length-framed JSON over the child's stdin and
 // stdout, driven two ways: blocking, for the tools, so note.analyse keeps its
 // signature; through the event loop, for the language server, which answers
 // requests while a note's code runs. Each way has a child of its own. Where
@@ -26,11 +30,13 @@
 //
 //   analyse(req)        run a note's code and analyse it, blocking; req is
 //                       {note, head, dataUse, dataLang, dataKatex, scripts,
-//                       addons, transform}, the result {schema, lang, demo,
-//                       ast, diagnostics, problems, failures} or {failed} on
-//                       a child error (a timeout, a crash); scripts and
-//                       addons are [{url, code, line?, column?}], read by
-//                       the host.
+//                       addons, transform, hostParse}, the result {schema,
+//                       lang, demo, ast, diagnostics, problems, failures}, or
+//                       with hostParse, when the code allows it, {hostParse:
+//                       true, schema, lang, demo, problems} for the host to
+//                       parse; {failed} on a child error (a timeout, a
+//                       crash); scripts and addons are [{url, code, line?,
+//                       column?}], read by the host.
 //   analyseAsync(req)   the same, as a promise; requests run one at a time,
 //                       in order.
 //   shutdown()          stop the children (the CLI at exit; the LSP never
@@ -67,6 +73,18 @@ function driverSetup() {
   // that overwrites module.exports cannot redirect the analysis.
   var E = { parse: engine.parse, emit: engine.emit, toHTML: engine.toHTML, check: engine.check, visit: engine.visit, outline: engine.outline, css: engine.css, transform: engine.transform, version: engine.version };
   var stringify = G.JSON.stringify;
+  // The pipeline's transform names, read through the engine's own getter,
+  // taken before any note code runs: a transform the code adds, through the
+  // shim or the engine itself, shows in the list.
+  var transformNames = Object.getOwnPropertyDescriptor(engine, 'transforms').get;
+  var names = function () { return transformNames.call(engine).join(' '); };
+  // What tells plain data, for the host parse below.
+  var protoOf = Object.getPrototypeOf;
+  var ownNames = Object.getOwnPropertyNames;
+  var describe = Object.getOwnPropertyDescriptor;
+  var hasOwn = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
+  var OBJECT = Object.prototype;
+  var ARRAY = Array.prototype;
   var own = function (o, k) { return Object.prototype.propertyIsEnumerable.call(o, k); };
   var message = function (e) {
     try {
@@ -143,6 +161,7 @@ function driverSetup() {
     };
 
     var problems = [];
+    var builtinTransforms = names();
     // The head's classic scripts, in order; one that throws is a warning.
     for (var h = 0; h < req.scripts.length; h++) {
       var s = req.scripts[h];
@@ -245,6 +264,38 @@ function driverSetup() {
       problems.push({ kind: 'head', severity: 'warning', url: 'window.TERN.schema', message: 'window.TERN.schema cannot be read: ' + message(e), line: 1, column: 1 });
     }
 
+    // window.ternDocs, a documentation add-on's data (its demo schema, pages
+    // and examples), for cli/examples.js and test/docs.js; plain data.
+    var ternDocs = null;
+    try {
+      if (G.ternDocs && typeof G.ternDocs === 'object') ternDocs = G.ternDocs;
+    } catch (e) {}
+
+    // The host parses when nothing of the code would act on the tree: no
+    // transform added, and no function in the schema but an entry's dom.
+    // The schema must be plain data, so that what JSON carries is what the
+    // engine here would read: objects and arrays, every property an
+    // enumerable value. A getter, a class instance, a value that cannot be
+    // read or that nests deeper than a schema does keeps the analysis here.
+    var plain = function (v, depth) {
+      if (typeof v === 'function') return false;
+      if (!v || typeof v !== 'object') return true;
+      var proto = protoOf(v);
+      if (depth > 8 || (proto !== OBJECT && proto !== ARRAY && proto !== null)) return false;
+      var keys = ownNames(v);
+      for (var i = 0; i < keys.length; i++) {
+        if ((depth === 2 && keys[i] === 'dom') || (proto === ARRAY && keys[i] === 'length')) continue;
+        var d = describe(v, keys[i]);
+        if (!d.enumerable || !hasOwn(d, 'value') || !plain(d.value, depth + 1)) return false;
+      }
+      return true;
+    };
+    var hostParse = false;
+    try {
+      hostParse = !!req.hostParse && names() === builtinTransforms && plain(schema, 0);
+    } catch (e) {}
+    if (hostParse) return stringify({ hostParse: true, schema: schema, lang: lang === undefined ? null : lang, ternDocs: ternDocs, problems: problems, failures: failures, consoleOut: consoleOut });
+
     var options = { schema: schema, head: req.head, lang: lang };
     var parsed = E.parse(req.note, options);
     var diagnostics = parsed.diagnostics;
@@ -252,13 +303,6 @@ function driverSetup() {
       E.transform(parsed.ast, options);
       diagnostics = diagnostics.concat(parsed.ast.data.tern.diagnostics);
     }
-
-    // window.ternDocs, a documentation add-on's data (its demo schema, pages
-    // and examples), for cli/examples.js and test/docs.js; plain data.
-    var ternDocs = null;
-    try {
-      if (G.ternDocs && typeof G.ternDocs === 'object') ternDocs = G.ternDocs;
-    } catch (e) {}
 
     return stringify({ schema: schema, lang: lang === undefined ? null : lang, ternDocs: ternDocs, ast: parsed.ast, diagnostics: diagnostics, problems: problems, failures: failures, consoleOut: consoleOut });
   };
