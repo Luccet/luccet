@@ -39,8 +39,9 @@ const verbose = process.argv.includes('--verbose');
 // ---------------------------------------------------------------- client
 
 class Client {
-  constructor() {
-    this.proc = spawn(process.execPath, [CLI, 'lsp'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  // `preload`: a module the server requires first (node -r), for a check that counts.
+  constructor({ preload } = {}) {
+    this.proc = spawn(process.execPath, [...(preload ? ['-r', preload] : []), CLI, 'lsp'], { stdio: ['pipe', 'pipe', 'pipe'] });
     this.buf = Buffer.alloc(0);
     this.id = 0;
     this.pending = new Map();
@@ -900,6 +901,71 @@ check('willRenameFiles: tern mv’s edits, for the files where they are; the wor
   assert.deepStrictEqual((await c.published(y.uri)).diagnostics.map((d) => d.code), ['link.missing'], 'didRenameFiles');
   c.notify('textDocument/didClose', doc(y.uri));
   await c.published(y.uri);
+});
+
+// Workspace-wide requests read every note of the workspace; what they make
+// of one, its URLs (cli/links.js urls()) and its outline, is kept with its
+// analysis, so a second request over notes that have not changed makes
+// neither again. A preload counts the server's calls of tern.visit (urls()
+// walks the tree) and tern.outline, in a file, written before the response.
+check("workspace: a second references or workspace/symbol request makes no unchanged note's URLs or outline again; an edited note's are made anew", async () => {
+  const W = path.join(DIR, 'kept');
+  const N = 6;
+  const text = (i, more = '') => `<script src="tern.js"></script>\n# Note ${i} {#n${i}}\n\nSee [zero](n0.html#n0) and [next](n${(i + 1) % N}.html).${more}\n`;
+  fs.mkdirSync(W, { recursive: true });
+  fs.writeFileSync(path.join(W, 'tern.js'), '');
+  for (let i = 0; i < N; i++) fs.writeFileSync(path.join(W, `n${i}.html`), text(i));
+  const LOG = path.join(DIR, 'kept-calls.txt');
+  const PRELOAD = path.join(DIR, 'kept-count.js');
+  fs.writeFileSync(LOG, '');
+  fs.writeFileSync(PRELOAD, `const fs = require('fs');\nconst tern = require(${JSON.stringify(path.join(__dirname, '..', 'tern.js'))});\nfor (const k of ['visit', 'outline']) {\n  const f = tern[k];\n  tern[k] = function () {\n    fs.appendFileSync(${JSON.stringify(LOG)}, k + '\\n');\n    return f.apply(this, arguments);\n  };\n}\n`);
+  const calls = () => {
+    const lines = fs.readFileSync(LOG, 'utf8').split('\n');
+    return { visit: lines.filter((l) => l === 'visit').length, outline: lines.filter((l) => l === 'outline').length };
+  };
+  const w = new Client({ preload: PRELOAD });
+  await w.call('initialize', { processId: process.pid, rootUri: null, workspaceFolders: [{ uri: pathToFileURL(W).href, name: 'w' }], capabilities: {} });
+  w.notify('initialized', {});
+  const z = await w.open(path.join(W, 'n0.html'), text(0));
+  const refs = () => w.call('textDocument/references', { ...doc(z.uri), position: locate(text(0), '{#n0}', { plus: 2 }), context: { includeDeclaration: false } });
+  const symbols = () => w.call('workspace/symbol', { query: 'Note' });
+  const first = await refs();
+  assert.strictEqual(first.length, N, 'a link to #n0 in every note');
+  let was = calls();
+  assert.ok(was.visit >= N, `the first request makes every note's URLs: ${JSON.stringify(was)}`);
+  assert.deepStrictEqual(sorted(await refs()), sorted(first), 'the second references request');
+  assert.deepStrictEqual(calls(), was, 'the second references request made no URLs');
+  const s1 = await symbols();
+  assert.strictEqual(s1.length, N, 'a heading in every note');
+  was = calls();
+  assert.deepStrictEqual(await symbols(), s1, 'the second workspace/symbol request');
+  assert.deepStrictEqual(calls(), was, 'the second workspace/symbol request made no outline');
+  // An edit: the edited note's URLs and outline are made anew, and only its.
+  // What making its URLs takes is counted here, on the same text; the server
+  // has finished with the analysis once it answers a request after it.
+  const edited = text(0, ' Again [here](#n0) and [zero](n0.html#n0).');
+  const engine = require('../tern.js');
+  const visit = engine.visit;
+  let one = 0;
+  engine.visit = function () {
+    one++;
+    return visit.apply(this, arguments);
+  };
+  try {
+    links.urls(links.parsed(edited));
+  } finally {
+    engine.visit = visit;
+  }
+  w.notify('textDocument/didChange', { textDocument: { uri: z.uri, version: 2 }, contentChanges: [{ text: edited }] });
+  await w.published(z.uri);
+  await w.send('tern/none', {});
+  was = calls();
+  assert.strictEqual((await refs()).length, N + 2, 'the two new links to #n0');
+  const after = calls();
+  assert.strictEqual(after.visit - was.visit, one, "references after the edit: the edited note's URLs alone");
+  assert.strictEqual((await symbols()).length, N);
+  assert.strictEqual(calls().outline - after.outline, 1, "workspace/symbol after the edit: the edited note's outline alone");
+  w.proc.kill();
 });
 
 // Across files: a link `page.html#id` is a reference to the id in that

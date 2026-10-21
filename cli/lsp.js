@@ -581,6 +581,15 @@ const overlaps = (a, b) => !(before(a.end, b.start) && !same(a.end, b.start)) &&
 const before = (p, q) => p.line < q.line || (p.line === q.line && p.character <= q.character);
 const same = (p, q) => p.line === q.line && p.character === q.character;
 
+// A note's lines and outline, made once per analysis: workspace/symbol asks
+// of every note in the workspace on every request.
+const digests = new WeakMap(); // analysis -> {lines, outline}
+function digest(a) {
+  let d = digests.get(a);
+  if (!d) digests.set(a, (d = { lines: a.note.split('\n'), outline: tern.outline(a.ast) }));
+  return d;
+}
+
 // workspace/symbol: the headings, and the blocks with an id or a title, of
 // every note in the workspace folders and every open note, from their
 // outlines (parsed, their code not run); `query` matches a name or an id,
@@ -595,9 +604,8 @@ function workspaceSymbol(params) {
       const { a } = targets.parsed(file);
       if (!a) continue;
       const uri = uriOf(file);
-      const lines = a.note.split('\n');
+      const { lines, outline: o } = digest(a);
       const location = (line, endLine) => ({ uri, range: { start: { line: line + a.line - 1, character: 0 }, end: { line: (endLine || line) + a.line - 1, character: (lines[(endLine || line) - 1] || '').length } } });
-      const o = tern.outline(a.ast);
       const containerName = shownPath(file);
       for (const h of o.headings) if (matches(h.text, h.id)) out.push({ name: h.text || '(untitled)', kind: SYMBOL.heading, location: location(h.line), containerName });
       for (const b of o.blocks) {
