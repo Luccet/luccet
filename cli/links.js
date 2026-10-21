@@ -137,13 +137,17 @@ class Targets {
     };
   }
 
-  // The note's analysis; `text` is what the caller read of it.
+  // The note's analysis; `text` is what the caller read of it. An
+  // analysis of the same text, made while the stamp holds, is reused: a note
+  // that `tern check` reads after a link to it was checked is not analysed
+  // twice.
   analyse(file, text) {
     const src = this.source(file);
     const hit = this.notes.get(file);
-    if (text === undefined && hit && hit.stamp === src.stamp) return this.keep(this.notes, file, hit).a;
-    const a = this.run(text === undefined ? src.text() : text, file);
-    this.keep(this.notes, file, { stamp: src.stamp, a });
+    if (hit && hit.stamp === src.stamp && (text === undefined || hit.text === text)) return this.keep(this.notes, file, hit).a;
+    const read = text === undefined ? src.text() : text;
+    const a = this.run(read, file);
+    this.keep(this.notes, file, { stamp: src.stamp, text: read, a });
     return a;
   }
 

@@ -1005,6 +1005,18 @@ test('check: links to other files: link.missing and link.dangling, warnings in f
   ok(/3 notes: 0 errors, 10 warnings, 0 infos/.test(all.err), `the folder: ${all.err}`);
 });
 
+// A link's fragment makes check read the note it names (its ids), and that
+// analysis stands when check comes to the note itself: its code runs once.
+test("check: a note is analysed once, also when an earlier note's link to its fragment was checked first", () => {
+  write('once/count.js', "console.log('count.js ran');\ntern.block('box', { tag: 'section' });\n");
+  write('once/a.html', `${FIRST}<script src="tern.js" data-use="count.js"></script>\n# A\n\nSee [b](b.html#x).\n`);
+  write('once/b.html', `${FIRST}<script src="tern.js" data-use="count.js"></script>\n# B {#x}\n\n:::box\nHi.\n:::\n`);
+  const r = run(['check', 'once/a.html', 'once/b.html']);
+  exits(r, 0, 'check');
+  eq((r.err.match(/count\.js ran/g) || []).length, 2, "the add-on's runs for two notes");
+  ok(/2 notes: 0 errors, 0 warnings, 0 infos/.test(r.err), `summary: ${r.err}`);
+});
+
 test("check: the head's links, the tern.js it loads, data-css and stylesheet add-ons; a <base href> turns link checking off", () => {
   write('lh/style.css', '');
   write('lh/n.html', `${FIRST}\n<link rel="stylesheet" href="style.css"><link rel="icon" href="icon.png">\n<script src="lib/tern.js" data-css="tern.css" data-use="style.css themes/nord.css https://cdn.example/x.css"></script>\n# x\n`, { tern: false });
