@@ -4,6 +4,7 @@ Every release of Tern, newest first. Versions follow [semantic versioning](https
 
 ## 1.0.1 (unreleased)
 
+- A note's code no longer sees the sandbox's request or its driver. The request, the note's text and its add-ons' source, came into the sealed context as a global, `__reqText`, beside the driver that runs the code, `__ternDriver`; both are gone before the code runs, so it sees the engine and the `tern`/`window` shim alone, as the tools page says.
 - The documentation site can be published between releases: the `site` workflow, run by hand from the Actions tab on `main`, publishes `index.html`, `docs/` and `examples/` from `main` with `tern.js`, `tern.css`, the add-ons and the themes of the newest tag, after the docs and samples suites pass against that engine, so what the site serves to notes that load its `tern.js` stays a release.
 - The documentation site: a live example sets its result under its source at every width, where a wide screen set them side by side; the home page's mark is small and stands before its title; the theme switcher is no longer in the site navigation (the add-on itself is unchanged).
 - `tern check` analyses each note once. A note that an earlier note links to with a fragment (`page.html#id`) was read for its ids, then analysed again, its code run a second time in the sandbox, when the check came to it: 25 analyses for the 16 notes of the documentation. Checking them takes 0.83 s where it took 1.29 s.

@@ -124,6 +124,10 @@ function driverSetup() {
   }
 
   G.__ternDriver = function (req) {
+    // The request arrived as a global, and the driver is one: both go
+    // before any note code runs, which sees the shim and the engine alone.
+    delete G.__reqText;
+    delete G.__ternDriver;
     var consoleOut = [];
     var console = { log: say, warn: say, error: say, info: say, debug: say };
     function say() {
