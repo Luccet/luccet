@@ -46,6 +46,8 @@
 //                            its link (the tern.js line's: column 1)
 //   merge(own, more)         a note's diagnostics and its link diagnostics,
 //                            in file order
+//   lineCol(text, offset)    the line and column (1-based, UTF-16) of an
+//                            offset in text
 'use strict';
 
 const fs = require('fs');
@@ -63,11 +65,29 @@ const decode = (s) => s.replace(/&(amp|quot|lt|gt|#39);/g, (_, k) => ({ amp: '&'
 // Comments blanked to spaces, so that offsets hold.
 const uncomment = (html) => html.replace(/<!--[\s\S]*?(?:-->|$)/g, (c) => c.replace(/[^\n]/g, ' '));
 
-// Line and column (1-based, UTF-16) of an offset in text.
+// Line and column (1-based, UTF-16) of an offset in text, by a binary
+// search of the text's line starts. urls() asks this of every URL, of the
+// head and the note in turn, so the last few texts' tables are kept: a slice
+// and split per call made a note's URLs cost time quadratic in its length.
+const tables = []; // [{text, starts}], newest first
+function lineStarts(text) {
+  for (const t of tables) if (t.text === text) return t.starts;
+  const starts = [0];
+  for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) starts.push(i + 1);
+  tables.unshift({ text, starts });
+  if (tables.length > 4) tables.pop();
+  return starts;
+}
 function lineCol(text, offset) {
-  const before = text.slice(0, offset);
-  const nl = before.lastIndexOf('\n');
-  return { line: before.split('\n').length, column: offset - nl };
+  const starts = lineStarts(text);
+  let lo = 0;
+  let hi = starts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (starts[mid] <= offset) lo = mid;
+    else hi = mid - 1;
+  }
+  return { line: lo + 1, column: offset - starts[lo] + 1 };
 }
 
 // Files as the checks read them. Each value is kept with a stamp of what it
@@ -137,13 +157,17 @@ class Targets {
     };
   }
 
-  // The note's analysis; `text` is what the caller read of it.
+  // The note's analysis; `text` is what the caller read of it. An
+  // analysis of the same text, made while the stamp holds, is reused: a note
+  // that `tern check` reads after a link to it was checked is not analysed
+  // twice.
   analyse(file, text) {
     const src = this.source(file);
     const hit = this.notes.get(file);
-    if (text === undefined && hit && hit.stamp === src.stamp) return this.keep(this.notes, file, hit).a;
-    const a = this.run(text === undefined ? src.text() : text, file);
-    this.keep(this.notes, file, { stamp: src.stamp, a });
+    if (hit && hit.stamp === src.stamp && (text === undefined || hit.text === text)) return this.keep(this.notes, file, hit).a;
+    const read = text === undefined ? src.text() : text;
+    const a = this.run(read, file);
+    this.keep(this.notes, file, { stamp: src.stamp, text: read, a });
     return a;
   }
 
@@ -520,4 +544,4 @@ function merge(own, more) {
   return out.concat(more.slice(i));
 }
 
-module.exports = { Targets, urls, spanRange, fragmentSpan, parse, parsed, resolve, check, merge };
+module.exports = { Targets, urls, spanRange, fragmentSpan, parse, parsed, resolve, check, merge, lineCol };

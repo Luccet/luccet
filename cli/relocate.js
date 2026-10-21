@@ -76,7 +76,7 @@ function relocate(notes, moves) {
     if (!edits.length && !based && !lost.length) continue;
     const raw = rawOffsets(String(text), norm);
     for (const e of edits) {
-      const lc = lineCol(norm, e.from);
+      const lc = links.lineCol(norm, e.from);
       Object.assign(e, { from: raw(e.from), to: raw(e.to), line: lc.line, column: lc.column });
     }
     out.push({ file, moved, edits, base: based, lost });
@@ -118,11 +118,6 @@ function rawOffsets(raw, norm) {
   }
   at[norm.length] = raw.length;
   return (n) => at[n];
-}
-
-function lineCol(text, offset) {
-  const before = text.slice(0, offset);
-  return { line: before.split('\n').length, column: offset - before.lastIndexOf('\n') };
 }
 
 function apply(text, edits) {
