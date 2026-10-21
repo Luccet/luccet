@@ -7,6 +7,7 @@ Every release of Tern, newest first. Versions follow [semantic versioning](https
 - The documentation site can be published between releases: the `site` workflow, run by hand from the Actions tab on `main`, publishes `index.html`, `docs/` and `examples/` from `main` with `tern.js`, `tern.css`, the add-ons and the themes of the newest tag, after the docs and samples suites pass against that engine, so what the site serves to notes that load its `tern.js` stays a release.
 - The documentation site: a live example sets its result under its source at every width, where a wide screen set them side by side; the home page's mark is small and stands before its title; the theme switcher is no longer in the site navigation (the add-on itself is unchanged).
 - `tern check` analyses each note once. A note that an earlier note links to with a fragment (`page.html#id`) was read for its ids, then analysed again, its code run a second time in the sandbox, when the check came to it: 25 analyses for the 16 notes of the documentation. Checking them takes 0.83 s where it took 1.29 s.
+- The language server's `documentLink`, `definition` and `references`, and `tern mv`, place a note's URLs in time linear in its length. Each URL's line and column were counted from the start of the note: `documentLink` took 44 ms on the 117 KB diagnostics page, 6 ms now, and 2 s on a note of 4,000 links.
 
 ## 1.0.0 (2026-10-19)
 

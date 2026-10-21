@@ -1017,6 +1017,22 @@ test("check: a note is analysed once, also when an earlier note's link to its fr
   ok(/2 notes: 0 errors, 0 warnings, 0 infos/.test(r.err), `summary: ${r.err}`);
 });
 
+// Where each URL is written, as the language server's documentLink and
+// definition ask of every URL: a line and column per offset, in time linear
+// in the note (a slice and split per URL made it quadratic: about 2 s here).
+test('links: the URLs of a note of 4,000 links and where each is written, in linear time', () => {
+  const links = require(path.join(ROOT, 'cli', 'links.js'));
+  const text = `${FIRST}<script src="tern.js"></script>\n` + Array.from({ length: 4000 }, (_, i) => `[a](p${i}.html#x) <a href="q${i}.html">b</a>\n`).join('\n');
+  const a = links.parsed(text);
+  const t = process.hrtime.bigint();
+  const u = links.urls(a);
+  const ranges = u.filter((x) => x.span).map((x) => links.spanRange(a, x.span));
+  const ms = Number(process.hrtime.bigint() - t) / 1e6;
+  eq(ranges.length, 8001, 'every URL placed (the tern.js tag and two per line)');
+  eq(ranges[ranges.length - 1], { start: { line: 8000, column: 28 }, end: { line: 8000, column: 38 } }, 'the last one, in file lines');
+  ok(ms < 500, `${ms.toFixed(0)} ms for ${u.length} URLs`);
+});
+
 test("check: the head's links, the tern.js it loads, data-css and stylesheet add-ons; a <base href> turns link checking off", () => {
   write('lh/style.css', '');
   write('lh/n.html', `${FIRST}\n<link rel="stylesheet" href="style.css"><link rel="icon" href="icon.png">\n<script src="lib/tern.js" data-css="tern.css" data-use="style.css themes/nord.css https://cdn.example/x.css"></script>\n# x\n`, { tern: false });
