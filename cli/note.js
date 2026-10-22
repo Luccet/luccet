@@ -253,9 +253,12 @@ const toFile = (pos, line) => ({
 // language. Returns null when the file is not a note. When the note has its
 // own code to run (head scripts, script add-ons), that runs in the sandbox
 // (cli/sandbox.js), which parses and transforms there and returns the AST and
-// diagnostics as data; a note with no code is parsed here, where no untrusted
-// code runs. `opts.noScripts` skips the code (an empty vocabulary); `opts`
-// `transform` false stops after parsing (tern parse). Diagnostics carry
+// diagnostics as data, or, when the code adds no transform and its schema is
+// plain data, returns the schema and the note is parsed here with it; a note
+// with no code is parsed here, where no untrusted code runs.
+// `opts.noScripts` skips the code (an empty vocabulary); `opts.hostParse`
+// false keeps the whole analysis in the sandbox (the tests compare the two);
+// `opts.transform` false stops after parsing (tern parse). Diagnostics carry
 // `filePosition` beside the note's `position`, in document order; the problems
 // loading vocabulary come first, with only a filePosition (command-line codes,
 // beside the browser's addon.failed: the browser runs this code itself):
@@ -264,9 +267,10 @@ const toFile = (pos, line) => ({
 //   - a remote add-on: `addon.remote`, an info at the tern.js line;
 //   - a head script: `head.script`, an info or a warning at its <script>.
 // `.demo` is window.ternDocs.demo, a documentation add-on's schema, or null.
-// `.vocab` is the vocabulary the analysis used, {stamp, schema, lang, ran}:
-// `stamp` tells the head and the code apart from another's, and `ran` is
-// false when the sandbox did not run the code. A caller that analyses the
+// `.vocab` is the vocabulary the analysis used, {stamp, schema, lang, ran,
+// hostParse}: `stamp` tells the head and the code apart from another's, `ran`
+// is false when the sandbox did not run the code, and `hostParse` is true
+// when it ran the code and the note was parsed here. A caller that analyses the
 // same note again passes the last one as `opts.lastVocab`: when the code
 // fails to run and the stamp still holds, that vocabulary stands in, so an
 // editor keeps a note's names while a script of it is stuck. `.files` are
@@ -296,7 +300,7 @@ function prepare(text, file, opts) {
     .createHash('sha1')
     .update(JSON.stringify([parts.head, c.dataUse ?? null, c.dataLang ?? null, c.dataKatex ?? null, c.scripts.map((s) => s.code), c.addons.map((a) => a.code)]))
     .digest('hex');
-  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataKatex: c.dataKatex, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform };
+  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataKatex: c.dataKatex, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform, hostParse: opts.hostParse !== false };
   return { parts, c, transform, stamp, req, opts };
 }
 
@@ -338,6 +342,17 @@ function finish({ parts, c, transform, stamp, opts }, r) {
     }
     ast = here();
     problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed, !!last) }]);
+  } else if (r.hostParse) {
+    // The code ran there and declared plain data: the note is parsed here.
+    // The diagnostics are copies, as the sandbox's reply would hold, so the
+    // filePosition set on them below stays off the tree's own.
+    schema = r.schema;
+    lang = r.lang == null ? undefined : r.lang;
+    ternDocs = r.ternDocs || null;
+    demo = ternDocs && ternDocs.demo ? ternDocs.demo : null;
+    ast = here();
+    all = all.map((d) => ({ ...d }));
+    problems = problems.concat(r.problems);
   } else {
     schema = r.schema;
     lang = r.lang == null ? undefined : r.lang;
@@ -366,7 +381,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
     return p.kind === 'head' ? point(p.line, p.column) : point(parts.line, 1);
   };
   const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: where(p) }));
-  const vocab = { stamp, schema, lang: lang === undefined ? null : lang, ran };
+  const vocab = { stamp, schema, lang: lang === undefined ? null : lang, ran, hostParse: !!(r && r.hostParse) };
   return { ...parts, schema, opts: options, ast, demo, ternDocs, use: c.use, files: c.files, vocab, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
 }
 
