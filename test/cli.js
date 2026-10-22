@@ -552,6 +552,15 @@ test("check: a note's scripts run sandboxed — no process, no file writes", () 
   ok(/reached undefined/.test(main), `no process in the sandbox: ${main}`);
 });
 
+test("check, build: a note's code sees nothing of the sandbox's request or its driver", () => {
+  write('sb/peek.js', "tern.block('box', { tag: 'aside', counter: 'box', label: 'request ' + typeof globalThis.__reqText + ', driver ' + typeof globalThis.__ternDriver });\n");
+  write('sb/peek.html', `${FIRST}<script>window.TERN = { schema: { block: { hd: { counter: 'hd', label: 'head ' + typeof __reqText } } } };</script><script src="tern.js" data-use="peek.js"></script>\n:::box[T]{#k}\nx\n:::\n\n:::hd{#h}\ny\n:::\n`);
+  exits(run(['check', 'sb/peek.html']), 0, 'check');
+  const main = pageParts(run(['build', 'sb/peek.html']).out).main;
+  ok(/request undefined, driver undefined/.test(main), `the add-on: ${main}`);
+  ok(/head undefined/.test(main), `the head script: ${main}`);
+});
+
 test('check, build: a leading :::use block lists add-ons like data-use; a missing one is addon.failed at its line; a late block is use.late', () => {
   write('u/box.js', "tern.block('box', { label: 'Box' });\n");
   write('u/theme.css', '');
