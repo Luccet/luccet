@@ -32,7 +32,8 @@
 //     .ids(file)               a Set, or null when the file has no ids to know
 //     .during(fn)              fn(), with each file's stat taken once
 //   urls(a)                  the URLs of a note analysed as `a`, with where
-//                            they are and where they are written
+//                            they are and where they are written; one list
+//                            per analysis, shared: read it, do not change it
 //   spanRange(a, span)       where a URL's span is written, as file positions
 //                            {start: {line, column}, end}, 1-based, UTF-16
 //   fragmentSpan(a, u)       the span of the fragment of urls() entry u, after
@@ -293,8 +294,18 @@ function markdownAnchors(text) {
 // report. `span` is where the URL is written, for tern mv to rewrite it:
 // {in: 'head' | 'tag' | 'note', from, to, quote}, offsets in a.head, a.tag
 // or a.note, quote one of " ' < (a Tern link's <…>), '' (bare) or ' ' (an
-// entry of data-use's list); null when it cannot be placed.
+// entry of data-use's list); null when it cannot be placed. The list is
+// made once per analysis and shared, so callers read it and do not change
+// it: a check, a search over the workspace and the language server's
+// refresh ask again of notes that have not changed.
+const urlsOf = new WeakMap(); // analysis -> its URLs
 function urls(a) {
+  let list = urlsOf.get(a);
+  if (!list) urlsOf.set(a, (list = noteUrls(a)));
+  return list;
+}
+
+function noteUrls(a) {
   const out = [];
   const point = (p) => ({ start: p, end: p });
   const value = (m, g) => (m[g] !== undefined ? g : m[g + 1] !== undefined ? g + 1 : g + 2); // the group that matched
