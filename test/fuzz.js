@@ -4,7 +4,7 @@
 // mutations use Tern's own marks (and TeX's) so they reach the grammar's
 // edges. For every input the engine must:
 //   - not throw;
-//   - take ≤ 50 ms (scaled to the machine);
+//   - take ≤ 50 ms (scaled to the machine; the fastest of up to four runs);
 //   - produce output of bounded length (≤ 50 × input + 10 KB, plus the
 //     empty cells a table's short rows are padded with);
 //   - be deterministic (same input, same result);
@@ -92,6 +92,14 @@ function padding(node) {
   return n;
 }
 
+// Milliseconds for one parse and one render of input.
+function cost(tern, input, opts) {
+  const t = process.hrtime.bigint();
+  tern.parse(input, opts);
+  tern.toHTML(input, opts);
+  return Number(process.hrtime.bigint() - t) / 1e6;
+}
+
 function runOne(tern, input, limitMs) {
   const opts = { schema: fixture };
   const problems = [];
@@ -104,8 +112,17 @@ function runOne(tern, input, limitMs) {
   } catch (e) {
     return [`threw: ${(e && e.stack) || e}`];
   }
-  const ms = Number(process.hrtime.bigint() - t) / 1e6;
-  if (ms > limitMs) problems.push(`took ${ms.toFixed(1)} ms (limit ${limitMs.toFixed(0)} ms) for ${input.length} chars`);
+  let ms = Number(process.hrtime.bigint() - t) / 1e6;
+  // One slow run can be the machine's: a shared runner may stall the process
+  // for 100 ms. A slow input is slow every time, so an input over the limit
+  // is timed again, and its fastest run is its cost (as in test/perf.js).
+  let runs = 1;
+  try {
+    for (; runs < 4 && ms > limitMs; runs++) ms = Math.min(ms, cost(tern, input, opts));
+  } catch (e) {
+    return [`threw on a second run: ${(e && e.stack) || e}`];
+  }
+  if (ms > limitMs) problems.push(`took ${ms.toFixed(1)} ms at best of ${runs} runs (limit ${limitMs.toFixed(0)} ms) for ${input.length} chars`);
   const allowed = 50 * input.length + 10240 + 48 * padding(parsed.ast);
   if (html.length > allowed) problems.push(`output ${html.length} chars for ${input.length} chars of input (bound ${allowed})`);
   problems.push(...checkParse(parsed, input).slice(0, 5));
