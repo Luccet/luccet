@@ -66,7 +66,8 @@ jobs:
       - name: min/tern.js
         run: |
           mkdir -p min
-          npx --yes terser@5.51.2 tern.js --compress --mangle --comments false --output min/tern.js
+          npx --yes terser@5.51.2 tern.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output min/tern.js
+          test "$(head -1 min/tern.js)" = '//# allFunctionsCalledOnLoad' # V8's compile hint, before the code
           tag="${GITHUB_REF_NAME#v}"
           test "$(node -p "require('./min/tern.js').version")" = "$tag"
           node -e "const t = require('./min/tern.js'); const h = t.toHTML('# Hi {#top}\n\nSee @top.\n'); if (!/<h1 id=\"top\">Hi<\/h1>/.test(h) || !/t-ref/.test(h)) throw new Error('the minified build does not render')"
