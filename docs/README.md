@@ -60,6 +60,8 @@ A fence whose info is `tern` with the class `live` is an example. docs.js shows 
 - the generated HTML;
 - the diagnostics.
 
+One parse and one transform give all four. So that a page of 200 examples paints sooner, the generated HTML goes into its panel when the panel first opens or once the page is idle, and an example out of view is laid out only as it comes near.
+
 ````
 ```tern {.live}
 A *short* example with $x^2$.

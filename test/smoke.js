@@ -849,10 +849,38 @@ const DOC_TESTS = (() => {
   }));
   if (!pages.length) tests.push({ name: 'docs: the documentation pages render', todo: 'no pages yet in index.html, docs/ or examples/' });
   tests.push({
-    name: 'docs: docs.js live examples: ids prefixed, scripts shown not run, styles scoped, math and macros isolated, diagnostics linked, Tern highlighted',
+    name: 'docs: docs.js live examples: ids prefixed, scripts shown not run, styles scoped, math and macros isolated, diagnostics linked, Tern highlighted; each parsed once, its HTML pane made on opening or once the page is idle; the mark painted',
     url: '/test/smoke/docs-live.html',
+    // Counts the engine's runs by source: parse, toHTML and check each parse
+    // the note they are given (the runtime's own calls are counted too, under
+    // the page's source).
+    init: () => {
+      const runs = (window.__engineRuns = {});
+      let tern;
+      Object.defineProperty(window, 'tern', {
+        configurable: true,
+        get: () => tern,
+        set(v) {
+          tern = v;
+          for (const k of ['parse', 'toHTML', 'check']) {
+            const f = v[k];
+            v[k] = (source, ...rest) => ((runs[source] = (runs[source] || 0) + 1), f(source, ...rest));
+          }
+        },
+      });
+    },
     async check(page) {
       await checkDocsPage(page, { docs: true, want: 8 });
+      const parsed = await page.evaluate(() => {
+        const want = {};
+        for (const c of document.querySelectorAll('.docs-live-source code.language-tern')) want[c.textContent + '\n'] = (want[c.textContent + '\n'] || 0) + 1;
+        return Object.entries(want).map(([source, n]) => [n, window.__engineRuns[source] || 0, source.slice(0, 40)]);
+      });
+      const wrong = parsed.filter(([n, ran]) => ran !== n);
+      if (parsed.length < 7 || wrong.length) throw new Error(`each example's source parsed once: ${JSON.stringify(wrong.length ? wrong : parsed)}`);
+      // Every HTML pane is made once the page is idle, so find-in-page finds
+      // its text in a closed panel; one that opens first is made then.
+      await expect(page, () => [...document.querySelectorAll('.docs-live-markup')].every((d) => d.querySelector('.docs-live-html')), 'every HTML pane, once the page is idle');
       await page.evaluate(() => document.querySelector('.docs-live-out button').click());
       const r = await page.evaluate(() => {
         const out = [...document.querySelectorAll('.docs-live-out')];
@@ -884,6 +912,7 @@ const DOC_TESTS = (() => {
           codes: [5, 6, 7].map((i) => [...document.querySelectorAll('.docs-live')[i].querySelectorAll('.docs-diag')].map((d) => `${d.dataset.code} ${d.querySelector('.docs-pos').textContent}`)),
           errorLink: (document.querySelectorAll('.docs-live')[7].querySelector('.docs-diag[data-code="math.error"] a') || {}).getAttribute?.('href'),
           label: (document.querySelectorAll('.docs-live')[7].querySelector('.docs-live-diagnostics .docs-live-label') || {}).textContent,
+          logo: (document.querySelector('nav.site-nav .docs-nav-logo') || {}).getAttribute?.('src'),
         };
       });
       const problems = [];
@@ -910,6 +939,7 @@ const DOC_TESTS = (() => {
       const codes = [[], ['math.error 1:28'], ['math.error 1:1', 'math.error 5:26']];
       if (JSON.stringify(r.codes) !== JSON.stringify(codes)) problems.push(`the examples' diagnostics ${JSON.stringify(r.codes)}, expected ${JSON.stringify(codes)}`);
       if (r.errorLink !== '../../docs/diagnostics.html#math-error' || r.label !== 'Diagnostics (2)') problems.push(`math.error in the example: ${r.errorLink}, ${r.label}`);
+      if (r.logo !== '../../docs/tern.png') problems.push(`the site nav's mark is ${r.logo}, expected ../../docs/tern.png (a light theme)`);
       if (problems.length) throw new Error(problems.join(' | '));
     },
   });
