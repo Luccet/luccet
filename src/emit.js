@@ -45,8 +45,9 @@ const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
 // Under `safe`, attributes dropped from every element whatever their value:
 // event handlers (on*, caught by the regex), ones that run or submit, ones
 // that steer navigation or focus, and ones that drive the host page's own
-// elements (its forms, popovers and image maps) or clobber its names.
-const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popovertarget popovertargetaction usemap name'.split(' '));
+// elements (its forms, dialogs and popovers through the popover, command
+// and interest invokers, and its image maps) or clobber its names.
+const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popover popovertarget popovertargetaction commandfor command interestfor interesttarget usemap name'.split(' '));
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -73,8 +74,9 @@ const escAttr = (s) => (VALUE.test(s) ? s.replace(ATTR, (m, body) => (body !== u
 // Whether a URL may be emitted under `safe`: http(s), mailto or relative.
 // The browser decodes entities and drops tabs, newlines and leading
 // controls before it reads the scheme, so the check does too.
+const decodeEntities = (v) => v.replace(/&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});/g, (m, b) => decode(b) || m);
 function safeUrl(v, entities) {
-  let s = entities ? v.replace(/&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});/g, (m, b) => decode(b) || m) : v;
+  let s = entities ? decodeEntities(v) : v;
   s = s.replace(/[\t\n\r]/g, '').replace(/^[\x00-\x20]+/, '');
   const m = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(s);
   return !m || SAFE_SCHEME.test(m[1]);
@@ -228,7 +230,9 @@ function attrs(a, pre, post, extra, skip, fence) {
   }
   return s;
 }
-const safeSet = (k, v) => (k === 'srcset' ? v.split(',').every((c) => safeUrl(c.trim().split(/\s+/)[0] || '', true)) : safeUrl(v, true));
+// A srcset is decoded before it is split: the browser reads `&#44;` as the
+// comma between two candidates, so the check must see the same candidates.
+const safeSet = (k, v) => (k === 'srcset' ? decodeEntities(v).split(',').every((c) => safeUrl(c.trim().split(/\s+/)[0] || '', false)) : safeUrl(v, true));
 
 // The few words the emitter writes itself, for assistive technology: the
 // footnote section's name, a back link's, a task checkbox's state. Picked by

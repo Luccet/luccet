@@ -37,11 +37,12 @@ const addons = fs.readdirSync(DIR).filter((n) => n.endsWith('.js')).sort();
 
 test('every add-on runs under tern check and tern build with no diagnostic', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-addons-'));
-  fs.writeFileSync(path.join(tmp, 'tern.js'), ''); // the notes' tern.js, for tern check's link checking
+  fs.writeFileSync(path.join(tmp, 'tern.js'), ''); // the notes' tern.js, for tern check's link checking; its folder is the notes' project, which their add-ons must stay in
   try {
     for (const n of addons) {
       const note = path.join(tmp, `${n}.html`);
-      const use = path.relative(tmp, path.join(DIR, n)).split(path.sep).join('/');
+      fs.copyFileSync(path.join(DIR, n), path.join(tmp, n)); // beside the note, as a local add-on is
+      const use = n;
       fs.writeFileSync(note, `<!doctype html><meta charset="utf-8"><title>T</title><script src="tern.js" data-use="${use}"></script>\n\n# Hello\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n\n\`\`\`mermaid\nflowchart LR\n  A --> B\n\`\`\`\n`);
       const check = spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), 'check', note], { encoding: 'utf8' });
       if (check.status !== 0 || !/0 errors, 0 warnings, 0 infos/.test(check.stdout + check.stderr)) throw new Error(`${n}: tern check: ${check.stdout}${check.stderr}`);
@@ -159,7 +160,8 @@ test('glossary.js: under tern check and tern build, :term[x] is a link to the gl
   const cli = (args) => spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), ...args], { cwd: tmp, encoding: 'utf8' });
   try {
     fs.writeFileSync(path.join(tmp, 'tern.js'), '');
-    const use = path.relative(tmp, path.join(DIR, 'glossary.js')).split(path.sep).join('/');
+    fs.copyFileSync(path.join(DIR, 'glossary.js'), path.join(tmp, 'glossary.js'));
+    const use = 'glossary.js';
     fs.writeFileSync(path.join(tmp, 'a.html'), `<!doctype html><meta charset="utf-8"><title>A</title><script src="tern.js" data-use="${use}"></script>\n# A {#top}\n\nA :dfn[truism] is obvious. Every :term[truism] and :term[kernels]{title=kernel} links.\n\n::glossary\n`);
     fs.writeFileSync(path.join(tmp, 'b.html'), `<!doctype html><meta charset="utf-8"><title>B</title><script src="tern.js" data-use="${use}?page=/wiki/glossary.html"></script>\nSee :term[truism].\n`);
     let r = cli(['check', 'a.html']);
@@ -265,7 +267,8 @@ test('cite.js: under tern check and tern build, through the sandbox: the same li
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-cite-'));
   try {
     fs.writeFileSync(path.join(tmp, 'tern.js'), '');
-    const use = path.relative(tmp, path.join(DIR, 'cite.js')).split(path.sep).join('/');
+    fs.copyFileSync(path.join(DIR, 'cite.js'), path.join(tmp, 'cite.js'));
+    const use = 'cite.js';
     const note = path.join(tmp, 'note.html');
     fs.writeFileSync(note, `<!doctype html><meta charset="utf-8"><script>window.TERN = {bib: '@book{shared, author = {Ada Lovelace}, title = {Notes}, year = 1843}'};</script><script src="tern.js" data-use="${use}"></script>\n\nSee @knuth84, @shared and @gone.\n\n${BIB.replace(/:::\n$/, '@junk\n:::\n')}`);
     const check = spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), 'check', note], { encoding: 'utf8' });

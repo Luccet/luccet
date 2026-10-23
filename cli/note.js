@@ -80,17 +80,23 @@ function attributes(tag) {
   return out;
 }
 
-// A local add-on's file: relative to the note's directory; root-relative
-// (/lib/x.js) under the nearest ancestor that has it, since the site root is
-// not known here.
-function locate(dir, url) {
-  const from = path.resolve(dir);
-  if (!url.startsWith('/')) return path.resolve(from, url);
-  for (let d = from; ; d = path.dirname(d)) {
-    const file = path.join(d, url);
-    if (fs.existsSync(file)) return file;
-    if (path.dirname(d) === d) return path.join(from, url);
-  }
+// The project a note's local head scripts and add-ons must stay in: the
+// folder of the tern.js its tag names, when that is a relative path (the
+// site root a static host would serve it from); else the repository the note
+// is in; else the note's own folder. A root-relative URL (/lib/x.js) resolves
+// against it, and a path that leaves it is not read: a note cannot make the
+// tools read a file outside its project and run it as code.
+function projectRoot(dir, tag) {
+  const src = (attributes(tag).src || '').replace(/[?#].*$/, '');
+  if (src && !isRemote(src) && !src.startsWith('/')) return path.dirname(path.resolve(dir, src));
+  return repository(dir) || path.resolve(dir);
+}
+
+// A local file's path, or null when it lies outside the project root.
+function locate(dir, url, root) {
+  const file = url.startsWith('/') ? path.join(root, url) : path.resolve(dir, url);
+  const rel = path.relative(root, file);
+  return rel.startsWith('..') || path.isAbsolute(rel) ? null : file;
 }
 
 // The head's classic scripts before the tern.js tag, in document order:
@@ -162,6 +168,8 @@ function collect(tag, dir, head, note) {
   const problems = [];
   const files = []; // the local files read, absolute: an editor watches them
   const attrs = attributes(tag);
+  const root = projectRoot(dir, tag);
+  const outside = `outside the project (${root})`;
   let seq = 0;
   for (const s of headScripts(head)) {
     const at = { kind: 'head', line: s.line, column: s.column, seq: seq++ };
@@ -174,7 +182,11 @@ function collect(tag, dir, head, note) {
       problems.push({ ...at, severity: 'info', url, message: `the head script ${url} is not run under node, so vocabulary it declares in window.TERN.schema is unknown here` });
       continue;
     }
-    const file = locate(dir, s.src.replace(/[?#].*$/, ''));
+    const file = locate(dir, s.src.replace(/[?#].*$/, ''), root);
+    if (!file) {
+      problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} is ${outside}, so it is not run` });
+      continue;
+    }
     files.push(file);
     try {
       scripts.push({ url, code: fs.readFileSync(file, 'utf8'), line: s.line, column: s.column, seq: at.seq });
@@ -190,7 +202,11 @@ function collect(tag, dir, head, note) {
       problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check`, seq: seq++ });
       continue;
     }
-    const file = locate(dir, url);
+    const file = locate(dir, url, root);
+    if (!file) {
+      problems.push({ url, message: outside, seq: seq++ });
+      continue;
+    }
     files.push(file);
     try {
       addons.push({ url, code: fs.readFileSync(file, 'utf8'), seq: seq++ });
@@ -209,7 +225,11 @@ function collect(tag, dir, head, note) {
       problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check`, seq: seq++, position: span });
       continue;
     }
-    const file = locate(dir, url);
+    const file = locate(dir, url, root);
+    if (!file) {
+      problems.push({ url, message: outside, seq: seq++, position: span });
+      continue;
+    }
     files.push(file);
     try {
       addons.push({ url: e.url, code: fs.readFileSync(file, 'utf8'), seq: seq++, position: span });

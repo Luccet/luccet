@@ -11,6 +11,7 @@ const STEPS = [
   ['build check', ['../tools/concat.js', '--check']],
   ['version', ['../tools/version.js', '--check']],
   ['package', ['package.js']],
+  ['floor', ['floor.js']],
   ['themes', ['themes.js']],
   ['add-ons', ['addons.js']],
   ['corpus lint', ['run.js', '--lint']],

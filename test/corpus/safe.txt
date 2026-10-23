@@ -200,3 +200,38 @@ x
 <div class="t-block box" data-t="box"><p>x</p>
 </div>
 ````
+
+## safe/invoker-attributes-dropped
+
+spec: elements#safe
+options: safe
+
+`popover`, `commandfor`, `command`, `interestfor` and `interesttarget` would let untrusted content open or drive the host page's dialogs and popovers; `data-*` stays.
+
+````tern
+:::note{popover commandfor=host-dialog command=show-modal interestfor=tip interesttarget=tip data-k=v}
+x
+:::
+````
+
+````html
+<div class="t-block note" data-t="note" data-k="v"><div class="t-title"><span class="t-label">Note</span></div><p>x</p></div>
+````
+
+## safe/srcset-decoded-first
+
+spec: elements#safe
+options: safe
+
+A `srcset` is decoded before it is split: `&#44;` is the comma between two candidates to the browser, so a `data:` candidate hidden behind it is seen and the attribute dropped; a plain srcset of relative URLs stays.
+
+````tern
+![a](a.png){srcset="a.png 1x&#44; data:image/svg+xml;base64,PHN2Zz4= 2x"}
+
+![b](b.png){srcset="b.png 1x, b@2x.png 2x"}
+````
+
+````html
+<p><img src="a.png" alt="a"></p>
+<p><img src="b.png" alt="b" srcset="b.png 1x, b@2x.png 2x"></p>
+````

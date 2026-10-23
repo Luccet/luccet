@@ -4,6 +4,10 @@ Every release of Tern, newest first. Versions follow [semantic versioning](https
 
 ## 1.1.1 (unreleased)
 
+- Under `safe`, the `popover`, `commandfor`, `command`, `interestfor` and `interesttarget` attributes are dropped: with them, untrusted content could open or drive the host page's dialogs and popovers. A `srcset` is decoded before it is split into candidates, as the browser reads it, so an entity-encoded comma can no longer hide a `data:` candidate behind a safe one.
+- The tools read a note's local head scripts and add-ons inside its project only: the folder of the `tern.js` its tag names, or the repository the note is in, or its own folder. A root-relative URL resolves against that root, where it was looked for under every folder up to `/`, and a path that leaves the root is `addon.failed` instead of read. A note could have `tern check` or the language server read any file you can and run it as code, and a syntax error in that file quoted its first line.
+- `tern build --diagrams` with `--no-scripts` is refused with a message. It drew the diagrams in a browser that ran the note's code regardless.
+- `tern.js` parses in Safari 14 to 16.3 again. A regex lookbehind, which those versions cannot parse, failed the whole file there, and with it the fallback that shows a note's source in a browser below the floor. The floor reads Chrome 88, Firefox 78 and Safari 14 (the `:is()` the runtime needs came with Chrome 88), it is probed with `querySelector` rather than `CSS.supports('selector()')`, which Safari 14.0 lacks, and `npm test` now fails on syntax or an API above the floor in `tern.js` or an add-on.
 - On Windows, `tern build` prints its paths with forward slashes, as the other commands do and the tools page says: `--json`'s `file` and `out`, and the file in each diagnostic. With `-o DIR/`, and for the notes of a folder, they came out with backslashes there.
 
 ## 1.1.0 (2026-10-23)

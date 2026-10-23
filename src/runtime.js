@@ -390,7 +390,8 @@ function supported() {
       !!window.CSS &&
       typeof CSS.escape === 'function' &&
       typeof CSS.supports === 'function' &&
-      CSS.supports('selector(:is(a))') &&
+      !!document.querySelector(':is(html)') && // throws where :is() is unknown; CSS.supports('selector()') came later than :is() itself
+
       'nonce' in HTMLScriptElement.prototype
     );
   } catch {
