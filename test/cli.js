@@ -561,6 +561,28 @@ test("check, build: a note's code sees nothing of the sandbox's request or its d
   ok(/head undefined/.test(main), `the head script: ${main}`);
 });
 
+// A note's local scripts and add-ons are read inside its project only: the
+// folder of the tern.js its tag names. A root-relative URL resolves there and
+// nowhere above it; a path that leaves the root is refused, not read.
+test('check: head scripts and add-ons are read inside the project only; a root-relative URL resolves under the tern.js folder, not above it; a path leaving the project is addon.failed', () => {
+  write('pr/site/notes/n.html', `${FIRST}<script src="../lib/head.js"></script><script src="../tern.js" data-use="/lib/box.js /lib/decoy.js ../../../outside.js"></script>\n:::box[T]\nx\n:::\n`);
+  write('pr/site/lib/box.js', "tern.block('box', { label: 'Box' });\n", { tern: false });
+  write('pr/site/lib/head.js', "window.TERN = { schema: { block: { hd: { label: 'Head' } } } };\n", { tern: false });
+  write('pr/lib/decoy.js', "tern.block('decoy', { label: 'Decoy' });\n", { tern: false }); // above the root: /lib/decoy.js must not find it
+  write('pr/outside.js', "tern.block('out', { label: 'Out' });\n", { tern: false });
+  const r = run(['check', 'pr/site/notes/n.html']);
+  exits(r, 1, 'check');
+  ok(!/name\.unknown/.test(r.out), `/lib/box.js loaded from under the tern.js folder: ${r.out}`);
+  ok(/addon\.failed: the add-on \/lib\/decoy\.js did not load: cannot read .*pr[\\/]site[\\/]lib[\\/]decoy\.js/.test(r.out), `/lib/decoy.js looked for under the root only: ${r.out}`);
+  ok(/addon\.failed: the add-on \.\.\/\.\.\/\.\.\/outside\.js did not load: outside the project \(.*pr[\\/]site\)/.test(r.out), `../../../outside.js refused: ${r.out}`);
+  ok(!/the head script \.\.\/lib\/head\.js is outside/.test(r.out), `a head script inside the project is read: ${r.out}`);
+  // A head script that leaves the project is reported, and not run.
+  write('pr/site/notes/m.html', `${FIRST}<script src="../../head2.js"></script><script src="../tern.js"></script>\n# M\n`);
+  write('pr/head2.js', "window.TERN = { schema: { block: { h2: { label: 'H2' } } } };\n", { tern: false });
+  const m = run(['check', 'pr/site/notes/m.html']);
+  ok(/the head script \.\.\/\.\.\/head2\.js is outside the project \(.*pr[\\/]site\), so it is not run/.test(m.out + m.err), `the head script refused: ${m.out}${m.err}`);
+});
+
 // Where the blocking bridge cannot read the child's pipe (Windows, and here
 // TERN_SANDBOX_ONESHOT=1), a worker thread drives one child for the run. A
 // preload, in every thread, counts the sandbox children the command starts.
@@ -1511,6 +1533,9 @@ test('build: refusals and usage errors', () => {
   exits(run(['build', 'e/n.html', '-o', 'e/n.html']), 2, '-o the note itself');
   eq(read('e/n.html'), `${FIRST}<script src="tern.js"></script>\n# x\n`, 'the note');
   exits(run(['build']), 2, 'no FILE');
+  const dn = run(['build', 'e/n.html', '--diagrams', '--no-scripts']);
+  exits(dn, 2, '--diagrams with --no-scripts');
+  ok(/tern build: --diagrams opens the note in a browser, which runs its code; drop --no-scripts, or build without --diagrams/.test(dn.err), `the refusal: ${dn.err}`);
   fs.mkdirSync(at('e/dist'));
   exits(run(['build', 'e/n.html', '-o', 'e/dist']), 0, '-o a directory');
   ok(fs.existsSync(at('e/dist/n.html')), 'written as dist/n.html');

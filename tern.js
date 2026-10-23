@@ -608,7 +608,10 @@ const BARE = /https?:\/\//iy;
 const BARE_TAIL = /[^\s<>[\]{}|`"]*/y;
 const ESCAPES = /\\([!-/:-@[-`{-~])|&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});/g;
 const URL_UNSAFE = /%(?![0-9a-fA-F]{2})|[^\w;/?:@&=+$,\-.!~*'()#%]+/g;
-const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+// Surrogates: a pair is kept, a lone one becomes U+FFFD. Matched as pairs
+// first, with no lookbehind, which Safari before 16.4 cannot parse at all.
+const SURROGATES = /[\ud800-\udbff][\udc00-\udfff]|[\ud800-\udbff]|[\udc00-\udfff]/g;
+const fixSurrogates = (s) => s.replace(SURROGATES, (m) => (m.length === 2 ? m : '�'));
 const UNI_WS = /[\t\n\f\r\p{Zs}]/u;
 const UNI_PUNCT = /[\p{P}\p{S}]/u;
 const REF_TEXT = words('label number title full');
@@ -641,7 +644,7 @@ const unescape = (s) =>
 // CommonMark's normalisation: percent-encode what is unsafe or non-ASCII,
 // keep an existing %XX. A lone surrogate, which encodeURIComponent rejects,
 // becomes U+FFFD.
-const normaliseUrl = (url) => url.replace(URL_UNSAFE, (m) => (m === '%' ? '%25' : encodeURIComponent(m.replace(LONE_SURROGATE, '\ufffd'))));
+const normaliseUrl = (url) => url.replace(URL_UNSAFE, (m) => (m === '%' ? '%25' : encodeURIComponent(fixSurrogates(m))));
 
 // A code span's content: newlines become spaces; one space is stripped from
 // each end when both are there and the content is not all spaces.
@@ -4758,8 +4761,9 @@ const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
 // Under `safe`, attributes dropped from every element whatever their value:
 // event handlers (on*, caught by the regex), ones that run or submit, ones
 // that steer navigation or focus, and ones that drive the host page's own
-// elements (its forms, popovers and image maps) or clobber its names.
-const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popovertarget popovertargetaction usemap name'.split(' '));
+// elements (its forms, dialogs and popovers through the popover, command
+// and interest invokers, and its image maps) or clobber its names.
+const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popover popovertarget popovertargetaction commandfor command interestfor interesttarget usemap name'.split(' '));
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -4786,8 +4790,9 @@ const escAttr = (s) => (VALUE.test(s) ? s.replace(ATTR, (m, body) => (body !== u
 // Whether a URL may be emitted under `safe`: http(s), mailto or relative.
 // The browser decodes entities and drops tabs, newlines and leading
 // controls before it reads the scheme, so the check does too.
+const decodeEntities = (v) => v.replace(/&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});/g, (m, b) => decode(b) || m);
 function safeUrl(v, entities) {
-  let s = entities ? v.replace(/&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});/g, (m, b) => decode(b) || m) : v;
+  let s = entities ? decodeEntities(v) : v;
   s = s.replace(/[\t\n\r]/g, '').replace(/^[\x00-\x20]+/, '');
   const m = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(s);
   return !m || SAFE_SCHEME.test(m[1]);
@@ -4941,7 +4946,9 @@ function attrs(a, pre, post, extra, skip, fence) {
   }
   return s;
 }
-const safeSet = (k, v) => (k === 'srcset' ? v.split(',').every((c) => safeUrl(c.trim().split(/\s+/)[0] || '', true)) : safeUrl(v, true));
+// A srcset is decoded before it is split: the browser reads `&#44;` as the
+// comma between two candidates, so the check must see the same candidates.
+const safeSet = (k, v) => (k === 'srcset' ? decodeEntities(v).split(',').every((c) => safeUrl(c.trim().split(/\s+/)[0] || '', false)) : safeUrl(v, true));
 
 // The few words the emitter writes itself, for assistive technology: the
 // footnote section's name, a back link's, a task checkbox's state. Picked by
@@ -6113,7 +6120,8 @@ function supported() {
       !!window.CSS &&
       typeof CSS.escape === 'function' &&
       typeof CSS.supports === 'function' &&
-      CSS.supports('selector(:is(a))') &&
+      !!document.querySelector(':is(html)') && // throws where :is() is unknown; CSS.supports('selector()') came later than :is() itself
+
       'nonce' in HTMLScriptElement.prototype
     );
   } catch {

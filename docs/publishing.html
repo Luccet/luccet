@@ -382,7 +382,7 @@ QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk
 - copying formulas, printing to PDF, the network waterfall on a slow connection, long tasks on a 4,000-formula note, and the first paint of a 1 MB note (the last five in Chromium; copying and the 1 MB note also in Firefox);
 - accessibility: [axe-core](https://github.com/dequelabs/axe-core) finds no WCAG 2.0 or 2.1 A or AA violation on a page holding every construct the emitter writes, in tern.css alone and in every theme, light and dark.
 
-**Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property and `MutationObserver`: Chrome 86, Firefox 78 and Safari 14, or newer. In an older browser `tern.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page.
+**Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property and `MutationObserver`: Chrome 88, Firefox 78 and Safari 14, or newer. In an older browser `tern.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page. For that to work, `tern.js` and the add-ons must at least parse there: a test (`test/floor.js`) fails the build when either uses syntax or an API those versions lack.
 
 **WebKit is tested, Safari not verified.** The smoke suite also runs in Playwright's WebKit, the engine behind Safari, in CI, where it blocks a change as Chromium and Firefox do. Nothing on these pages has been checked in Safari itself. The command line and the language server run their tests on Windows in CI the same way.
 

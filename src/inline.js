@@ -79,7 +79,10 @@ const BARE = /https?:\/\//iy;
 const BARE_TAIL = /[^\s<>[\]{}|`"]*/y;
 const ESCAPES = /\\([!-/:-@[-`{-~])|&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});/g;
 const URL_UNSAFE = /%(?![0-9a-fA-F]{2})|[^\w;/?:@&=+$,\-.!~*'()#%]+/g;
-const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+// Surrogates: a pair is kept, a lone one becomes U+FFFD. Matched as pairs
+// first, with no lookbehind, which Safari before 16.4 cannot parse at all.
+const SURROGATES = /[\ud800-\udbff][\udc00-\udfff]|[\ud800-\udbff]|[\udc00-\udfff]/g;
+const fixSurrogates = (s) => s.replace(SURROGATES, (m) => (m.length === 2 ? m : '�'));
 const UNI_WS = /[\t\n\f\r\p{Zs}]/u;
 const UNI_PUNCT = /[\p{P}\p{S}]/u;
 const REF_TEXT = words('label number title full');
@@ -112,7 +115,7 @@ const unescape = (s) =>
 // CommonMark's normalisation: percent-encode what is unsafe or non-ASCII,
 // keep an existing %XX. A lone surrogate, which encodeURIComponent rejects,
 // becomes U+FFFD.
-const normaliseUrl = (url) => url.replace(URL_UNSAFE, (m) => (m === '%' ? '%25' : encodeURIComponent(m.replace(LONE_SURROGATE, '\ufffd'))));
+const normaliseUrl = (url) => url.replace(URL_UNSAFE, (m) => (m === '%' ? '%25' : encodeURIComponent(fixSurrogates(m))));
 
 // A code span's content: newlines become spaces; one space is stripped from
 // each end when both are there and the content is not all spaces.

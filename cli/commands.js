@@ -767,6 +767,8 @@ async function buildPage(args) {
   if (o.help) return help('build');
   const math = o.math || (o.katex ? 'katex' : null);
   if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
+  // --diagrams opens the note in a browser, where its head scripts and add-ons run: there is no drawing without running its code.
+  if (o.diagrams && o['no-scripts']) throw new UsageError('--diagrams opens the note in a browser, which runs its code; drop --no-scripts, or build without --diagrams');
   if (!positionals.length) throw new UsageError('FILE is missing');
   const stat = (p) => {
     try {

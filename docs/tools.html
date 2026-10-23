@@ -123,7 +123,7 @@ How the sandbox behaves:
 
 - **Browser globals** (`document`, `customElements`, `HTMLElement`, `location`, `fetch` …) exist but do nothing. So an add-on that defines a custom element or adds a listener while it loads still reaches its `tern.block` calls.
 - **Output.** An add-on's `console` writes to stderr. stdout carries only the command's output: JSON for `tern parse` and `tern check --json`, the protocol for `tern lsp`.
-- **Paths.** A relative URL is resolved from the note's folder. A root-relative URL (`/lib/theorems.js`) is looked for under the note's folder and then under each folder above it, since the site root is not known.
+- **Paths.** A relative URL is resolved from the note's folder. A root-relative URL (`/lib/theorems.js`) is resolved against the note's project root: the folder of the `tern.js` its tag names, when that is a relative path (where a static host would serve it from); otherwise the repository the note is in; otherwise the note's own folder. A path that leaves that root, by `..` or as a root-relative URL to a folder above it, is not read and is reported as `addon.failed`, so a note cannot make the tools read a file outside its project and run it as code.
 - **Time.** A note's scripts and transforms together may run for 2 seconds; still running then, they are stopped and the note gets an [`addon.failed`](diagnostics.html#addon-failed) error.
 
 What cannot be loaded is reported, and the note is still checked without it:
@@ -543,9 +543,9 @@ tern build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-sc
 |---|---|
 | `-o OUT`, `--output=OUT` | Where to write the page. Without it, or with `-o -`, the page goes to stdout. When `OUT` ends with `/`, or is an existing folder, the page is written into that folder under the note's file name, and the folder is created if needed. Any other `OUT` is the page's file name, and missing folders on its path are created. `OUT` may not be the note itself. |
 | `--math katex|mathml` | Pre-renders the math: `katex` to typeset HTML with the `katex` package, `mathml` to native MathML with the `temml` package. `--katex` is short for `--math katex`. See [pre-rendered math](#build-katex). |
-| `--diagrams` | Draws the `mermaid` fences into the page, in a headless Chromium through the `playwright` package. See [diagrams drawn ahead](#build-diagrams). |
+| `--diagrams` | Draws the `mermaid` fences into the page, in a headless Chromium through the `playwright` package. See [diagrams drawn ahead](#build-diagrams). It opens the note in that browser, where its head scripts and add-ons run, so it cannot be combined with `--no-scripts`. |
 | `--json` | Prints one JSON object on stdout instead of the page: see [--json](#build-json). |
-| `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `tern.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. |
+| `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `tern.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. Refused together with `--diagrams`, which runs them in a browser. |
 
 ```sh
 $ tern build notes/maps.html -o dist/
