@@ -25,8 +25,10 @@
 // signature; through the event loop, for the language server, which answers
 // requests while a note's code runs. Each way has a child of its own. Where
 // the blocking way cannot read the pipe itself (Windows, whose pipes are not
-// file descriptors), the tools start one child per note with spawnSync
-// instead; TERN_SANDBOX_ONESHOT=1 forces that, for the tests.
+// file descriptors), a worker thread drives the event-loop way for the
+// tools, with one child for the run, and the tools wait for each reply on a
+// shared flag; TERN_SANDBOX_ONESHOT=1 forces that, for the tests (the name
+// is from when that way started a child per note).
 //
 //   analyse(req)        run a note's code and analyse it, blocking; req is
 //                       {note, head, dataUse, dataLang, dataKatex, scripts,
@@ -389,7 +391,7 @@ function childMain() {
 // ------------------------------------------------------------------ host
 
 let child = null; // the blocking bridge's: {proc, toFd, fromFd, alive, served} or null before the first note
-let oneShot = process.env.TERN_SANDBOX_ONESHOT === '1'; // the blocking way starts a child per request (Windows)
+let viaWorker = process.env.TERN_SANDBOX_ONESHOT === '1'; // the blocking way goes through a worker thread (Windows)
 let broken = false; // a spawn that failed: fall back, warn once
 const spin = new Int32Array(new SharedArrayBuffer(4));
 const TRIP_AT = 3; // children dead before their first answer, in a row
@@ -449,9 +451,9 @@ function spawnChild() {
   from.pause();
   const fd = (s) => (s._handle && typeof s._handle.fd === 'number' && s._handle.fd >= 0 ? s._handle.fd : null);
   if (fd(to) === null || fd(from) === null) {
-    // No descriptor to read (Windows): one child per request, below.
+    // No descriptor to read (Windows): through a worker thread, below.
     proc.kill();
-    oneShot = true;
+    viaWorker = true;
     return null;
   }
   to.unref();
@@ -459,23 +461,61 @@ function spawnChild() {
   return { proc, toFd: fd(to), fromFd: fd(from), alive: true, served: 0 };
 }
 
-// The blocking way without a readable pipe: one child per request, its
-// request on stdin, its reply the whole of stdout, spawnSync waiting.
-function oneShotAnalyse(req) {
-  const { spawnSync } = require('child_process');
-  const body = Buffer.from(JSON.stringify(req), 'utf8');
-  const head = Buffer.allocUnsafe(4);
-  head.writeUInt32BE(body.length, 0);
-  const r = spawnSync(process.execPath, ARGS, { input: Buffer.concat([head, body]), env: childEnv(), timeout: WEDGED_MS, maxBuffer: 1 << 30, stdio: ['pipe', 'pipe', 'ignore'] });
-  const c = { served: 0 };
-  if (r.error && r.error.code === 'ETIMEDOUT') return { failed: 'timeout' };
-  const out = r.stdout || Buffer.alloc(0);
-  if (r.error || r.status !== 0 || out.length < 4 || out.readUInt32BE(0) !== out.length - 4) {
-    died(c);
-    return { failed: 'crash' };
+// The blocking way without a readable pipe: a worker thread runs the
+// event-loop bridge below, its one child serving every note of the run, and
+// this thread sleeps on a shared flag until the reply is posted (Atomics.wait,
+// then receiveMessageOnPort, which reads it without the event loop). The
+// worker leaves the note's console output to this thread, which prints it in
+// order. A worker that never answers is ended, and the note has timed out.
+let bridge = null; // {worker, port, flag}
+function startBridge() {
+  const { Worker, MessageChannel } = require('worker_threads');
+  const flag = new Int32Array(new SharedArrayBuffer(4));
+  const { port1, port2 } = new MessageChannel();
+  const worker = new Worker(SELF, { workerData: { ternSandboxBridge: port2, flag }, transferList: [port2] });
+  worker.unref();
+  port1.unref();
+  const b = { worker, port: port1, flag };
+  worker.on('error', () => bridge === b && (bridge = null));
+  worker.on('exit', () => bridge === b && (bridge = null));
+  return b;
+}
+function workerAnalyse(req) {
+  const { receiveMessageOnPort } = require('worker_threads');
+  const b = (bridge = bridge || startBridge());
+  Atomics.store(b.flag, 0, 0);
+  b.port.postMessage(req);
+  if (Atomics.wait(b.flag, 0, 0, STARTUP_MS + WEDGED_MS) === 'timed-out') {
+    bridge = null;
+    b.worker.terminate();
+    return { failed: 'timeout' };
   }
-  answered(c);
-  return out.toString('utf8', 4);
+  const m = receiveMessageOnPort(b.port);
+  if (!m) return { failed: 'crash' };
+  const { said, ...reply } = m.message;
+  if (said) process.stderr.write(said);
+  return reply;
+}
+// In the worker: each request through analyseAsync, the reply posted back,
+// then the flag raised. What the bridge itself says on stderr (a breaker
+// tripped, a child that cannot start) rides in the reply, as `said`: the
+// worker's own stderr would reach the terminal only once the tools' thread
+// is free, out of order or after the command has exited.
+function bridgeMain({ ternSandboxBridge: port, flag }) {
+  let said = '';
+  process.stderr.write = (s) => ((said += String(s)), true);
+  port.on('message', async (req) => {
+    let reply;
+    try {
+      reply = await analyseAsync(req, true);
+    } catch (e) {
+      reply = { failed: 'error' }; // the flag is raised all the same: the tools never wait on a request that threw
+    }
+    port.postMessage(said ? { ...reply, said } : reply);
+    said = '';
+    Atomics.store(flag, 0, 1);
+    Atomics.notify(flag, 0);
+  });
 }
 
 function ensureChild() {
@@ -563,39 +603,40 @@ const clean = (s) => String(s).replace(/[\0-\x08\x0b-\x1f\x7f-\x9f]/g, '');
 function analyse(req) {
   if (broken) return { failed: 'unavailable' };
   if (tripped()) return { failed: 'tripped' };
-  let text;
-  if (oneShot) {
+  if (viaWorker) {
+    let reply;
     try {
-      text = oneShotAnalyse(req);
+      reply = workerAnalyse(req);
     } catch (e) {
       return unavailable(e);
     }
-    if (typeof text !== 'string') return text; // {failed}
-  } else {
-    let c;
-    try {
-      c = ensureChild();
-      if (!c) return analyse(req); // the pipe gave no descriptor: oneShot now
-    } catch (e) {
-      return unavailable(e);
-    }
-    try {
-      writeFrame(c.toFd, JSON.stringify(req));
-      text = readFrame(c.fromFd, Date.now() + WEDGED_MS);
-    } catch (e) {
-      text = null;
-    }
-    if (text === null || text === undefined) {
-      c.alive = false;
-      try {
-        c.proc.kill();
-      } catch (e) {}
-      child = null;
-      if (text === null) died(c);
-      return { failed: text === undefined ? 'timeout' : 'crash' };
-    }
-    answered(c);
+    if (reply.consoleOut && reply.consoleOut.length) process.stderr.write(reply.consoleOut.map(clean).join('\n') + '\n');
+    return reply;
   }
+  let c;
+  try {
+    c = ensureChild();
+    if (!c) return analyse(req); // the pipe gave no descriptor: through the worker now
+  } catch (e) {
+    return unavailable(e);
+  }
+  let text;
+  try {
+    writeFrame(c.toFd, JSON.stringify(req));
+    text = readFrame(c.fromFd, Date.now() + WEDGED_MS);
+  } catch (e) {
+    text = null;
+  }
+  if (text === null || text === undefined) {
+    c.alive = false;
+    try {
+      c.proc.kill();
+    } catch (e) {}
+    child = null;
+    if (text === null) died(c);
+    return { failed: text === undefined ? 'timeout' : 'crash' };
+  }
+  answered(c);
   let reply;
   try {
     reply = JSON.parse(text);
@@ -651,9 +692,11 @@ function spawnAsync() {
   return c;
 }
 
-function analyseAsync(req) {
+// `quiet`: the reply keeps the note's console output for the caller to
+// print (the worker bridge's), instead of printing it here.
+function analyseAsync(req, quiet = false) {
   return new Promise((resolve) => {
-    queue.push({ req, resolve, timer: null });
+    queue.push({ req, resolve, timer: null, quiet });
     pump();
   });
 }
@@ -702,7 +745,7 @@ function settle(c, reply) {
   c.job = null;
   clearTimeout(job.timer);
   c.from.unref();
-  if (reply.consoleOut && reply.consoleOut.length) process.stderr.write(reply.consoleOut.map(clean).join('\n') + '\n');
+  if (!job.quiet && reply.consoleOut && reply.consoleOut.length) process.stderr.write(reply.consoleOut.map(clean).join('\n') + '\n');
   job.resolve(reply);
   pump();
 }
@@ -717,7 +760,11 @@ function shutdown() {
   }
   child = null;
   achild = null;
+  if (bridge) bridge.worker.terminate();
+  bridge = null;
 }
 
+const thread = require('worker_threads');
 if (require.main === module && process.argv.includes('--sandbox-child')) childMain();
+else if (!thread.isMainThread && thread.workerData && thread.workerData.ternSandboxBridge) bridgeMain(thread.workerData);
 else module.exports = { analyse, analyseAsync, shutdown, clean };
