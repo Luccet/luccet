@@ -406,7 +406,7 @@ The engine and the runtime have budgets, checked by the test suite:
 **Reading the timings.** The console group's first line gives them for each note:
 
 ```text
-tern 1.0.0: 301 lines; parse, transform and emit 9 ms, mount 1 ms, then scripts, behaviours and math 92 ms
+tern 1.1.0: 301 lines; parse, transform and emit 9 ms, mount 1 ms, then scripts, behaviours and math 92 ms
 ```
 
 **Compiling the engine.** `tern.js` carries V8's explicit compile hint, `//# allFunctionsCalledOnLoad`, before its code. Chromium 136 and later then compile the whole file as it arrives, beside the main thread, where they would compile each function on its first call: a 4 KB note's parse, transform and emit take about 12 ms instead of 22. Other browsers read a comment. A copy you minify keeps the gain only if the comment stays before the code, as the release's `tern.js` does (terser's `--comments '/allFunctionsCalledOnLoad/'`).
