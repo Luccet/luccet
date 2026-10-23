@@ -11,6 +11,7 @@
 //   /gen/big.js          a ≥ 250 KB script that records its execution
 //   /gen/addon.js|.css   add-ons of a fixed size (waterfall test)
 //   /gen/math4000.html   a long note with 4,000 formulas (mathNote)
+//   /gen/code300.html    a note of 300 fences in five languages, with code.js (codeNote)
 //   /gen/long1mb.html    a 1 MB note of prose, lists, tables and code, no math (longNote)
 //   /gen/long100kb.html  the same at 100 KB, over the default holdOver
 //   /gen/a11y/THEME.html a note with every construct under a theme (a11yNote), for axe
@@ -251,6 +252,36 @@ function mathNote(sections = 80) {
   return out.join('\n');
 }
 
+// 300 fences in five languages highlight.js's core knows, each after a
+// paragraph and each its lines twice; window.__t.render as in mathNote.
+function codeNote(fences = 300) {
+  const bodies = {
+    js: (i) => [`// Fence ${i}: a small module.`, `export function step${i}(state, input) {`, '  const next = { ...state, count: state.count + 1 };', "  if (typeof input === 'string' && input.length > 3) next.last = input.trim();", '  for (const [k, v] of Object.entries(input || {})) next[k] = v ?? null;', '  return next; /* no side effect */', '}'],
+    python: (i) => [`# Fence ${i}: a small function.`, `def step_${i}(state, value=None):`, '    # the next state', '    nxt = dict(state, count=state.get("count", 0) + 1)', '    for k, v in (value or {}).items():', '        nxt[k] = v if v is not None else 0', '    return nxt'],
+    css: (i) => [`/* Fence ${i}: a component. */`, `.card-${i} { display: grid; gap: .5rem; }`, `.card-${i} > h2 { font: 700 1.2rem/1.3 var(--font, sans-serif); }`, `@media (min-width: 40rem) { .card-${i} { grid-template-columns: 1fr 2fr; } }`],
+    json: (i) => ['{', `  "fence": ${i},`, '  "name": "step",', '  "tags": ["a", "b", "c"],', '  "nested": { "ok": true, "n": 3.5, "none": null }', '}'],
+    sql: (i) => [`-- Fence ${i}: a report.`, 'SELECT u.id, u.name, COUNT(o.id) AS orders', 'FROM users u LEFT JOIN orders o ON o.user_id = u.id', `WHERE u.created_at > '2026-01-01' AND u.id % ${i + 1} = 0`, 'GROUP BY u.id, u.name ORDER BY orders DESC LIMIT 20;'],
+  };
+  const langs = Object.keys(bodies);
+  const out = [
+    '<!doctype html><meta charset="utf-8"><script src="/tern.js" data-use="/addons/code.js"></script>',
+    '',
+    '<script>',
+    '  window.__t = { script: performance.now() };',
+    "  tern.on('render', () => { window.__t.render = performance.now(); });",
+    '</script>',
+    '',
+    `# A note of ${fences} fences`,
+    '',
+  ];
+  for (let i = 1; i <= fences; i++) {
+    const lang = langs[i % langs.length];
+    const lines = bodies[lang](i);
+    out.push(`Fence ${i}, in ${lang}: a few lines, twice, so that the page holds a lot of code.`, '', '```' + lang, ...lines, ...lines, '```', '');
+  }
+  return out.join('\n');
+}
+
 // Two closed <details> after enough prose to be below the fold: #box holds
 // the fragment target #deep and a formula, #fold holds two formulas.
 function fragmentNote() {
@@ -433,6 +464,7 @@ const GENERATED = {
   'addon.js': () => ['text/javascript', pad(20) + 'window.__addon = (window.__addon || 0) + 1;\n'],
   'addon.css': () => ['text/css', pad(6) + '.tern { outline-color: currentColor; }\n'],
   'math4000.html': () => ['text/html', mathNote()],
+  'code300.html': () => ['text/html', codeNote()],
   'long1mb.html': () => ['text/html', longNote()],
   'long100kb.html': () => ['text/html', longNote(100000)],
   'fragment.html': () => ['text/html', fragmentNote()],
@@ -1970,6 +2002,42 @@ const TESTS = [
         if (frames.length) ctx.note(`their frames (LoAF): ${frames.map((f) => `${ms(f.start)}+${ms(f.duration)} = style, layout and paint ${ms(f.layout)} + ${f.scripts || 'no script'}`).join('; ')}`);
         throw new Error(`${math.length} long task(s) during math rendering, longest ${ms(Math.max(...math.map((e) => e.duration)))} (budget: none over 50 ms)`);
       }
+    },
+  },
+  {
+    // code.js colours fences in slices of 10 ms, one per frame, as katex.js
+    // typesets: no long task (> 50 ms) from the end of the mount frame until
+    // every fence is coloured, plus a settling window.
+    name: 'code add-on: no task over 50 ms colouring the 300-fence note, and every fence coloured',
+    url: '/gen/code300.html',
+    timeout: 60000,
+    async setup(_context, page, ctx) {
+      if (!(await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes('longtask')))) ctx.skip(`${ctx.browser} exposes no longtask entries (PerformanceObserver.supportedEntryTypes)`);
+    },
+    init: () => {
+      window.__lt = [];
+      window.__loaf = [];
+      try {
+        new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push({ start: e.startTime, duration: e.duration }))).observe({ type: 'longtask', buffered: true });
+      } catch {}
+      try {
+        new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__loaf.push({ start: e.startTime, duration: e.duration }))).observe({ type: 'long-animation-frame', buffered: true });
+      } catch {}
+    },
+    async check(page, ctx) {
+      const SETTLE = 300;
+      await expect(page, () => [...document.querySelectorAll('main.tern pre > code')].filter((c) => c.querySelector('[class*="hljs-"]')).length === 300, 'all 300 fences coloured', 30000);
+      const done = await page.evaluate(() => performance.now());
+      await page.evaluate((ms) => new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(r)), ms)), SETTLE);
+      const { t, lt, loaf } = await page.evaluate(() => ({ t: window.__t, lt: window.__lt, loaf: window.__loaf }));
+      const end = (e) => e.start + e.duration;
+      const ms = (x) => `${Math.round(x)} ms`;
+      const frame = loaf.find((f) => f.start <= t.render + 1 && t.render <= end(f) + 1);
+      const mountTask = lt.find((e) => e.start <= t.render + 1 && t.render <= end(e) + 1);
+      const mountEnd = frame ? end(frame) : mountTask ? end(mountTask) : t.render;
+      const after = lt.filter((e) => e.start >= mountEnd - 1 && e.start <= done + SETTLE);
+      ctx.note(`'render' at ${ms(t.render)}, every fence coloured by ${ms(done)}; long tasks after the mount: ${after.length ? after.map((e) => `${ms(e.start)}+${ms(e.duration)}`).join(', ') : 'none'}`);
+      if (after.length) throw new Error(`${after.length} long task(s) while colouring, longest ${ms(Math.max(...after.map((e) => e.duration)))} (budget: none over 50 ms)`);
     },
   },
 

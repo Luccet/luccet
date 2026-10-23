@@ -15,6 +15,7 @@ Every release of Tern, newest first. Versions follow [semantic versioning](https
 - `tern check` analyses each note once. A note that an earlier note links to with a fragment (`page.html#id`) was read for its ids, then analysed again, its code run a second time in the sandbox, when the check came to it: 25 analyses for the 16 notes of the documentation. Checking them takes 0.83 s where it took 1.29 s.
 - The language server's `documentLink`, `definition` and `references`, and `tern mv`, place a note's URLs in time linear in its length. Each URL's line and column were counted from the start of the note: `documentLink` took 44 ms on the 117 KB diagnostics page, 6 ms now, and 2 s on a note of 4,000 links.
 - A note of 30 000 characters or more is held at its mount, where it took 200 000 (`tern.config.holdOver`): its top-level blocks out of view wait with `content-visibility: auto`, so the browser lays out the first screen, not the whole note, before it paints. In Chromium a 100 KB note paints at 148 ms where it painted at 204, and at 456 ms where it painted at 648 on a CPU four times slower. The mount takes 20 to 30 ms more, so `'ready'` comes that much later; a page that would rather have the old size sets `window.TERN = { holdOver: 200000 }`.
+- `addons/code.js` colours fences in slices, 10 ms of work per frame, as `addons/katex.js` typesets. It coloured every fence in one task once highlight.js had loaded: 240 ms on a note of 300 fences, during which the page answered nothing. Printing colours what is still waiting.
 
 ## 1.0.0 (2026-10-19)
 
