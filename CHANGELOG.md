@@ -2,7 +2,7 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `tern index` writes, after a deprecation announced one minor release ahead. Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 1.1.1 (unreleased)
+## 1.1.1 (2026-10-23)
 
 - Under `safe`, the `popover`, `commandfor`, `command`, `interestfor` and `interesttarget` attributes are dropped: with them, untrusted content could open or drive the host page's dialogs and popovers. A `srcset` is decoded before it is split into candidates, as the browser reads it, so an entity-encoded comma can no longer hide a `data:` candidate behind a safe one.
 - The tools read a note's local head scripts and add-ons inside its project only: the folder of the `tern.js` its tag names, or the repository the note is in, or its own folder. A root-relative URL resolves against that root, where it was looked for under every folder up to `/`, and a path that leaves the root is `addon.failed` instead of read. A note could have `tern check` or the language server read any file you can and run it as code, and a syntax error in that file quoted its first line.

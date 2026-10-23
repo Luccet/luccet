@@ -46,7 +46,7 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v1.1.0/tern.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v1.1.1/tern.js"></script>
 ```
 
 - **To follow releases,** use `@1.1` (the newest 1.1.x), `@1` (the newest 1.x: a major keeps every note rendering the same) or `@latest` (the newest release).

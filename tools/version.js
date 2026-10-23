@@ -131,6 +131,7 @@ function problems(v) {
   const token = new RegExp(`(?<![\\d.])${esc(v)}(?!\\.?\\d)`, 'g');
   for (const file of tracked()) {
     if (file === CHANGELOG) continue; // names every version, by design
+    if (file.startsWith('test/corpus/')) continue; // the cases' numbering (a claim numbered within its subsection) looks like a version and is not one
     let body;
     try {
       body = fs.readFileSync(path.join(ROOT, file));
