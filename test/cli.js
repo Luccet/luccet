@@ -1501,6 +1501,32 @@ test('build: refusals and usage errors', () => {
   ok(fs.existsSync(at('e/dist/n.html')), 'written as dist/n.html');
 });
 
+test('build: several FILEs, or a folder, with -o DIR in one run: each page under its name, or its path in the folder; files that are not notes left out; two notes onto one page refused before anything is written', () => {
+  const note = (t) => `${FIRST}<script src="tern.js"></script>\n# ${t}\n\nSee [the other](sub/two.html).\n`;
+  write('bm/one.html', note('One'));
+  write('bm/three.html', note('Three'));
+  write('bm/sub/two.html', note('Two').replace('src="tern.js"', 'src="../tern.js"'));
+  write('bm/sub/plain.html', '<p>not a note</p>\n');
+  const r = run(['build', 'bm', '-o', 'bm-out/']);
+  exits(r, 0, 'a folder');
+  eq(['one.html', 'three.html', 'sub/two.html', 'sub/plain.html'].map((f) => fs.existsSync(at('bm-out', f))), [true, true, true, false], 'the pages written, the non-note left out');
+  ok(/tern build: 3 pages written into bm-out\/; 1 file in the folders not a note, left out/.test(r.err), `stderr: ${r.err}`);
+  eq(fs.readFileSync(at('bm-out/sub/two.html'), 'utf8'), run(['build', 'bm/sub/two.html']).out, 'a page as a build of its note alone writes it');
+  const n = run(['build', 'bm/one.html', 'bm/sub/two.html', '-o', 'named/', '--json']);
+  exits(n, 0, 'named FILEs');
+  eq(JSON.parse(n.out).map((x) => [x.file, x.out]), [['bm/one.html', 'named/one.html'], ['bm/sub/two.html', 'named/two.html']], '--json: one object per note');
+  write('other/one.html', note('Other'));
+  const c = run(['build', 'bm/one.html', 'other/one.html', '-o', 'clash/']);
+  exits(c, 2, 'two notes onto one page');
+  ok(/bm\/one\.html and other\/one\.html would both be written to clash\/one\.html/.test(c.err) && !fs.existsSync(at('clash')), `refused before writing: ${c.err}`);
+  exits(run(['build', 'bm/one.html', 'bm/three.html']), 2, 'several FILEs without -o');
+  exits(run(['build', 'bm/one.html', 'bm/sub/plain.html', '-o', 'np/']), 2, 'a named FILE that is not a note');
+  write('bm2/n.html', note('N'));
+  exits(run(['build', 'bm2', '-o', 'bm2/site/']), 0, 'DIR inside the folder');
+  exits(run(['build', 'bm2', '-o', 'bm2/site/']), 0, 'again: the pages in DIR are not notes to build');
+  ok(!fs.existsSync(at('bm2/site/site')), 'no page built from a page');
+});
+
 test('build -o: a trailing slash or an existing directory is a directory, created if missing; otherwise a file, its directory created', () => {
   write('o2/n.html', `${FIRST}<script src="tern.js"></script>\n# x\n`);
   const d = run(['build', 'o2/n.html', '-o', 'o2/site/notes/']);

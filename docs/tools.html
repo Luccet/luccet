@@ -52,7 +52,7 @@ $ echo $?
 | `tern new FILE` | writes a new note's first line | [tern new](#new) |
 | `tern check PATH…` | prints the diagnostics of notes; exits 1 on errors | [tern check](#check) |
 | `tern parse FILE` | prints the note's syntax tree as JSON | [tern parse](#parse) |
-| `tern build FILE` | writes a static, pre-rendered page | [tern build](#build) |
+| `tern build FILE…` | writes static, pre-rendered pages | [tern build](#build) |
 | `tern mv FROM… TO` | moves notes and files, rewriting the links to and from them | [tern mv](#mv) |
 | `tern search QUERY` | searches notes by word, each hit at its file and line | [tern search](#search) |
 | `tern index [PATH…]` | writes `notes.json` and `search.json`, what the `::notes` and `::search` add-ons read | [tern index](#index) |
@@ -535,7 +535,7 @@ The node types and their fields are on [The AST](api.html#ast).
 
 :::syntax[tern build]
 ```sh
-tern build FILE [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]
+tern build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]
 ```
 :::
 
@@ -558,6 +558,15 @@ tern build: wrote dist/maps.html; 2 formulas
 
 - **Diagnostics** go to stderr, in the same format as `tern check`. The page is written whatever they are, and the exit code is 0, just as a browser renders a note whatever its diagnostics. Run `tern check` first if problems should stop you.
 - **Relative URLs** in the note, the head and the tag are kept exactly as written. When `OUT` is in a different folder from the note, `tern build` warns you, because they now resolve from the new folder. Above, `../tern.js` now points one level above `dist/`.
+- **Several notes in one run.** Give several FILEs, or a folder, and `-o DIR`: one process builds them all, which saves the start of Node, the engine and the [sandbox](#sandbox) for every note after the first (the 16 notes of this documentation build in 0.4 s, where a `tern build` per note takes 2.8 s). A note named is written as `DIR/` its file name, a note found in a folder as `DIR/` its path in that folder, so `tern build notes -o dist/` writes `notes/sub/x.html` as `dist/sub/x.html`. The files in a folder that are not notes are left out, and counted in the last line. Two notes that would be written to the same page, or a page onto its own note, stop the run before anything is written. Pages already in `DIR`, when `DIR` is inside a folder given, are not built again. Each page is the one `tern build` writes for that note alone.
+
+  ```sh
+  $ tern build notes -o dist/
+  tern build: wrote dist/maps.html; 2 formulas
+  tern build: wrote dist/sub/groups.html; 0 formulas
+  tern build: 2 pages written into dist/; 1 file in the folders not a note, left out
+  tern build: relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from each page's folder in dist/
+  ```
 - **Folders.** `-o dist/` writes `dist/maps.html`, creating `dist/`. `-o out/deep/page.html` creates `out/deep/`. Without the final `/`, a name that is not an existing folder is a file name, and the build says so:
 
   ```sh
@@ -576,7 +585,7 @@ tern build: wrote dist/maps.html; 2 formulas
 
 ### --json {#build-json}
 
-`--json` prints one object on stdout: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, `prerendered`, `engine`: `"katex"`, `"mathml"` or `null`), `warnings` (the `tern build:` notes, as strings), `diagnostics` (the note's, as [`tern check --json`](#check-json) gives them, `math.error` among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
+`--json` prints one object on stdout, and an array of them, one per note, for several notes: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, `prerendered`, `engine`: `"katex"`, `"mathml"` or `null`), `warnings` (the `tern build:` notes, as strings), `diagnostics` (the note's, as [`tern check --json`](#check-json) gives them, `math.error` among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
 
 ```sh
 $ tern build notes/maps.html --json | jq '{out, math, warnings, diagnostics: (.diagnostics | length)}'

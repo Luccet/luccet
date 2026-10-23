@@ -30,7 +30,7 @@ const SYNOPSIS = {
   new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
   check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'tern build FILE [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]',
+  build: 'tern build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]',
   mv: 'tern mv FROM… TO [--root=DIR] [--dry-run] [--json]',
   search: 'tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
@@ -59,7 +59,9 @@ const usage = () =>
       --no-scripts analyses without running the note's own code.
   ${SYNOPSIS.build}
       Write a static, pre-rendered page (to stdout without -o) that still
-      loads tern.js; --math katex pre-renders formulas with the katex
+      loads tern.js. Several FILEs, or a folder, need -o DIR: each note's
+      page goes into DIR, under its name, or under its path in the folder
+      given. --math katex pre-renders formulas with the katex
       package (--katex is the same), --math mathml renders native MathML
       with the temml package and turns KaTeX off. --diagrams draws the
       mermaid fences ahead, in a headless Chromium (the playwright package).
@@ -753,33 +755,113 @@ function parse(args) {
 
 // ---------------------------------------------------------------- build
 
-// -o OUT: a directory when it ends in a slash or is an existing directory
-// (created, with its parents, if missing), and the page is DIR/FILE's name;
-// otherwise the page's own path, its directory created if missing.
+// One FILE: -o OUT is a directory when it ends in a slash or is an existing
+// directory (created, with its parents, if missing), and the page is
+// DIR/FILE's name; otherwise the page's own path, its directory created if
+// missing; without -o the page goes to stdout. Several FILEs, or a folder,
+// take -o DIR, and one process builds them all: a named note is written as
+// DIR/its name, a note found in a folder as DIR/its path in that folder, and
+// the files there that are not notes are left out.
 async function buildPage(args) {
   const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, diagrams: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
   const math = o.math || (o.katex ? 'katex' : null);
   if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
-  if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one FILE' : 'FILE is missing');
-  const file = positionals[0];
+  if (!positionals.length) throw new UsageError('FILE is missing');
+  const stat = (p) => {
+    try {
+      return fs.statSync(p);
+    } catch {
+      return null;
+    }
+  };
   let out = o.output === undefined || o.output === '-' ? null : o.output;
   if (out !== null && !out) throw new UsageError('-o is empty');
+  if (positionals.length > 1 || (stat(positionals[0]) || { isDirectory: () => false }).isDirectory()) return buildMany(positionals, out, o, math);
+  const file = positionals[0];
   let into = null; // the directory to create before writing
   let asDir = false;
   if (out) {
-    let st = null;
-    try {
-      st = fs.statSync(out);
-    } catch {}
+    const st = stat(out);
     asDir = out.endsWith('/') || (path.sep === '\\' && out.endsWith('\\')) || !!(st && st.isDirectory());
     into = asDir ? out : path.dirname(out);
     if (asDir) out = path.join(out, path.basename(file));
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
+  const json = await buildOne(file, out, into, o, math, { named: true, urls: true });
+  if (out && !asDir && !path.extname(out)) {
+    const w = `${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`;
+    json.warnings.push(clean(w));
+    warn(`tern build: ${clean(w)}`);
+  }
+  if (o.json) say(JSON.stringify(json, null, 2));
+  return 0;
+}
+
+// Several notes, one process: each written into DIR as buildPage says, and
+// every output path checked before anything is written (two notes onto one
+// page, or a page onto its note, stop the run). Pages already in DIR, when
+// DIR is inside a folder given, are not notes to build.
+async function buildMany(positionals, dir, o, math) {
+  if (!dir) throw new UsageError('several notes, or a folder, need -o DIR');
+  let st = null;
+  try {
+    st = fs.statSync(dir);
+  } catch {}
+  if (st && !st.isDirectory()) throw new UsageError(`-o ${dir} is a file: several notes need a directory`, false);
+  const root = path.resolve(dir);
+  const inside = (f) => {
+    const r = path.relative(root, path.resolve(f));
+    return !!r && !r.startsWith('..') && !path.isAbsolute(r);
+  };
+  const jobs = [];
+  const seen = new Set();
+  const add = (file, page, named) => {
+    const k = path.resolve(file);
+    if (!seen.has(k)) seen.add(k), jobs.push({ file, page, named });
+  };
+  for (const p of positionals) {
+    let pst;
+    try {
+      pst = fs.statSync(p);
+    } catch (e) {
+      throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
+    }
+    if (pst.isDirectory()) {
+      for (const f of htmlFiles(p)) if (!inside(f)) add(f, path.join(dir, path.relative(p, f)), false);
+    } else add(p, path.join(dir, path.basename(p)), true);
+  }
+  const pages = new Map();
+  for (const j of jobs) {
+    const k = path.resolve(j.page);
+    if (k === path.resolve(j.file)) throw new UsageError(`-o ${dir} would write ${slash(j.page)} over its note`, false);
+    if (pages.has(k)) throw new UsageError(`${slash(pages.get(k))} and ${slash(j.file)} would both be written to ${slash(j.page)}`, false);
+    pages.set(k, j.file);
+  }
+  const built = [];
+  let left = 0;
+  for (const j of jobs) {
+    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, math, { named: j.named, urls: false });
+    if (json) built.push(json);
+    else left++;
+  }
+  warn(`tern build: ${plural(built.length, 'page')} written into ${slash(dir)}${left ? `; ${plural(left, 'file')} in the folders not a note, left out` : ''}`);
+  if (built.length) warn(`tern build: relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from each page's folder in ${slash(dir)}`);
+  if (o.json) say(JSON.stringify(built, null, 2));
+  return 0;
+}
+
+// One note built and written (to stdout when page is null, unless --json),
+// its warnings and diagnostics on stderr: the --json object, or null for a
+// file found in a folder that is not a note (a named one is an error).
+// `urls`: say when the page's relative URLs resolve from another folder.
+async function buildOne(file, out, into, o, math, { named, urls }) {
   const text = read(file, 'build');
   const r = build(text, file, { math, noScripts: o['no-scripts'], diagrams: !!o.diagrams });
-  if (!r) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
+  if (!r) {
+    if (!named) return null;
+    throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
+  }
   // --diagrams: the mermaid fences drawn into the page by a headless browser.
   const dg = o.diagrams ? await drawInto(r, file) : null;
   // --json: the warnings and diagnostics in one object on stdout, with the
@@ -793,7 +875,7 @@ async function buildPage(args) {
   for (const w of r.warnings) said(w);
   if (dg) for (const w of dg.warnings) said(w);
   for (const d of diagnostics) warn(format(file, d));
-  if (out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
+  if (urls && out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
   if (!out && !o.json) process.stdout.write(r.html);
   else if (out) {
     try {
@@ -810,13 +892,9 @@ async function buildPage(args) {
   const m = r.math;
   const drawn = dg ? `; ${plural(dg.total, 'diagram')}${dg.total ? `, ${dg.drawn} drawn ahead${dg.drawn ? ` with Mermaid from ${dg.from}` : ''}` : ''}` : '';
   warn(`tern build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}${drawn}`);
-  if (out && !asDir && !path.extname(out)) said(`${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`);
-  if (o.json) {
-    const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
-    if (!out) json.html = r.html;
-    say(JSON.stringify(json, null, 2));
-  }
-  return 0;
+  const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+  if (!out) json.html = r.html;
+  return json;
 }
 
 // ---------------------------------------------------------------- mv

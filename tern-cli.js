@@ -6,7 +6,7 @@
 //   tern new FILE      write a note's first line
 //   tern check PATH…   print diagnostics; exit 1 on errors
 //   tern parse FILE    print the AST as JSON
-//   tern build FILE    write a static, pre-rendered page
+//   tern build FILE…   write static, pre-rendered pages
 //   tern mv FROM… TO   move notes and files, rewriting the links to and from them
 //   tern search QUERY  search notes by word, each hit with its file and line
 //   tern index [PATH…] write notes.json and search.json, what the ::notes and ::search add-ons read
