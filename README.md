@@ -46,10 +46,10 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v1.0.0/tern.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/OzkrAC/tern@v1.1.0/tern.js"></script>
 ```
 
-- **To follow releases,** use `@1.0` (the newest 1.0.x), `@1` (the newest 1.x: a major keeps every note rendering the same) or `@latest` (the newest release).
+- **To follow releases,** use `@1.1` (the newest 1.1.x), `@1` (the newest 1.x: a major keeps every note rendering the same) or `@latest` (the newest release).
 - **Not `tern.min.js`.** jsDelivr minifies any file on request, so `tern.min.js` exists beside `tern.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `tern.js`. Where bytes matter, each [GitHub Release](https://github.com/OzkrAC/tern/releases) carries a minified build under that name: `https://github.com/OzkrAC/tern/releases/download/vX.Y.Z/tern.js`, or copy it to your site.
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://ozkrac.github.io/tern/docs/schema.html#themes).
