@@ -6569,10 +6569,13 @@ function posters(root) {
 // not wait for the whole note. Each block is released, plain again for good,
 // before it comes into view (those near the viewport at once, the rest when
 // they come within one and a half screens), and all of them before printing
-// and before a fragment jump. tern.config.holdOver (characters, 200 000 by
-// default; 0 never holds) is the note size from which a mount holds. The
-// math add-ons hold the same way on their own account while formulas wait.
-const HOLD_OVER = 200000;
+// and before a fragment jump. tern.config.holdOver (characters, 30 000 by
+// default; 0 never holds) is the note size from which a mount holds: from
+// about 20 KB a held note paints sooner, in Chromium at normal speed and on a
+// CPU four times slower, and from 30 KB by a margin over what the hold costs
+// the mount. The math add-ons hold the same way on their own account while
+// formulas wait.
+const HOLD_OVER = 30000;
 const held = new Map(); // block -> [content-visibility, contain-intrinsic-block-size] as they were
 let watcher = null;
 const holdOver = () => {

@@ -171,7 +171,7 @@ declare namespace tern {
     quiet?: boolean;
     /** Milliseconds the mount waits for an add-on still loading, 12 000 by default. */
     addonTimeout?: number;
-    /** The note size (characters) from which the mount holds off-screen blocks, 200 000 by default; 0 never holds. */
+    /** The note size (characters) from which the mount holds off-screen blocks, 30 000 by default; 0 never holds. */
     holdOver?: number;
     /** The runtime's and the add-ons' words, by key (docs/api.html#strings). */
     strings?: Record<string, string>;

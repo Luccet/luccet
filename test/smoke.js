@@ -12,6 +12,7 @@
 //   /gen/addon.js|.css   add-ons of a fixed size (waterfall test)
 //   /gen/math4000.html   a long note with 4,000 formulas (mathNote)
 //   /gen/long1mb.html    a 1 MB note of prose, lists, tables and code, no math (longNote)
+//   /gen/long100kb.html  the same at 100 KB, over the default holdOver
 //   /gen/a11y/THEME.html a note with every construct under a theme (a11yNote), for axe
 //   /gen/fragment.html   two closed <details> below the fold (fragment tests)
 //   /gen/built.html      test/smoke/built.html through `tern build`;
@@ -433,6 +434,7 @@ const GENERATED = {
   'addon.css': () => ['text/css', pad(6) + '.tern { outline-color: currentColor; }\n'],
   'math4000.html': () => ['text/html', mathNote()],
   'long1mb.html': () => ['text/html', longNote()],
+  'long100kb.html': () => ['text/html', longNote(100000)],
   'fragment.html': () => ['text/html', fragmentNote()],
   'built.html': () => ['text/html', cliPage('built')],
   'built-katex.html': () => ['text/html', cliPage('built-katex')],
@@ -1872,6 +1874,40 @@ const TESTS = [
         return n;
       });
       if (printed) throw new Error(`${printed} blocks still held before printing`);
+    },
+  },
+  {
+    // The default holdOver (30 000 characters) holds a note of 100 KB, which
+    // the browser would otherwise lay out whole before its first paint.
+    name: 'a 100 KB note under the default holdOver: off-screen blocks held at mount, none in view, released on scroll and before print',
+    url: '/gen/long100kb.html',
+    async check(page, ctx) {
+      await expect(page, () => window.__t && window.__t.ready != null, "the 'ready' event");
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const r = await page.evaluate(() => {
+        const blocks = [...document.querySelector('main.tern').children];
+        const held = blocks.filter((b) => b.style.contentVisibility === 'auto');
+        const inView = held.filter((b) => {
+          const q = b.getBoundingClientRect();
+          return q.bottom > 0 && q.top < innerHeight;
+        });
+        return { blocks: blocks.length, held: held.length, inView: inView.length };
+      });
+      ctx.note(`${r.blocks} top-level blocks, ${r.held} held after the mount`);
+      if (r.held < 50) throw new Error(`${r.held} held blocks of ${r.blocks}: the runtime did not hold a 100 KB note`);
+      if (r.inView) throw new Error(`${r.inView} held block(s) in view`);
+      const after = await page.evaluate(async () => {
+        const main = document.querySelector('main.tern');
+        main.lastElementChild.scrollIntoView();
+        await new Promise((r) => setTimeout(r, 400));
+        const scrolled = { last: main.lastElementChild.style.contentVisibility === 'auto' };
+        window.dispatchEvent(new Event('beforeprint'));
+        scrolled.printed = [...main.children].filter((b) => b.style.contentVisibility === 'auto').length;
+        window.dispatchEvent(new Event('afterprint'));
+        return scrolled;
+      });
+      if (after.last) throw new Error('the last block is still held after a scroll to it');
+      if (after.printed) throw new Error(`${after.printed} blocks still held before printing`);
     },
   },
   {
