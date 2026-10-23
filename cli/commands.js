@@ -856,11 +856,12 @@ async function buildMany(positionals, dir, o, math) {
 // file found in a folder that is not a note (a named one is an error).
 // `urls`: say when the page's relative URLs resolve from another folder.
 async function buildOne(file, out, into, o, math, { named, urls }) {
+  const shown = slash(file); // paths printed, and in --json, with forward slashes on every platform
   const text = read(file, 'build');
   const r = build(text, file, { math, noScripts: o['no-scripts'], diagrams: !!o.diagrams });
   if (!r) {
     if (!named) return null;
-    throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
+    throw new UsageError(`${shown} is not a note (${notNote(text)})`, false);
   }
   // --diagrams: the mermaid fences drawn into the page by a headless browser.
   const dg = o.diagrams ? await drawInto(r, file) : null;
@@ -874,25 +875,25 @@ async function buildOne(file, out, into, o, math, { named, urls }) {
   };
   for (const w of r.warnings) said(w);
   if (dg) for (const w of dg.warnings) said(w);
-  for (const d of diagnostics) warn(format(file, d));
+  for (const d of diagnostics) warn(format(shown, d));
   if (urls && out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
   if (!out && !o.json) process.stdout.write(r.html);
   else if (out) {
     try {
       fs.mkdirSync(into, { recursive: true });
     } catch (e) {
-      throw new UsageError(`cannot create the directory ${into}: ${e.code === 'EEXIST' || e.code === 'ENOTDIR' ? 'a file is in the way' : e.message}`, false);
+      throw new UsageError(`cannot create the directory ${slash(into)}: ${e.code === 'EEXIST' || e.code === 'ENOTDIR' ? 'a file is in the way' : e.message}`, false);
     }
     try {
       fs.writeFileSync(out, r.html);
     } catch (e) {
-      throw new UsageError(`cannot write ${out}: ${e.code === 'EISDIR' ? 'it is a directory' : e.message}`, false);
+      throw new UsageError(`cannot write ${slash(out)}: ${e.code === 'EISDIR' ? 'it is a directory' : e.message}`, false);
     }
   }
   const m = r.math;
   const drawn = dg ? `; ${plural(dg.total, 'diagram')}${dg.total ? `, ${dg.drawn} drawn ahead${dg.drawn ? ` with Mermaid from ${dg.from}` : ''}` : ''}` : '';
   warn(`tern build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}${drawn}`);
-  const json = { file, out: out || null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
   if (!out) json.html = r.html;
   return json;
 }
