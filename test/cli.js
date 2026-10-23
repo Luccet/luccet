@@ -561,6 +561,21 @@ test("check, build: a note's code sees nothing of the sandbox's request or its d
   ok(/head undefined/.test(main), `the head script: ${main}`);
 });
 
+// Where the blocking bridge cannot read the child's pipe (Windows, and here
+// TERN_SANDBOX_ONESHOT=1), a worker thread drives one child for the run. A
+// preload, in every thread, counts the sandbox children the command starts.
+test('check: without a readable pipe (Windows), the notes of a run share one sandbox child, and their console output comes note by note', () => {
+  write('w/a.js', "tern.block('wa', { label: 'A' }); console.log('from a');\n");
+  write('w/b.js', "tern.block('wb', { label: 'B' }); console.log('from b');\n");
+  for (const [n, js] of [['one', 'a'], ['two', 'b'], ['three', 'a']]) write(`w/${n}.html`, `${FIRST}<script src="tern.js" data-use="${js}.js"></script>\n# Note ${n}\n`);
+  const log = at('w', 'spawns.log');
+  write('w/count.js', `const cp = require('child_process');\nconst fs = require('fs');\nfor (const k of ['spawn', 'spawnSync']) {\n  const f = cp[k];\n  cp[k] = function (cmd, args, ...rest) {\n    if ((args || []).includes('--sandbox-child')) fs.appendFileSync(${JSON.stringify(log)}, k + '\\n');\n    return f.call(this, cmd, args, ...rest);\n  };\n}\n`, { tern: false });
+  const r = run(['check', 'w/one.html', 'w/two.html', 'w/three.html'], { env: { TERN_SANDBOX_ONESHOT: '1', NODE_OPTIONS: `-r ${JSON.stringify(at('w', 'count.js'))}` } });
+  exits(r, 0, 'check');
+  eq(fs.readFileSync(log, 'utf8').trim().split('\n'), ['spawn'], 'the sandbox children started');
+  eq(r.err.split('\n').filter((l) => /from [ab]/.test(l)).map((l) => l.replace(/^.*(from [ab]).*$/, '$1')), ['from a', 'from b', 'from a'], `the console output, in note order: ${r.err}`);
+});
+
 test('check, build: a leading :::use block lists add-ons like data-use; a missing one is addon.failed at its line; a late block is use.late', () => {
   write('u/box.js', "tern.block('box', { label: 'Box' });\n");
   write('u/theme.css', '');
