@@ -27,7 +27,7 @@ const { relocate } = require('./relocate');
 const { pathEnd } = require('./relocate');
 
 const { tern } = note;
-const DEBOUNCE = 150; // ms after the last change
+const PACE = 150; // ms: while a document changes, its analyses start at most this often
 const SEVERITY = { error: 1, warning: 2, info: 3 };
 const SYMBOL = { heading: 15, container: 5, leaf: 8 }; // LSP SymbolKind: String, Class, Field
 const COMPLETION = { name: 7, core: 14, closer: 14, element: 10, id: 18 }; // LSP CompletionItemKind: Class, Keyword, Property, Reference
@@ -223,11 +223,12 @@ function exit() {
 // ---------------------------------------------------------------- documents
 
 // uri -> {uri, file, opened, version, text, timer, index, wasNote, a,
-// analysed, links, running, again, vocab}: `a` is the last analysis, of
-// version `analysed`, `links` its link diagnostics as last published,
-// `running` the analysis in flight (a promise) with `again` set when the
-// text changed meanwhile, and `vocab` the vocabulary of the last analysis
-// whose scripts ran, which stands in while they do not (cli/note.js).
+// analysed, links, running, again, started, vocab}: `a` is the last
+// analysis, of version `analysed`, `links` its link diagnostics as last
+// published, `running` the analysis in flight (a promise) with `again` set
+// when the text changed meanwhile, `started` when the last one started
+// (Date.now()), and `vocab` the vocabulary of the last analysis whose
+// scripts ran, which stands in while they do not (cli/note.js).
 const docs = new Map();
 let opened = 0;
 let roots = []; // the workspace folders, from initialize and didChangeWorkspaceFolders
@@ -253,7 +254,7 @@ function didChangeWatchedFiles({ changes }) {
 
 function didOpen({ textDocument: d }) {
   if (!d || typeof d.uri !== 'string') return;
-  const doc = { uri: d.uri, file: fileOf(d.uri), opened: ++opened, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false, a: null, analysed: null, links: [], running: null, again: false, vocab: null };
+  const doc = { uri: d.uri, file: fileOf(d.uri), opened: ++opened, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false, a: null, analysed: null, links: [], running: null, again: false, started: null, vocab: null };
   docs.set(d.uri, doc);
   analyse(doc);
 }
@@ -275,8 +276,13 @@ function didChange({ textDocument: d, contentChanges }) {
   if (text === null) return;
   doc.text = text;
   doc.version = d.version;
+  // A change after a pause is analysed at once. While changes keep coming,
+  // an analysis starts PACE ms after the last one started, of the text as it
+  // is then: the client paces its changes already (Neovim sends one every
+  // 150 ms at most), so waiting for a quiet spell would only add to its wait.
   clearTimeout(doc.timer);
-  doc.timer = setTimeout(() => guard(() => analyse(doc)), DEBOUNCE);
+  const wait = doc.started == null ? 0 : Math.max(0, PACE - (Date.now() - doc.started));
+  doc.timer = setTimeout(() => guard(() => analyse(doc)), wait);
 }
 
 function didClose({ textDocument: d }) {
@@ -325,6 +331,7 @@ function analyse(doc) {
     return;
   }
   const version = doc.version;
+  doc.started = Date.now();
   doc.running = note
     .analyseAsync(doc.text, doc.file, { noScripts, lastVocab: doc.vocab })
     .then(

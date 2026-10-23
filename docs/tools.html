@@ -1186,10 +1186,10 @@ $$ {#eq}
 - **Changes** carry the whole text (`textDocumentSync.change` is 1). A `didChange` entry with a `range` is logged to stderr and ignored, so a client that sends one leaves the document as it was.
 - **stdout** carries protocol messages only. The server sends everything that scripts print through `console`, its own and the add-ons', to stderr, where most clients show it in a log.
 
-### Analysis and the debounce {#lsp-analysis}
+### When a note is analysed {#lsp-analysis}
 
 - **`didOpen`** analyses the note at once and publishes its diagnostics, then the [`tern/outline`](#outline) notification.
-- **`didChange`** waits 150 ms after the last change, then analyses once. Typing fast publishes once, for the last text.
+- **`didChange`** analyses a change at once when it comes after a pause. While changes keep coming, an analysis starts every 150 ms at most, of the text as it is then, and the last text is always analysed: typing publishes a few times a second, and the last change's diagnostics come at most 150 ms after it, plus the analysis's own time. Editors pace their changes as well (Neovim sends one every 150 ms at most).
 - **Requests are answered at once, from the last analysis.** The note's own code runs in the [sandbox](#sandbox) over a bridge that does not block the server, so a request that arrives while an analysis runs, or while a change still waits, is answered from the analysis before it: hover, definition, references, symbols and folds can lag one edit behind, and the next publication catches up. A request on a document with a change still waiting starts its analysis right away. Two requests take care: [completion](#lsp-completion) reads what you typed from the text as it is, and a [rename](#lsp-rename) waits for the analysis, since its edits must match the text.
 - **A stuck script does not stop the server.** A note whose head script or add-on does not finish in 2 seconds is published with [`addon.failed`](diagnostics.html#addon-failed) when the sandbox cuts it off, and every other document is served meanwhile. One analysis runs per document at a time: a change made during one is analysed after it.
 - **`didClose`** forgets the document and publishes an empty list of diagnostics for it.
@@ -1315,7 +1315,7 @@ image    Image
 
 Each item replaces what you typed after the trigger (a `textEdit`), and is sorted closers first, then the vocabulary, the core blocks, and the allowlist.
 
-**Right after a keystroke,** before the 150 ms debounce has run the next analysis, completion reads what you typed from the text as it is, so the `@` you just typed is seen, and answers with the names and ids of the last analysis; an id declared in the same keystroke appears at the next one. Whether you are inside code or math is read from the last analysis too, at the same offset.
+**Right after a keystroke,** before the next analysis lands, completion reads what you typed from the text as it is, so the `@` you just typed is seen, and answers with the names and ids of the last analysis; an id declared in the same keystroke appears at the next one. Whether you are inside code or math is read from the last analysis too, at the same offset.
 
 ### Definition and references {#lsp-definition}
 

@@ -13,7 +13,7 @@
 //   - rename edits equal the engine's reference set, none in code or math;
 //   - definition, references, hover, completion, documentSymbol,
 //     foldingRange, documentHighlight, the `tern/outline` notification, the
-//     150 ms debounce;
+//     pace of analyses (at once after a pause, every 150 ms at most);
 //   - a single-file note's own vocabulary (window.TERN.schema);
 //   - add-on transforms run for their own note only, data-lang's label
 //     language, addon.remote;
@@ -589,27 +589,40 @@ check('foldingRange: blocks and heading sections', async () => {
   for (const k in want) assert.ok(folds.includes(want[k]), `${k} ${want[k]} in ${folds}`);
 });
 
-check('didChange is debounced: one analysis, of the last text', async () => {
-  const file = path.join(DIR, 'debounce.html');
+// The client paces its changes (Neovim sends one every 150 ms at most), so
+// the server does not wait for a quiet spell on top of it.
+check('didChange: a change after a pause is analysed at once; while changes keep coming, an analysis every 150 ms at most, of the text as it is then, and the last text is analysed', async () => {
+  const file = path.join(DIR, 'pace.html');
   const head = '<script src="tern.js"></script>\n';
-  const { uri } = await c.open(file, `${head}# Fine\n`);
+  const text = (v) => `${head}# Fine\n\n${':::proof\n'.repeat(v - 1)}`; // version v has v - 1 unclosed blocks
+  const change = (v) => c.notify('textDocument/didChange', { textDocument: { uri, version: v }, contentChanges: [{ text: text(v) }] });
+  const unclosed = (p) => p.diagnostics.filter((d) => d.code === 'block.unclosed').length;
+  const { uri } = await c.open(file, text(1));
   await c.outline(uri);
+  await new Promise((r) => setTimeout(r, 200));
+  const sent = Date.now();
+  change(2);
+  const one = await c.published(uri);
+  assert.strictEqual(one.version, 2);
+  assert.ok(Date.now() - sent < 120, `published ${Date.now() - sent} ms after a change that came after a pause`);
+  await c.outline(uri);
+  // Twenty changes, 30 ms apart, for 600 ms.
+  await new Promise((r) => setTimeout(r, 200));
   const mark = c.log.length;
-  let last;
-  for (let v = 2; v <= 4; v++) {
-    if (v > 2) await new Promise((r) => setTimeout(r, 30));
-    c.notify('textDocument/didChange', { textDocument: { uri, version: v }, contentChanges: [{ text: `${head}# Fine\n\n${':::proof\n'.repeat(v - 1)}` }] });
-    last = Date.now();
+  for (let v = 3; v <= 22; v++) {
+    if (v > 3) await new Promise((r) => setTimeout(r, 30));
+    change(v);
   }
-  const p = await c.published(uri);
-  const o = await c.outline(uri);
-  assert.strictEqual(p.version, 4);
-  assert.strictEqual(o.version, 4);
-  assert.strictEqual(p.diagnostics.filter((d) => d.code === 'block.unclosed').length, 3, 'the last text');
+  const seen = [];
+  while (!seen.length || seen[seen.length - 1].version !== 22) seen.push(await c.published(uri));
+  while ((await c.outline(uri)).version !== 22);
   await new Promise((r) => setTimeout(r, 250));
-  const later = c.log.slice(mark).filter((m) => m.msg.params.uri === uri && m.msg.method === 'textDocument/publishDiagnostics');
-  assert.strictEqual(later.length, 1, `one publication for three changes: ${JSON.stringify(later.map((m) => m.msg.params.version))}`);
-  assert.ok(later[0].at - last >= 140, `published ${later[0].at - last} ms after the last change`);
+  const all = c.log.slice(mark).filter((m) => m.msg.params.uri === uri && m.msg.method === 'textDocument/publishDiagnostics').map((m) => m.msg.params);
+  const versions = all.map((p) => p.version);
+  assert.strictEqual(all.length, seen.length, `nothing after the last text: ${versions}`);
+  assert.ok(all.length >= 3 && all.length <= 7, `published while the changes came, every 150 ms at most: versions ${versions}`);
+  assert.deepStrictEqual(versions, [...versions].sort((a, b) => a - b), 'in order');
+  for (const p of all) assert.strictEqual(unclosed(p), p.version - 1, `version ${p.version}: the text as it was then`);
 });
 
 check('a non-note .html file gets no diagnostics and no outline', async () => {
@@ -655,7 +668,7 @@ check('a stuck script: requests are answered meanwhile, the last vocabulary is k
   // B's transform spins until the sandbox cuts it off (2 s): hover answers
   // at once meanwhile, from A's analysis.
   c.notify('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: B }] });
-  await new Promise((r) => setTimeout(r, 200)); // past the debounce: the analysis runs
+  await new Promise((r) => setTimeout(r, 200)); // the analysis runs
   const t0 = Date.now();
   assert.ok((await hover(B)).includes('Theorem 1 — T'), 'answered from the last analysis');
   assert.ok(Date.now() - t0 < 1000, `answered while the script ran (${Date.now() - t0} ms)`);
@@ -683,7 +696,7 @@ check('a stuck script: requests are answered meanwhile, the last vocabulary is k
 // Between a keystroke and the next analysis, completion reads the trigger
 // from the text as it is and answers from the last analysis; a rename waits
 // for the analysis, since its edits must match the text.
-check('during the debounce: completion from the text as it is, a rename after the analysis', async () => {
+check('before the next analysis: completion from the text as it is, a rename after the analysis', async () => {
   const file = path.join(DIR, 'typing.html');
   const A = '<script src="tern.js" data-use="addon.js"></script>\n:::theorem[T]{#t1}\nx\n:::\n\nSee @t1.\n';
   const { uri } = await c.open(file, A);
