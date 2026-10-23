@@ -2,6 +2,10 @@
 
 Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `tern index` writes, after a deprecation announced one minor release ahead. Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
+## 1.1.1 (unreleased)
+
+- On Windows, `tern build` prints its paths with forward slashes, as the other commands do and the tools page says: `--json`'s `file` and `out`, and the file in each diagnostic. With `-o DIR/`, and for the notes of a folder, they came out with backslashes there.
+
 ## 1.1.0 (2026-10-23)
 
 - `tern build` takes several FILEs, or a folder, with `-o DIR`, and builds them in one process: a note named is written as `DIR/` its file name, a note found in a folder as `DIR/` its path in that folder, and files that are not notes are left out. A site's notes were built one command each, each paying Node's start, the engine's and the sandbox's: the 16 notes of the documentation build in 0.4 s where they took 2.8 s. `--json` prints an array then, one object per note. Two notes onto one page stop the run before anything is written.
