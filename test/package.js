@@ -75,6 +75,14 @@ test('every exported subpath exists', (p) => {
   }
 });
 
+// V8's explicit compile hint (docs/publishing.html#performance, tools/concat.js):
+// a comment line that must come before any code, or it does nothing.
+test('the engine asks to be compiled as it arrives: //# allFunctionsCalledOnLoad before its code', (p) => {
+  const lines = fs.readFileSync(path.join(ROOT, 'tern.js'), 'utf8').split('\n');
+  const head = lines.slice(0, lines.findIndex((l) => !l.startsWith('//')));
+  if (!head.includes('//# allFunctionsCalledOnLoad')) p.push(`the comment lines before the code are ${JSON.stringify(head)}`);
+});
+
 console.log(results.join('\n'));
 console.log(`\n${results.length - failed}/${results.length} package checks pass`);
 process.exit(failed ? 1 : 0);

@@ -7,6 +7,13 @@
 // It also writes tern.css, the base stylesheet of src/css.js, which a page
 // links instead of the runtime's inline <style> under a strict CSP.
 //
+// The bundle's third line asks V8 to compile every function as the file
+// arrives, off the main thread (an explicit compile hint, Chromium 136 and
+// later; elsewhere it is a comment): a note's first render calls nearly all
+// of them, and compiling each on its first call took about two fifths of a
+// small note's parse, transform and emit. It must come before the code; the
+// release's minified build keeps it (terser --comments).
+//
 //   node tools/concat.js           write tern.js and tern.css
 //   node tools/concat.js --check   exit 1 if either is not the current build (CI)
 'use strict';
@@ -33,6 +40,7 @@ function build() {
   const parts = [
     '// SPDX-License-Identifier: MIT',
     `// tern.js ${version}: built from src/ by tools/concat.js. Edit the sources, not this file.`,
+    '//# allFunctionsCalledOnLoad',
     '(function (global) {',
     "  'use strict';",
     '  var defs = {};',

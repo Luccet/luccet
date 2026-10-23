@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // tern.js 1.0.0: built from src/ by tools/concat.js. Edit the sources, not this file.
+//# allFunctionsCalledOnLoad
 (function (global) {
   'use strict';
   var defs = {};
