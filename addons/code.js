@@ -286,10 +286,58 @@
     return lines;
   }
 
+  // A fence waits for highlight.js and its language, then for its turn: the
+  // fences are coloured in slices of SLICE_MS, one per frame, as katex.js
+  // typesets, so a page of many fences has no long task for them (300 fences
+  // took one task of 240 ms). Printing colours what is still waiting.
+  const SLICE_MS = 10;
+  let queue = []; // [code, hljs, language]
+  let qi = 0;
+  let pumping = false;
   async function paint(code, lang) {
     const h = await core;
     const id = h && (await language(h, lang));
-    if (!id || !code.isConnected || code.querySelector('[class*="hljs-"]')) return;
+    if (!id) return;
+    queue.push([code, h, id]);
+    if (!pumping) (pumping = true), later();
+  }
+  // One slice: at least one fence; an empty queue (printing took them) ends
+  // the pumping.
+  function pump() {
+    const end = performance.now() + SLICE_MS;
+    while (qi < queue.length) {
+      colour(...queue[qi++]);
+      if (performance.now() >= end) break;
+    }
+    if (qi < queue.length) return void later();
+    queue = [];
+    qi = 0;
+    pumping = false;
+  }
+  window.addEventListener('beforeprint', () => {
+    while (qi < queue.length) colour(...queue[qi++]);
+  });
+
+  // The next slice: after the next frame while the page is visible (the frame
+  // callback posts a MessageChannel task, so the slice runs after the paint),
+  // at once while it is hidden, where frames stop.
+  let port = null;
+  let frame = 0;
+  function later() {
+    if (!port) {
+      const ch = new MessageChannel();
+      ch.port1.onmessage = pump;
+      port = ch.port2;
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && frame) cancelAnimationFrame(frame), (frame = 0), port.postMessage(0);
+      });
+    }
+    if (document.hidden) port.postMessage(0);
+    else frame = requestAnimationFrame(() => ((frame = 0), port.postMessage(0)));
+  }
+
+  function colour(code, h, id) {
+    if (!code.isConnected || code.querySelector('[class*="hljs-"]')) return;
     const lines = [...code.children].filter((c) => c.classList.contains('t-line'));
     let html;
     try {

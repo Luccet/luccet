@@ -70,6 +70,7 @@ function fib(n) {
 - **Left as they are:** a fence with no language, one marked `text`, `txt`, `plaintext` or `nohighlight`, and one in a language highlight.js does not know, such as `tern`. Inline code is never coloured.
 - **Line numbers and highlighted lines stay.** `{lines hl=3}` works as it does without the add-on: the coloured text is split back into the lines, and a comment that runs over two lines is coloured on both.
 - **The text does not change.** The add-on only wraps it in `<span class="hljs-…">` elements, so copying code copies the same text.
+- **In slices, after the note shows.** The fences are coloured a few at a time, 10 ms of work per frame, as the KaTeX add-on typesets, so a page of hundreds of fences stays responsive while it colours them; printing colours what is left first.
 
 ### Languages {#code-languages}
 
