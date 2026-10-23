@@ -101,12 +101,18 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
       # A site deployed from an artifact is served as it is (no Jekyll), so
       # .nojekyll is not copied; upload-pages-artifact leaves dotfiles out anyway.
+      # Its tern.js is the release's, minified as the asset job's (site.yml says why).
       - name: the site
         run: |
           mkdir -p _site
-          cp -r index.html docs examples themes addons tern.js tern.css LICENSE _site/
+          cp -r index.html docs examples themes addons tern.css LICENSE _site/
+          npx --yes terser@5.51.2 tern.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output _site/tern.js
+          test "$(node -p "require('./_site/tern.js').version")" = "${GITHUB_REF_NAME#v}"
           rm -f _site/docs/README.md
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
