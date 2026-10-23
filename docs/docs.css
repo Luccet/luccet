@@ -122,6 +122,10 @@
    The parts stand one under the other at every width: the source first, then
    the result. */
 .docs-live { border: 1px solid var(--t-line); border-radius: var(--docs-r); box-shadow: var(--docs-shadow); margin-block: 0 1.5rem; overflow: hidden; background: var(--t-bg); }
+/* An example off screen is not laid out until it nears the viewport (a page
+   holds up to 240); until then it takes an example's mean height, 22rem at
+   1280 px, and its own once it has been laid out. */
+.docs-live { content-visibility: auto; contain-intrinsic-size: auto 22rem; }
 .docs-live-part { padding: .7rem 1.1rem .85rem; min-inline-size: 0; }
 .docs-live-part + .docs-live-part, .docs-live-problem { border-block-start: 1px solid var(--t-line); }
 .docs-live-label { font: 700 .68rem/1.4 var(--t-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--t-muted); margin-block-end: .45rem; }
@@ -174,7 +178,7 @@
 @media print {
   body:has(> main.tern > .site-nav) { padding-inline-start: 0; }
   .tern .site-nav, .docs-live-markup, .docs-nav-toggle { display: none !important; }
-  .docs-live { break-inside: avoid; box-shadow: none; }
+  .docs-live { break-inside: avoid; box-shadow: none; content-visibility: visible; }
   .docs-live-result { display: block !important; }
   .docs-live-out { overflow: visible; }
 }

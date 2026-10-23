@@ -171,17 +171,17 @@
     const [r = 0, g = 0, b = 0] = c.map(Number);
     return 0.2126 * r + 0.7152 * g + 0.0722 * b > 128; // light text, so a dark theme
   }
-  function paint(img) {
-    const want = img.getAttribute(darkTheme() ? 'data-dark' : 'data-light');
+  function paint(img, dark = darkTheme()) {
+    const want = img.getAttribute(dark ? 'data-dark' : 'data-light');
     if (img.getAttribute('src') !== want) img.setAttribute('src', want);
   }
   function repaint() {
-    for (const m of logos) m.isConnected ? paint(m) : logos.delete(m);
+    const dark = logos.size ? darkTheme() : false; // one style read for every mark
+    for (const m of logos) m.isConnected ? paint(m, dark) : logos.delete(m);
   }
   function logoImage(at, cls) {
     const img = el('img', { class: cls, alt: '', width: '256', height: '256', 'data-light': link('docs/tern.png', at), 'data-dark': link('docs/tern-white.png', at) });
-    logos.add(img);
-    paint(img);
+    logos.add(img); // painted by the 'render' repaint, once the note's DOM is in
     return img;
   }
   if (typeof matchMedia === 'function') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
@@ -261,15 +261,20 @@
       if (!schema) throw new Error(`schema="${schemaName}" is not a schema docs.js knows (none, demo)`);
       const opts = { schema, positions: false };
       if (head != null) opts.head = head;
-      const html = T.toHTML(source, opts);
-      const diagnostics = T.check(source, opts);
+      // One parse and one transform, which toHTML and check would each run
+      // again: both emits and the diagnostics read the same tree, and the
+      // diagnostics are in tern.check's order (src/diag.js sortDiagnostics).
+      const { ast, diagnostics: parsed } = T.parse(source, opts);
+      T.transform(ast, opts);
+      const html = T.emit(ast, opts);
+      const diagnostics = parsed.concat(ast.data.tern.diagnostics).sort((a, b) => a.position.start.offset - b.position.start.offset || a.position.end.offset - b.position.end.offset || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 
       // The result is the same HTML with positions (data-pos), so that a
       // formula KaTeX rejects is placed in the example. Its math is hidden
       // from the runtime and typeset here, with the example's own macros.
       const out = el('div', { class: 'docs-live-out' });
       const tpl = document.createElement('template');
-      tpl.innerHTML = T.toHTML(source, { ...opts, positions: true });
+      tpl.innerHTML = T.emit(ast, { ...opts, positions: true });
       neutralise(tpl.content, `ex${n}-`);
       const math = isolateMath(tpl.content);
       out.append(tpl.content);
@@ -285,8 +290,9 @@
         console.warn(`docs.js: example ${n} (${id}): diagnostics ${say(got)}, expected ${say(want)}`);
       }
 
-      const pre = el('pre', { class: 'docs-live-html' }, el('code', { class: 'language-html' }, highlightHTML(pretty(html))));
-      box.append(el('details', { class: 'docs-live-part docs-live-markup' }, el('summary', { class: 'docs-live-label' }, 'HTML'), pre));
+      const markup = el('details', { class: 'docs-live-part docs-live-markup' }, el('summary', { class: 'docs-live-label' }, 'HTML'));
+      htmlPane(markup, html);
+      box.append(markup);
       queueMath(box, out, math);
     } catch (e) {
       box.classList.add('docs-live-failed');
@@ -420,6 +426,37 @@
     }
     return { macros, formulas };
   }
+
+  // An example's generated HTML, pretty-printed and highlighted, goes into
+  // its panel when the panel first opens, or when the page is idle once it
+  // has painted, so the first paint does not wait for it (30 ms of a page of
+  // 200 examples) and find-in-page still finds it in a closed panel.
+  const panes = [];
+  function htmlPane(markup, html) {
+    const fill = () => {
+      if (!markup.querySelector('pre')) markup.append(el('pre', { class: 'docs-live-html' }, el('code', { class: 'language-html' }, highlightHTML(pretty(html)))));
+    };
+    markup.addEventListener('toggle', () => markup.open && fill());
+    panes.push(fill);
+  }
+  const idle = (fn) => {
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout: 2000 });
+    setTimeout(() => {
+      const end = performance.now() + 10;
+      fn({ timeRemaining: () => end - performance.now() });
+    }, 50);
+  };
+  // One pane at least per call, so a page that is never idle (the timeout
+  // ran out) still gets its panes, a few at a time.
+  function fillPanes(deadline) {
+    while (panes.length) {
+      panes.shift()();
+      if (deadline.timeRemaining() <= 1) break;
+    }
+    if (panes.length) idle(fillPanes);
+  }
+  // From the frame after the first paint: an idle period can come before it.
+  T.on('ready', () => panes.length && requestAnimationFrame(() => requestAnimationFrame(() => idle(fillPanes))));
 
   const jobs = []; // examples waiting for their math: {box, out, macros, formulas, table, started}
   let pumping = false;
