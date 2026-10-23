@@ -266,10 +266,10 @@ Without `--dry-run`, the first line reads `moved …` and the summary drops "a d
 ## tern build, tern parse, tern corpus
 
 ```sh
-tern build FILE [-o OUT] [--math katex|mathml] [--json]
+tern build FILE… [-o OUT] [--math katex|mathml] [--json]
 ```
 
-Writes a static page holding the HTML the browser would mount, plus `:::meta` written into the head. The page still loads `tern.js` for behaviours, the panel, copy and print. Its tag gets `data-built`, so it is **not a note**: never edit it; edit the note and rebuild.
+Writes a static page holding the HTML the browser would mount, plus `:::meta` written into the head. Several FILEs, or a folder, need `-o DIR/` and build in one process: a folder's notes keep their paths under `DIR`. The page still loads `tern.js` for behaviours, the panel, copy and print. Its tag gets `data-built`, so it is **not a note**: never edit it; edit the note and rebuild.
 
 ```text
 $ tern build notes/build.html -o dist/
