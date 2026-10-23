@@ -690,7 +690,7 @@ test('build --json, mv --json, index --json: one object on stdout, the lines on 
   r = run(['build', 'j/a.html', '-o', 'j/dist/', '--json']);
   exits(r, 0, 'build -o --json');
   j = JSON.parse(r.out);
-  eq([j.out, j.html, j.warnings.length], [path.join('j/dist/', 'a.html'), undefined, 1], 'written to -o: no html in the object, the relative-URL warning');
+  eq([j.out, j.html, j.warnings.length], ['j/dist/a.html', undefined, 1], 'written to -o, its path with forward slashes on every platform: no html in the object, the relative-URL warning');
   ok(/^tern build: wrote j\/dist\/a\.html/m.test(r.err), 'the summary on stderr');
   // mv: the moves, the edits and what is left alone.
   write('j/README.md', 'see a.html\n', { tern: false });

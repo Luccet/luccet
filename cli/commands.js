@@ -882,12 +882,12 @@ async function buildOne(file, out, into, o, math, { named, urls }) {
     try {
       fs.mkdirSync(into, { recursive: true });
     } catch (e) {
-      throw new UsageError(`cannot create the directory ${into}: ${e.code === 'EEXIST' || e.code === 'ENOTDIR' ? 'a file is in the way' : e.message}`, false);
+      throw new UsageError(`cannot create the directory ${slash(into)}: ${e.code === 'EEXIST' || e.code === 'ENOTDIR' ? 'a file is in the way' : e.message}`, false);
     }
     try {
       fs.writeFileSync(out, r.html);
     } catch (e) {
-      throw new UsageError(`cannot write ${out}: ${e.code === 'EISDIR' ? 'it is a directory' : e.message}`, false);
+      throw new UsageError(`cannot write ${slash(out)}: ${e.code === 'EISDIR' ? 'it is a directory' : e.message}`, false);
     }
   }
   const m = r.math;
