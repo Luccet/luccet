@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
 // Mutation fuzzer. Seeds are the corpus sources and the sample notes;
-// mutations use Tern's own marks (and TeX's) so they reach the grammar's
+// mutations use Luccet's own marks (and TeX's) so they reach the grammar's
 // edges. For every input the engine must:
 //   - not throw;
 //   - take ≤ 50 ms (scaled to the machine; the fastest of up to four runs);
@@ -29,7 +29,7 @@ const SECONDS = Number(opt('seconds') || 30);
 const SEED = Number(opt('seed') || 20261007);
 const OUT = path.join(__dirname, 'fuzz-failures');
 
-// Tern's marks, TeX's marks, line starters and a few hard characters.
+// Luccet's marks, TeX's marks, line starters and a few hard characters.
 const TOKENS = [
   '*', '**', '***', '_', '~~', '==', '`', '``', '```', '$', '$$', '$`', '\\', '\\\n', '[', ']', '](', '![', '[^', '[^a]', ']:',
   '{', '}', '{#a}', '{.b}', '{k=v}', '{raw}', ':', '::', ':::', ':::d', ':::/d', ':kbd[', '@', '@a', '#', '# ', '|', '| a |', '|---|',
@@ -93,22 +93,22 @@ function padding(node) {
 }
 
 // Milliseconds for one parse and one render of input.
-function cost(tern, input, opts) {
+function cost(luccet, input, opts) {
   const t = process.hrtime.bigint();
-  tern.parse(input, opts);
-  tern.toHTML(input, opts);
+  luccet.parse(input, opts);
+  luccet.toHTML(input, opts);
   return Number(process.hrtime.bigint() - t) / 1e6;
 }
 
-function runOne(tern, input, limitMs) {
+function runOne(luccet, input, limitMs) {
   const opts = { schema: fixture };
   const problems = [];
   const t = process.hrtime.bigint();
   let parsed;
   let html;
   try {
-    parsed = tern.parse(input, opts);
-    html = tern.toHTML(input, opts);
+    parsed = luccet.parse(input, opts);
+    html = luccet.toHTML(input, opts);
   } catch (e) {
     return [`threw: ${(e && e.stack) || e}`];
   }
@@ -118,7 +118,7 @@ function runOne(tern, input, limitMs) {
   // is timed again, and its fastest run is its cost (as in test/perf.js).
   let runs = 1;
   try {
-    for (; runs < 4 && ms > limitMs; runs++) ms = Math.min(ms, cost(tern, input, opts));
+    for (; runs < 4 && ms > limitMs; runs++) ms = Math.min(ms, cost(luccet, input, opts));
   } catch (e) {
     return [`threw on a second run: ${(e && e.stack) || e}`];
   }
@@ -127,7 +127,7 @@ function runOne(tern, input, limitMs) {
   if (html.length > allowed) problems.push(`output ${html.length} chars for ${input.length} chars of input (bound ${allowed})`);
   problems.push(...checkParse(parsed, input).slice(0, 5));
   try {
-    const again = tern.parse(input, opts);
+    const again = luccet.parse(input, opts);
     if (JSON.stringify(again) !== JSON.stringify(parsed)) problems.push('not deterministic: a second parse differs');
   } catch (e) {
     problems.push(`threw on the second parse: ${e.message}`);
@@ -136,8 +136,8 @@ function runOne(tern, input, limitMs) {
 }
 
 function main() {
-  const { tern, why } = engine.load();
-  if (!tern) {
+  const { luccet, why } = engine.load();
+  if (!luccet) {
     console.log(`✗ ${why}`);
     process.exit(2);
   }
@@ -145,7 +145,7 @@ function main() {
   const limit = 50 * factor;
   const replay = opt('replay');
   if (replay) {
-    const problems = runOne(tern, fs.readFileSync(replay, 'utf8'), limit);
+    const problems = runOne(luccet, fs.readFileSync(replay, 'utf8'), limit);
     console.log(problems.length ? `✗ ${problems.join('\n  ')}` : '✓ passes');
     process.exit(problems.length ? 1 : 0);
   }
@@ -158,7 +158,7 @@ function main() {
   while (Date.now() < end) {
     const input = mutate(pool[Math.floor(rnd() * pool.length)], rnd, pool);
     runs++;
-    const problems = runOne(tern, input, limit);
+    const problems = runOne(luccet, input, limit);
     if (!problems.length) continue;
     const key = problems[0].replace(/\d+/g, 'N').slice(0, 120);
     if (seen.has(key)) continue; // report each kind of failure once

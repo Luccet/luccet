@@ -57,20 +57,20 @@ function put(o, k, v) {
   return o;
 }
 
-// Elements tern never produces, whatever the schema says; the names `tern`,
+// Elements luccet never produces, whatever the schema says; the names `luccet`,
 // `t-*` and `end` are reserved too. `:::meta` is a core block, and
 // `:::script`, `:::style`, `:::html` get their own report, so block.js
 // handles those names before asking.
 const RESERVED_TAGS = new Set('base body head html link main meta noscript script style template title'.split(' '));
 
 function isReservedName(name) {
-  return RESERVED_TAGS.has(name) || name === 'tern' || name === 'end' || name.startsWith('t-');
+  return RESERVED_TAGS.has(name) || name === 'luccet' || name === 'end' || name.startsWith('t-');
 }
 
-// A class authors may not write, as tern uses it on its own elements: `tern`
-// and `t-*`, case-sensitively (`.Tern` is an ordinary class).
+// A class authors may not write, as luccet uses it on its own elements: `luccet`
+// and `t-*`, case-sensitively (`.Luccet` is an ordinary class).
 function isReservedClass(name) {
-  return name === 'tern' || name.startsWith('t-');
+  return name === 'luccet' || name.startsWith('t-');
 }
 
 // HTML's valid custom-element name, as written: lower-case start, a hyphen,
@@ -108,7 +108,7 @@ const isCustomName = (n) => n.includes('-') && PCEN.test(n) && !NOT_CUSTOM.has(n
 // `classAt` that of the first class kept (its `.`, or the first letter of
 // `class=`), or -1; `keyAt` maps each other key to the index of its last
 // occurrence. Callers point diagnostics at them. `reserved` lists what was
-// dropped for `name.reserved` (the key `data-t`, the classes `tern` and
+// dropped for `name.reserved` (the key `data-t`, the classes `luccet` and
 // `t-*`), as {at, length, text, kind}.
 function parseAttrs(text, i, limit) {
   let j = i + 1;
@@ -205,9 +205,9 @@ function reportReserved(ctx, res, toOffset) {
   for (const r of res.reserved) {
     const at = toOffset(r.at);
     if (r.kind === 'key')
-      ctx.report('name.reserved', at, at + r.length, `the attribute "${r.text}" is reserved for tern's own use and is dropped`, 'remove it; tern sets data-t itself');
+      ctx.report('name.reserved', at, at + r.length, `the attribute "${r.text}" is reserved for luccet's own use and is dropped`, 'remove it; luccet sets data-t itself');
     else
-      ctx.report('name.reserved', at, at + r.length, `the class "${r.text}" is reserved for tern's own use and is dropped`, 'choose a class that is not "tern" and does not start with "t-"');
+      ctx.report('name.reserved', at, at + r.length, `the class "${r.text}" is reserved for luccet's own use and is dropped`, 'choose a class that is not "luccet" and does not start with "t-"');
   }
 }
 

@@ -1,33 +1,33 @@
-# Writing Tern's documentation
+# Writing Luccet's documentation
 
-The documentation is a set of Tern notes. Every page is a `.html` file whose first line loads `tern.js`. Each page renders itself, so the docs are also the largest real use of Tern. Readers who open the source see the syntax they are learning.
+The documentation is a set of Luccet notes. Every page is a `.html` file whose first line loads `luccet.js`. Each page renders itself, so the docs are also the largest real use of Luccet. Readers who open the source see the syntax they are learning.
 
-**Accuracy beats everything.** These pages and the engine's conformance tests are Tern's reference, and the engine decides: verify every claim with `tern.js`, as in `node -e "console.log(require('./tern.js').toHTML('…'))"`. The conformance corpus, `test/corpus/*.txt`, shows the exact output and diagnostics for each construct; look there for a case before you describe an edge. `npm test` runs `test/docs.js` over every page.
+**Accuracy beats everything.** These pages and the engine's conformance tests are Luccet's reference, and the engine decides: verify every claim with `luccet.js`, as in `node -e "console.log(require('./luccet.js').toHTML('…'))"`. The conformance corpus, `test/corpus/*.txt`, shows the exact output and diagnostics for each construct; look there for a case before you describe an edge. `npm test` runs `test/docs.js` over every page.
 
 ## The pages
 
 | File | Title | What it covers |
 |---|---|---|
-| `index.html` | Tern | what Tern is, a first note, a tour, links to everything |
+| `index.html` | Luccet | what Luccet is, a first note, a tour, links to everything |
 | `docs/guide.html` | Guide | a complete tutorial, from the first line to schemas, publishing and the editor |
 | `docs/syntax-blocks.html` | Syntax: blocks | the eight rules, lexical conventions, attributes, every block construct |
 | `docs/syntax-inline.html` | Syntax: inline | every inline construct, the ambiguity rules, escapes, the residual cases |
 | `docs/elements.html` | Elements and output | how names become elements, the output contract, titles and labels, numbering, references, ids, figures, table captions, raw HTML, metadata |
-| `docs/schema.html` | Vocabulary and behaviour | schemas, `window.TERN.schema`, add-ons, `tern.define`, transforms, styling, themes, labels in other languages |
+| `docs/schema.html` | Vocabulary and behaviour | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, transforms, styling, themes, labels in other languages |
 | `docs/addons.html` | Add-ons | the add-ons in `addons/`: code highlighting, Mermaid diagrams, KaTeX, MathML, search, a list of notes |
 | `docs/diagnostics.html` | Diagnostics | every diagnostic: when it fires, what happens to the content, an example, the fix |
-| `docs/tools.html` | Command line and editors | `tern new/check/parse/build/mv/search/index/corpus/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
-| `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `tern build`, CSP, KaTeX and offline use, browsers, trust, "When it does not render" |
-| `docs/api.html` | JavaScript API | `tern.*`, options, the AST and `data.tern`, the transformed AST, the runtime lifecycle, events, config |
+| `docs/tools.html` | Command line and editors | `luccet new/check/parse/build/mv/search/index/corpus/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
+| `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `luccet build`, CSP, KaTeX and offline use, browsers, trust, "When it does not render" |
+| `docs/api.html` | JavaScript API | `luccet.*`, options, the AST and `data.luccet`, the transformed AST, the runtime lifecycle, events, config |
 | `examples/*.html` | Examples | complete notes, each declaring its own vocabulary |
 
 ## A page's first lines
 
 ```html
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Tern</title><script src="../tern.js" data-use="docs.js docs.css"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Luccet</title><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: Every block-level construct of Tern: paragraphs, headings, fences, raw HTML, math, quotes, lists, tables, containers, cells, leaves, footnotes, attribute lines.
+description: Every block-level construct of Luccet: paragraphs, headings, fences, raw HTML, math, quotes, lists, tables, containers, cells, leaves, footnotes, attribute lines.
 :::
 
 ::site-nav
@@ -37,12 +37,12 @@ description: Every block-level construct of Tern: paragraphs, headings, fences, 
 ::toc
 ```
 
-- **Paths.** Pages in `docs/` load `../tern.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/katex.js` and `../addons/copy.js`. `index.html` loads the same from the root (`tern.js`, `docs/docs.js`, `docs/docs.css`, `addons/…`). Examples load `../tern.js` and declare their own vocabulary (below).
+- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/katex.js` and `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/…`). Examples load `../luccet.js` and declare their own vocabulary (below).
 - **The page's own markup.**
   - `::site-nav` is the site navigation, drawn by docs.js, with the mark before the home link.
-  - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/tern.png`, or `docs/tern-white.png` where the theme's text is light, and swaps them when the theme changes; the README uses the same two files in a `<picture>`.
+  - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/luccet.png`, or `docs/luccet-white.png` where the theme's text is light, and swaps them when the theme changes; the README uses the same two files in a `<picture>`.
   - `::toc` is the page's contents, levels 2 and 3.
-  - The title in the head is "Page · Tern".
+  - The title in the head is "Page · Luccet".
 - **docs.js vocabulary.** It declares what the pages use:
   - `toc`;
   - `site-nav` and `logo`;
@@ -54,7 +54,7 @@ description: Every block-level construct of Tern: paragraphs, headings, fences, 
 
 ## Live examples
 
-A fence whose info is `tern` with the class `live` is an example. docs.js shows it four ways, all computed by the engine on the reader's machine when the page is viewed:
+A fence whose info is `luccet` with the class `live` is an example. docs.js shows it four ways, all computed by the engine on the reader's machine when the page is viewed:
 - the source;
 - the result;
 - the generated HTML;
@@ -63,18 +63,18 @@ A fence whose info is `tern` with the class `live` is an example. docs.js shows 
 One parse and one transform give all four. So that a page of 200 examples paints sooner, the generated HTML goes into its panel when the panel first opens or once the page is idle, and an example out of view is laid out only as it comes near.
 
 ````
-```tern {.live}
+```luccet {.live}
 A *short* example with $x^2$.
 ```
 ````
 
 - **Diagnostics.** By default an example must produce no diagnostics. An example that shows a problem lists the codes it must produce: `{.live expect="block.unclosed attr.malformed"}`. The list is a set, so order doesn't matter, and the same code twice counts twice. `test/docs.js` checks that the example produces exactly that set.
-- **Schema.** By default an example renders with **no schema**, which is what a plain note gets. An example that needs vocabulary says so: `{.live schema=demo}`. The demo schema is defined in docs.js and listed on the Vocabulary page; say so in the prose. An example may give a preserved head with `head="…"`: the engine reads its `<title>`, `<html lang dir>` and `<meta name>` (for `:::meta` conflicts and the label language). It does not run head scripts, so `window.TERN.schema` in a `head` has no effect on a live example; show that with plain `html` fences. Use `head` rarely.
-- **Spec** (optional). `spec="syntax-blocks#fence"` names the documentation sections an example illustrates, as `PAGE#ID` anchors, where `PAGE` is a page of `docs/` without `.html`. `tern corpus` cites them on the case's `spec:` line. Without it, the case cites the section the example is in, so `spec=` is needed only for an example that illustrates another section ([tern corpus](tools.html#corpus)).
+- **Schema.** By default an example renders with **no schema**, which is what a plain note gets. An example that needs vocabulary says so: `{.live schema=demo}`. The demo schema is defined in docs.js and listed on the Vocabulary page; say so in the prose. An example may give a preserved head with `head="…"`: the engine reads its `<title>`, `<html lang dir>` and `<meta name>` (for `:::meta` conflicts and the label language). It does not run head scripts, so `window.LUCCET.schema` in a `head` has no effect on a live example; show that with plain `html` fences. Use `head` rarely.
+- **Spec** (optional). `spec="syntax-blocks#fence"` names the documentation sections an example illustrates, as `PAGE#ID` anchors, where `PAGE` is a page of `docs/` without `.html`. `luccet corpus` cites them on the case's `spec:` line. Without it, the case cites the section the example is in, so `spec=` is needed only for an example that illustrates another section ([luccet corpus](tools.html#corpus)).
 - **Fence length.** To show a fence inside an example, make the outer fence longer: four backticks around three.
 - **Size.** Keep examples small and focused, one idea each. Show edge cases as separate examples.
 - **Ids.** docs.js prefixes the ids in a result, so examples never clash with the page's ids.
-- **Plain source.** A fence that only shows source, with nothing to render, is a plain ```` ```tern ```` fence, or ```` ```html ````, ```` ```js ````, ```` ```sh ````.
+- **Plain source.** A fence that only shows source, with nothing to render, is a plain ```` ```luccet ```` fence, or ```` ```html ````, ```` ```js ````, ```` ```sh ````.
 
 ## Style
 
@@ -97,9 +97,9 @@ A *short* example with $x^2$.
 ## Checking
 
 ```
-node tern-cli.js check docs/ examples/ index.html   # the pages themselves
+node luccet-cli.js check docs/ examples/ index.html   # the pages themselves
 node test/docs.js                                   # pages, live examples and links
 NODE_PATH=… node test/smoke.js --filter=docs        # the pages in Chromium and Firefox
 ```
 
-`tern corpus FILE…` prints a page's live examples as conformance-corpus cases (the `test/corpus/README.md` format).
+`luccet corpus FILE…` prints a page's live examples as conformance-corpus cases (the `test/corpus/README.md` format).

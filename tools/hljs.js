@@ -7,7 +7,7 @@
 // to another version; it needs the network once per version.
 //
 // The package comes from the npm registry, through tools/npm.js, which
-// keeps it in node_modules/.cache/tern-smoke/ (test/smoke.js serves the same
+// keeps it in node_modules/.cache/luccet-smoke/ (test/smoke.js serves the same
 // copy). jsDelivr's /npm/ files are the package's bytes, so the hashes hold.
 //
 //   node tools/hljs.js [VERSION]   rewrite the table (default: the version in it)
@@ -25,7 +25,7 @@ const PKG = '@highlightjs/cdn-assets';
 const START = '  // <hljs> written by tools/hljs.js; do not edit by hand';
 const END = '  // </hljs>';
 
-// node_modules/.cache/tern-smoke/highlightjs-VERSION/, the package's files.
+// node_modules/.cache/luccet-smoke/highlightjs-VERSION/, the package's files.
 const packageDir = (version) => npm.packageDir(PKG, version, { folder: `highlightjs-${version}`, has: 'highlight.min.js' });
 const sri = npm.sri;
 

@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Elements and output · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Elements and output · Luccet</title><link rel="icon" href="favicon-32.png" sizes="32x32"><link rel="icon" href="favicon.svg" type="image/svg+xml"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
 
 :::meta
-description: How Tern turns names into HTML elements, and the shape of a note's output: the allowlists, reserved names, the output contract, titles and labels, table captions, figures, numbering, references, ids, raw HTML, safe rendering and metadata.
+description: How Luccet turns names into HTML elements, and the shape of a note's output: the allowlists, reserved names, the output contract, titles and labels, table captions, figures, numbering, references, ids, raw HTML, safe rendering and metadata.
 :::
 
 ::site-nav
@@ -10,9 +10,9 @@ description: How Tern turns names into HTML elements, and the shape of a note's 
 
 ::toc
 
-This page is about what a note becomes. The syntax pages say how to write a container, a leaf or a reference; this one says which HTML element each name produces, what classes and attributes tern adds, how titles, labels, numbers and reference texts are made, how ids are given out, where raw HTML may enter, and what `:::meta` does to the page's head.
+This page is about what a note becomes. The syntax pages say how to write a container, a leaf or a reference; this one says which HTML element each name produces, what classes and attributes luccet adds, how titles, labels, numbers and reference texts are made, how ids are given out, where raw HTML may enter, and what `:::meta` does to the page's head.
 
-Most of what follows depends on the **vocabulary** a note declares. The core declares none: without a schema entry, a name gets the plain output described in [the fallback](#step-fallback), with no label, no number and no table of contents. Labels, counters and the `::toc` filler come from a schema, declared by an add-on or by `window.TERN.schema` in the head ([Vocabulary and behaviour](schema.html#schema)).
+Most of what follows depends on the **vocabulary** a note declares. The core declares none: without a schema entry, a name gets the plain output described in [the fallback](#step-fallback), with no label, no number and no table of contents. Labels, counters and the `::toc` filler come from a schema, declared by an add-on or by `window.LUCCET.schema` in the head ([Vocabulary and behaviour](schema.html#schema)).
 
 So that you can see the difference, many examples below come in pairs: the same source rendered with no schema, which is what a plain note gets, and rendered with the **demo schema**. The demo schema is the vocabulary the conformance corpus uses: `theorem`, `lemma`, `proposition` and `corollary` on one counter, `definition`, `example` and `exercise` on their own, `proof` with an end mark, the callouts `note`, `tip`, `important`, `warning` and `caution`, `recall` as a `<details>`, counted `figure`, `table` and `code` (listings), and a `toc` leaf. It is defined in docs.js and listed in full on the [Vocabulary page](schema.html#demo-schema). An example that uses it says so above its source.
 
@@ -20,7 +20,7 @@ So that you can see the difference, many examples below come in pairs: the same 
 
 Three constructs carry a name: a container (`:::NAME`), a leaf (`::NAME`) and an inline element (`:NAME[…]`). Each becomes one HTML element. Which element is decided by the name, the level it is used at, an optional `tag=` key and the schema.
 
-```tern {.live}
+```luccet {.live}
 :::aside[Aside]
 A container.
 :::
@@ -34,21 +34,21 @@ Press :kbd[Ctrl] and :idea[an unknown name].
 
 Names are case-sensitive. The schema lookup, the allowlists, the reserved list and the custom-element rule all compare names exactly, and every list is lower-case. So `:::Aside` is not the `aside` element but an unknown name, `:KBD[x]` is not `kbd`, and `:::Script` is not the reserved `script`.
 
-```tern {.live}
+```luccet {.live}
 :::Aside
 Press :KBD[x].
 :::
 ```
 
-```tern {.live}
+```luccet {.live}
 :::Script
 if (a < b) run();
 :::
 ```
 
-The second example is an ordinary container whose body is parsed as Tern; only the lower-case `:::script` is reserved ([below](#reserved)). The same holds under a schema: `:::Theorem` does not find the demo schema's `theorem`.
+The second example is an ordinary container whose body is parsed as Luccet; only the lower-case `:::script` is reserved ([below](#reserved)). The same holds under a schema: `:::Theorem` does not find the demo schema's `theorem`.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::Theorem
 Body.
 :::
@@ -70,17 +70,17 @@ Whatever the element, the name stays in two places: as a class (unless it is res
 
 ### Step 1: `tag=` {#step-tag}
 
-`tag=` asks for a specific element. It is one of the reserved attribute keys: tern consumes it and never emits it.
+`tag=` asks for a specific element. It is one of the reserved attribute keys: luccet consumes it and never emits it.
 
 :::syntax
-```tern
+```luccet
 :::NAME{tag=ELEMENT}
 ::NAME{tag=ELEMENT}
 :NAME[content]{tag=ELEMENT}
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 :::box{tag=aside}
 Aside text.
 :::
@@ -95,31 +95,31 @@ Press :key[Esc]{tag=kbd}.
 - `tag=` works only on a named element: `:::name`, `::name` or `:name[…]`, including through an attribute line before a container or a leaf, which merges into it. Anywhere else (a bare span, a link, an image, a code span, a heading, a fence, display math, a paragraph through its attribute line) it gets `tag.not-allowed` (W) at the key and is dropped. To choose an element there, use a named one: `:kbd[…]` instead of `[…]{tag=kbd}`.
 - On a reserved name or a core block (`:::main{tag=section}`, `:::macros{tag=div}`), `tag=` gets [`attr.malformed`](diagnostics.html#attr-malformed) (W) at the key and is dropped: those names keep their own output.
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 :::box{tag=span}
 A container cannot be a span.
 :::
 ```
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::box{tag=main}
 main is never produced.
 :::
 ```
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 :::box{tag=tide-panel}
 tag= cannot name a custom element.
 :::
 ```
 
-```tern {.live}
+```luccet {.live}
 :::tide-panel{tag=section}
 tag= wins over the custom-element rule.
 :::
 ```
 
-```tern {.live expect="tag.not-allowed tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed tag.not-allowed"}
 [Esc]{tag=kbd} and [a link](https://example.com){tag=b}
 
 {tag=aside}
@@ -128,7 +128,7 @@ An attribute line merges into the container, so this works.
 :::
 ```
 
-```tern {.live expect="name.reserved attr.malformed attr.malformed"}
+```luccet {.live expect="name.reserved attr.malformed attr.malformed"}
 :::main{tag=section}
 A reserved name keeps its fallback.
 :::
@@ -140,13 +140,13 @@ A reserved name keeps its fallback.
 
 With a schema, `tag=` overrides the schema's element, and the schema still supplies the label and the counter. A refused `tag=` falls through to the schema's own `tag`:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem{tag=article}
 An article, still Theorem 1.
 :::
 ```
 
-```tern {.live schema=demo expect="tag.not-allowed"}
+```luccet {.live schema=demo expect="tag.not-allowed"}
 :::theorem{tag=span}
 Still a section: the schema's tag decides.
 :::
@@ -156,13 +156,13 @@ Still a section: the schema's tag decides.
 
 A schema entry may name the element its name becomes. In the demo schema, `theorem` has `tag: 'section'`, a counter and a label, so a theorem is a `<section>` with a counted label. Without a schema, the same source is just an unknown name.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]
 If $V$ is finite-dimensional.
 :::
 ```
 
-```tern {.live}
+```luccet {.live}
 :::theorem[Rank–nullity]
 If $V$ is finite-dimensional.
 :::
@@ -177,7 +177,7 @@ The schema's `tag` goes through the same checks as `tag=`, reported at the eleme
 For example, with this vocabulary in the head:
 
 ```html
-<script>window.TERN = {schema: {block: {pull: {tag: 'span'}, lead: {tag: 'main'}}}}</script>
+<script>window.LUCCET = {schema: {block: {pull: {tag: 'span'}, lead: {tag: 'main'}}}}</script>
 ```
 
 `:::pull` is a `div.pull`, with `tag.not-allowed` at `pull`, and `:::lead` is a `div.lead`, with `name.reserved` at `lead`. How to declare vocabulary is on the [Vocabulary page](schema.html#fields).
@@ -186,7 +186,7 @@ For example, with this vocabulary in the head:
 
 A name that is a valid custom-element name becomes that element, at every level. That is how web components get into a note without raw HTML.
 
-```tern {.live}
+```luccet {.live}
 :::tide-panel[Leith]{station=leith}
 High water at 06:40.
 :::
@@ -203,7 +203,7 @@ A valid custom-element name, as HTML defines it:
 - has no upper-case ASCII letter;
 - is not one of the eight hyphenated names HTML reserves: `annotation-xml`, `color-profile`, `font-face`, `font-face-src`, `font-face-uri`, `font-face-format`, `font-face-name` and `missing-glyph`.
 
-```tern {.live}
+```luccet {.live}
 :::font-face
 A reserved HTML name: a div.
 :::
@@ -219,7 +219,7 @@ Names that start with `t-` have the shape of a custom element, but they are rese
 
 A name that is in the allowlist of its level becomes that element. The lists are on [their own section](#allowlists). The same name can map differently per level: `details` is an element as a container and as a leaf, and a `span` inline.
 
-```tern {.live}
+```luccet {.live}
 :::details[More]
 Hidden.
 :::
@@ -233,7 +233,7 @@ A :details[span] here.
 
 Any other name becomes a `div` (container, leaf) or a `span` (inline), with the name as its class. Nothing is lost: the content, the attributes and the name are all there.
 
-```tern {.live}
+```luccet {.live}
 :::idea[Key idea]{#k}
 Body.
 :::
@@ -249,11 +249,11 @@ An :aside[inline] one.
 
 Turn strict mode on in any of these places:
 
-- `strict: true` in the note's own vocabulary, `window.TERN = {schema: {strict: true, …}}` in the head ([`window.TERN`](schema.html#window-tern)). It works in the browser and in the command line, and the note wins: `strict: false` there turns off what an add-on turned on;
-- `tern.schema.strict = true` in an add-on;
+- `strict: true` in the note's own vocabulary, `window.LUCCET = {schema: {strict: true, …}}` in the head ([`window.LUCCET`](schema.html#window-luccet)). It works in the browser and in the command line, and the note wins: `strict: false` there turns off what an add-on turned on;
+- `luccet.schema.strict = true` in an add-on;
 - `strict: true` in the `schema` option of the [JavaScript API](api.html#tohtml).
 
-```tern
+```luccet
 :::idea
 Body.
 :::
@@ -279,7 +279,7 @@ Each level has its own list, because each level sits in a different place in HTM
 - **`a`, `img` and `br`** are left out of the inline list on purpose: links, images and a trailing `\` already spell them. `:a[x]`, `:img[x]` and `:br[x]` are spans, and `tag=a` is refused.
 - **Media and void elements** are leaves, so video, audio, iframes and images with attributes need no raw HTML.
 
-```tern {.live}
+```luccet {.live}
 ::video{src=tide.mp4 controls width=640}
 
 ::iframe{src="https://example.com/embed" width=560}
@@ -291,7 +291,7 @@ Each level has its own list, because each level sits in a different place in HTM
 
 A name from another level's list falls back like an unknown name:
 
-```tern {.live}
+```luccet {.live}
 :::video
 Not a video: video is a leaf name.
 :::
@@ -303,37 +303,37 @@ See :section[short], :a[x] and :img[y].
 
 **Void elements.** A void element (`hr`, `img`, `embed`, `wbr`) holds no content. Content given to one is not dropped: it follows the element, in a paragraph for a leaf and inline for an inline element, with [`leaf.void-content`](diagnostics.html#leaf-void-content) (W).
 
-```tern {.live expect="leaf.void-content"}
+```luccet {.live expect="leaf.void-content"}
 ::hr[Section two]
 ```
 
-```tern {.live expect="leaf.void-content"}
+```luccet {.live expect="leaf.void-content"}
 A long :wbr[break] word.
 ```
 
 ## Reserved names {#reserved}
 
-Some names are never produced as elements, because they would break the page or hijack tern's own markup:
+Some names are never produced as elements, because they would break the page or hijack luccet's own markup:
 
 | Names | Why |
 |---|---|
 | `html` `head` `body` `base` `link` `meta` `title` `noscript` `template` | they belong to the document's structure or head, not inside a note's body; `base` alone would change what every URL on the page points to |
 | `script` `style` | they would run code or restyle the whole page; write the raw HTML when you mean it |
-| `main` | the note is mounted in `main.tern`, and a page has one `main` |
-| `tern` | the class of the element the note is mounted in |
-| any name starting with `t-` | the prefix of tern's own classes (`t-block`, `t-title` …) |
+| `main` | the note is mounted in `main.luccet`, and a page has one `main` |
+| `luccet` | the class of the element the note is mounted in |
+| any name starting with `t-` | the prefix of luccet's own classes (`t-block`, `t-title` …) |
 | `end` | `:::end` is read as a closer, so `end` is no element name at any level |
 
-A reserved name falls back to `div` (container, leaf) or `span` (inline) **without** the name as its class, so `:::tern` cannot produce `class="tern"`, and `:::t-box` is not a `<t-box>`. It keeps `data-t="NAME"`, as every named element does. It gets [`name.reserved`](diagnostics.html#name-reserved) (W) at the name.
+A reserved name falls back to `div` (container, leaf) or `span` (inline) **without** the name as its class, so `:::luccet` cannot produce `class="luccet"`, and `:::t-box` is not a `<t-box>`. It keeps `data-t="NAME"`, as every named element does. It gets [`name.reserved`](diagnostics.html#name-reserved) (W) at the name.
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::main
 Body.
 :::
 ```
 
-```tern {.live expect="name.reserved name.reserved"}
-:::tern
+```luccet {.live expect="name.reserved name.reserved"}
+:::luccet
 Body.
 :::
 
@@ -342,7 +342,7 @@ Body.
 :::
 ```
 
-```tern {.live expect="name.reserved name.reserved name.reserved"}
+```luccet {.live expect="name.reserved name.reserved name.reserved"}
 A :title[x] here.
 
 ::link{rel=icon href=icon.png}
@@ -357,13 +357,13 @@ Some reserved names keep rules of their own:
 - **`:::end`** acts as a bare closer, with `name.reserved` and the hint "write `:::` or `:::/name`".
 - **Attributes on a core block.** `:::macros`, `:::script`, `:::style` and `:::html` put their id, classes and other attributes on the element they emit (`div.t-macros`, `pre.t-error`), and the id is registered like any other. `:::meta` emits nothing, so its id, classes and keys get [`attr.malformed`](diagnostics.html#attr-malformed) (W) and are dropped; its id is not registered. `tag=` on any core block is `attr.malformed` too ([Step 1](#step-tag)).
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::script{#s .demo}
 alert(1)
 :::
 ```
 
-```tern {.live}
+```luccet {.live}
 :::macros{#defs .k}
 \gdef\R{\mathbb{R}}
 :::
@@ -371,7 +371,7 @@ alert(1)
 The macros live in @defs.
 ```
 
-```tern {.live expect="attr.malformed attr.malformed ref.dangling"}
+```luccet {.live expect="attr.malformed attr.malformed ref.dangling"}
 :::meta{#m .k}
 title: Linear maps
 :::
@@ -379,19 +379,19 @@ title: Linear maps
 The meta block has no element, so @m names nothing.
 ```
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::box
 Body.
 :::end
 ```
 
-**Reserved attributes.** The same protection applies to attributes. The key `data-t` (in any case, since keys are ASCII case-insensitive) and the classes `tern` and `t-*` get `name.reserved` (W) and are dropped. Class names are case-sensitive, so `.Tern` is an ordinary class.
+**Reserved attributes.** The same protection applies to attributes. The key `data-t` (in any case, since keys are ASCII case-insensitive) and the classes `luccet` and `t-*` get `name.reserved` (W) and are dropped. Class names are case-sensitive, so `.Luccet` is an ordinary class.
 
-```tern {.live expect="name.reserved name.reserved name.reserved"}
-[x]{.t-box .tern .Tern data-t=y}
+```luccet {.live expect="name.reserved name.reserved name.reserved"}
+[x]{.t-box .luccet .Luccet data-t=y}
 ```
 
-**Reserved keys out of place.** The keys tern consumes (`tag`, `raw`, `cols`, `ref`) are never emitted. Where one does not apply, it is dropped with a diagnostic at the key, never silently:
+**Reserved keys out of place.** The keys luccet consumes (`tag`, `raw`, `cols`, `ref`) are never emitted. Where one does not apply, it is dropped with a diagnostic at the key, never silently:
 
 | Key | Applies to | Elsewhere |
 |---|---|---|
@@ -400,7 +400,7 @@ Body.
 | `cols=` | a container, a leaf or an inline element, but not a core block | `attr.malformed` (W) |
 | `ref=` | a reference (`@id{ref=…}`) | `attr.malformed` (W) |
 
-```tern {.live expect="attr.malformed attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed attr.malformed"}
 [a span]{raw} and [a link](https://example.com){ref=title}
 
 ## A heading {cols=2}
@@ -424,7 +424,7 @@ On a named element the attributes always come in the same order: `id` first, the
 - The [title slot](#title-slots) holds the title and the label, when there is either.
 - The end mark is the schema's `end` ([End marks](#end-marks)).
 
-```tern {.live}
+```luccet {.live}
 :::aside[Aside]{#a .wide .muted data-x=1 hidden}
 Body.
 :::
@@ -438,7 +438,7 @@ Body.
 
 A leaf has no `t-block` and no title slot: the bracket content is the element's content. A leaf whose schema entry has a label or a counter starts with its label, `span.t-label`, then a space when content follows ([Labels](#labels)). A void element has no content, no label and no end tag.
 
-```tern {.live}
+```luccet {.live}
 ::p[Hello *there*]{.lead}
 
 ::video{#v .wide src=tide.mp4 controls}
@@ -452,7 +452,7 @@ A leaf has no `t-block` and no title slot: the bracket content is the element's 
 
 As for a leaf, a labelled or counted inline element starts with its `span.t-label`.
 
-```tern {.live}
+```luccet {.live}
 Hold :kbd[Ctrl]{#k .big title="Control"} down.
 ```
 
@@ -460,7 +460,7 @@ Hold :kbd[Ctrl]{#k .big title="Control"} down.
 
 A bracket with an attribute group, `[text]{…}`, is a plain `<span>` with exactly the attributes written: no `data-t` and no name class, because it has no name ([bare spans](syntax-inline.html#span)).
 
-```tern {.live}
+```luccet {.live}
 A [term]{.c #k data-x=1} here.
 ```
 
@@ -475,7 +475,7 @@ A [term]{.c #k data-x=1} here.
 - A **titled** fence is a listing: `figure.t-block.code[data-t=code]`, holding the `<pre>` and a `figcaption`. The author's attributes go on the `<figure>`; the line keys (`lines`, `hl`, `start`) stay on `<pre>` as `data-lines`, `data-hl` and `data-start`.
 - `start` also sets the custom property `--t-start` on the `<pre>`, which the stylesheet's line counter reads: in the first declaration of its `style` attribute in HTML the engine writes, through the CSSOM in the browser, so no typed `attr()` is needed and a strict CSP is kept.
 
-````tern {.live}
+````luccet {.live}
 ```js {.wide}
 plain();
 ```
@@ -487,7 +487,7 @@ setup();
 
 With the demo schema, which declares `code` with a counter, the titled fence is numbered "Listing 1":
 
-````tern {.live schema=demo}
+````luccet {.live schema=demo}
 ```js[Setup]
 setup();
 ```
@@ -499,7 +499,7 @@ The fence's own syntax is on the [blocks page](syntax-blocks.html#fence).
 
 A container split by `+++` lines holds one `div.t-cell` per cell. The container gets `t-cols` after the author's classes, and the grid as the first declaration of `style`: `--t-cols:…`, joined to an author `style` with `;`. Without `cols`, there is one column per cell.
 
-```tern {.live}
+```luccet {.live}
 :::row{cols="2 1"}
 Left, twice as wide.
 +++ {.muted}
@@ -513,7 +513,7 @@ Right.
 
 A leaf whose schema entry has `transform: 'toc'` is filled with the note's headings: `ol > li > a`, with a nested `ol` for each deeper level, inside the leaf's element (`nav` in the demo schema). The range of levels is the leaf's `depth=`, else the schema's `depth`, else `2-3`. A single `depth=N` keeps the levels from the range's lower bound to N. A toc with no headings to list emits nothing at all.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ::toc
 
 ## Intro
@@ -523,7 +523,7 @@ A leaf whose schema entry has `transform: 'toc'` is filled with the note's headi
 
 An entry's text is a copy of the heading's content, flattened as a reference's text is ([Copied text](#copied-text)): links are unwrapped, footnote references are left out, and a reference becomes its target's plain text, so a link never nests inside a link. A `ref=` on that reference is ignored in the toc: the entry shows the target's default text. The copy carries no ids.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ::toc
 
 :::theorem[Rank–nullity]{#thm}
@@ -536,7 +536,7 @@ The heading shows the title its `ref=` asks for; the toc entry shows "Theorem 1"
 
 Without a schema, `::toc` is an ordinary leaf, an empty `div.toc`:
 
-```tern {.live}
+```luccet {.live}
 ::toc
 
 ## Intro
@@ -544,7 +544,7 @@ Without a schema, `::toc` is an ordinary leaf, an empty `div.toc`:
 
 ### Positions: `data-pos` {#data-pos}
 
-Tern writes `data-pos="line:col"`, the source position of the element, on:
+Luccet writes `data-pos="line:col"`, the source position of the element, on:
 
 - containers, leaves, inline elements and the toc;
 - bare spans;
@@ -554,9 +554,9 @@ Tern writes `data-pos="line:col"`, the source position of the element, on:
 - the `div.t-macros` of `:::macros`;
 - the `pre.t-error` of a reserved container or of an unclosed comment or raw-text block, and the `div.t-eq.t-error` of an unclosed equation.
 
-Headings, paragraphs, lists, pipe tables, links, images and code spans have none. Lines are note lines: line 1 is the line after the `tern.js` line, and columns count from 1. The runtime uses `data-pos` to position the diagnostics it finds after mount, such as [`math.error`](diagnostics.html#math-error). The examples on this page leave it out; a note in the browser has it. With the demo schema, this note:
+Headings, paragraphs, lists, pipe tables, links, images and code spans have none. Lines are note lines: line 1 is the line after the `luccet.js` line, and columns count from 1. The runtime uses `data-pos` to position the diagnostics it finds after mount, such as [`math.error`](diagnostics.html#math-error). The examples on this page leave it out; a note in the browser has it. With the demo schema, this note:
 
-````tern
+````luccet
 :::theorem
 Press :kbd[S] for $x$.
 :::
@@ -574,7 +574,7 @@ becomes:
 <pre data-t="code" data-pos="5:1"><code class="language-js">x</code></pre>
 ```
 
-The JavaScript API leaves it out with `positions: false` ([`tern.emit`](api.html#emit)).
+The JavaScript API leaves it out with `positions: false` ([`luccet.emit`](api.html#emit)).
 
 ### What to key on {#keying}
 
@@ -586,12 +586,12 @@ The JavaScript API leaves it out with `positions: false` ([`tern.emit`](api.html
 ```
 
 ```js
-tern.define('tide-clock', (el) => { /* runs once per [data-t="tide-clock"] */ });
+luccet.define('tide-clock', (el) => { /* runs once per [data-t="tide-clock"] */ });
 ```
 
-`tern.define(name, fn)` runs `fn` once for each element whose `data-t` is `name` ([behaviours](schema.html#behaviours)). Since every fence has `data-t="code"`, `tern.define('code', …)` reaches every fence, titled or not.
+`luccet.define(name, fn)` runs `fn` once for each element whose `data-t` is `name` ([behaviours](schema.html#behaviours)). Since every fence has `data-t="code"`, `luccet.define('code', …)` reaches every fence, titled or not.
 
-Tern's own classes, all reserved to it:
+Luccet's own classes, all reserved to it:
 
 | Class | Where |
 |---|---|
@@ -623,9 +623,9 @@ What the emitter writes for assistive technology, beyond the HTML elements thems
 | an end mark | `aria-hidden="true"`: decoration ([End marks](#end-marks)) |
 | a block's label | real text, read as part of the title ([Labels](#labels)) |
 
-The words follow the note's [label language](schema.html#choosing-language), as a schema's label map does: English, German, French, Spanish, Portuguese, Italian and Dutch are built in, and a language without them gets English; a page sets its own with [`window.TERN.strings`](api.html#strings) (the keys `footnotes`, `back`, `done`, `todo`), and `tern.emit` takes them as `opts.strings`. An image's `alt` is the author's ([Figures](#figures)).
+The words follow the note's [label language](schema.html#choosing-language), as a schema's label map does: English, German, French, Spanish, Portuguese, Italian and Dutch are built in, and a language without them gets English; a page sets its own with [`window.LUCCET.strings`](api.html#strings) (the keys `footnotes`, `back`, `done`, `todo`), and `luccet.emit` takes them as `opts.strings`. An image's `alt` is the author's ([Figures](#figures)).
 
-```tern {.live}
+```luccet {.live}
 A claim.[^why]
 
 - [x] checked, labelled "Done"
@@ -645,7 +645,7 @@ A container's `[title]` becomes a title element, `class="t-title"`. Which elemen
 | `fieldset` | `<legend class="t-title">`, first child |
 | anything else | `<div class="t-title">`, first child |
 
-```tern {.live}
+```luccet {.live}
 :::details[More]{open}
 Hidden.
 :::
@@ -661,7 +661,7 @@ Body.
 
 The slot follows the resolved tag, not the name, so `tag=` and the schema's `tag` move it too:
 
-```tern {.live}
+```luccet {.live}
 :::box[More]{tag=details}
 Hidden.
 :::
@@ -669,13 +669,13 @@ Hidden.
 
 The demo schema gives `recall` the tag `details`, so its title is a `summary`; without a schema it is a `div`:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::recall[The kernel]
 A subspace.
 :::
 ```
 
-```tern {.live}
+```luccet {.live}
 :::recall[The kernel]
 A subspace.
 :::
@@ -693,7 +693,7 @@ The title is inline content, so it can hold emphasis, math, code and links. Leav
 
 A name whose schema entry has a `label` or a `counter` gets a label, `<span class="t-label">`. On a container it is the first child of the title element, then a space and the title. A counted name's label includes its number. The label is created even when no title is written.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::note
 Mind the gap.
 :::
@@ -709,7 +709,7 @@ Counted, untitled.
 
 Without a schema there is no label, and an untitled container has no title element at all:
 
-```tern {.live}
+```luccet {.live}
 :::note
 Mind the gap.
 :::
@@ -726,14 +726,14 @@ Labels are real text, not CSS-generated content: they copy with the text, print,
 The demo schema declares no labelled leaf or inline element, so this example uses its own vocabulary, a citation style among it, in the head:
 
 ```html
-<script>window.TERN = {schema: {
+<script>window.LUCCET = {schema: {
   leaf: {bib: {counter: 'bib', ref: '[{n}]'},
          contents: {tag: 'nav', transform: 'toc', label: 'Contents'},
          photo: {tag: 'img', label: 'Photo'}},
   inline: {term: {tag: 'dfn', label: 'Term'}}}}</script>
 ```
 
-````tern
+````luccet
 ::contents
 
 ## Sources
@@ -762,13 +762,13 @@ renders as:
 
 An empty `[]` is no title. Without a label, the container has no title element; with one, the title element holds the label alone.
 
-```tern {.live}
+```luccet {.live}
 :::box[]
 No title element.
 :::
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::note[]
 The label alone.
 :::
@@ -780,13 +780,13 @@ A titled fence follows the same rule: ```` ```js[] ```` is not a listing, just a
 
 A schema entry's `end` is a trailing mark in real text, such as the demo schema's `∎` on `proof`. It is a `span.t-end` with `aria-hidden="true"`, the container's last child. In a figure it comes just before the `figcaption`, since HTML allows a figure's caption only first or last. A merged `:::table` has none, since HTML allows no `span` between table sections. End marks are for containers only.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::proof
 Trivial.
 :::
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::proof[Sketch]{tag=figure}
 Body.
 :::
@@ -797,7 +797,7 @@ Body.
 A pipe table cannot carry a title or a number. Wrap it in `:::table[Caption]` and the two merge into one `<table>` with a `<caption>`.
 
 :::syntax
-```tern
+```luccet
 :::table[Caption]{#id .class}
 | … | … |
 |---|---|
@@ -806,7 +806,7 @@ A pipe table cannot carry a title or a number. Wrap it in `:::table[Caption]` an
 ```
 :::
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::table[Phases and exit criteria]{#tbl-phases .wide}
 | Phase | Exit |
 |---|---|
@@ -818,7 +818,7 @@ See @tbl-phases.
 
 Without a schema it merges just the same, with a caption and no label or number:
 
-```tern {.live}
+```luccet {.live}
 :::table[Phases and exit criteria]{#tbl-phases .wide}
 | Phase | Exit |
 |---|---|
@@ -834,7 +834,7 @@ The rules:
 - **The counter** comes from the schema (`Table` in the demo schema), with or without an id.
 - **No end mark**: a schema `end` is left out of a merged table.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::table[Order]{#tbl-outer .c-outer}
 {#tbl-inner .c-inner}
 | a |
@@ -843,7 +843,7 @@ The rules:
 :::
 ```
 
-```tern {.live}
+```luccet {.live}
 :::grid[Results]{tag=table}
 | a |
 |---|
@@ -853,7 +853,7 @@ The rules:
 
 **When it does not merge.** A `:::table` whose body is anything else (prose, two tables, cells, a raw `<table>`) is a `div`, with [`table.body`](diagnostics.html#table-body) (W) at the name. The fallback keeps its label and counter, so it still takes a table number.
 
-```tern {.live schema=demo expect="table.body"}
+```luccet {.live schema=demo expect="table.body"}
 :::table[Prose]
 Just prose.
 :::
@@ -869,7 +869,7 @@ See @tbl-real.
 
 A raw `<table>` inside `:::table` is never merged: raw HTML stays verbatim, and carries its own `<caption>` if it wants one.
 
-```tern {.live expect="table.body"}
+```luccet {.live expect="table.body"}
 :::table[Raw]
 <table>
 <tr><td>1</td></tr>
@@ -887,7 +887,7 @@ A figure is an element whose tag is `figure`: a caption last, and in the demo sc
 
 `:::figure[Caption]{#id}` takes any body.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::figure[Two ospreys]{#fig-pair}
 Ospreys at dawn.
 :::
@@ -895,13 +895,13 @@ Ospreys at dawn.
 
 When the body is a single paragraph holding only one image, the `<img>` is emitted without a `<p>`. A body of two image paragraphs keeps both.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::figure[An osprey]{#fig-o}
 ![Osprey](osprey.jpg)
 :::
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::figure[Before and after]
 ![Before](a.jpg)
 
@@ -913,7 +913,7 @@ When the body is a single paragraph holding only one image, the `<img>` is emitt
 
 An image alone in its paragraph, with an id, is a figure. No container needed:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![Osprey, 06:40.](osprey.jpg){#fig-osprey width=70% alt="An osprey in flight"}
 
 See @fig-osprey.
@@ -934,19 +934,19 @@ Such a paragraph becomes **the same node** as `:::figure[bracket text]{#id}`: th
 
 **Why the alt is empty.** The caption already describes the image. If the alt repeated it, a screen reader would read the same words twice. Give `alt=` when the image needs a description of its own.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![The *kernel* of $T$](kernel.svg){#fig-ker .round width=50%}
 ```
 
 The implicit figure is part of the core, not of the schema: without a schema it is still a `figure`, from the allowlist, with its caption and no label.
 
-```tern {.live}
+```luccet {.live}
 ![Osprey](osprey.jpg){#fig-o}
 ```
 
 **No id, no figure.** An image without an id, on it or on an attribute line, is always just an image in its paragraph:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![Osprey](osprey.jpg)
 
 ![Osprey](osprey.jpg){.wide}
@@ -954,7 +954,7 @@ The implicit figure is part of the core, not of the schema: without a schema it 
 
 **Attribute lines.** An attribute line with an `#id` makes the figure, as if the image carried it; its other attributes go to the figure, after `t-block figure`. An attribute line with only classes does not make a figure: it goes to the `<p>`. When both the image and the line have an id, the image's id wins and the line's is dropped.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 {#fig-a .wide}
 ![A](a.jpg)
 
@@ -964,13 +964,13 @@ The implicit figure is part of the core, not of the schema: without a schema it 
 
 **Not a figure.** An image with text, two images, an image inside a link or a table cell, and anything inside a figure stay images:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![Osprey](osprey.jpg){#img-o} at dawn.
 
 ![A](a.jpg){#img-a} ![B](b.jpg){#img-b}
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::figure[Pair]{#fig-p}
 :::box
 ![A](a.jpg){#img-a}
@@ -982,7 +982,7 @@ The implicit figure is part of the core, not of the schema: without a schema it 
 
 An implicit figure can stand in a list item, a quote or a footnote, like any paragraph:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 - ![Nest](nest.jpg){#fig-nest}
 ```
 
@@ -990,7 +990,7 @@ An implicit figure can stand in a list item, a quote or a footnote, like any par
 
 Both kinds follow one rule: an element whose tag is `figure`, and whose body is a single paragraph holding only an image, emits the `<img>` without a `<p>`. It goes by the tag, not the name, so `:::gallery{tag=figure}` follows it too. A paragraph that carries attributes from an attribute line keeps its `<p>`, to hold them.
 
-```tern {.live}
+```luccet {.live}
 :::gallery{tag=figure}
 ![A](a.jpg)
 :::
@@ -1007,7 +1007,7 @@ The `numbering` transform numbers elements in document order. An outer block is 
 
 **Counters come from the schema.** An entry's `counter` names a sequence, and names that share a counter share one sequence. In the demo schema, `theorem`, `lemma`, `proposition` and `corollary` share `theorem`; `definition`, `example` and `exercise` have their own; `figure`, `table` and `code` (listings) count separately.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem
 A.
 :::
@@ -1025,7 +1025,7 @@ D.
 :::
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem
 :::lemma
 Inner.
@@ -1040,7 +1040,7 @@ After.
 
 Without a schema nothing is counted: there are no counters to count on. Equations and footnotes are the exception, below.
 
-```tern {.live}
+```luccet {.live}
 :::theorem
 A.
 :::
@@ -1054,7 +1054,7 @@ A label with no number, such as the demo schema's `proof`, takes no number from 
 
 **Equations** are numbered only when they have an id, on the counter `equation`, in document order. Their number is `(n)`, in a `span.t-eqno`. Inline math is never numbered. Equations are counted with or without a schema.
 
-```tern {.live}
+```luccet {.live}
 $$ a $$
 
 $$ b $$ {#eq-b}
@@ -1068,7 +1068,7 @@ See @eq-c.
 
 **Listings** are titled fences, on the schema's `code` entry: "Listing 1" in the demo schema. An untitled fence takes no number; a titled one is numbered with or without an id.
 
-````tern {.live schema=demo}
+````luccet {.live schema=demo}
 ```js[First]
 a();
 ```
@@ -1086,7 +1086,7 @@ See @lst-2.
 
 **Footnotes** are numbered by first reference, not by where their definitions stand, with or without a schema ([footnotes](syntax-blocks.html#footnote-definition)).
 
-```tern {.live}
+```luccet {.live}
 Later[^b] and sooner[^a].
 
 [^a]: Defined first.
@@ -1095,7 +1095,7 @@ Later[^b] and sooner[^a].
 
 **Numbering per section.** A counter whose entry sets [`within`](schema.html#field-within) restarts at each heading of that level, and its numbers follow the section's: in the demo schema, `problem` is `within: 'h2'`. Section numbers run from `##` down; a `#` heading counts in none of them. Other counters stay document-wide.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ## Vectors
 
 :::problem
@@ -1130,7 +1130,7 @@ Elements inside a dropped duplicate footnote definition take no number: that con
 | a labelled element that is neither counted nor titled | its label | `Proof` |
 | anything else | the id | `term` |
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm}
 :::
 
@@ -1152,7 +1152,7 @@ A [key term]{#term}.
 
 A counted target reads as its label and number even when it has a title. Without a schema the same targets read differently: nothing is counted or labelled, so a titled container reads as its title, and an untitled one as its id.
 
-```tern {.live}
+```luccet {.live}
 :::theorem[Rank–nullity]{#thm}
 :::
 
@@ -1162,14 +1162,14 @@ A counted target reads as its label and number even when it has a title. Without
 See @thm and @pf.
 ```
 
-**Templates.** A schema entry's `ref` is a template over `{label}`, `{n}`, `{title}` and `{id}`; the demo schema's theorems use `'{label} {n}'`. `{label}` is the label word ("Theorem"), not the label with its number. When the target lacks a part the template names, such as `{title}` on an untitled block, the default text by kind is used instead. A schema can define a citation style this way: `tern.leaf('bib', {counter: 'bib', ref: '[{n}]'})` makes `@knuth`, on a `::bib{#knuth}`, read `[1]`. The fields are on the [schema page](schema.html#fields).
+**Templates.** A schema entry's `ref` is a template over `{label}`, `{n}`, `{title}` and `{id}`; the demo schema's theorems use `'{label} {n}'`. `{label}` is the label word ("Theorem"), not the label with its number. When the target lacks a part the template names, such as `{title}` on an untitled block, the default text by kind is used instead. A schema can define a citation style this way: `luccet.leaf('bib', {counter: 'bib', ref: '[{n}]'})` makes `@knuth`, on a `::bib{#knuth}`, read `[1]`. The fields are on the [schema page](schema.html#fields).
 
 ### Choosing the text: `ref=` {#ref-select}
 
 `ref=` on a reference chooses which part of the target to show.
 
 :::syntax
-```tern
+```luccet
 @id{ref=label}
 @id{ref=number}
 @id{ref=title}
@@ -1184,7 +1184,7 @@ See @thm and @pf.
 | `title` | the title (a heading's content) | `Rank–nullity` |
 | `full` | the label, then the title in parentheses | `Theorem 1 (Rank–nullity)` |
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -1201,14 +1201,14 @@ $$ x $$ {#eq-x}
 - **Any other value** gets [`attr.malformed`](diagnostics.html#attr-malformed) (W) at the value, and the default text.
 - `ref=` is consumed: it never reaches the HTML. On anything but a reference it gets `attr.malformed` (W) at the key and is dropped ([Reserved keys out of place](#reserved)).
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem{#thm-u}
 :::
 
 See @thm-u{ref=title}.
 ```
 
-```tern {.live schema=demo expect="attr.malformed"}
+```luccet {.live schema=demo expect="attr.malformed"}
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -1219,7 +1219,7 @@ See @thm-rn{ref=name}.
 
 The text of a reference is copied from its target, and the copy goes inside a link. So it is flattened, exactly as a [toc entry](#toc-output) is: links are unwrapped to their text, footnote references are left out, and a reference inside it becomes its own target's plain text. A link never nests in a link, and no id is emitted twice. The target itself is untouched.
 
-```tern {.live}
+```luccet {.live}
 ## See [the docs](https://x.org)[^n] and @k {#h}
 
 [t]{#k}
@@ -1233,9 +1233,9 @@ Other markup is kept: emphasis, code and math in a heading appear in the referen
 
 ### Fragment links {#fragment-links}
 
-For your own text, write an ordinary link to a fragment: `[the test](#lem-inj)`. Tern checks it: a fragment that names no id in the note gets [`ref.dangling`](diagnostics.html#ref-dangling) (W) at the link's `[`, and the link stays a link. A fragment written with non-ASCII letters is percent-encoded in `href` and still checked against the id. A bare `#` is not checked.
+For your own text, write an ordinary link to a fragment: `[the test](#lem-inj)`. Luccet checks it: a fragment that names no id in the note gets [`ref.dangling`](diagnostics.html#ref-dangling) (W) at the link's `[`, and the link stays a link. A fragment written with non-ASCII letters is percent-encoded in `href` and still checked against the id. A bare `#` is not checked.
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 ## Results
 
 See [the results](#results) and [the proof](#nowhere).
@@ -1245,7 +1245,7 @@ See [the results](#results) and [the proof](#nowhere).
 
 An `@name` whose name is no id in the note stays literal text, with `ref.dangling` (W) at the `@` and a hint to write `\@name`. A mention like `@alice` is the usual case.
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 Ask @alice. Or ask \@bob.
 ```
 
@@ -1255,7 +1255,7 @@ Every id in a note, of every kind, lives in **one registry**: heading ids, conta
 
 ### Two passes {#id-passes}
 
-Before anything else, the registry holds **tern's own ids**: `tern-style`, `tern-color-scheme`, `tern-source` and `tern-diagnostics`, which tern.js gives elements of its own in the page (its stylesheet, its colour-scheme meta, the note's source and, on a page `tern build` wrote, the note's diagnostics). Then the `ids` transform fills it in two passes.
+Before anything else, the registry holds **luccet's own ids**: `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics`, which luccet.js gives elements of its own in the page (its stylesheet, its colour-scheme meta, the note's source and, on a page `luccet build` wrote, the note's diagnostics). Then the `ids` transform fills it in two passes.
 
 1. **Fixed ids**, in document order:
    - every id an author wrote, as `#id` or `id=`: on headings, containers, leaves, inline elements, spans, links, images, code and math spans, titled fences, tables, attribute lines and `$$` closers;
@@ -1264,15 +1264,15 @@ Before anything else, the registry holds **tern's own ids**: `tern-style`, `tern
 
 So an id you wrote always beats a slug, wherever the two stand: an author who wrote `#kernel` meant it, and a slug is a guess. The slug yields silently.
 
-Tern's own ids come first of all. A heading slug yields to them silently (`## Tern style` gets `tern-style-2`). An id you write that is one of them gets [`id.duplicate`](diagnostics.html#id-duplicate) (W), saying it belongs to tern, and is dropped.
+Luccet's own ids come first of all. A heading slug yields to them silently (`## Luccet style` gets `luccet-style-2`). An id you write that is one of them gets [`id.duplicate`](diagnostics.html#id-duplicate) (W), saying it belongs to luccet, and is dropped.
 
-```tern {.live expect="id.duplicate"}
-## Tern style
+```luccet {.live expect="id.duplicate"}
+## Luccet style
 
-A [span]{#tern-source} keeps no id.
+A [span]{#luccet-source} keeps no id.
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ## Kernel
 
 :::definition{#kernel}
@@ -1286,7 +1286,7 @@ See @kernel.
 
 A heading without an id gets a slug of its plain text: lower-cased, from the first letter on, with runs of other characters turned into `-` ([the heading rules](syntax-blocks.html#heading)). A slug that is already taken, by a fixed id anywhere in the note or by an earlier slug, gets the first free `-2`, `-3`, …, silently. A suffixed slug is an id like any other, so `@notes-2` reaches it.
 
-```tern {.live}
+```luccet {.live}
 ## Notes
 ## Notes
 ## Notes
@@ -1296,7 +1296,7 @@ See @notes-2.
 
 Fixed ids are registered first, so a slug skips any suffix an author took:
 
-```tern {.live}
+```luccet {.live}
 ## A
 ## A
 
@@ -1305,7 +1305,7 @@ See [x]{#a-2}.
 
 A reference inside a heading counts as its id in the slug: slugs are made before anything is numbered, so a slug never changes when a target is renumbered. The reference still renders its text.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem{#thm-a}
 :::
 
@@ -1318,7 +1318,7 @@ See @proof-of-thm-a.
 
 Two fixed ids that collide get [`id.duplicate`](diagnostics.html#id-duplicate) (W), reported **at both places**: at the first, and at each later one. The first keeps the id; every later element drops its `id` attribute, which keeps the HTML valid. References resolve to the first.
 
-```tern {.live schema=demo expect="id.duplicate id.duplicate"}
+```luccet {.live schema=demo expect="id.duplicate id.duplicate"}
 :::theorem{#t}
 :::
 
@@ -1330,7 +1330,7 @@ See @t.
 
 The lemma keeps its number, but not the id. The registry spans every kind, so a heading and a span, or an equation and a code span, collide too:
 
-```tern {.live expect="id.duplicate id.duplicate"}
+```luccet {.live expect="id.duplicate id.duplicate"}
 $$ x $$ {#e}
 
 A `c`{#e} span.
@@ -1338,7 +1338,7 @@ A `c`{#e} span.
 
 A heading that loses its own id, as a later duplicate or as an invalid id, gets its slug instead, so every heading keeps an id:
 
-```tern {.live expect="id.duplicate id.duplicate id.invalid"}
+```luccet {.live expect="id.duplicate id.duplicate id.invalid"}
 :::box{#intro}
 :::
 
@@ -1357,7 +1357,7 @@ An id can be wrong in two ways, and gets at most one of the two diagnostics:
 
 Both can only happen through `id=`: `#` takes a name that is always a valid, referenceable id. The diagnostic points at the first letter of `id=`.
 
-```tern {.live expect="id.invalid ref.unreferenceable ref.unreferenceable"}
+```luccet {.live expect="id.invalid ref.unreferenceable ref.unreferenceable"}
 [a]{id="a b"} [b]{id=2024} [c]{id=v1.2}
 ```
 
@@ -1365,7 +1365,7 @@ Both can only happen through `id=`: `#` takes a name that is always a valid, ref
 
 A footnote's ids keep their `fn-` and `fnref-` prefixes, so the label `x` and an id `#x` do not collide. The ids use the definition's label as written, though labels match case-insensitively: `[^Note]` with `[^note]:` gives `fn-note`. A repeated reference gets `fnref-note-2`, `fnref-note-3`, ….
 
-```tern {.live}
+```luccet {.live}
 One[^Note], two[^note] and [x]{#note}.
 
 [^note]: Text.
@@ -1373,7 +1373,7 @@ One[^Note], two[^note] and [x]{#note}.
 
 The generated ids are fixed ids, so `#fn-x` written by hand collides with a footnote `x`. The earlier one in document order keeps the id; a definition that loses it keeps its place in the list, without an `id`.
 
-```tern {.live expect="id.duplicate id.duplicate"}
+```luccet {.live expect="id.duplicate id.duplicate"}
 Text[^x].
 
 [^x]: Note.
@@ -1391,10 +1391,10 @@ Raw HTML enters a note only through three doors:
 - the ```` ```=html ```` fence ([raw HTML fence](syntax-blocks.html#html-fence));
 - inline phrasing and custom tags inside a paragraph ([raw inline HTML](syntax-inline.html#raw-inline-html)).
 
-````tern {.live}
+````luccet {.live}
 <details>
 <summary>Raw details</summary>
-Not parsed as Tern.
+Not parsed as Luccet.
 </details>
 
 ```=html
@@ -1404,20 +1404,20 @@ Not parsed as Tern.
 Inline: <kbd>Ctrl</kbd> and <tide-chip>3 m</tide-chip>.
 ````
 
-Each door makes one `html` node with its own end. Nothing in it is parsed as Tern, and nothing outside it is affected by it. A comment or raw-text block that never closes would turn the rest of the page into a comment, a script or a stylesheet, so it is shown instead as escaped source in `<pre class="t-error">`, with [`html.unclosed`](diagnostics.html#html-unclosed) (E), and what follows renders normally:
+Each door makes one `html` node with its own end. Nothing in it is parsed as Luccet, and nothing outside it is affected by it. A comment or raw-text block that never closes would turn the rest of the page into a comment, a script or a stylesheet, so it is shown instead as escaped source in `<pre class="t-error">`, with [`html.unclosed`](diagnostics.html#html-unclosed) (E), and what follows renders normally:
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 <!-- a comment that never closes
 ```
 
-To put Tern inside an element, use a container with that name, `:::details` … `:::`, rather than raw tags around Tern.
+To put Luccet inside an element, use a container with that name, `:::details` … `:::`, rather than raw tags around Luccet.
 
 ### Safe rendering {#safe}
 
-`safe: true` renders a note you do not trust, such as a comment someone posted. It is an option of [`tern.toHTML`](api.html#tohtml) and [`tern.emit`](api.html#emit), and of [`tern.render`](api.html#render) in the browser, where it also means the note's scripts do not run and its behaviours (a schema's `dom`, `tern.define`) are not applied, then or later: the root stays untrusted ([`tern.render`](api.html#render)). The page's own note is never rendered with `safe`: a note you publish is trusted like any page you write ([Trust](publishing.html#trust)).
+`safe: true` renders a note you do not trust, such as a comment someone posted. It is an option of [`luccet.toHTML`](api.html#tohtml) and [`luccet.emit`](api.html#emit), and of [`luccet.render`](api.html#render) in the browser, where it also means the note's scripts do not run and its behaviours (a schema's `dom`, `luccet.define`) are not applied, then or later: the root stays untrusted ([`luccet.render`](api.html#render)). The page's own note is never rendered with `safe`: a note you publish is trusted like any page you write ([Trust](publishing.html#trust)).
 
 ```js
-const html = tern.toHTML(source, { safe: true });
+const html = luccet.toHTML(source, { safe: true });
 ```
 
 Under `safe`:
@@ -1426,10 +1426,10 @@ Under `safe`:
 - **Dangerous elements are neutralised.** A named element that resolves to one that loads, runs or navigates — a frame, `<object>`, `<embed>`, `<form>`, `<base>`, `<meta>`, `<link>` — or to a custom element (a hyphen in its name, which the host page might define) is emitted as a plain `<div>` (a `<span>` inline), keeping its id, class, `data-t` and content. So `::iframe` and `:::x{tag=form}` cannot reach the page's origin or the host's custom elements.
 - **Risky attributes are dropped**, on every element, whether written as `{…}` or set by a schema: every attribute whose name starts with `on` (in any case), the ones that run or submit (`srcdoc`, `formaction`, `formtarget`, `formmethod`, `formenctype`, `style`, `is`, `nonce`), the ones that steer navigation or focus (`target`, `ping`, `autofocus`, `http-equiv`), and the ones that drive the host page's own elements or clobber its names (`form`, `popover`, `popovertarget`, `popovertargetaction`, `commandfor`, `command`, `interestfor`, `interesttarget`, `usemap`, `name`). Names are read without case, as HTML reads them, so a schema's `Href` is checked as `href`.
 - **URLs are checked.** Link destinations, image sources and every URL attribute (`href`, `src`, `action`, `poster`, `cite`, `data`, `srcset` and the rest) keep only http, https, mailto and relative URLs. Any other scheme, `javascript:` and `data:` included, is dropped with its attribute. Entities, tabs, newlines and leading control characters are taken into account first, as the browser does, so `&#106;avascript:` is caught, and a `srcset` is decoded before it is split into candidates, so `&#44;` cannot hide a second one.
-- **Ids can be prefixed.** `idPrefix: 'c1-'` puts the prefix on every id in the output and on every fragment link to one (a reference, `[x](#id)`, footnotes, a toc), so the ids of an untrusted root cannot clash with the page's or be aimed at by it ([`tern.emit`](api.html#emit)).
-- **Tern's own grid survives.** The `--t-cols` style of a `cols` grid is tern's, not the author's, so it is kept when its value holds only numbers, words and `(),.%/+*-`; any other value is dropped. An author's `style` is still dropped, so it is not joined to the grid.
+- **Ids can be prefixed.** `idPrefix: 'c1-'` puts the prefix on every id in the output and on every fragment link to one (a reference, `[x](#id)`, footnotes, a toc), so the ids of an untrusted root cannot clash with the page's or be aimed at by it ([`luccet.emit`](api.html#emit)).
+- **Luccet's own grid survives.** The `--t-cols` style of a `cols` grid is luccet's, not the author's, so it is kept when its value holds only numbers, words and `(),.%/+*-`; any other value is dropped. An author's `style` is still dropped, so it is not joined to the grid.
 
-```tern
+```luccet
 <div class="box">raw</div>
 
 x <b>bold</b>, [a link](javascript:alert(1)) and [s]{onclick="go()" style="color:red" title=ok}
@@ -1458,9 +1458,9 @@ renders under `safe: true` as:
 </div>
 ```
 
-`id`, `class`, `data-*` and the other attributes are kept, and every Tern construct renders as usual. The `::iframe` became an inert `<div>`, so its `src` no longer loads.
+`id`, `class`, `data-*` and the other attributes are kept, and every Luccet construct renders as usual. The `::iframe` became an inert `<div>`, so its `src` no longer loads.
 
-That list is the whole contract: `safe` escapes, neutralises and drops what is named above, in the browser also keeps the root's scripts from running and its behaviours from ever applying, and has the math add-ons that come with Tern typeset the root with trust off and a private macro table. It does not sandbox the page's own code, and it does not limit what the untrusted text may cost to parse beyond the engine's own limits ([`nesting.limit`](diagnostics.html#nesting-limit), [`output.limit`](diagnostics.html#output-limit)).
+That list is the whole contract: `safe` escapes, neutralises and drops what is named above, in the browser also keeps the root's scripts from running and its behaviours from ever applying, and has the math add-ons that come with Luccet typeset the root with trust off and a private macro table. It does not sandbox the page's own code, and it does not limit what the untrusted text may cost to parse beyond the engine's own limits ([`nesting.limit`](diagnostics.html#nesting-limit), [`output.limit`](diagnostics.html#output-limit)).
 
 ## Metadata {#metadata}
 
@@ -1468,11 +1468,11 @@ A note's metadata has two homes, one place per key: the preserved head, and the 
 
 ### The preserved head {#head}
 
-The head is everything before the `tern.js` script tag: the lines above it, and whatever comes before the tag on its own line, such as the canonical line's `<!doctype html><meta charset="utf-8">`. It is ordinary HTML that the browser parses before any script runs: `<html lang dir>`, `<title>`, `<meta name=…>`, `<link rel=icon>`, stylesheets. It needs no Tern syntax, and it is what crawlers, link previews and the tab title see before the note renders. Nothing in it reaches the body.
+The head is everything before the `luccet.js` script tag: the lines above it, and whatever comes before the tag on its own line, such as the canonical line's `<!doctype html><meta charset="utf-8">`. It is ordinary HTML that the browser parses before any script runs: `<html lang dir>`, `<title>`, `<meta name=…>`, `<link rel=icon>`, stylesheets. It needs no Luccet syntax, and it is what crawlers, link previews and the tab title see before the note renders. Nothing in it reaches the body.
 
 ```html
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Linear maps</title>
-<link rel="icon" href="icon.png"><script src="tern.js"></script>
+<link rel="icon" href="icon.png"><script src="luccet.js"></script>
 ```
 
 The file's layout is on the [Publishing page](publishing.html#the-file).
@@ -1482,14 +1482,14 @@ The file's layout is on the [Publishing page](publishing.html#the-file).
 `:::meta` sets the same things from inside the note, so a note needs no HTML beyond its first line.
 
 :::syntax
-```tern
+```luccet
 :::meta
 key: value
 :::
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: Linear maps: kernel, image and rank
 lang: en
@@ -1501,7 +1501,7 @@ The block itself emits nothing.
 ```
 
 - **A line** is a key, a colon and a space, then the value. The key starts with an ASCII letter and continues with letters, digits and `_ . : -`, and does not end in `:`. The separator is the first `: `, so the value may hold colons (`title: Linear maps: kernel`) and the key may too (`og:image: cover.png`).
-- **The value** is the rest of the line, right-trimmed. It is plain text: nothing in it is parsed as Tern.
+- **The value** is the rest of the line, right-trimmed. It is plain text: nothing in it is parsed as Luccet.
 - **Blank lines** are ignored.
 - **The body is verbatim**, like a fence's: a `:::note` line inside it is a malformed meta line, not an opener. It ends at a bare `:::` closer or at `:::/meta`.
 - **Where.** It is honoured only at the top level, and conventionally comes first, but a top-level block later in the note counts too.
@@ -1511,7 +1511,7 @@ The block itself emits nothing.
 | Key | Sets |
 |---|---|
 | `title` | `<title>`, the tab and bookmark title |
-| `lang` | `<html lang>`, and so `tern.config.lang` and the language labels are picked in, unless something earlier in the order below sets one |
+| `lang` | `<html lang>`, and so `luccet.config.lang` and the language labels are picked in, unless something earlier in the order below sets one |
 | `dir` | `<html dir>` |
 | `author`, `date`, `description`, `keywords` | `<meta name="KEY" content="VALUE">` |
 | any other key | `<meta name="KEY" content="VALUE">` too |
@@ -1520,14 +1520,14 @@ Keys are case-sensitive: only `title` in lower case sets the title.
 
 **The label language.** Labels with several languages ([labels in other languages](schema.html#languages)) are picked by the first of these that is set, in the browser and in the command line alike:
 
-1. `data-lang` on the tern.js tag;
-2. `lang` in `window.TERN`, from a head script;
+1. `data-lang` on the luccet.js tag;
+2. `lang` in `window.LUCCET`, from a head script;
 3. `lang` in `:::meta`;
 4. `<html lang>` in the head.
 
-In the browser, `tern.config.lang` holds the same value once the note is mounted.
+In the browser, `luccet.config.lang` holds the same value once the note is mounted.
 
-**When it applies.** The parser reads the block into `root.data.tern.meta`, a plain `{key: string}` object, so the transforms see it ([the AST](api.html#data-tern)). In the browser, the runtime writes the head before it mounts the note; [`tern build`](tools.html#build) writes the same tags statically. Either way, a key the head already sets is left alone. Tern adds a viewport meta and a `color-scheme` meta (`light dark`) when the head has none; `viewport` and `color-scheme` keys in `:::meta` replace those defaults.
+**When it applies.** The parser reads the block into `root.data.luccet.meta`, a plain `{key: string}` object, so the transforms see it ([the AST](api.html#data-luccet)). In the browser, the runtime writes the head before it mounts the note; [`luccet build`](tools.html#build) writes the same tags statically. Either way, a key the head already sets is left alone. Luccet adds a viewport meta and a `color-scheme` meta (`light dark`) when the head has none; `viewport` and `color-scheme` keys in `:::meta` replace those defaults.
 
 :::tip
 Open Graph tags use `property`, not `name`, so `:::meta` cannot write them: put `<meta property="og:image" …>` in the head.
@@ -1537,7 +1537,7 @@ Open Graph tags use `property`, not `name`, so `:::meta` cannot write them: put 
 
 **The head wins.** When the head and `:::meta` set the same key to different values, the head wins, with [`meta.conflict`](diagnostics.html#meta-conflict) (W) at the key in the note. The page then always agrees with what non-script readers saw. A key is compared with the head's `<title>` (`title`), `<html lang>` and `<html dir>` (`lang`, `dir`), or `<meta name="KEY">` (any other key). Values compare exactly, except `lang`, which compares case-insensitively. After a conflict, `meta` holds the head's value.
 
-```tern {.live head="<title>Linear maps</title>" expect="meta.conflict"}
+```luccet {.live head="<title>Linear maps</title>" expect="meta.conflict"}
 :::meta
 title: Kernels
 author: O. Carrera
@@ -1546,7 +1546,7 @@ author: O. Carrera
 The page title stays "Linear maps".
 ```
 
-```tern {.live head="<html lang='en-GB'><title>Linear maps</title>"}
+```luccet {.live head="<html lang='en-GB'><title>Linear maps</title>"}
 :::meta
 title: Linear maps
 lang: en-gb
@@ -1555,7 +1555,7 @@ lang: en-gb
 Same values: no conflict.
 ```
 
-```tern {.live head="<html lang='de'><meta name='author' content='A. Author'>" expect="meta.conflict meta.conflict"}
+```luccet {.live head="<html lang='de'><meta name='author' content='A. Author'>" expect="meta.conflict meta.conflict"}
 :::meta
 lang: en
 author: O. Carrera
@@ -1570,7 +1570,7 @@ Keys the head does not set are never conflicts: one place per key. Set each key 
 
 **A repeated key**, in one block or across blocks, gets [`meta.duplicate`](diagnostics.html#meta-duplicate) (W) at the later one, and the first value wins.
 
-```tern {.live expect="meta.duplicate"}
+```luccet {.live expect="meta.duplicate"}
 :::meta
 title: Maps
 :::
@@ -1585,7 +1585,7 @@ title: Other
 
 **A line that does not parse** gets [`meta.malformed`](diagnostics.html#meta-malformed) (W) at the line, and is ignored: no colon, no space after it, a key that does not start with a letter, or a key ending in `:`. An indented line is malformed too.
 
-```tern {.live expect="meta.malformed meta.malformed meta.malformed meta.malformed meta.malformed"}
+```luccet {.live expect="meta.malformed meta.malformed meta.malformed meta.malformed meta.malformed"}
 :::meta
 title Linear maps
 lang:en
@@ -1599,7 +1599,7 @@ Five malformed lines.
 
 **Not at the top level**, inside a container, a list or a quote, a `:::meta` block gets [`meta.nested`](diagnostics.html#meta-nested) (W) at its opener and is ignored. Its body is still verbatim, so nothing of it renders.
 
-```tern {.live expect="meta.nested"}
+```luccet {.live expect="meta.nested"}
 :::box
 :::meta
 title: Inner
@@ -1608,11 +1608,11 @@ Body.
 :::
 ```
 
-**The title fallback.** With no title anywhere, neither in the head nor in `:::meta`, the page title is the plain text of the first level-1 heading. The transforms record it in `meta.title`, so the runtime and `tern build` both use it. Markup is dropped and math is kept as its TeX: `# Linear *maps*` gives "Linear maps".
+**The title fallback.** With no title anywhere, neither in the head nor in `:::meta`, the page title is the plain text of the first level-1 heading. The transforms record it in `meta.title`, so the runtime and `luccet build` both use it. Markup is dropped and math is kept as its TeX: `# Linear *maps*` gives "Linear maps".
 
 **No front matter.** A note that starts with `---`, `key: value` lines and `---` renders as a rule, a paragraph and a rule, with [`doc.frontmatter`](diagnostics.html#doc-frontmatter) (I) pointing to `:::meta`.
 
-```tern {.live expect="doc.frontmatter"}
+```luccet {.live expect="doc.frontmatter"}
 ---
 title: Linear maps
 ---

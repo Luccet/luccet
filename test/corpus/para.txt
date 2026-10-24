@@ -9,7 +9,7 @@ spec: syntax-blocks#paragraph
 
 The paragraph example: consecutive lines that start nothing else are one paragraph, joined by a soft break.
 
-````tern
+````luccet
 Let $T: V \to W$ be linear.
 Its kernel is a subspace.
 ````
@@ -25,7 +25,7 @@ spec: syntax-blocks#paragraph syntax-blocks#line-algorithm
 
 Any number of blank lines ends a paragraph and produces nothing.
 
-````tern
+````luccet
 One
 
 
@@ -45,7 +45,7 @@ options: escaped
 
 Each line's leading and trailing whitespace is stripped before the lines are joined with `\n`.
 
-````tern
+````luccet
   first
 \t\tsecond\t
 ````
@@ -65,7 +65,7 @@ spec: syntax-blocks#paragraph syntax-blocks#columns
 
 The offset table maps joined text back to the source, so an inline diagnostic on an indented continuation line lands on its real column and offset.
 
-````tern
+````luccet
 First line
     then press:kbd[S] here
 ````
@@ -85,7 +85,7 @@ spec: syntax-blocks#paragraph syntax-blocks#lists syntax-blocks#line-algorithm
 
 Only an ordered item numbered 1 interrupts a paragraph, so a wrapped line starting `2019.` stays prose.
 
-````tern
+````luccet
 The archive covers everything up to
 2019. was a year of change.
 ````
@@ -101,7 +101,7 @@ spec: syntax-blocks#paragraph syntax-blocks#lists syntax-blocks#line-algorithm
 
 The interrupt rule looks at the value, not the spelling (as in CommonMark): `01.` is an ordered item numbered 1, so it interrupts the paragraph, and the list gets no `start`.
 
-````tern
+````luccet
 Some prose
 01. first
 ````
@@ -117,7 +117,7 @@ spec: syntax-blocks#paragraph syntax-blocks#lists syntax-blocks#line-algorithm
 
 An empty bullet or an empty `1.` does not interrupt a paragraph; both lines continue it.
 
-````tern
+````luccet
 Some prose
 -
 1.
@@ -135,7 +135,7 @@ spec: syntax-blocks#paragraph syntax-blocks#line-algorithm syntax-inline#ambigui
 
 Lines that look like block starts but are not (no space after the marker) continue the paragraph.
 
-````tern
+````luccet
 Some prose
 #hashtag
 >5 people

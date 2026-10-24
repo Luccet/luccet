@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// The language server over stdio: spawns `node tern-cli.js lsp` and drives
+// The language server over stdio: spawns `node luccet-cli.js lsp` and drives
 // it as an editor would. Expectations come from the engine (cli/note.js
 // `analyse`, the AST), never from the server:
 //   - published diagnostics equal the engine's with cli/links.js's (what
-//     `tern check` reports), mapped to LSP;
+//     `luccet check` reports), mapped to LSP;
 //   - links between files: an open document's text wins over its file's,
 //     an open file exists, the other open notes are checked again;
 //   - workspace/willRenameFiles: the edits, applied as a client does, give
-//     the files tern mv writes; the workspace folders or the moved file's
+//     the files luccet mv writes; the workspace folders or the moved file's
 //     folder; file operations check the open notes' links again;
 //   - rename edits equal the engine's reference set, none in code or math;
 //   - definition, references, hover, completion, documentSymbol,
-//     foldingRange, documentHighlight, the `tern/outline` notification, the
+//     foldingRange, documentHighlight, the `luccet/outline` notification, the
 //     pace of analyses (at once after a pause, every 150 ms at most);
-//   - a single-file note's own vocabulary (window.TERN.schema);
+//   - a single-file note's own vocabulary (window.LUCCET.schema);
 //   - add-on transforms run for their own note only, data-lang's label
 //     language, addon.remote;
 //   - a non-note .html file, add-on caching, malformed input, shutdown, exit.
@@ -32,7 +32,7 @@ const note = require('../cli/note');
 const links = require('../cli/links');
 const fixture = require('./fixtures/schema');
 
-const CLI = path.join(__dirname, '..', 'tern-cli.js');
+const CLI = path.join(__dirname, '..', 'luccet-cli.js');
 const SAMPLES = path.join(__dirname, 'samples');
 const verbose = process.argv.includes('--verbose');
 
@@ -112,7 +112,7 @@ class Client {
     return this.next((m) => m.method === 'textDocument/publishDiagnostics' && m.params.uri === uri, ms).then((m) => m.params);
   }
   outline(uri, ms) {
-    return this.next((m) => m.method === 'tern/outline' && m.params.uri === uri, ms).then((m) => m.params);
+    return this.next((m) => m.method === 'luccet/outline' && m.params.uri === uri, ms).then((m) => m.params);
   }
   async open(file, text, version = 1) {
     const uri = pathToFileURL(file).href;
@@ -129,7 +129,7 @@ class Client {
 function expected(d) {
   const p = d.filePosition;
   const at = (q) => ({ line: Math.max(q.line - 1, 0), character: Math.max(q.column - 1, 0) });
-  const out = { range: { start: at(p.start), end: at(p.end) }, severity: { error: 1, warning: 2, info: 3 }[d.severity], code: d.code, source: 'tern' };
+  const out = { range: { start: at(p.start), end: at(p.end) }, severity: { error: 1, warning: 2, info: 3 }[d.severity], code: d.code, source: 'luccet' };
   out.message = d.hint ? `${d.message}\n${d.hint}` : d.message;
   if (d.hint) out.data = { hint: d.hint };
   return out;
@@ -149,8 +149,8 @@ const fileRange = (a, p) => ({
   start: { line: p.start.line + a.line - 1, character: p.start.column - 1 },
   end: { line: p.end.line + a.line - 1, character: p.end.column - 1 },
 });
-const tn = (n) => (n.data && n.data.tern) || {};
-// note.analyse, its links checked against the disk as `tern check` does,
+const tn = (n) => (n.data && n.data.luccet) || {};
+// note.analyse, its links checked against the disk as `luccet check` does,
 // with what the add-on logs (to stderr) kept out of this harness's output.
 function analyse(text, file) {
   const write = process.stderr.write;
@@ -163,9 +163,9 @@ function analyse(text, file) {
     process.stderr.write = write;
   }
 }
-// tern.outline with every line a file line.
+// luccet.outline with every line a file line.
 function outlineOf(a) {
-  const o = note.tern.outline(a.ast);
+  const o = note.luccet.outline(a.ast);
   for (const k in o) for (const e of o[k]) (e.line += a.line), e.endLine && (e.endLine += a.line);
   return o;
 }
@@ -182,16 +182,16 @@ const before = (p, q) => p.line < q.line || (p.line === q.line && p.character <=
 
 // ---------------------------------------------------------------- fixtures
 
-const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-lsp-'));
-fs.writeFileSync(path.join(DIR, 'tern.js'), ''); // the notes' tern.js, which link checking looks for
+const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-lsp-'));
+fs.writeFileSync(path.join(DIR, 'luccet.js'), ''); // the notes' luccet.js, which link checking looks for
 const ADDON = path.join(DIR, 'addon.js');
 const writeAddon = (extra = '') =>
   fs.writeFileSync(
     ADDON,
     `// the fixture vocabulary (test/fixtures/schema.js) as an add-on
 const S = ${JSON.stringify(fixture)};
-for (const level of ['block', 'leaf', 'inline']) for (const name in S[level]) tern[level](name, S[level][name]);
-tern.inline('hl', { tag: 'mark' });
+for (const level of ['block', 'leaf', 'inline']) for (const name in S[level]) luccet[level](name, S[level][name]);
+luccet.inline('hl', { tag: 'mark' });
 console.log('addon-ran: this must reach stderr, not the protocol');
 ${extra}`,
   );
@@ -203,7 +203,7 @@ writeAddon();
 // edit may touch. The emoji makes UTF-16 columns differ from code points.
 const REFS = `<!doctype html><meta charset="utf-8">
 <title>LSP test</title>
-<script src="tern.js" data-use="addon.js"></script>
+<script src="luccet.js" data-use="addon.js"></script>
 :::meta
 title: LSP test
 :::
@@ -242,7 +242,7 @@ A paragraph with an id.
 ::toc
 `;
 
-const COMPLETE = `<script src="tern.js" data-use="addon.js"></script>
+const COMPLETE = `<script src="luccet.js" data-use="addon.js"></script>
 :::theorem[T]{#t1}
 See @
 ::
@@ -256,7 +256,7 @@ Go [there](#
 :::
 `;
 
-const ERRORS = `<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="missing.js"></script>
+const ERRORS = `<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="missing.js"></script>
 # Errors
 
 :::theorem[T] #rn .big
@@ -309,20 +309,20 @@ check('initialize: UTF-16 positions, full sync, the features', async () => {
 check('watched files: the registration, an add-on changed on disk; workspace folders added and removed', async () => {
   const F = path.join(DIR, 'watch');
   fs.mkdirSync(F, { recursive: true });
-  fs.writeFileSync(path.join(F, 'tern.js'), '');
-  fs.writeFileSync(path.join(F, 'vocab.js'), "tern.block('claim', { label: 'Claim' });\n");
-  const T = '<script src="tern.js" data-use="vocab.js"></script>\n:::claim[C]{#c}\nx\n:::\n\nSee @c.\n';
+  fs.writeFileSync(path.join(F, 'luccet.js'), '');
+  fs.writeFileSync(path.join(F, 'vocab.js'), "luccet.block('claim', { label: 'Claim' });\n");
+  const T = '<script src="luccet.js" data-use="vocab.js"></script>\n:::claim[C]{#c}\nx\n:::\n\nSee @c.\n';
   const w = new Client();
   await w.call('initialize', { processId: process.pid, rootUri: null, capabilities: { workspace: { didChangeWatchedFiles: { dynamicRegistration: true } } } });
   w.notify('initialized', {});
   const reg = await w.next((m) => m.method === 'client/registerCapability');
-  assert.deepStrictEqual(reg.params, { registrations: [{ id: 'tern-watch', method: 'workspace/didChangeWatchedFiles', registerOptions: { watchers: [{ globPattern: '**/*.{html,htm,md,markdown,js,mjs,css}' }] } }] });
+  assert.deepStrictEqual(reg.params, { registrations: [{ id: 'luccet-watch', method: 'workspace/didChangeWatchedFiles', registerOptions: { watchers: [{ globPattern: '**/*.{html,htm,md,markdown,js,mjs,css}' }] } }] });
   w.write(JSON.stringify({ jsonrpc: '2.0', id: reg.id, result: null }));
   const file = path.join(F, 'note.html');
   const { uri } = await w.open(file, T);
   const hover = async () => (await w.call('textDocument/hover', { ...doc(uri), position: locate(T, '@c', { plus: 1 }) })).contents.value;
   assert.ok((await hover()).includes('Claim — C'));
-  fs.writeFileSync(path.join(F, 'vocab.js'), "tern.block('claim', { label: 'Lemma' });\n");
+  fs.writeFileSync(path.join(F, 'vocab.js'), "luccet.block('claim', { label: 'Lemma' });\n");
   w.notify('workspace/didChangeWatchedFiles', { changes: [{ uri: pathToFileURL(path.join(F, 'vocab.js')).href, type: 2 }] });
   const again = await w.published(uri);
   assert.strictEqual(again.version, 1, 'the note analysed again, unchanged');
@@ -330,7 +330,7 @@ check('watched files: the registration, an add-on changed on disk; workspace fol
   // The folders: none at initialize; one added is searched, removed it is not.
   const names = async () => (await w.call('workspace/symbol', { query: '' })).map((s) => s.containerName);
   assert.deepStrictEqual(await names(), [file], 'only the open note, by its path: no workspace folder');
-  fs.writeFileSync(path.join(F, 'other.html'), '<script src="tern.js"></script>\n# Other\n');
+  fs.writeFileSync(path.join(F, 'other.html'), '<script src="luccet.js"></script>\n# Other\n');
   w.notify('workspace/didChangeWorkspaceFolders', { event: { added: [{ uri: pathToFileURL(F).href, name: 'f' }], removed: [] } });
   assert.deepStrictEqual((await names()).sort(), ['note.html', 'other.html']);
   w.notify('workspace/didChangeWorkspaceFolders', { event: { added: [], removed: [{ uri: pathToFileURL(F).href, name: 'f' }] } });
@@ -360,7 +360,7 @@ check('published diagnostics and outlines equal the engine’s', async () => {
   assert.ok(total > 10);
 });
 
-check('tern/outline after analysis, with file lines', async () => {
+check('luccet/outline after analysis, with file lines', async () => {
   const file = path.join(DIR, 'outline.html');
   const uri = pathToFileURL(file).href;
   c.notify('textDocument/didOpen', { textDocument: { uri, languageId: 'html', version: 7, text: REFS } });
@@ -389,7 +389,7 @@ check('rename: edits equal the engine’s reference set, none in code or math', 
   const want = [];
   const chars = (line, col, n) => ({ range: { start: { line, character: col }, end: { line, character: col + n } }, newText: 'rank' });
   const atoms = [];
-  note.tern.visit(a.ast, (n) => {
+  note.luccet.visit(a.ast, (n) => {
     if (!n.position) return false;
     const r = fileRange(a, n.position);
     if (n.type === 'ref' && n.id === 'rn') want.push(chars(r.start.line, r.start.character + 1, 2));
@@ -415,9 +415,9 @@ check('rename: edits equal the engine’s reference set, none in code or math', 
     out[e.range.start.line] = l.slice(0, e.range.start.character) + e.newText + l.slice(e.range.end.character);
   }
   const b = analyse(out.join('\n'), file);
-  assert.ok(b.ast.data.tern.ids.rank && !b.ast.data.tern.ids.rn);
+  assert.ok(b.ast.data.luccet.ids.rank && !b.ast.data.luccet.ids.rn);
   const uses = [];
-  note.tern.visit(b.ast, (n) => {
+  note.luccet.visit(b.ast, (n) => {
     if (n.position && ((n.type === 'ref' && n.id === 'rank') || (n.type === 'link' && n.url === '#rank'))) uses.push(tn(n).resolved);
   });
   assert.deepStrictEqual(uses, [true, true, true, true, true, true], 'every reference resolves to the new id');
@@ -492,7 +492,7 @@ check('documentHighlight: an id’s declaration and uses, an element’s name an
   const { uri, a } = refs;
   const lines = REFS.split('\n');
   const want = [];
-  note.tern.visit(a.ast, (n) => {
+  note.luccet.visit(a.ast, (n) => {
     if (!n.position) return false;
     const r = fileRange(a, n.position);
     if (n.type === 'ref' && n.id === 'rn') want.push({ range: r, kind: 2 });
@@ -593,7 +593,7 @@ check('foldingRange: blocks and heading sections', async () => {
 // the server does not wait for a quiet spell on top of it.
 check('didChange: a change after a pause is analysed at once; while changes keep coming, an analysis every 150 ms at most, of the text as it is then, and the last text is analysed', async () => {
   const file = path.join(DIR, 'pace.html');
-  const head = '<script src="tern.js"></script>\n';
+  const head = '<script src="luccet.js"></script>\n';
   const text = (v) => `${head}# Fine\n\n${':::proof\n'.repeat(v - 1)}`; // version v has v - 1 unclosed blocks
   const change = (v) => c.notify('textDocument/didChange', { textDocument: { uri, version: v }, contentChanges: [{ text: text(v) }] });
   const unclosed = (p) => p.diagnostics.filter((d) => d.code === 'block.unclosed').length;
@@ -630,7 +630,7 @@ check('a non-note .html file gets no diagnostics and no outline', async () => {
   const { uri, diagnostics } = await c.open(file, '<!doctype html>\n<p>Hello @x and :::nope</p>\n<script src="app.js"></script>\n');
   assert.deepStrictEqual(diagnostics, []);
   await new Promise((r) => setTimeout(r, 100));
-  assert.ok(!c.log.some((m) => m.msg.method === 'tern/outline' && m.msg.params.uri === uri));
+  assert.ok(!c.log.some((m) => m.msg.method === 'luccet/outline' && m.msg.params.uri === uri));
   assert.deepStrictEqual(await c.call('textDocument/documentSymbol', doc(uri)), []);
   assert.strictEqual(await c.call('textDocument/hover', { ...doc(uri), position: { line: 1, character: 10 } }), null);
 });
@@ -639,7 +639,7 @@ check('add-ons are cached by mtime and reloaded when they change', async () => {
   const uri = pathToFileURL(path.join(DIR, 'complete.html')).href;
   const at = { ...doc(uri), position: locate(COMPLETE, '\n:::\n', { plus: 4 }) };
   assert.ok(!(await c.call('textDocument/completion', at)).some((i) => i.label === 'remark'));
-  writeAddon("tern.block('remark', {});");
+  writeAddon("luccet.block('remark', {});");
   const t = new Date(Date.now() + 5000);
   fs.utimesSync(ADDON, t, t);
   c.notify('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: COMPLETE }] });
@@ -652,8 +652,8 @@ check('add-ons are cached by mtime and reloaded when they change', async () => {
 // that analysis stands in for the stuck one, until the head or an add-on
 // changes; a change made while an analysis runs is analysed after it.
 check('a stuck script: requests are answered meanwhile, the last vocabulary is kept until the head or add-ons change, a change during the analysis is analysed after it', async () => {
-  fs.writeFileSync(path.join(DIR, 'slow.js'), "tern.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' });\ntern.transform('slow', function (ast) { if (JSON.stringify(ast).includes('SLOW')) for (;;) {} });\n");
-  const HEAD = '<script src="tern.js" data-use="slow.js"></script>\n';
+  fs.writeFileSync(path.join(DIR, 'slow.js'), "luccet.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' });\nluccet.transform('slow', function (ast) { if (JSON.stringify(ast).includes('SLOW')) for (;;) {} });\n");
+  const HEAD = '<script src="luccet.js" data-use="slow.js"></script>\n';
   const A = `${HEAD}:::theorem[T]{#t1}\nx\n:::\n\nSee @t1.\n:::\n`;
   const B = `${A}SLOW\n`;
   const C = `<title>changed head</title>\n${B}`;
@@ -698,7 +698,7 @@ check('a stuck script: requests are answered meanwhile, the last vocabulary is k
 // for the analysis, since its edits must match the text.
 check('before the next analysis: completion from the text as it is, a rename after the analysis', async () => {
   const file = path.join(DIR, 'typing.html');
-  const A = '<script src="tern.js" data-use="addon.js"></script>\n:::theorem[T]{#t1}\nx\n:::\n\nSee @t1.\n';
+  const A = '<script src="luccet.js" data-use="addon.js"></script>\n:::theorem[T]{#t1}\nx\n:::\n\nSee @t1.\n';
   const { uri } = await c.open(file, A);
   await c.outline(uri);
   // Two lines typed at the top, then `@` on a new last line: the ids come
@@ -721,13 +721,13 @@ check('before the next analysis: completion from the text as it is, a rename aft
   await c.published(uri);
 });
 
-// A head script before the tern.js line declares the note's vocabulary.
+// A head script before the luccet.js line declares the note's vocabulary.
 const theorem = (label, more = '') =>
   `<!doctype html><meta charset="utf-8">
 <script>
-window.TERN = { schema: { block: { theorem: { tag: 'section', counter: 'theorem', label: '${label}', ref: '{label} {n}' }${more} } } };
+window.LUCCET = { schema: { block: { theorem: { tag: 'section', counter: 'theorem', label: '${label}', ref: '{label} {n}' }${more} } } };
 </script>
-<script src="tern.js"></script>
+<script src="luccet.js"></script>
 :::theorem[Main]{#main}
 Body.
 :::
@@ -735,7 +735,7 @@ Body.
 See @main.
 `;
 
-check('a single-file note declares its vocabulary in window.TERN.schema', async () => {
+check('a single-file note declares its vocabulary in window.LUCCET.schema', async () => {
   const file = path.join(DIR, 'single.html');
   const SINGLE = theorem('Theorem');
   const { uri, diagnostics } = await c.open(file, SINGLE);
@@ -753,12 +753,12 @@ check('a single-file note declares its vocabulary in window.TERN.schema', async 
   assert.deepStrictEqual((await names(NEXT)).map((i) => i.label), ['theorem', 'lemma']);
   // A local head script is stamped like an add-on: an edit on disk is seen.
   const VOCAB = path.join(DIR, 'vocab.js');
-  fs.writeFileSync(VOCAB, "window.TERN = { schema: { block: { claim: { label: 'Claim' } } } };");
-  const SRC = '<script src="vocab.js"></script>\n<script src="tern.js"></script>\n:::claim\nx\n:::\n';
+  fs.writeFileSync(VOCAB, "window.LUCCET = { schema: { block: { claim: { label: 'Claim' } } } };");
+  const SRC = '<script src="vocab.js"></script>\n<script src="luccet.js"></script>\n:::claim\nx\n:::\n';
   const src = await c.open(path.join(DIR, 'single-src.html'), SRC);
   const labels = async () => (await c.call('textDocument/completion', { ...doc(src.uri), position: locate(SRC, '\n:::\n', { plus: 4 }) })).map((i) => i.label);
   assert.ok((await labels()).includes('claim') && !(await labels()).includes('axiom'));
-  fs.writeFileSync(VOCAB, "window.TERN = { schema: { block: { claim: { label: 'Claim' }, axiom: {} } } };");
+  fs.writeFileSync(VOCAB, "window.LUCCET = { schema: { block: { claim: { label: 'Claim' }, axiom: {} } } };");
   const t = new Date(Date.now() + 5000);
   fs.utimesSync(VOCAB, t, t);
   c.notify('textDocument/didChange', { textDocument: { uri: src.uri, version: 2 }, contentChanges: [{ text: SRC }] });
@@ -766,13 +766,13 @@ check('a single-file note declares its vocabulary in window.TERN.schema', async 
   assert.ok((await labels()).includes('axiom'));
 });
 
-// An add-on's tern.transform runs for its own note, on every analysis (the
+// An add-on's luccet.transform runs for its own note, on every analysis (the
 // add-ons are cached), and never for another note in the same process; the
-// label language is data-lang's, as in tern.js; a remote add-on is an info.
+// label language is data-lang's, as in luccet.js; a remote add-on is an info.
 check('add-on transforms run for their note only; data-lang sets the label language; a remote add-on is addon.remote', async () => {
-  fs.writeFileSync(path.join(DIR, 'stamp.js'), "tern.transform('stamp', (ast, ctx) => ctx.report('stamp.ran', ast.children[0], `stamped in ${ctx.lang}`, null, 'info'));\n");
-  const A = `<!doctype html><meta charset="utf-8"><script>window.TERN = { lang: 'fr', schema: { block: { theorem: { counter: 'theorem', label: { de: 'Satz', fr: 'Théorème', en: 'Theorem' } } } } };</script>
-<script src="tern.js" data-lang="de" data-use="stamp.js https://cdn.example/remote.js"></script>
+  fs.writeFileSync(path.join(DIR, 'stamp.js'), "luccet.transform('stamp', (ast, ctx) => ctx.report('stamp.ran', ast.children[0], `stamped in ${ctx.lang}`, null, 'info'));\n");
+  const A = `<!doctype html><meta charset="utf-8"><script>window.LUCCET = { lang: 'fr', schema: { block: { theorem: { counter: 'theorem', label: { de: 'Satz', fr: 'Théorème', en: 'Theorem' } } } } };</script>
+<script src="luccet.js" data-lang="de" data-use="stamp.js https://cdn.example/remote.js"></script>
 :::theorem{#t}
 x
 :::
@@ -786,7 +786,7 @@ See @t.
   assert.deepStrictEqual(
     a.diagnostics.map((d) => [d.code, d.severity, d.range.start.line, d.message]),
     [
-      ['addon.remote', 3, 1, 'the add-on https://cdn.example/remote.js is not loaded under node; names it declares are unknown to tern check'],
+      ['addon.remote', 3, 1, 'the add-on https://cdn.example/remote.js is not loaded under node; names it declares are unknown to luccet check'],
       ['stamp.ran', 3, 2, 'stamped in de'],
     ],
   );
@@ -798,12 +798,12 @@ See @t.
   assert.ok(hover.includes('Satz 1'), hover);
 });
 
-check('links between files: checked as tern check does; an open document wins over its file, an open file exists, other notes are checked again', async () => {
+check('links between files: checked as luccet check does; an open document wins over its file, an open file exists, other notes are checked again', async () => {
   const L = path.join(DIR, 'links');
   fs.mkdirSync(L, { recursive: true });
-  const B = '<script src="../tern.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n';
+  const B = '<script src="../luccet.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n';
   fs.writeFileSync(path.join(L, 'b.html'), B);
-  const A = '<script src="../tern.js"></script>\n# A\n\n[known](b.html#known), [later](b.html#later), [new](new.html).\n';
+  const A = '<script src="../luccet.js"></script>\n# A\n\n[known](b.html#known), [later](b.html#later), [new](new.html).\n';
   const fa = path.join(L, 'a.html');
   const a = await c.open(fa, A);
   const codes = (list) => list.map((d) => [d.code, d.message]);
@@ -811,7 +811,7 @@ check('links between files: checked as tern check does; an open document wins ov
     ['link.dangling', 'b.html has no element with the id later\ncheck the id after #: ids are case-sensitive'],
     ['link.missing', 'new.html does not exist\nfix the path: it resolves from the folder of this note'],
   ]);
-  assert.deepStrictEqual(a.diagnostics, analyse(A, fa).diagnostics.map(expected), 'what tern check reports');
+  assert.deepStrictEqual(a.diagnostics, analyse(A, fa).diagnostics.map(expected), 'what luccet check reports');
   const later = locate(A, '[later]');
   assert.deepStrictEqual(a.diagnostics[0].range, { start: later, end: locate(A, ', [new]') }, 'the range spans the link');
 
@@ -823,14 +823,14 @@ check('links between files: checked as tern check does; an open document wins ov
   c.notify('textDocument/didChange', { textDocument: { uri: b.uri, version: 2 }, contentChanges: [{ text: B.replace('#known', '#gone') }] });
   assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k, m]) => (k === 'link.dangling' ? m.split('\n')[0] : k)), ['b.html has no element with the id known', 'b.html has no element with the id later', 'link.missing']);
   // new.html open, never saved: it exists. Closed: it does not.
-  const n = await c.open(path.join(L, 'new.html'), '<script src="../tern.js"></script>\n# New\n');
+  const n = await c.open(path.join(L, 'new.html'), '<script src="../luccet.js"></script>\n# New\n');
   assert.deepStrictEqual(n.diagnostics, []);
   assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'an open file exists');
   c.notify('textDocument/didClose', doc(n.uri));
   assert.deepStrictEqual((await c.published(n.uri)).diagnostics, [], 'cleared on close');
   assert.ok((await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'closed, never saved: missing again');
   // Written to disk by something else; the next save is when the server looks.
-  fs.writeFileSync(path.join(L, 'new.html'), '<script src="../tern.js"></script>\n# New\n');
+  fs.writeFileSync(path.join(L, 'new.html'), '<script src="../luccet.js"></script>\n# New\n');
   c.notify('textDocument/didSave', doc(b.uri));
   assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'on disk now');
   c.notify('textDocument/didClose', doc(b.uri));
@@ -841,36 +841,36 @@ check('links between files: checked as tern check does; an open document wins ov
 
   // An untitled document has no folder, so no link is checked.
   const u = 'untitled:Untitled-1';
-  c.notify('textDocument/didOpen', { textDocument: { uri: u, languageId: 'html', version: 1, text: '<script src="tern.js"></script>\n[x](nope.html)\n' } });
+  c.notify('textDocument/didOpen', { textDocument: { uri: u, languageId: 'html', version: 1, text: '<script src="luccet.js"></script>\n[x](nope.html)\n' } });
   assert.deepStrictEqual((await c.published(u)).diagnostics, []);
   c.notify('textDocument/didClose', doc(u));
   await c.published(u);
 });
 
-check('willRenameFiles: tern mv’s edits, for the files where they are; the workspace folders, else the moved file’s folder', async () => {
+check('willRenameFiles: luccet mv’s edits, for the files where they are; the workspace folders, else the moved file’s folder', async () => {
   const W = path.join(DIR, 'workspace');
   const files = {
-    'tern.js': '',
-    'notes/b.html': '<script src="../tern.js"></script>\n# B\n\n[a](a.html), ![k](img/k.svg)\n',
+    'luccet.js': '',
+    'notes/b.html': '<script src="../luccet.js"></script>\n# B\n\n[a](a.html), ![k](img/k.svg)\n',
     'notes/img/k.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
-    'other/c.html': '<!doctype html>\r\n<script src="../tern.js"></script>\r\n# C\r\n\r\n[b](../notes/b.html#top) and <a href=\'../notes/b.html\'>b</a>\r\n',
-    'other/based.html': '<base href="/">\n<script src="../tern.js"></script>\n[b](../notes/b.html)\n',
+    'other/c.html': '<!doctype html>\r\n<script src="../luccet.js"></script>\r\n# C\r\n\r\n[b](../notes/b.html#top) and <a href=\'../notes/b.html\'>b</a>\r\n',
+    'other/based.html': '<base href="/">\n<script src="../luccet.js"></script>\n[b](../notes/b.html)\n',
     'other/plain.html': '<p><a href="../notes/b.html">not a note</a>\n',
   };
   for (const [rel, text] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(W, rel)), { recursive: true });
     fs.writeFileSync(path.join(W, rel), text);
   }
-  const A = '<script src="../tern.js"></script>\n# A\n\n🙂 [b](b.html) [unsaved](<b.html#top>)\n';
+  const A = '<script src="../luccet.js"></script>\n# A\n\n🙂 [b](b.html) [unsaved](<b.html#top>)\n';
   const fa = path.join(W, 'notes', 'a.html');
-  fs.writeFileSync(fa, '<script src="../tern.js"></script>\n# A\n');
+  fs.writeFileSync(fa, '<script src="../luccet.js"></script>\n# A\n');
   const w = new Client();
   await w.call('initialize', { processId: process.pid, rootUri: null, workspaceFolders: [{ uri: pathToFileURL(W).href, name: 'w' }], capabilities: {} });
   w.notify('initialized', {});
   const a = await w.open(fa, A);
   const uri = (rel) => pathToFileURL(path.join(W, rel)).href;
   const rename = (from, to) => w.call('workspace/willRenameFiles', { files: [{ oldUri: uri(from), newUri: uri(to) }] });
-  // The result, applied: each file's text as tern mv writes it.
+  // The result, applied: each file's text as luccet mv writes it.
   const after = (edit) => {
     const out = {};
     for (const [u, edits] of Object.entries(edit.changes)) out[path.relative(W, fileURLToPath(u)).split(path.sep).join('/')] = applyEdits(u === a.uri ? A : fs.readFileSync(fileURLToPath(u), 'utf8'), edits);
@@ -880,13 +880,13 @@ check('willRenameFiles: tern mv’s edits, for the files where they are; the wor
   const edit = await rename('notes/b.html', 'notes/sub/b2.html');
   assert.deepStrictEqual(after(edit), {
     'notes/a.html': A.replace('(b.html)', '(sub/b2.html)').replace('<b.html#top>', '<sub/b2.html#top>'),
-    'notes/b.html': files['notes/b.html'].replace('../tern.js', '../../tern.js').replace('(a.html)', '(../a.html)').replace('(img/k.svg)', '(../img/k.svg)'),
+    'notes/b.html': files['notes/b.html'].replace('../luccet.js', '../../luccet.js').replace('(a.html)', '(../a.html)').replace('(img/k.svg)', '(../img/k.svg)'),
     'other/c.html': files['other/c.html'].replace('../notes/b.html#top', '../notes/sub/b2.html#top').replace("'../notes/b.html'", "'../notes/sub/b2.html'"),
   });
   assert.deepStrictEqual(edit.changes[a.uri][0].range, { start: locate(A, 'b.html'), end: locate(A, 'b.html', { plus: 6 }) }, 'the open note’s text, UTF-16 columns');
   const told = await w.next((m) => m.method === 'window/showMessage');
   assert.strictEqual(told.params.type, 2);
-  assert.strictEqual(told.params.message, 'tern: other/based.html has a <base href>, so its URLs do not resolve from its folder; they are left as they are');
+  assert.strictEqual(told.params.message, 'luccet: other/based.html has a <base href>, so its URLs do not resolve from its folder; they are left as they are');
 
   const folder = await w.call('workspace/willRenameFiles', { files: [{ oldUri: `${uri('notes')}/`, newUri: `${uri('docs')}/` }] });
   assert.deepStrictEqual(Object.keys(after(folder)), ['other/c.html'], 'a folder, its URI ending in /: the links into it; those inside it hold');
@@ -898,13 +898,13 @@ check('willRenameFiles: tern mv’s edits, for the files where they are; the wor
   // No workspace: the moved file's repository, else its folder.
   const M = path.join(DIR, 'moved');
   fs.mkdirSync(M, { recursive: true });
-  fs.writeFileSync(path.join(M, 'x.html'), '<script src="../tern.js"></script>\n# X\n');
-  fs.writeFileSync(path.join(M, 'y.html'), '<script src="../tern.js"></script>\n[x](x.html)\n');
+  fs.writeFileSync(path.join(M, 'x.html'), '<script src="../luccet.js"></script>\n# X\n');
+  fs.writeFileSync(path.join(M, 'y.html'), '<script src="../luccet.js"></script>\n[x](x.html)\n');
   const r = await c.call('workspace/willRenameFiles', { files: [{ oldUri: pathToFileURL(path.join(M, 'x.html')).href, newUri: pathToFileURL(path.join(M, 'z.html')).href }] });
   assert.deepStrictEqual(r, { changes: { [pathToFileURL(path.join(M, 'y.html')).href]: [{ range: { start: { line: 1, character: 4 }, end: { line: 1, character: 10 } }, newText: 'z.html' }] } });
 
   // A file made, renamed or deleted: the open notes' links are checked again.
-  const y = await c.open(path.join(M, 'y.html'), '<script src="../tern.js"></script>\n[x](x.html) [new](new.html)\n');
+  const y = await c.open(path.join(M, 'y.html'), '<script src="../luccet.js"></script>\n[x](x.html) [new](new.html)\n');
   assert.deepStrictEqual(y.diagnostics.map((d) => d.code), ['link.missing']);
   fs.writeFileSync(path.join(M, 'new.html'), '');
   c.notify('workspace/didCreateFiles', { files: [{ uri: pathToFileURL(path.join(M, 'new.html')).href }] });
@@ -919,19 +919,19 @@ check('willRenameFiles: tern mv’s edits, for the files where they are; the wor
 // Workspace-wide requests read every note of the workspace; what they make
 // of one, its URLs (cli/links.js urls()) and its outline, is kept with its
 // analysis, so a second request over notes that have not changed makes
-// neither again. A preload counts the server's calls of tern.visit (urls()
-// walks the tree) and tern.outline, in a file, written before the response.
+// neither again. A preload counts the server's calls of luccet.visit (urls()
+// walks the tree) and luccet.outline, in a file, written before the response.
 check("workspace: a second references or workspace/symbol request makes no unchanged note's URLs or outline again; an edited note's are made anew", async () => {
   const W = path.join(DIR, 'kept');
   const N = 6;
-  const text = (i, more = '') => `<script src="tern.js"></script>\n# Note ${i} {#n${i}}\n\nSee [zero](n0.html#n0) and [next](n${(i + 1) % N}.html).${more}\n`;
+  const text = (i, more = '') => `<script src="luccet.js"></script>\n# Note ${i} {#n${i}}\n\nSee [zero](n0.html#n0) and [next](n${(i + 1) % N}.html).${more}\n`;
   fs.mkdirSync(W, { recursive: true });
-  fs.writeFileSync(path.join(W, 'tern.js'), '');
+  fs.writeFileSync(path.join(W, 'luccet.js'), '');
   for (let i = 0; i < N; i++) fs.writeFileSync(path.join(W, `n${i}.html`), text(i));
   const LOG = path.join(DIR, 'kept-calls.txt');
   const PRELOAD = path.join(DIR, 'kept-count.js');
   fs.writeFileSync(LOG, '');
-  fs.writeFileSync(PRELOAD, `const fs = require('fs');\nconst tern = require(${JSON.stringify(path.join(__dirname, '..', 'tern.js'))});\nfor (const k of ['visit', 'outline']) {\n  const f = tern[k];\n  tern[k] = function () {\n    fs.appendFileSync(${JSON.stringify(LOG)}, k + '\\n');\n    return f.apply(this, arguments);\n  };\n}\n`);
+  fs.writeFileSync(PRELOAD, `const fs = require('fs');\nconst luccet = require(${JSON.stringify(path.join(__dirname, '..', 'luccet.js'))});\nfor (const k of ['visit', 'outline']) {\n  const f = luccet[k];\n  luccet[k] = function () {\n    fs.appendFileSync(${JSON.stringify(LOG)}, k + '\\n');\n    return f.apply(this, arguments);\n  };\n}\n`);
   const calls = () => {
     const lines = fs.readFileSync(LOG, 'utf8').split('\n');
     return { visit: lines.filter((l) => l === 'visit').length, outline: lines.filter((l) => l === 'outline').length };
@@ -957,7 +957,7 @@ check("workspace: a second references or workspace/symbol request makes no uncha
   // What making its URLs takes is counted here, on the same text; the server
   // has finished with the analysis once it answers a request after it.
   const edited = text(0, ' Again [here](#n0) and [zero](n0.html#n0).');
-  const engine = require('../tern.js');
+  const engine = require('../luccet.js');
   const visit = engine.visit;
   let one = 0;
   engine.visit = function () {
@@ -971,7 +971,7 @@ check("workspace: a second references or workspace/symbol request makes no uncha
   }
   w.notify('textDocument/didChange', { textDocument: { uri: z.uri, version: 2 }, contentChanges: [{ text: edited }] });
   await w.published(z.uri);
-  await w.send('tern/none', {});
+  await w.send('luccet/none', {});
   was = calls();
   assert.strictEqual((await refs()).length, N + 2, 'the two new links to #n0');
   const after = calls();
@@ -988,10 +988,10 @@ check("workspace: a second references or workspace/symbol request makes no uncha
 check('across files: definition, references and rename follow page.html#id; document links', async () => {
   const W = path.join(DIR, 'across');
   const files = {
-    'tern.js': '',
-    'a.html': '<script src="tern.js" data-use="addon.js"></script>\n# A {#a}\n\nSee [known](b.html#known), [b](b.html), [heading](notes.md#second-part), [plain](plain.html#pid), [me](#a), [out](https://example.org/x#y), [gone](nope.html#z), [root](/r.html#q).\n',
-    'b.html': '<script src="tern.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n\nSee @known and [k](#known) and [self](b.html#known).\n',
-    'c.html': '<script src="tern.js"></script>\n# C\n\n[c](<b.html#known> "t") and <a href="b.html#known">raw</a> and [other](b.html#other).\n',
+    'luccet.js': '',
+    'a.html': '<script src="luccet.js" data-use="addon.js"></script>\n# A {#a}\n\nSee [known](b.html#known), [b](b.html), [heading](notes.md#second-part), [plain](plain.html#pid), [me](#a), [out](https://example.org/x#y), [gone](nope.html#z), [root](/r.html#q).\n',
+    'b.html': '<script src="luccet.js"></script>\n# B\n\n:::div{#known}\nx\n:::\n\nSee @known and [k](#known) and [self](b.html#known).\n',
+    'c.html': '<script src="luccet.js"></script>\n# C\n\n[c](<b.html#known> "t") and <a href="b.html#known">raw</a> and [other](b.html#other).\n',
     'notes.md': '# First part\n\n## Second part\n\ntext\n',
     'plain.html': '<!doctype html>\n<p><span id="pid">here</span></p>\n',
   };
@@ -1044,7 +1044,7 @@ check('across files: definition, references and rename follow page.html#id; docu
   assert.strictEqual(after('b.html', B), B.split('known').join('k2'));
   assert.strictEqual(after('c.html', C), C.split('b.html#known').join('b.html#k2'));
   const checked = analyse(after('b.html', B), path.join(W, 'b.html'));
-  assert.ok(checked.ast.data.tern.ids.k2 && !checked.ast.data.tern.ids.known && !checked.diagnostics.some((d) => d.code === 'ref.dangling'), 'b.html renamed consistently');
+  assert.ok(checked.ast.data.luccet.ids.k2 && !checked.ast.data.luccet.ids.known && !checked.diagnostics.some((d) => d.code === 'ref.dangling'), 'b.html renamed consistently');
   // The same from b.html's own reference; a link to a file that is not a note is refused; a dangling fragment has nothing to rename from.
   const fromB = await w.call('textDocument/rename', { ...doc(b.uri), position: locate(B, '@known', { plus: 3 }), newName: 'k2' });
   assert.deepStrictEqual(sorted(Object.entries(fromB.changes).flatMap(([u, es]) => es.map((e) => ({ u, ...e })))), sorted(Object.entries(edit.changes).flatMap(([u, es]) => es.map((e) => ({ u, ...e })))));
@@ -1058,7 +1058,7 @@ check('across files: definition, references and rename follow page.html#id; docu
   const dl = await w.call('textDocument/documentLink', doc(a.uri));
   const by = Object.fromEntries(dl.map((l) => [A.split('\n')[l.range.start.line].slice(l.range.start.character, l.range.end.character), l.target]));
   assert.deepStrictEqual(by, {
-    'tern.js': uri('tern.js'),
+    'luccet.js': uri('luccet.js'),
     'addon.js': uri('addon.js'),
     'b.html#known': `${uri('b.html')}#known`,
     'b.html': uri('b.html'),
@@ -1076,9 +1076,9 @@ check('across files: definition, references and rename follow page.html#id; docu
 check('codeAction: quickfixes for dangling references, undefined footnotes, unclosed blocks and math, opener junk, unknown names and a link’s case', async () => {
   const Q = path.join(DIR, 'fix');
   fs.mkdirSync(Q, { recursive: true });
-  fs.writeFileSync(path.join(Q, 'tern.js'), '');
-  fs.writeFileSync(path.join(Q, 'Other.html'), '<script src="tern.js"></script>\n# O\n');
-  const T = `<script>window.TERN = { schema: { strict: true, block: { theorem: {} }, leaf: {}, inline: { kbd: {} } } };</script><script src="tern.js"></script>
+  fs.writeFileSync(path.join(Q, 'luccet.js'), '');
+  fs.writeFileSync(path.join(Q, 'Other.html'), '<script src="luccet.js"></script>\n# O\n');
+  const T = `<script>window.LUCCET = { schema: { strict: true, block: { theorem: {} }, leaf: {}, inline: { kbd: {} } } };</script><script src="luccet.js"></script>
 # Kernel {#kernel}
 
 See @kernl, @nowhere, text[^x] and :kdb[x]; [o](other.html).
@@ -1135,9 +1135,9 @@ z
 check('workspace/symbol: headings and blocks with an id or a title, across the workspace’s notes and the open ones', async () => {
   const S = path.join(DIR, 'symbols');
   fs.mkdirSync(path.join(S, 'sub'), { recursive: true });
-  fs.writeFileSync(path.join(S, 'tern.js'), '');
-  fs.writeFileSync(path.join(S, 'one.html'), '<script src="tern.js"></script>\n# Kernel {#kernel}\n\n:::theorem[Rank–nullity]{#rn}\nx\n:::\n\n::toc\n');
-  fs.writeFileSync(path.join(S, 'sub', 'two.html'), '<script src="../tern.js"></script>\n## Kernels again\n\n:::proof{#p1}\ny\n:::\n');
+  fs.writeFileSync(path.join(S, 'luccet.js'), '');
+  fs.writeFileSync(path.join(S, 'one.html'), '<script src="luccet.js"></script>\n# Kernel {#kernel}\n\n:::theorem[Rank–nullity]{#rn}\nx\n:::\n\n::toc\n');
+  fs.writeFileSync(path.join(S, 'sub', 'two.html'), '<script src="../luccet.js"></script>\n## Kernels again\n\n:::proof{#p1}\ny\n:::\n');
   fs.writeFileSync(path.join(S, 'plain.html'), '<h1>Kernel</h1>\n');
   const w = new Client();
   await w.call('initialize', { processId: process.pid, rootUri: null, workspaceFolders: [{ uri: pathToFileURL(S).href, name: 's' }], capabilities: {} });
@@ -1148,7 +1148,7 @@ check('workspace/symbol: headings and blocks with an id or a title, across the w
   assert.deepStrictEqual(await names('rank'), ['one.html: Rank–nullity #rn (5) 3-5']);
   assert.deepStrictEqual(await names(''), ['one.html: Kernel (15) 1-1', 'one.html: Rank–nullity #rn (5) 3-5', 'sub/two.html: Kernels again (15) 1-1', 'sub/two.html: proof #p1 (5) 3-5'], 'every symbol; ::toc has neither id nor title; plain.html is not a note');
   // An open note outside the workspace counts, as it is in the editor.
-  const o = await w.open(path.join(DIR, 'outside.html'), '<script src="tern.js"></script>\n# Outside {#out}\n');
+  const o = await w.open(path.join(DIR, 'outside.html'), '<script src="luccet.js"></script>\n# Outside {#out}\n');
   assert.ok((await names('outside')).some((s) => s.includes('Outside')));
   const r = (await w.call('workspace/symbol', { query: 'outside' }))[0];
   assert.strictEqual(r.location.uri, o.uri);
@@ -1158,7 +1158,7 @@ check('workspace/symbol: headings and blocks with an id or a title, across the w
 check('initializationOptions.noScripts: a note’s own code is not run', async () => {
   // An inline head script turns on strict mode; with it, an unknown block is
   // name.unknown. The default server runs it; a noScripts server does not.
-  const text = `<!doctype html><meta charset="utf-8"><script>window.TERN = { schema: { strict: true } };</script><script src="tern.js"></script>\n:::madeup\nx\n:::\n`;
+  const text = `<!doctype html><meta charset="utf-8"><script>window.LUCCET = { schema: { strict: true } };</script><script src="luccet.js"></script>\n:::madeup\nx\n:::\n`;
   const d = await c.open(path.join(DIR, 'ns-default.html'), text);
   assert.ok(d.diagnostics.some((x) => x.code === 'name.unknown'), 'default: the inline script runs, strict is on, madeup is unknown');
 
@@ -1175,9 +1175,9 @@ check('malformed input and unknown documents get errors, not a crash', async () 
   const e = await c.next((m) => m.id === null && m.error);
   assert.strictEqual(e.error.code, -32700);
   c.proc.stdin.write('X-Nothing: 1\r\n\r\n');
-  c.notify('tern/unknown', {});
+  c.notify('luccet/unknown', {});
   c.notify('textDocument/didChange', { textDocument: { uri: 'file:///never-opened.html', version: 1 }, contentChanges: [{ text: 'x' }] });
-  assert.strictEqual((await c.send('tern/unknown', {})).error.code, -32601);
+  assert.strictEqual((await c.send('luccet/unknown', {})).error.code, -32601);
   assert.strictEqual((await c.send('textDocument/hover', { ...doc('file:///never-opened.html'), position: { line: 0, character: 0 } })).error.code, -32602);
   assert.ok((await c.send('textDocument/definition', null)).error);
   assert.ok((await c.send('textDocument/rename', { ...doc(refs.uri), position: { line: 9999, character: 0 } })).result === null);

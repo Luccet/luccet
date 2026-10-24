@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// Tern's add-ons in addons/ (docs/addons.html), under node: each runs under
-// the command line, as `tern check` and `tern build` run a note's add-ons,
+// Luccet's add-ons in addons/ (docs/addons.html), under node: each runs under
+// the command line, as `luccet check` and `luccet build` run a note's add-ons,
 // with no diagnostic and no change to the page; code.js's highlight.js table
 // and mermaid.js's Mermaid table are well formed, and are the pinned
-// versions' when those packages are in node_modules/.cache/tern-smoke/
+// versions' when those packages are in node_modules/.cache/luccet-smoke/
 // (tools/hljs.js --check, tools/mermaid.js --check; skipped if not); and
-// mermaid.js prints in tern.css's print palette; and cite.js, a pure
+// mermaid.js prints in luccet.css's print palette; and cite.js, a pure
 // transform, lists and cites BibTeX and CSL-JSON sources as the page will.
 // Their behaviour in the browser is test/smoke.js's.
 //
@@ -35,21 +35,21 @@ function test(name, fn) {
 
 const addons = fs.readdirSync(DIR).filter((n) => n.endsWith('.js')).sort();
 
-test('every add-on runs under tern check and tern build with no diagnostic', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-addons-'));
-  fs.writeFileSync(path.join(tmp, 'tern.js'), ''); // the notes' tern.js, for tern check's link checking; its folder is the notes' project, which their add-ons must stay in
+test('every add-on runs under luccet check and luccet build with no diagnostic', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-addons-'));
+  fs.writeFileSync(path.join(tmp, 'luccet.js'), ''); // the notes' luccet.js, for luccet check's link checking; its folder is the notes' project, which their add-ons must stay in
   try {
     for (const n of addons) {
       const note = path.join(tmp, `${n}.html`);
       fs.copyFileSync(path.join(DIR, n), path.join(tmp, n)); // beside the note, as a local add-on is
       const use = n;
-      fs.writeFileSync(note, `<!doctype html><meta charset="utf-8"><title>T</title><script src="tern.js" data-use="${use}"></script>\n\n# Hello\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n\n\`\`\`mermaid\nflowchart LR\n  A --> B\n\`\`\`\n`);
-      const check = spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), 'check', note], { encoding: 'utf8' });
-      if (check.status !== 0 || !/0 errors, 0 warnings, 0 infos/.test(check.stdout + check.stderr)) throw new Error(`${n}: tern check: ${check.stdout}${check.stderr}`);
+      fs.writeFileSync(note, `<!doctype html><meta charset="utf-8"><title>T</title><script src="luccet.js" data-use="${use}"></script>\n\n# Hello\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n\n\`\`\`mermaid\nflowchart LR\n  A --> B\n\`\`\`\n`);
+      const check = spawnSync(process.execPath, [path.join(ROOT, 'luccet-cli.js'), 'check', note], { encoding: 'utf8' });
+      if (check.status !== 0 || !/0 errors, 0 warnings, 0 infos/.test(check.stdout + check.stderr)) throw new Error(`${n}: luccet check: ${check.stdout}${check.stderr}`);
       const out = path.join(tmp, `${n}.built.html`);
-      const build = spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), 'build', note, '-o', out], { encoding: 'utf8' });
-      if (build.status !== 0) throw new Error(`${n}: tern build: ${build.stdout}${build.stderr}`);
-      if (/hljs-|t-mermaid|<svg/.test(fs.readFileSync(out, 'utf8'))) throw new Error(`${n}: tern build wrote highlighting or a diagram, which are the browser's to do`);
+      const build = spawnSync(process.execPath, [path.join(ROOT, 'luccet-cli.js'), 'build', note, '-o', out], { encoding: 'utf8' });
+      if (build.status !== 0) throw new Error(`${n}: luccet build: ${build.stdout}${build.stderr}`);
+      if (/hljs-|t-mermaid|<svg/.test(fs.readFileSync(out, 'utf8'))) throw new Error(`${n}: luccet build wrote highlighting or a diagram, which are the browser's to do`);
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -81,7 +81,7 @@ test("code.js: the highlight.js table is well formed", () => {
 
 test("code.js: the table is the pinned version's (tools/hljs.js --check)", () => {
   const version = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(DIR, 'code.js'), 'utf8'))[1];
-  if (!fs.existsSync(path.join(ROOT, 'node_modules', '.cache', 'tern-smoke', `highlightjs-${version}`, 'highlight.min.js'))) return `skipped: highlight.js ${version} is not cached; node tools/hljs.js --check fetches it`;
+  if (!fs.existsSync(path.join(ROOT, 'node_modules', '.cache', 'luccet-smoke', `highlightjs-${version}`, 'highlight.min.js'))) return `skipped: highlight.js ${version} is not cached; node tools/hljs.js --check fetches it`;
   const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'hljs.js'), '--check'], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${r.stdout}${r.stderr}`);
   return 'checked against the cached package';
@@ -99,25 +99,25 @@ test("mermaid.js: the Mermaid table is well formed", () => {
 
 test("mermaid.js: the table is the pinned version's (tools/mermaid.js --check)", () => {
   const version = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(DIR, 'mermaid.js'), 'utf8'))[1];
-  if (!fs.existsSync(path.join(ROOT, 'node_modules', '.cache', 'tern-smoke', `mermaid-${version}`, 'dist', 'mermaid.min.js'))) return `skipped: Mermaid ${version} is not cached; node tools/mermaid.js --check fetches it`;
+  if (!fs.existsSync(path.join(ROOT, 'node_modules', '.cache', 'luccet-smoke', `mermaid-${version}`, 'dist', 'mermaid.min.js'))) return `skipped: Mermaid ${version} is not cached; node tools/mermaid.js --check fetches it`;
   const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'mermaid.js'), '--check'], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${r.stdout}${r.stderr}`);
   return 'checked against the cached package';
 });
 
-test("mermaid.js: its print palette is tern.css's", () => {
+test("mermaid.js: its print palette is luccet.css's", () => {
   const src = fs.readFileSync(path.join(DIR, 'mermaid.js'), 'utf8');
   const PRINT = new Function(`return ${/const PRINT = (\{[\s\S]*?\});/.exec(src)[1]}`)();
   const long = (h) => (h.length === 4 ? '#' + [...h.slice(1)].map((c) => c + c).join('') : h);
   const want = require('../tools/themes').printPalette();
   const keys = new Set([...Object.keys(PRINT), ...Object.keys(want)]);
   const off = [...keys].filter((k) => PRINT[k] !== long(want[k] || ''));
-  if (off.length) throw new Error(off.map((k) => `--t-${k}: ${PRINT[k]}, tern.css prints ${want[k]}`).join('; '));
+  if (off.length) throw new Error(off.map((k) => `--t-${k}: ${PRINT[k]}, luccet.css prints ${want[k]}`).join('; '));
 });
 
 // ---------------------------------------------------------------- cite.js
 
-// cite.js with the real engine: window.tern is tern.js itself, so its
+// cite.js with the real engine: window.luccet is luccet.js itself, so its
 // transforms register with it, as in a browser (test/smoke.js has the page).
 test("switcher.js: its list of theme families is tools/themes.js's (name, title, light and dark)", () => {
   const src = fs.readFileSync(path.join(DIR, 'switcher.js'), 'utf8');
@@ -131,14 +131,14 @@ test("switcher.js: its list of theme families is tools/themes.js's (name, title,
 });
 
 const vm = require('vm');
-const tern = require('../tern.js');
-function loadCite(TERN) {
-  const ctx = { window: { tern, TERN: TERN || {} }, console };
+const luccet = require('../luccet.js');
+function loadCite(LUCCET) {
+  const ctx = { window: { luccet, LUCCET: LUCCET || {} }, console };
   ctx.window.window = ctx.window;
   vm.runInNewContext(fs.readFileSync(path.join(DIR, 'cite.js'), 'utf8'), ctx, { filename: 'cite.js' });
 }
-const html = (src, opts) => tern.toHTML(src, Object.assign({ positions: false }, opts));
-const codes = (src, opts) => tern.check(src, opts).map((d) => `${d.position.start.line}:${d.position.start.column} ${d.code}`);
+const html = (src, opts) => luccet.toHTML(src, Object.assign({ positions: false }, opts));
+const codes = (src, opts) => luccet.check(src, opts).map((d) => `${d.position.start.line}:${d.position.start.column} ${d.code}`);
 const assert = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
@@ -155,28 +155,28 @@ const BIB = `:::bibliography
 :::
 `;
 
-test('glossary.js: under tern check and tern build, :term[x] is a link to the glossary page (page= as written; a page that is not there is link.missing), ::glossary stays empty, and tern index gathers the terms', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-glossary-'));
-  const cli = (args) => spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), ...args], { cwd: tmp, encoding: 'utf8' });
+test('glossary.js: under luccet check and luccet build, :term[x] is a link to the glossary page (page= as written; a page that is not there is link.missing), ::glossary stays empty, and luccet index gathers the terms', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-glossary-'));
+  const cli = (args) => spawnSync(process.execPath, [path.join(ROOT, 'luccet-cli.js'), ...args], { cwd: tmp, encoding: 'utf8' });
   try {
-    fs.writeFileSync(path.join(tmp, 'tern.js'), '');
+    fs.writeFileSync(path.join(tmp, 'luccet.js'), '');
     fs.copyFileSync(path.join(DIR, 'glossary.js'), path.join(tmp, 'glossary.js'));
     const use = 'glossary.js';
-    fs.writeFileSync(path.join(tmp, 'a.html'), `<!doctype html><meta charset="utf-8"><title>A</title><script src="tern.js" data-use="${use}"></script>\n# A {#top}\n\nA :dfn[truism] is obvious. Every :term[truism] and :term[kernels]{title=kernel} links.\n\n::glossary\n`);
-    fs.writeFileSync(path.join(tmp, 'b.html'), `<!doctype html><meta charset="utf-8"><title>B</title><script src="tern.js" data-use="${use}?page=/wiki/glossary.html"></script>\nSee :term[truism].\n`);
+    fs.writeFileSync(path.join(tmp, 'a.html'), `<!doctype html><meta charset="utf-8"><title>A</title><script src="luccet.js" data-use="${use}"></script>\n# A {#top}\n\nA :dfn[truism] is obvious. Every :term[truism] and :term[kernels]{title=kernel} links.\n\n::glossary\n`);
+    fs.writeFileSync(path.join(tmp, 'b.html'), `<!doctype html><meta charset="utf-8"><title>B</title><script src="luccet.js" data-use="${use}?page=/wiki/glossary.html"></script>\nSee :term[truism].\n`);
     let r = cli(['check', 'a.html']);
     assert(r.status === 0 && /link\.missing/.test(r.stdout) && /glossary\.html does not exist/.test(r.stdout), `a missing glossary page is link.missing: ${r.stdout}${r.stderr}`);
-    fs.writeFileSync(path.join(tmp, 'glossary.html'), `<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="${use}"></script>\n::glossary\n`);
+    fs.writeFileSync(path.join(tmp, 'glossary.html'), `<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="${use}"></script>\n::glossary\n`);
     r = cli(['check', 'a.html', 'b.html', 'glossary.html']);
     assert(r.status === 0 && /3 notes: 0 errors, 0 warnings, 0 infos/.test(r.stderr), `with the page: ${r.stdout}${r.stderr}`);
     r = cli(['build', 'a.html']);
-    assert(r.status === 0, `tern build: ${r.stderr}`);
+    assert(r.status === 0, `luccet build: ${r.stderr}`);
     const links = [...r.stdout.matchAll(/<span class="term" data-t="term"([^>]*)><a href="([^"]*)">([^<]*)<\/a><\/span>/g)].map((m) => `${m[3]}→${m[2]}${/ title="([^"]*)"/.test(m[1]) ? ` (${/ title="([^"]*)"/.exec(m[1])[1]})` : ''}`);
     assert(links.join(' ') === 'truism→glossary.html kernels→glossary.html (kernel)', `the uses in the built page: ${links.join(' ')}; the entry's # is added when the page shows`);
     assert(/<div class="glossary t-glossary" data-t="glossary" role="region" aria-label="Glossary"><\/div>|<div id="[^"]*" class="glossary t-glossary"[^>]*><\/div>|<div class="glossary"[^>]*><\/div>/.test(r.stdout), `the leaf, empty: ${/<div[^>]*glossary[^>]*>[^]*?<\/div>/.exec(r.stdout)}`);
     assert(/<a href="\/wiki\/glossary\.html">truism<\/a>/.test(cli(['build', 'b.html']).stdout), 'page= as written');
     r = cli(['index', '.']);
-    assert(r.status === 0 && /3 notes, [0-9]+ entries, 1 term → /.test(r.stderr), `tern index: ${r.stderr}`);
+    assert(r.status === 0 && /3 notes, [0-9]+ entries, 1 term → /.test(r.stderr), `luccet index: ${r.stderr}`);
     const g = JSON.parse(fs.readFileSync(path.join(tmp, 'glossary.json'), 'utf8'));
     assert(g.terms.length === 1 && g.terms[0].term === 'truism' && g.terms[0].url === 'a.html' && g.terms[0].id === 'top', `glossary.json: ${JSON.stringify(g.terms)}`);
   } finally {
@@ -231,10 +231,10 @@ test('cite.js: style=author-year cites (Author, Year), ref=label the narrative f
   assert(/<div class="t-title">Sources<\/div>/.test(out), 'the written title');
 });
 
-test('cite.js: window.TERN.bib is a shared source, BibTeX text or CSL items, listed by the first block; an empty block lists from it alone', () => {
+test('cite.js: window.LUCCET.bib is a shared source, BibTeX text or CSL items, listed by the first block; an empty block lists from it alone', () => {
   loadCite({ bib: '@book{shared, author = {Ada Lovelace}, title = {Notes}, year = 1843, publisher = {Taylor}}' });
   let out = html('@shared\n\n:::bibliography\n:::\n');
-  assert(/<li id="shared" class="bib numeric" data-t="bib"><span class="t-label">\[1\]<\/span> Lovelace, A\. \(1843\)\. <em>Notes<\/em>\. Taylor\.<\/li>/.test(out), `from TERN.bib: ${out}`);
+  assert(/<li id="shared" class="bib numeric" data-t="bib"><span class="t-label">\[1\]<\/span> Lovelace, A\. \(1843\)\. <em>Notes<\/em>\. Taylor\.<\/li>/.test(out), `from LUCCET.bib: ${out}`);
   loadCite({ bib: [{ id: 'csl', type: 'report', title: 'A report', number: '7', publisher: 'NIST', issued: { raw: '2020' } }] });
   out = html('@csl and @k\n\n:::bibliography\n@misc{k, title = {In the note}, year = 1999}\n:::\n');
   const ids = [...out.matchAll(/<li id="([^"]+)"/g)].map((m) => m[1]);
@@ -250,33 +250,33 @@ test('cite.js: cite.syntax, cite.duplicate, cite.key and cite.empty at the entry
   const src = `# T\n\n@weird and @nope.\n\n:::bibliography{all}\n\n@article{broken, title = {no closing\n@misc{weird:key, title = {Odd}, year = 2000}\n@misc{a, title = {A}}\n@misc{a, title = {Again}}\n@ junk\n:::\n\n:::bibliography\n:::\n`;
   const got = codes(src);
   assert(got.join(' | ') === '3:1 ref.dangling | 3:12 ref.dangling | 7:1 cite.syntax | 8:1 cite.key | 10:1 cite.duplicate | 11:1 cite.syntax | 14:1 cite.empty', `diagnostics ${got.join(' | ')}`);
-  const d = tern.check(src);
+  const d = luccet.check(src);
   assert(d.find((x) => x.code === 'cite.syntax').severity === 'warning' && d.find((x) => x.code === 'cite.empty').severity === 'info', 'severities');
   assert(/a brace is not closed/.test(d[2].message) && /given twice/.test(d.find((x) => x.code === 'cite.duplicate').message), 'messages');
-  const out = tern.toHTML(src);
+  const out = luccet.toHTML(src);
   assert(/<li class="bib numeric" data-t="bib" data-pos="8:1"><span class="t-label">\[2\]<\/span> Odd\. \(2000\)\./.test(out), `the unreachable key is listed without an id, at its line: ${out}`);
   assert(/<li id="a" class="bib numeric" data-t="bib" data-pos="9:1/.test(out), 'an entry carries its line as its position');
-  const { ast } = tern.parse(src);
-  tern.transform(ast);
-  assert(ast.data.tern.ids.a && ast.data.tern.ids.a.line === 9, `the id registry has the entry at its line: ${JSON.stringify(ast.data.tern.ids.a)}`);
+  const { ast } = luccet.parse(src);
+  luccet.transform(ast);
+  assert(ast.data.luccet.ids.a && ast.data.luccet.ids.a.line === 9, `the id registry has the entry at its line: ${JSON.stringify(ast.data.luccet.ids.a)}`);
   const json = codes('@x\n\n:::bibliography\n[{"id": "x", "title": "No comma" "type": "book"}]\n:::\n');
   assert(json.join() === '1:1 ref.dangling,4:1 cite.syntax', `bad JSON: ${json.join()}`);
 });
 
-test('cite.js: under tern check and tern build, through the sandbox: the same list and the diagnostics with file lines', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-cite-'));
+test('cite.js: under luccet check and luccet build, through the sandbox: the same list and the diagnostics with file lines', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-cite-'));
   try {
-    fs.writeFileSync(path.join(tmp, 'tern.js'), '');
+    fs.writeFileSync(path.join(tmp, 'luccet.js'), '');
     fs.copyFileSync(path.join(DIR, 'cite.js'), path.join(tmp, 'cite.js'));
     const use = 'cite.js';
     const note = path.join(tmp, 'note.html');
-    fs.writeFileSync(note, `<!doctype html><meta charset="utf-8"><script>window.TERN = {bib: '@book{shared, author = {Ada Lovelace}, title = {Notes}, year = 1843}'};</script><script src="tern.js" data-use="${use}"></script>\n\nSee @knuth84, @shared and @gone.\n\n${BIB.replace(/:::\n$/, '@junk\n:::\n')}`);
-    const check = spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), 'check', note], { encoding: 'utf8' });
+    fs.writeFileSync(note, `<!doctype html><meta charset="utf-8"><script>window.LUCCET = {bib: '@book{shared, author = {Ada Lovelace}, title = {Notes}, year = 1843}'};</script><script src="luccet.js" data-use="${use}"></script>\n\nSee @knuth84, @shared and @gone.\n\n${BIB.replace(/:::\n$/, '@junk\n:::\n')}`);
+    const check = spawnSync(process.execPath, [path.join(ROOT, 'luccet-cli.js'), 'check', note], { encoding: 'utf8' });
     const lines = (check.stdout + check.stderr).split('\n').filter((l) => /^\S.*:\d+:\d+: (?:warning|error|info) /.test(l));
-    assert(/note\.html:3:\d+: warning ref\.dangling/.test(lines[0]) && /note\.html:15:1: warning cite\.syntax: .*@junk is not followed by "\{"/.test(lines[1]) && lines.length === 2, `tern check:\n${check.stdout}${check.stderr}`);
+    assert(/note\.html:3:\d+: warning ref\.dangling/.test(lines[0]) && /note\.html:15:1: warning cite\.syntax: .*@junk is not followed by "\{"/.test(lines[1]) && lines.length === 2, `luccet check:\n${check.stdout}${check.stderr}`);
     const out = path.join(tmp, 'built.html');
-    const build = spawnSync(process.execPath, [path.join(ROOT, 'tern-cli.js'), 'build', note, '-o', out], { encoding: 'utf8' });
-    assert(build.status === 0, `tern build: ${build.stdout}${build.stderr}`);
+    const build = spawnSync(process.execPath, [path.join(ROOT, 'luccet-cli.js'), 'build', note, '-o', out], { encoding: 'utf8' });
+    assert(build.status === 0, `luccet build: ${build.stdout}${build.stderr}`);
     const page = fs.readFileSync(out, 'utf8');
     assert(/<li id="knuth84" class="bib numeric" data-t="bib"[^>]*><span class="t-label">\[1\]<\/span> Knuth, D\. E\. \(1984\)\./.test(page) && /<li id="shared" class="bib numeric"[^>]*><span class="t-label">\[2\]<\/span> Lovelace, A\. \(1843\)\. <em>Notes<\/em>\./.test(page), `the built page: ${page.slice(page.indexOf('<section'), page.indexOf('</section>'))}`);
     assert(/href="#knuth84">\[1\]<\/a>, <a class="t-ref cite" href="#shared">\[2\]<\/a> and @gone\./.test(page), 'the citations on the built page');

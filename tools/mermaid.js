@@ -5,7 +5,7 @@
 // move to another version; it needs the network once per version.
 //
 // The package comes from the npm registry, through tools/npm.js, which
-// keeps that one file in node_modules/.cache/tern-smoke/ (test/smoke.js
+// keeps that one file in node_modules/.cache/luccet-smoke/ (test/smoke.js
 // serves the same copy). jsDelivr's /npm/ files are the package's bytes, so
 // the hash holds.
 //
@@ -22,7 +22,7 @@ const ADDON = path.join(ROOT, 'addons', 'mermaid.js');
 const START = '  // <mermaid> written by tools/mermaid.js; do not edit by hand';
 const END = '  // </mermaid>';
 
-// node_modules/.cache/tern-smoke/mermaid-VERSION/dist/mermaid.min.js.
+// node_modules/.cache/luccet-smoke/mermaid-VERSION/dist/mermaid.min.js.
 const packageDir = (version) => npm.packageDir('mermaid', version, { folder: `mermaid-${version}`, keep: ['dist/mermaid.min.js'], has: 'dist/mermaid.min.js' });
 
 async function table(version) {

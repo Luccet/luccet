@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // The leading `:::use` block: the add-ons a note loads, one per line, as the
-// tern.js tag's data-use lists them. It is read from the note's text, not its
+// luccet.js tag's data-use lists them. It is read from the note's text, not its
 // tree, because the add-ons must be loaded before the note is parsed (the
 // parser consults their schema): the runtime scans the file as it streams in,
 // the tools scan it before they analyse. The parser reads the same block for

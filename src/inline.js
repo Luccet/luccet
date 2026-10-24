@@ -14,21 +14,21 @@
 //     reads as such, are listed too. block.js splits table rows and matches
 //     title brackets with it, so it sees the atoms this parser will.
 //
-// AST conventions beyond mdast (data.tern fields: docs/api.html#data-tern):
+// AST conventions beyond mdast (data.luccet fields: docs/api.html#data-luccet):
 //   - text and soft breaks merge into one text node; a hard break includes
 //     its line ending;
 //   - an entity is its own text node: `value` is the decoded character(s),
-//     `data.tern.entity` the source spelling (`&nbsp;`), which the emitter
+//     `data.luccet.entity` the source spelling (`&nbsp;`), which the emitter
 //     writes back unchanged; entities never merge with neighbouring text;
 //   - a bare span `[x]{.c}` is {type: 'span', attributes, children};
 //   - inline elements are textDirective, references ref {id}, footnote
 //     references footnoteReference {identifier, label} (identifier
 //     case-folded and lower-cased, as mdast; label as written), raw tags and
-//     comments html with data.tern.kind 'inline';
+//     comments html with data.luccet.kind 'inline';
 //   - a glued group is `attributes`, inside the node's position;
 //   - a link's url is normalised and its title is present only when given;
 //     an image has a plain-text alt and no children, and its bracket
-//     content as inline nodes in data.tern.caption; an autolink is a
+//     content as inline nodes in data.luccet.caption; an autolink is a
 //     link whose url is as written (`mailto:` added to an e-mail address).
 'use strict';
 
@@ -363,7 +363,7 @@ const malformed = (res) =>
 // A failed group where only strong ones bind is reported only when it starts with `#` or `.`.
 const hashOrDot = (at) => /[#.]/.test(text[scan.skipWs(text, at + 1, to)]);
 // Gives the item's node the group's attributes, and extends the item over it.
-// Under data.tern it records where the author's id is written (idPosition)
+// Under data.luccet it records where the author's id is written (idPosition)
 // and where reserved keys that may not apply are (tagPosition, refPosition,
 // rawPosition, colsPosition): the transforms point their diagnostics there.
 function bind(it, res) {
@@ -375,12 +375,12 @@ function bind(it, res) {
   if (a >= 0) {
     const q = text[a + 3];
     const e = text[a] === '#' ? matchAt(scan.IDENT, text, a + 1) : q === '"' || q === "'" ? text.indexOf(q, a + 4) + 1 : matchAt(ID_VALUE, text, a + 3);
-    n.data = { tern: { idPosition: pos(a, Math.max(e, a + 1)) } };
+    n.data = { luccet: { idPosition: pos(a, Math.max(e, a + 1)) } };
   }
   const { ref, tag } = res.attrs;
   if (tag !== undefined) {
     const k = res.keyAt.tag; // for tag.not-allowed, on any node: off an inline element, `tag=` is refused
-    ((n.data || (n.data = {})).tern || (n.data.tern = {})).tagPosition = pos(k, k + 3);
+    ((n.data || (n.data = {})).luccet || (n.data.luccet = {})).tagPosition = pos(k, k + 3);
   }
   // Reserved keys where they do not apply, for attr.malformed: `ref` off
   // references, `raw` anywhere inline, `cols` off inline elements.
@@ -395,7 +395,7 @@ function bind(it, res) {
   if (n.type === 'textDirective' && tag !== undefined && isReservedName(tag))
     rep('name.reserved', res.keyAt.tag, res.keyAt.tag + 3, `tag=${tag} names a reserved element and is ignored`, 'choose a phrasing element such as kbd or abbr');
 }
-const keyPosition = (n, field, k, length) => (((n.data || (n.data = {})).tern || (n.data.tern = {}))[field] = pos(k, k + length));
+const keyPosition = (n, field, k, length) => (((n.data || (n.data = {})).luccet || (n.data.luccet = {}))[field] = pos(k, k + length));
 // Binds the group at `at`, if there is one that `mode` takes, to item it;
 // returns where the scan goes on.
 function glue(it, at, mode) {
@@ -650,7 +650,7 @@ function closeBracket(i) {
       C.n = { type: kind === '!' ? 'image' : 'link', url: d.url };
       if (d.title !== undefined) C.n.title = d.title;
       finish(split(X, s, e), bottom, C);
-      if (kind === '!') C.n.alt = plain(C.v); // its items become data.tern.caption (build)
+      if (kind === '!') C.n.alt = plain(C.v); // its items become data.luccet.caption (build)
       else linkSerial = serial;
       return glue(C, d.end, ANY);
     }
@@ -763,7 +763,7 @@ function dollar(i) {
 // their end tag. Open tags are tracked for html.stray-closer and
 // html.inline-unclosed. A single capital (`<B>`) gets html.inline-escaped only
 // when its end tag follows, so `List<B>` stays silent.
-const rawHtml = (s, e) => atom(s, e, { type: 'html', value: text.slice(s, e), data: { tern: { kind: 'inline' } }, position: null });
+const rawHtml = (s, e) => atom(s, e, { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null });
 const autolink = (s, e, url, label) => atom(s, e, { type: 'link', url, children: [{ type: 'text', value: label, position: atomMode ? null : pos(s + 1, e - 1) }], position: null }, STRONG);
 function angle(i) {
   let m;
@@ -927,7 +927,7 @@ function scanAll() {
       for (let k = 0; k < at.length; k += 2) rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
   if (latexAt < Infinity && !ctx.flags['latex.delimiters']) {
     ctx.flags['latex.delimiters'] = true;
-    rep('latex.delimiters', latexAt, latexAt + 2, "LaTeX's delimiters are not math in tern; the backslash is an escape", 'math is `$…$` and `$$`');
+    rep('latex.delimiters', latexAt, latexAt + 2, "LaTeX's delimiters are not math in luccet; the backslash is an escape", 'math is `$…$` and `$$`');
   }
   return build();
 }
@@ -981,7 +981,7 @@ function build() {
       (ts = it.s), (te = it.e), (parts = null); // its source, as pending text
       continue;
     }
-    const node = it.k === ENT ? { type: 'text', value: it.v, data: { tern: { entity: it.n } }, position: null } : it.n;
+    const node = it.k === ENT ? { type: 'text', value: it.v, data: { luccet: { entity: it.n } }, position: null } : it.n;
     node.position = pos(it.s, it.e);
     out.push(node);
     if (it.k === PARENT && (it.v || node.type !== 'image')) {
@@ -989,8 +989,8 @@ function build() {
       stackOut.push(out);
       next = it.v;
       // An image has no children: its bracket content, as inline nodes, is
-      // data.tern.caption, which becomes an implicit figure's caption.
-      out = node.type === 'image' ? (((node.data || (node.data = {})).tern || (node.data.tern = {})).caption = []) : (node.children = []);
+      // data.luccet.caption, which becomes an implicit figure's caption.
+      out = node.type === 'image' ? (((node.data || (node.data = {})).luccet || (node.data.luccet = {})).caption = []) : (node.children = []);
     }
   }
 }

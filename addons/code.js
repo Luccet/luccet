@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-// code.js, Tern's code highlighting add-on (docs/addons.html#code). It
+// code.js, Luccet's code highlighting add-on (docs/addons.html#code). It
 // colours each fence and listing whose language highlight.js knows, once
 // the note has mounted, in the page theme's code colours: the --t-code-*
-// properties of tern.css, which the themes in themes/ set too.
+// properties of luccet.css, which the themes in themes/ set too.
 //
-//   <script src="tern.js" data-use="addons/code.js"></script>
+//   <script src="luccet.js" data-use="addons/code.js"></script>
 //
 // highlight.js comes from jsDelivr, pinned with SRI (the table below): its
 // common bundle as soon as this add-on runs, any other language on first
@@ -14,11 +14,11 @@
 // only. Line numbers and highlighted lines keep their spans: the coloured
 // text is split back into them.
 //
-// Under node (tern check, tern build, the language server) it only adds its
+// Under node (luccet check, luccet build, the language server) it only adds its
 // styles: highlighting needs the page.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   // <hljs> written by tools/hljs.js; do not edit by hand
@@ -234,7 +234,7 @@
   const found = () => (window.hljs && typeof window.hljs.highlight === 'function' ? window.hljs : null);
   const given = found();
   const core = given ? Promise.resolve(given) : load(`${base}/highlight.min.js`, HLJS.core).then((ok) => (ok && found()) || null);
-  core.then((h) => h || console.warn(`Tern code.js: highlight.js did not load from ${base}, so code stays plain`));
+  core.then((h) => h || console.warn(`Luccet code.js: highlight.js did not load from ${base}, so code stays plain`));
 
   // A language the core lacks: its file, by name or alias, loaded once.
   const files = new Map();

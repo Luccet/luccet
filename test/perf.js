@@ -36,7 +36,7 @@ const FACTOR = Number(opt('factor') || process.env.PERF_FACTOR || 2);
 const rep = (s, n) => s.repeat(n);
 const note = (f) => {
   const s = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  const i = s.indexOf('\n', s.search(/<script\b[^>]*tern\.js/));
+  const i = s.indexOf('\n', s.search(/<script\b[^>]*luccet\.js/));
   return s.slice(i + 1);
 };
 const samples = () =>
@@ -144,13 +144,13 @@ function growthChild(filter) {
 }
 
 function main() {
-  const { tern, why } = engine.load();
-  if (!tern) {
+  const { luccet, why } = engine.load();
+  if (!luccet) {
     console.log(`✗ ${why}`);
     process.exit(2);
   }
   const opts = { schema: fixture };
-  const run = (s) => tern.toHTML(s, opts);
+  const run = (s) => luccet.toHTML(s, opts);
   const filter = opt('filter');
   const cases = CASES.filter((c) => !filter || c.name.includes(filter));
   if (args.includes('--growth')) {

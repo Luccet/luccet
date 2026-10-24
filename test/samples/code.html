@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::meta
 title: Notes on iterators
@@ -60,7 +60,7 @@ itself: \\. Some_file_name.txt and 2 * 3 * 4 need nothing.
 
 <script>
   // Add a copy button to every listing. Runs after mount, in document order.
-  for (const pre of document.querySelectorAll('main.tern pre[data-t="code"], main.tern figure.code pre')) {
+  for (const pre of document.querySelectorAll('main.luccet pre[data-t="code"], main.luccet figure.code pre')) {
     const b = Object.assign(document.createElement('button'), { textContent: 'Copy', className: 'copy' });
     b.onclick = () => navigator.clipboard.writeText(pre.innerText);
     pre.before(b);

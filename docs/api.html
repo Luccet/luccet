@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Luccet</title><link rel="icon" href="favicon-32.png" sizes="32x32"><link rel="icon" href="favicon.svg" type="image/svg+xml"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
 
 :::meta
-description: The tern object in node and in the browser: parse, transform, emit, toHTML, check, visit, outline, the schema registry, the runtime API and its events, tern.config, the lifecycle, and the AST with its data.tern fields.
+description: The luccet object in node and in the browser: parse, transform, emit, toHTML, check, visit, outline, the schema registry, the runtime API and its events, luccet.config, the lifecycle, and the AST with its data.luccet fields.
 :::
 
 ::site-nav
@@ -10,7 +10,7 @@ description: The tern object in node and in the browser: parse, transform, emit,
 
 ::toc
 
-Everything Tern does is on one object, `tern`. In a browser it is `window.tern`; under node it is what `require('./tern.js')` returns. It has two halves:
+Everything Luccet does is on one object, `luccet`. In a browser it is `window.luccet`; under node it is what `require('./luccet.js')` returns. It has two halves:
 
 - **The engine** turns a note's source into an AST, computes its semantics and writes HTML. It is pure: no DOM, no I/O, the same output in node and in every browser.
 - **The runtime** renders a note in the page, runs DOM behaviours and fires events. It exists only in a browser. Under node its members are present but do nothing.
@@ -19,84 +19,84 @@ This page is the reference for both, for the order in which the runtime does thi
 
 | Member | Half | What it does | Under node |
 |---|---|---|---|
-| [`tern.parse(source, opts)`](#parse) | engine | source → `{ast, diagnostics}` | works |
-| [`tern.transform(ast, opts)`](#transform) | engine | ids, numbers, labels, references, toc, in place | works |
-| [`tern.transform(name, fn, where)`](#registering-a-transform) | engine | adds a transform | works |
-| [`tern.emit(ast, opts)`](#emit) | engine | AST → HTML string | works |
-| [`tern.toHTML(source, opts)`](#tohtml) | engine | parse, transform and emit, synchronously | works |
-| [`tern.check(source, opts)`](#check) | engine | every diagnostic of a note | works |
-| [`tern.visit(tree, type, fn)`](#visit) | engine | walks a tree | works |
-| [`tern.outline(ast)`](#outline) | engine | the editor digest | works |
-| [`tern.search`](#search) | engine | entries, an index and a ranked query over notes; a note's description for a catalogue | works |
-| [`tern.schema`](#registry) | engine | the vocabulary, as plain data | works |
-| [`tern.block`, `tern.leaf`, `tern.inline`](#registry) | engine | declare a name | works |
-| [`tern.transforms`](#tern-transforms) | engine | the transform order | works |
-| [`tern.css`](#tern-css) | engine | the base stylesheet, as a string | works |
-| [`tern.version`](#tern-version) | engine | `'1.1.0'` | works |
-| [`tern.define`, `tern.undefine`](#define) | runtime | DOM behaviours | registers; nothing runs |
-| [`tern.on(event, fn)`](#on) | runtime | `render`, `math`, `ready`, `diagnostic` | registers; nothing fires |
-| [`tern.render(root, source)`](#render) | runtime | renders into an element | resolves to `[]` |
-| [`tern.ready`](#ready) | runtime | a Promise | never settles |
-| [`tern.diagnostics`](#diagnostics) | runtime | the page's diagnostics | stays `[]` |
-| [`tern.config`](#config) | runtime | `window.TERN` and the tag's `data-*` | `{use: {}}` |
-| [`tern.style(css)`](#style) | runtime | adds a stylesheet | does nothing |
+| [`luccet.parse(source, opts)`](#parse) | engine | source → `{ast, diagnostics}` | works |
+| [`luccet.transform(ast, opts)`](#transform) | engine | ids, numbers, labels, references, toc, in place | works |
+| [`luccet.transform(name, fn, where)`](#registering-a-transform) | engine | adds a transform | works |
+| [`luccet.emit(ast, opts)`](#emit) | engine | AST → HTML string | works |
+| [`luccet.toHTML(source, opts)`](#tohtml) | engine | parse, transform and emit, synchronously | works |
+| [`luccet.check(source, opts)`](#check) | engine | every diagnostic of a note | works |
+| [`luccet.visit(tree, type, fn)`](#visit) | engine | walks a tree | works |
+| [`luccet.outline(ast)`](#outline) | engine | the editor digest | works |
+| [`luccet.search`](#search) | engine | entries, an index and a ranked query over notes; a note's description for a catalogue | works |
+| [`luccet.schema`](#registry) | engine | the vocabulary, as plain data | works |
+| [`luccet.block`, `luccet.leaf`, `luccet.inline`](#registry) | engine | declare a name | works |
+| [`luccet.transforms`](#luccet-transforms) | engine | the transform order | works |
+| [`luccet.css`](#luccet-css) | engine | the base stylesheet, as a string | works |
+| [`luccet.version`](#luccet-version) | engine | `'1.1.1'` | works |
+| [`luccet.define`, `luccet.undefine`](#define) | runtime | DOM behaviours | registers; nothing runs |
+| [`luccet.on(event, fn)`](#on) | runtime | `render`, `math`, `ready`, `diagnostic` | registers; nothing fires |
+| [`luccet.render(root, source)`](#render) | runtime | renders into an element | resolves to `[]` |
+| [`luccet.ready`](#ready) | runtime | a Promise | never settles |
+| [`luccet.diagnostics`](#diagnostics) | runtime | the page's diagnostics | stays `[]` |
+| [`luccet.config`](#config) | runtime | `window.LUCCET` and the tag's `data-*` | `{use: {}}` |
+| [`luccet.style(css)`](#style) | runtime | adds a stylesheet | does nothing |
 
 ## Loading {#loading}
 
 ### In a browser {#in-a-browser}
 
-A note's first line loads tern.js:
+A note's first line loads luccet.js:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 ```
 
-When tern.js runs from that tag, it defines `window.tern` and starts the runtime. The runtime takes the rest of the file as the note, renders it in place and fires its events ([the lifecycle](#lifecycle)). So code that runs after that line finds `tern` as a global: the add-ons listed in `data-use`, and the `<script>` elements in the note. A script in the head, *before* the tern.js line, runs before `tern` exists. It talks to Tern through `window.TERN` instead ([`tern.config`](#config)).
+When luccet.js runs from that tag, it defines `window.luccet` and starts the runtime. The runtime takes the rest of the file as the note, renders it in place and fires its events ([the lifecycle](#lifecycle)). So code that runs after that line finds `luccet` as a global: the add-ons listed in `data-use`, and the `<script>` elements in the note. A script in the head, *before* the luccet.js line, runs before `luccet` exists. It talks to Luccet through `window.LUCCET` instead ([`luccet.config`](#config)).
 
 The runtime starts only when all of these hold:
 
-- tern.js is loaded by a plain `<script src>` written in the file, so the HTML parser runs it while the document is still loading;
+- luccet.js is loaded by a plain `<script src>` written in the file, so the HTML parser runs it while the document is still loading;
 - the tag has no `async`, `defer` or `type="module"`;
-- the page has no `main.tern` yet. A page written by [`tern build`](tools.html#build) has one, and its tag has `data-built`, which gives it [its own start](#built-page).
+- the page has no `main.luccet` yet. A page written by [`luccet build`](tools.html#build) has one, and its tag has `data-built`, which gives it [its own start](#built-page).
 
-Loaded any other way, tern.js defines `window.tern` and starts nothing. The engine works, and [`tern.render(element, source)`](#render-into-your-page) renders a note into an element of your own page. With `async` or `defer` it also warns in the console: `tern: load tern.js with a plain <script src>, without async or defer; the note was not rendered`.
+Loaded any other way, luccet.js defines `window.luccet` and starts nothing. The engine works, and [`luccet.render(element, source)`](#render-into-your-page) renders a note into an element of your own page. With `async` or `defer` it also warns in the console: `luccet: load luccet.js with a plain <script src>, without async or defer; the note was not rendered`.
 
-A second tern.js on the same page leaves the first in charge. It warns, `tern: tern.js is already loaded; this second copy does nothing`, and `window.tern` stays the first object.
+A second luccet.js on the same page leaves the first in charge. It warns, `luccet: luccet.js is already loaded; this second copy does nothing`, and `window.luccet` stays the first object.
 
 ### Under node {#under-node}
 
-The engine is an npm package, `@ozkrac/tern`, installed with npm from this repository at a tag (it is not on the npm registry): the same `tern.js`, with `tern.css`, the add-ons, the themes, the command line as the `tern` binary, and type declarations (`tern.d.ts`).
+The engine is an npm package, `luccet`, installed with npm from this repository at a tag (it is not on the npm registry): the same `luccet.js`, with `luccet.css`, the add-ons, the themes, the command line as the `luccet` binary, and type declarations (`luccet.d.ts`).
 
 ```sh
-npm install github:OzkrAC/tern#vX.Y.Z
+npm install github:Luccet/luccet#vX.Y.Z
 ```
 
 ```js
-const tern = require('@ozkrac/tern');          // from the package, or
-const tern = require('./tern.js');             // from a checkout: the same file
+const luccet = require('luccet');          // from the package, or
+const luccet = require('./luccet.js');             // from a checkout: the same file
 
-tern.version;                    // → '1.1.0'
-tern.toHTML('Hello *world*.');   // → '<p>Hello <em>world</em>.</p>\n'
+luccet.version;                    // → '1.1.1'
+luccet.toHTML('Hello *world*.');   // → '<p>Hello <em>world</em>.</p>\n'
 ```
 
-tern.js is one file with no dependencies, so `require` needs nothing else. It returns the same object a browser gets:
+luccet.js is one file with no dependencies, so `require` needs nothing else. It returns the same object a browser gets:
 
 - **The engine** works exactly as in a browser: the same AST, the same diagnostics, the same HTML, byte for byte. The command line and the language server are built on it.
 - **The runtime** is inert. It never touches a DOM, so nothing needs to be stubbed:
 
 ```js
-tern.config;                          // → { use: {} }
-tern.diagnostics;                     // → []
-await tern.render();                  // → []
-tern.style('p { color: red }');       // → undefined, and nothing happens
-const off = tern.define('box', fn);   // registered, never called; off() removes it
-tern.on('ready', fn);                 // registered, never called
-tern.ready;                           // a Promise that never settles
+luccet.config;                          // → { use: {} }
+luccet.diagnostics;                     // → []
+await luccet.render();                  // → []
+luccet.style('p { color: red }');       // → undefined, and nothing happens
+const off = luccet.define('box', fn);   // registered, never called; off() removes it
+luccet.on('ready', fn);                 // registered, never called
+luccet.ready;                           // a Promise that never settles
 ```
 
-Under node there are no add-ons and no `window.TERN`. Declare vocabulary with [`tern.block`, `tern.leaf` and `tern.inline`](#registry), or pass it to each call as `opts.schema`. The [command line](tools.html#top) does more: it runs a note's head scripts and its `data-use` add-ons in a sandbox, so `tern check` and `tern build` see the note's own vocabulary and run its add-ons' transforms.
+Under node there are no add-ons and no `window.LUCCET`. Declare vocabulary with [`luccet.block`, `luccet.leaf` and `luccet.inline`](#registry), or pass it to each call as `opts.schema`. The [command line](tools.html#top) does more: it runs a note's head scripts and its `data-use` add-ons in a sandbox, so `luccet check` and `luccet build` see the note's own vocabulary and run its add-ons' transforms.
 
-Everything the engine returns is plain data that survives `JSON.stringify`: the AST, the diagnostics, the outline. The AST is the interchange format of `tern parse`, the language server and the conformance corpus.
+Everything the engine returns is plain data that survives `JSON.stringify`: the AST, the diagnostics, the outline. The AST is the interchange format of `luccet parse`, the language server and the conformance corpus.
 
 ## The engine {#engine}
 
@@ -106,28 +106,28 @@ The engine is a pipeline of three steps. Each is a function you can call on its 
 source ──parse──▶ AST + diagnostics ──transform──▶ transformed AST ──emit──▶ HTML
 ```
 
-- [`tern.parse`](#parse) reads the syntax. Its AST says what was *written*: a container named `theorem`, a reference to `kernel`.
-- [`tern.transform`](#transform) computes what it *means*, in place: element names, ids and slugs, numbers and labels, the text of references, footnote numbers, the table of contents.
-- [`tern.emit`](#emit) writes HTML from the transformed AST and nothing else.
+- [`luccet.parse`](#parse) reads the syntax. Its AST says what was *written*: a container named `theorem`, a reference to `kernel`.
+- [`luccet.transform`](#transform) computes what it *means*, in place: element names, ids and slugs, numbers and labels, the text of references, footnote numbers, the table of contents.
+- [`luccet.emit`](#emit) writes HTML from the transformed AST and nothing else.
 
-[`tern.toHTML`](#tohtml) runs all three, and [`tern.check`](#check) runs the first two and returns every diagnostic.
+[`luccet.toHTML`](#tohtml) runs all three, and [`luccet.check`](#check) runs the first two and returns every diagnostic.
 
 **Options.** The functions share one options object. Each reads the keys it needs and ignores the rest, so you can pass the same object to all of them.
 
 | Option | Read by | Default | What it does |
 |---|---|---|---|
-| `schema` | `parse`, `transform`, `toHTML`, `check` | the registry, [`tern.schema`](#registry) | the vocabulary `{block, leaf, inline}`. It replaces the registry for that call; it is not merged with it. `strict: true` in it turns on `name.unknown` |
-| `head` | `parse`, `transform`, `toHTML`, `check` | `''` | the preserved head, as a string: everything before the tern.js line. `parse` checks `:::meta` against it, and `transform` reads its `<title>` and `<html lang>` |
+| `schema` | `parse`, `transform`, `toHTML`, `check` | the registry, [`luccet.schema`](#registry) | the vocabulary `{block, leaf, inline}`. It replaces the registry for that call; it is not merged with it. `strict: true` in it turns on `name.unknown` |
+| `head` | `parse`, `transform`, `toHTML`, `check` | `''` | the preserved head, as a string: everything before the luccet.js line. `parse` checks `:::meta` against it, and `transform` reads its `<title>` and `<html lang>` |
 | `lang` | `transform`, `toHTML`, `check` | none | the language that picks a label from a `{lang: label}` map |
 | `maxDepth` | `parse`, `toHTML`, `check` | `64` | how deep blocks may nest |
 | `positions` | `emit`, `toHTML` | `true` | writes `data-pos="line:col"` on elements |
 | `safe` | `emit`, `toHTML`, `render` | `false` | for untrusted source: escapes raw HTML, neutralises dangerous elements, and drops risky attributes and URLs; in `render` it also skips the note's scripts and behaviours |
 
-### `tern.parse` {#parse}
+### `luccet.parse` {#parse}
 
 :::syntax
 ```js
-tern.parse(source, opts) → { ast, diagnostics }
+luccet.parse(source, opts) → { ast, diagnostics }
 ```
 :::
 
@@ -135,7 +135,7 @@ Parses a note and returns its AST and the parser's diagnostics.
 
 ```js
 const noPos = (key, value) => (key === 'position' ? undefined : value);
-const { ast, diagnostics } = tern.parse('Hi *you*.');
+const { ast, diagnostics } = luccet.parse('Hi *you*.');
 
 JSON.stringify(ast, noPos);
 // → {"type":"root","children":[{"type":"paragraph","children":[
@@ -147,14 +147,14 @@ diagnostics;   // → []
 
 Every node has a `position`; the outputs on this page leave positions out with a replacer like `noPos`, except under [Positions](#positions).
 
-- **`source`** is the note only: everything *after* the line that holds the tern.js tag, not the whole file. The parser normalises it first: `\r\n` and `\r` become `\n`, a leading BOM is dropped, and NUL becomes U+FFFD. Positions count in the normalised text.
+- **`source`** is the note only: everything *after* the line that holds the luccet.js tag, not the whole file. The parser normalises it first: `\r\n` and `\r` become `\n`, a leading BOM is dropped, and NUL becomes U+FFFD. Positions count in the normalised text.
 - **`ast`** is the root node, in the [shapes below](#node-types). It is the parse AST: it records what the note says, and nothing is resolved yet. A reference is `{type: 'ref', id: 'kernel'}` with no text, a heading has no slug, and nothing is numbered.
 - **`diagnostics`** is a new array of the parser's diagnostics, sorted by position. The parser's diagnostics are not stored in the AST.
 
 The parser never throws on a note, whatever its content: every mistake becomes a diagnostic.
 
 ```js
-tern.parse(':::note\nOpen.').diagnostics;
+luccet.parse(':::note\nOpen.').diagnostics;
 // → [{ code: 'block.unclosed', severity: 'error',
 //      message: '`:::note` opened on line 1 is still open at line 2',
 //      position: { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 8, offset: 7 } },
@@ -167,59 +167,59 @@ tern.parse(':::note\nOpen.').diagnostics;
 const schema = { block: { mermaid: { body: 'raw' } }, leaf: {}, inline: {} };
 const src = ':::mermaid\na --> *b*\n:::';
 
-tern.parse(src).ast.children[0].children;            // → [ { type: 'paragraph', … } ]
-tern.parse(src, { schema }).ast.children[0].value;   // → 'a --> *b*'
+luccet.parse(src).ast.children[0].children;            // → [ { type: 'paragraph', … } ]
+luccet.parse(src, { schema }).ast.children[0].value;   // → 'a --> *b*'
 ```
 
-**`opts.head`.** The head, as a string, lets the parser report a `:::meta` key that the head already sets differently. The head wins, and `root.data.tern.meta` holds its value:
+**`opts.head`.** The head, as a string, lets the parser report a `:::meta` key that the head already sets differently. The head wins, and `root.data.luccet.meta` holds its value:
 
 ```js
-const { ast, diagnostics } = tern.parse(':::meta\ntitle: A\n:::', { head: '<title>B</title>' });
+const { ast, diagnostics } = luccet.parse(':::meta\ntitle: A\n:::', { head: '<title>B</title>' });
 diagnostics.map((d) => d.code);   // → ['meta.conflict']
-ast.data.tern.meta;               // → { title: 'B' }
+ast.data.luccet.meta;               // → { title: 'B' }
 ```
 
 **`opts.maxDepth`.** Quotes, list items, footnote definitions and containers nest at most `maxDepth` deep, 64 by default; a value that is not a finite number of 1 or more (`'abc'`, `Infinity`, `0`) means 64. An opener past the limit is shown as text, with [`nesting.limit`](diagnostics.html#nesting-limit):
 
 ```js
-tern.parse('> > > x', { maxDepth: 2 }).diagnostics.map((d) => d.message);
+luccet.parse('> > > x', { maxDepth: 2 }).diagnostics.map((d) => d.message);
 // → ['blocks nest at most 2 deep; this opener is shown as text']
 ```
 
-Inline constructs (emphasis, spans, links, inline elements) nest at most 1,000 deep, whatever `maxDepth` says: one past that is shown as its source text, with the same diagnostic. So a tree the parser returns is always one that `JSON.stringify`, [`tern.visit`](#visit) and the other readers can walk.
+Inline constructs (emphasis, spans, links, inline elements) nest at most 1,000 deep, whatever `maxDepth` says: one past that is shown as its source text, with the same diagnostic. So a tree the parser returns is always one that `JSON.stringify`, [`luccet.visit`](#visit) and the other readers can walk.
 
-### `tern.transform` {#transform}
+### `luccet.transform` {#transform}
 
 :::syntax
 ```js
-tern.transform(ast, opts) → ast
-tern.transform(name, fn, { before | after }) → remove
+luccet.transform(ast, opts) → ast
+luccet.transform(name, fn, { before | after }) → remove
 ```
 :::
 
-With an AST, `tern.transform` runs the transforms on it; with a name, it [registers a transform](#registering-a-transform).
+With an AST, `luccet.transform` runs the transforms on it; with a name, it [registers a transform](#registering-a-transform).
 
-**Running the transforms.** They change the tree in place and return the same object. Their diagnostics go into `ast.data.tern.diagnostics`, sorted. They read `opts.schema`, `opts.head` and `opts.lang`.
+**Running the transforms.** They change the tree in place and return the same object. Their diagnostics go into `ast.data.luccet.diagnostics`, sorted. They read `opts.schema`, `opts.head` and `opts.lang`.
 
 ```js
-const { ast } = tern.parse('# Kernel\n\nSee @kernel.');
+const { ast } = luccet.parse('# Kernel\n\nSee @kernel.');
 ast.children[1].children[1];   // → { type: 'ref', id: 'kernel' }
 
-tern.transform(ast);
+luccet.transform(ast);
 ast.children[1].children[1];
-// → { type: 'ref', id: 'kernel', data: { tern: { resolved: true } },
+// → { type: 'ref', id: 'kernel', data: { luccet: { resolved: true } },
 //     children: [ { type: 'text', value: 'Kernel' } ] }
 ast.data;
-// → { tern: { diagnostics: [], transformed: true, footnotes: [],
+// → { luccet: { diagnostics: [], transformed: true, footnotes: [],
 //     ids: { kernel: { kind: 'heading', explicit: false, line: 1, column: 1 } },
 //     meta: { title: 'Kernel' } } }
 ```
 
-- **Once per tree.** The first run sets `ast.data.tern.transformed`. A later call returns the tree unchanged, because running again would treat the slugs it wrote as ids the author wrote.
+- **Once per tree.** The first run sets `ast.data.luccet.transformed`. A later call returns the tree unchanged, because running again would treat the slugs it wrote as ids the author wrote.
 - **Pure.** The built-in transforms touch nothing but the tree: no DOM, no I/O. They are the same code in node and in the browser.
-- **What they write** is listed under [The transformed AST](#transformed-ast). [`tern.emit`](#emit) reads only that.
+- **What they write** is listed under [The transformed AST](#transformed-ast). [`luccet.emit`](#emit) reads only that.
 
-The built-in transforms run in this order, which [`tern.transforms`](#tern-transforms) returns:
+The built-in transforms run in this order, which [`luccet.transforms`](#luccet-transforms) returns:
 
 | # | Transform | What it does |
 |---|---|---|
@@ -227,7 +227,7 @@ The built-in transforms run in this order, which [`tern.transforms`](#tern-trans
 | 2 | `tables` | a container whose element is `table` merges with its one pipe table ([table captions](elements.html#table-caption)) |
 | 3 | `attributes` | resolves each name to an element and its title slot; schema `class` and `attrs`; reserved keys; `cols`; fence keys |
 | 4 | `footnotes` | numbers footnotes by first reference; their `fn-` and `fnref-` ids |
-| 5 | `ids` | the id registry: Tern's own ids, then duplicate and invalid ids, then heading slugs |
+| 5 | `ids` | the id registry: Luccet's own ids, then duplicate and invalid ids, then heading slugs |
 | 6 | `numbering` | counters, labels such as "Theorem 1", equation numbers |
 | 7 | `refs` | the text of each reference; dangling references and fragment links |
 | 8 | `toc` | fills each table-of-contents leaf from the headings |
@@ -237,27 +237,27 @@ The built-in transforms run in this order, which [`tern.transforms`](#tern-trans
 
 #### Registering a transform {#registering-a-transform}
 
-`tern.transform(name, fn, where)` adds your own step to the pipeline and returns a function that removes it.
+`luccet.transform(name, fn, where)` adds your own step to the pipeline and returns a function that removes it.
 
 ```js
-const off = tern.transform('todo', (ast, ctx) => {
-  tern.visit(ast, 'text', (node) => {
+const off = luccet.transform('todo', (ast, ctx) => {
+  luccet.visit(ast, 'text', (node) => {
     if (node.value.includes('TODO')) {
       ctx.report('note.todo', node, 'a TODO is left in the text', 'finish it, then remove the TODO', 'info');
     }
   });
 }, { before: 'ids' });
 
-tern.transforms;
+luccet.transforms;
 // → ['figures', 'tables', 'attributes', 'footnotes', 'todo',
 //    'ids', 'numbering', 'refs', 'toc', 'meta']
-tern.check('Ship it. TODO: tests.');
+luccet.check('Ship it. TODO: tests.');
 // → [{ code: 'note.todo', severity: 'info', message: 'a TODO is left in the text',
 //      position: { start: { line: 1, column: 1, offset: 0 },
 //                  end: { line: 1, column: 22, offset: 21 } },
 //      hint: 'finish it, then remove the TODO' }]
 off();
-tern.transforms;
+luccet.transforms;
 // → ['figures', 'tables', 'attributes', 'footnotes',
 //    'ids', 'numbering', 'refs', 'toc', 'meta']
 ```
@@ -269,114 +269,114 @@ tern.transforms;
   | `schema` | the schema of this run: `opts.schema`, or the registry |
   | `opts` | the options the run was called with |
   | `lang` | the label language, as a string (`''` when there is none) |
-  | `report(code, at, message, hint, severity)` | adds a diagnostic to `ast.data.tern.diagnostics` and returns it |
+  | `report(code, at, message, hint, severity)` | adds a diagnostic to `ast.data.luccet.diagnostics` and returns it |
 
 - **`ctx.report`.**
   - `at` is a node (its `position` is used), a position `{start, end}`, or nothing (line 1, column 1).
   - A code from [the diagnostics table](diagnostics.html#top) keeps its own severity. Any other code takes `severity`, `'warning'` when it is left out.
   - `hint` is optional.
 - **Where it runs.** `{before: 'ids'}` or `{after: 'figures'}` names a transform already in the order, built-in or your own. Without `where`, the transform runs last.
-- **Changing the tree.** A custom transform may add, remove or replace nodes: the built-in transforms after it look at the tree again. Nodes you add need no `position`; [`tern.outline`](#outline) skips nodes that have none.
-- **The registration is global.** Every later `tern.transform`, `tern.toHTML` and `tern.check` runs it, until it is removed.
+- **Changing the tree.** A custom transform may add, remove or replace nodes: the built-in transforms after it look at the tree again. Nodes you add need no `position`; [`luccet.outline`](#outline) skips nodes that have none.
+- **The registration is global.** Every later `luccet.transform`, `luccet.toHTML` and `luccet.check` runs it, until it is removed.
 - **Registering a name again** moves it to the new place with the new function. The first registration's remover then does nothing.
-- **A transform that throws** is skipped, and the transforms after it still run, so the note still renders. It is reported as [`addon.failed`](diagnostics.html#addon-failed), an error at line 0, column 0, in `ast.data.tern.diagnostics`. What it changed in the tree before it threw stays.
+- **A transform that throws** is skipped, and the transforms after it still run, so the note still renders. It is reported as [`addon.failed`](diagnostics.html#addon-failed), an error at line 0, column 0, in `ast.data.luccet.diagnostics`. What it changed in the tree before it threw stays.
 
 ```js
-const off = tern.transform('boom', () => { throw new Error('nope'); });
-tern.check('Hi.');
+const off = luccet.transform('boom', () => { throw new Error('nope'); });
+luccet.check('Hi.');
 // → [{ code: 'addon.failed', severity: 'error',
 //      message: 'the transform "boom" threw: nope; the note renders without it',
 //      position: { start: { line: 0, column: 0, offset: 0 }, end: { line: 0, column: 0, offset: 0 } },
-//      hint: 'fix the function given to tern.transform("boom", …)' }]
+//      hint: 'fix the function given to luccet.transform("boom", …)' }]
 off();
 ```
 
 - **Errors in the call**, thrown at once:
   - a name that is not a non-empty string, or a `fn` that is not a function: `TypeError`;
-  - the name of a built-in transform: `Error: tern.transform: "ids" is a built-in transform`;
-  - a `before` or `after` that names no transform in the order, or names the transform itself: `Error: tern.transform("x"): there is no transform "nope"`.
+  - the name of a built-in transform: `Error: luccet.transform: "ids" is a built-in transform`;
+  - a `before` or `after` that names no transform in the order, or names the transform itself: `Error: luccet.transform("x"): there is no transform "nope"`.
 
 :::note
-An add-on's transforms run wherever the note is processed. In the browser they run at mount. Under node, the command line and the language server load the note's add-ons in a sandbox and run their transforms too: `tern check`, `tern build`, `tern parse --transformed` and the editor see their changes and their diagnostics, and a transform that throws is `addon.failed` there as well.
+An add-on's transforms run wherever the note is processed. In the browser they run at mount. Under node, the command line and the language server load the note's add-ons in a sandbox and run their transforms too: `luccet check`, `luccet build`, `luccet parse --transformed` and the editor see their changes and their diagnostics, and a transform that throws is `addon.failed` there as well.
 :::
 
-### `tern.emit` {#emit}
+### `luccet.emit` {#emit}
 
 :::syntax
 ```js
-tern.emit(ast, { positions = true, safe = false, maxOutput = 67108864, idPrefix = '' }) → string
+luccet.emit(ast, { positions = true, safe = false, maxOutput = 67108864, idPrefix = '' }) → string
 ```
 :::
 
 Writes the HTML of a transformed AST: the note's body, without `<html>`, the head or the `main` element around it.
 
-The emitter reads only the tree: the nodes and what the transforms wrote under `data.tern`. It never looks at the schema or the source. So emit a **transformed** tree. A parse AST still emits, but with nothing the transforms compute: no slugs, no labels, no numbers, and references stay literal.
+The emitter reads only the tree: the nodes and what the transforms wrote under `data.luccet`. It never looks at the schema or the source. So emit a **transformed** tree. A parse AST still emits, but with nothing the transforms compute: no slugs, no labels, no numbers, and references stay literal.
 
 ```js
-const { ast } = tern.parse('## Kernel\n\n:::note\nSee @kernel.\n:::');
+const { ast } = luccet.parse('## Kernel\n\n:::note\nSee @kernel.\n:::');
 
-tern.emit(ast);
+luccet.emit(ast);
 // → '<h2>Kernel</h2>\n'
 //   + '<div class="t-block note" data-t="note" data-pos="3:1"><p>See @kernel.</p>\n</div>\n'
 
-tern.transform(ast);
-tern.emit(ast);
+luccet.transform(ast);
+luccet.emit(ast);
 // → '<h2 id="kernel">Kernel</h2>\n'
 //   + '<div class="t-block note" data-t="note" data-pos="3:1">'
 //   + '<p>See <a class="t-ref" href="#kernel">Kernel</a>.</p>\n</div>\n'
-tern.emit(ast, { positions: false });
+luccet.emit(ast, { positions: false });
 // → '<h2 id="kernel">Kernel</h2>\n'
 //   + '<div class="t-block note" data-t="note">'
 //   + '<p>See <a class="t-ref" href="#kernel">Kernel</a>.</p>\n</div>\n'
 ```
 
-**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line, and `tern build --math` uses it to position a [`math.error`](diagnostics.html#math-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
+**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line, and `luccet build --math` uses it to position a [`math.error`](diagnostics.html#math-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
 
 **`safe`** (default `false`) is the [raw HTML scoping](elements.html#safe):
 
 - raw HTML is escaped: a raw block becomes a plain `<pre>`, an inline tag becomes text;
 - `on*`, `srcdoc`, `formaction`, `style`, `form`, `popovertarget`, `usemap`, `name` and the other attributes that run, navigate or reach the host page are dropped ([the list](elements.html#safe));
 - URLs other than `http:`, `https:`, `mailto:` and relative ones are dropped from links, images and URL attributes;
-- Tern's own grid style (`--t-cols`) is kept when its value holds only numbers, words and `(),.%/+*-`.
+- Luccet's own grid style (`--t-cols`) is kept when its value holds only numbers, words and `(),.%/+*-`.
 
 ```js
 const src = '<b onclick="go()">Hi</b> [x](javascript:go()) [y](https://example.org)';
 
-tern.toHTML(src);
+luccet.toHTML(src);
 // → '<p><b onclick="go()">Hi</b> <a href="javascript:go()">x</a>'
 //   + ' <a href="https://example.org">y</a></p>\n'
-tern.toHTML(src, { safe: true });
+luccet.toHTML(src, { safe: true });
 // → '<p>&lt;b onclick=&quot;go()&quot;&gt;Hi&lt;/b&gt; <a>x</a>'
 //   + ' <a href="https://example.org">y</a></p>\n'
-tern.toHTML('<div onclick="go()">\nHi\n</div>', { safe: true });
+luccet.toHTML('<div onclick="go()">\nHi\n</div>', { safe: true });
 // → '<pre>&lt;div onclick=&quot;go()&quot;&gt;\nHi\n&lt;/div&gt;</pre>\n'
 ```
 
-**`maxOutput`** (default 64 M characters) is the output budget. Past it the HTML stops, cut at that length, and the tree gets an [`output.limit`](diagnostics.html#output-limit) diagnostic in `ast.data.tern.diagnostics`, beside the transforms'; it used to be a `RangeError`. A reference copies at most 200 characters of its target's title and a toc entry as much of a heading, so an ordinary note never comes near the budget.
+**`maxOutput`** (default 64 M characters) is the output budget. Past it the HTML stops, cut at that length, and the tree gets an [`output.limit`](diagnostics.html#output-limit) diagnostic in `ast.data.luccet.diagnostics`, beside the transforms'; it used to be a `RangeError`. A reference copies at most 200 characters of its target's title and a toc entry as much of a heading, so an ordinary note never comes near the budget.
 
 **`idPrefix`** (default `''`) goes in front of every `id` in the output and every fragment link to one (`[x](#id)`, a reference, footnotes, a toc), so a root rendered from text you do not trust cannot clash with the page's ids or point at them: with `idPrefix: 'c1-'`, `{#top}` emits `id="c1-top"` and `@top` emits `href="#c1-top"`. A link to another page's fragment is left alone.
 
 :::note
-The runtime emits with one more option, `cssom`. It writes Tern's own column alignment and grid columns as `data-t-align` and `data-t-cols` instead of `style`, and the runtime then sets them through the CSSOM, which a strict Content-Security-Policy allows ([CSP](publishing.html#csp)). The result needs the runtime to look right, so it is not for other callers: `tern.toHTML` and `tern build` write `style`.
+The runtime emits with one more option, `cssom`. It writes Luccet's own column alignment and grid columns as `data-t-align` and `data-t-cols` instead of `style`, and the runtime then sets them through the CSSOM, which a strict Content-Security-Policy allows ([CSP](publishing.html#csp)). The result needs the runtime to look right, so it is not for other callers: `luccet.toHTML` and `luccet build` write `style`.
 :::
 
-### `tern.toHTML` {#tohtml}
+### `luccet.toHTML` {#tohtml}
 
 :::syntax
 ```js
-tern.toHTML(source, opts) → string
+luccet.toHTML(source, opts) → string
 ```
 :::
 
 Parses, transforms and emits a note, and returns its HTML. It is synchronous, always: it returns the string, never a Promise. It is the same as:
 
 ```js
-const { ast } = tern.parse(source, opts);
-tern.transform(ast, opts);
-const html = tern.emit(ast, opts);
+const { ast } = luccet.parse(source, opts);
+luccet.transform(ast, opts);
+const html = luccet.emit(ast, opts);
 ```
 
-It takes every option: `schema`, `head`, `lang` and `maxDepth` for the first two steps, `positions` and `safe` for the emitter. Diagnostics are not returned; [`tern.check`](#check) gives them.
+It takes every option: `schema`, `head`, `lang` and `maxDepth` for the first two steps, `positions` and `safe` for the emitter. Diagnostics are not returned; [`luccet.check`](#check) gives them.
 
 ```js
 const schema = {
@@ -386,41 +386,41 @@ const schema = {
 };
 const src = ':::lemma[Zorn]\nEvery chain has a bound.\n:::';
 
-tern.toHTML(src, { schema, positions: false });
+luccet.toHTML(src, { schema, positions: false });
 // → '<div class="t-block lemma" data-t="lemma">'
 //   + '<div class="t-title"><span class="t-label">Lemma 1</span> Zorn</div>'
 //   + '<p>Every chain has a bound.</p>\n</div>\n'
-tern.toHTML(src, { schema, lang: 'fr', positions: false });
+luccet.toHTML(src, { schema, lang: 'fr', positions: false });
 // → '<div class="t-block lemma" data-t="lemma">'
 //   + '<div class="t-title"><span class="t-label">Lemme 1</span> Zorn</div>'
 //   + '<p>Every chain has a bound.</p>\n</div>\n'
-tern.toHTML(src, { schema, head: '<html lang="fr-CA">', positions: false });
+luccet.toHTML(src, { schema, head: '<html lang="fr-CA">', positions: false });
 // → the same, with "Lemme 1": the head's <html lang> picks the label
 ```
 
-**What the string holds.** It is the body of the note. The runtime puts it inside `<main class="tern">`, and `tern build` does the same in a static page. It leaves out:
+**What the string holds.** It is the body of the note. The runtime puts it inside `<main class="luccet">`, and `luccet build` does the same in a static page. It leaves out:
 
-- **the head:** `:::meta` writes nothing into the body. Its keys are in `ast.data.tern.meta`, and the runtime and `tern build` write them into the head. `:::use` writes nothing either: its entries are in `ast.data.tern.use`, add-ons the runtime loads and `tern build` writes as tags;
-- **typeset math:** a formula is its TeX inside `span.t-math`; the engine renders no math, so a [math add-on](addons.html#katex) typesets it in the browser (or `tern build --math` pre-renders it);
-- **behaviours:** `tern.define` and schema `dom` functions run on the DOM, in the browser.
+- **the head:** `:::meta` writes nothing into the body. Its keys are in `ast.data.luccet.meta`, and the runtime and `luccet build` write them into the head. `:::use` writes nothing either: its entries are in `ast.data.luccet.use`, add-ons the runtime loads and `luccet build` writes as tags;
+- **typeset math:** a formula is its TeX inside `span.t-math`; the engine renders no math, so a [math add-on](addons.html#katex) typesets it in the browser (or `luccet build --math` pre-renders it);
+- **behaviours:** `luccet.define` and schema `dom` functions run on the DOM, in the browser.
 
 ```js
-tern.toHTML(':::meta\ntitle: T\nauthor: me\n:::\n\nHi.');   // → '<p>Hi.</p>\n'
-tern.toHTML('');                                             // → ''
+luccet.toHTML(':::meta\ntitle: T\nauthor: me\n:::\n\nHi.');   // → '<p>Hi.</p>\n'
+luccet.toHTML('');                                             // → ''
 ```
 
-### `tern.check` {#check}
+### `luccet.check` {#check}
 
 :::syntax
 ```js
-tern.check(source, opts) → diagnostics
+luccet.check(source, opts) → diagnostics
 ```
 :::
 
 Returns every diagnostic of a note: the parser's and the transforms', in one array sorted by position (start, then end), then by code. It takes the options of `parse` and `transform`.
 
 ```js
-tern.check('# Notes\n\n:::note\nSee @nowhere and [^x].\n')
+luccet.check('# Notes\n\n:::note\nSee @nowhere and [^x].\n')
   .map((d) => `${d.position.start.line}:${d.position.start.column} ${d.severity} ${d.code}`);
 // → ['3:1 error block.unclosed', '4:5 warning ref.dangling', '4:18 warning footnote.undefined']
 ```
@@ -436,36 +436,36 @@ Each diagnostic is a plain object:
 | `hint` | how to fix it; absent when there is none |
 
 ```js
-tern.check('Hi @you.');
+luccet.check('Hi @you.');
 // → [{ code: 'ref.dangling', severity: 'warning',
 //      message: 'no id in this note has this name, so the reference stays text',
 //      position: { start: { line: 1, column: 4, offset: 3 }, end: { line: 1, column: 8, offset: 7 } },
 //      hint: 'if it is not a reference, write \\@you' }]
 ```
 
-`tern.check` gives the parse and transform codes, plus `addon.failed` for a [registered transform that throws](#registering-a-transform). The other runtime codes (`doc.quirks`, `script.document-write` …) arise only in a browser and reach [`tern.diagnostics`](#diagnostics). The command line adds `head.script`, `addon.remote` for a remote add-on it does not load, and `addon.failed` for an add-on it cannot load or run ([Command line](tools.html#check)).
+`luccet.check` gives the parse and transform codes, plus `addon.failed` for a [registered transform that throws](#registering-a-transform). The other runtime codes (`doc.quirks`, `script.document-write` …) arise only in a browser and reach [`luccet.diagnostics`](#diagnostics). The command line adds `head.script`, `addon.remote` for a remote add-on it does not load, and `addon.failed` for an add-on it cannot load or run ([Command line](tools.html#check)).
 
-### `tern.visit` {#visit}
+### `luccet.visit` {#visit}
 
 :::syntax
 ```js
-tern.visit(tree, type?, fn)      fn(node, index, parent) → false skips the children
+luccet.visit(tree, type?, fn)      fn(node, index, parent) → false skips the children
 ```
 :::
 
-Walks a tree in document order (pre-order: a node before its children) and calls `fn` on each node, or on each node of `type`. It is the subset of `unist-util-visit` that Tern needs.
+Walks a tree in document order (pre-order: a node before its children) and calls `fn` on each node, or on each node of `type`. It is the subset of `unist-util-visit` that Luccet needs.
 
 ```js
-const { ast } = tern.parse('# A\n\n## B\n\n> ## Quoted\n\nText with `code`.');
+const { ast } = luccet.parse('# A\n\n## B\n\n> ## Quoted\n\nText with `code`.');
 
 const heads = [];
-tern.visit(ast, 'heading', (node, index, parent) => {
+luccet.visit(ast, 'heading', (node, index, parent) => {
   heads.push(`${node.depth} ${parent.type}[${index}]`);
 });
 heads;   // → ['1 root[0]', '2 root[1]', '2 blockquote[0]']
 
 const types = [];
-tern.visit(ast, (node) => {
+luccet.visit(ast, (node) => {
   types.push(node.type);
   if (node.type === 'blockquote') return false;
 });
@@ -476,22 +476,22 @@ types;
 
 - `fn` gets the node, its index in its parent's `children`, and the parent. For the tree itself, `index` and `parent` are `null`.
 - Returning `false` skips the node's children. With a `type`, only the nodes of that type are passed to `fn`, and the walk still goes through the others.
-- The walk follows `children` only. Inline content stored under `data.tern` is not visited: a titled fence's title (`code.data.tern.title`), an image's caption (`image.data.tern.caption`) and a toc's entries (`data.tern.toc`).
+- The walk follows `children` only. Inline content stored under `data.luccet` is not visited: a titled fence's title (`code.data.luccet.title`), an image's caption (`image.data.luccet.caption`) and a toc's entries (`data.luccet.toc`).
 
-### `tern.outline` {#outline}
+### `luccet.outline` {#outline}
 
 :::syntax
 ```js
-tern.outline(ast) → { headings, blocks, refs, math, tables, raw, inline }
+luccet.outline(ast) → { headings, blocks, refs, math, tables, raw, inline }
 ```
 :::
 
-Returns a digest of a note for editors: one walk over the AST, so an editor never needs a second grammar. The language server sends it after each analysis as the `tern/outline` notification, with file lines ([Editors](tools.html#outline)).
+Returns a digest of a note for editors: one walk over the AST, so an editor never needs a second grammar. The language server sends it after each analysis as the `luccet/outline` notification, with file lines ([Editors](tools.html#outline)).
 
 ```js
-const { ast } = tern.parse('# Notes\n\n:::note[Careful]{#warn}\nSee @warn and $x^2$.\n:::\n');
-tern.transform(ast);
-tern.outline(ast);
+const { ast } = luccet.parse('# Notes\n\n:::note[Careful]{#warn}\nSee @warn and $x^2$.\n:::\n');
+luccet.transform(ast);
+luccet.outline(ast);
 // → { headings: [ { line: 1, depth: 1, id: 'notes', text: 'Notes' } ],
 //     blocks: [ { line: 3, endLine: 5, kind: 'container', name: 'note',
 //                 id: 'warn', title: 'Careful', colons: 3 } ],
@@ -514,24 +514,24 @@ tern.outline(ast);
 - A field the tree does not have is left out. On a parse AST there are no slugs, labels, numbers, reference texts or `resolved`; on a transformed AST they are there.
 - Nodes without a position are skipped: the text the transforms copy into references and toc entries is not in the source.
 
-### `tern.search` {#search}
+### `luccet.search` {#search}
 
 :::syntax
 ```js
-tern.search.records(ast, { url, title }) → entries
-tern.search.index(entries) → index
-tern.search.query(index, text, { limit }) → [{ entry, score, matched }]
-tern.search.snippet(text, matched, { width }) → { text, marks }
-tern.search.title(head, ast) → string
-tern.search.describe(head, ast) → { title, description, meta, headings, links }
-tern.search.format → 1
+luccet.search.records(ast, { url, title }) → entries
+luccet.search.index(entries) → index
+luccet.search.query(index, text, { limit }) → [{ entry, score, matched }]
+luccet.search.snippet(text, matched, { width }) → { text, marks }
+luccet.search.title(head, ast) → string
+luccet.search.describe(head, ast) → { title, description, meta, headings, links }
+luccet.search.format → 1
 ```
 :::
 
-The pipeline behind the [search add-on](addons.html#search) and [`tern search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
+The pipeline behind the [search add-on](addons.html#search) and [`luccet search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
 
 ```js
-const { ast } = tern.parse('# Triangles {#tri}
+const { ast } = luccet.parse('# Triangles {#tri}
 
 The hypotenuse: $c=\sqrt{a^2+b^2}$.
 
@@ -539,43 +539,43 @@ The hypotenuse: $c=\sqrt{a^2+b^2}$.
 Prove Pythagoras.
 :::
 ');
-tern.transform(ast);
-const entries = tern.search.records(ast, { url: 'alpha.html', title: 'Alpha' });
+luccet.transform(ast);
+const entries = luccet.search.records(ast, { url: 'alpha.html', title: 'Alpha' });
 // → [ { url: 'alpha.html', id: 'tri', line: 1, endLine: 7, kind: 'heading', label: 'Triangles', title: '', text: 'The hypotenuse: c=\sqrt{a^2+b^2}.' },
 //     { url: 'alpha.html', id: 'ex-1', line: 5, endLine: 7, kind: 'note', label: 'note', title: 'I.1', text: 'Prove Pythagoras.' } ]
-const index = tern.search.index(entries);
-tern.search.query(index, 'pythag');
+const index = luccet.search.index(entries);
+luccet.search.query(index, 'pythag');
 // → [ { entry: entries[1], score: 0.9…, matched: ['pythagora'] } ]
-tern.search.snippet(entries[1].text, ['pythagora']);
+luccet.search.snippet(entries[1].text, ['pythagora']);
 // → { text: 'Prove Pythagoras.', marks: [[6, 16]] }
 ```
 
 - **`records(ast, {url, title})`** splits a transformed AST into entries: one per heading's section and one per named block with an id. A block's text is its own, not its section's; a block without an id gives its text to the entry it is in. `kind` is `'page'` (the text before the first heading), `'heading'`, or the block's name; `label` is the heading's text, the page's title, or the block's label ("Exercise 3"); `title` a block's bracket title. `line` and `endLine` are note lines. An entry with nothing to search is left out.
-- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`tern index`](tools.html#index-files) writes as `search.json`. Its words are `tokens`'s, whose folding, segmentation and stemming change only with `format`, in a major release, so an index serves every reader of its format. A word in an entry's label or title weighs three times one in its text.
+- **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`luccet index`](tools.html#index-files) writes as `search.json`. Its words are `tokens`'s, whose folding, segmentation and stemming change only with `format`, in a major release, so an index serves every reader of its format. A word in an entry's label or title weighs three times one in its text.
 - **`query(index, text, {limit})`** ranks the entries BM25-style for the words of `text`, best first, at most `limit` (20; `Infinity` for all). `matched` lists the stems the hit matched, for `snippet`.
 - **`snippet(text, matched, {width})`** cuts a passage of about `width` characters (160) around the first matching word, `…` where it is cut, with the `[start, end)` ranges of every matching word in it.
 - **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.
-- **`describe(head, ast)`** is what a catalogue holds for a note ([`tern index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
+- **`describe(head, ast)`** is what a catalogue holds for a note ([`luccet index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
 - **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
 - **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share.
-- **`format`** is the number of the index's format, 1: `tern index` writes it into `search.json`, and the [search add-on](addons.html#search) and [`tern search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
+- **`format`** is the number of the index's format, 1: `luccet index` writes it into `search.json`, and the [search add-on](addons.html#search) and [`luccet search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
 
-### `tern.glossary` {#glossary}
+### `luccet.glossary` {#glossary}
 
 :::syntax
 ```js
-tern.glossary.terms(ast, { blocks }) → [{ term, key, slug, id, line, how, definition }]
-tern.glossary.uses(ast) → [{ term, key, line }]
-tern.glossary.key(text) → string
-tern.glossary.slug(text) → string
-tern.glossary.format → 1
+luccet.glossary.terms(ast, { blocks }) → [{ term, key, slug, id, line, how, definition }]
+luccet.glossary.uses(ast) → [{ term, key, line }]
+luccet.glossary.key(text) → string
+luccet.glossary.slug(text) → string
+luccet.glossary.format → 1
 ```
 :::
 
-The terms a note defines, for the [glossary add-on](addons.html#glossary) and [`tern index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
+The terms a note defines, for the [glossary add-on](addons.html#glossary) and [`luccet index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
 
 ```js
-const { ast } = tern.parse('# Terms {#terms}
+const { ast } = luccet.parse('# Terms {#terms}
 
 A :dfn[truism] is a claim so obviously true that it goes without saying.
 
@@ -585,56 +585,56 @@ The $v$ with $T(v) = 0$.
 
 Every :term[truism] links.
 ');
-tern.transform(ast);
-tern.glossary.terms(ast);
+luccet.transform(ast);
+luccet.glossary.terms(ast);
 // → [ { term: 'truism', key: 'truism', slug: 'glossary-truism', id: 'terms', line: 3, how: 'dfn', definition: [ { type: 'paragraph', children: [ … ] } ] },
 //     { term: 'Kernel', key: 'kernel', slug: 'glossary-kernel', id: 'k', line: 5, how: 'definition', definition: [ { type: 'paragraph', children: [ … ] } ] } ]
-tern.glossary.uses(ast);
+luccet.glossary.uses(ast);
 // → [ { term: 'truism', key: 'truism', line: 9 } ]
 ```
 
-- **`terms(ast, {blocks})`** walks a transformed tree and returns every term in note order. `term` is the text as written, or the `title=` of a `dfn`, which HTML takes as the term's canonical form (`:dfn[truisms]{title=truism}` defines "truism"). `key` is the term folded as [search](#search) folds words, one form for `Café` and `cafe`; `slug` is an id for the term on a glossary page, `glossary-` and the key with hyphens. `id` is the anchor nearest above the term: its own, else its block's, else its section's heading's, `''` at the top of the note. `how` is `'dfn'` or the block's name. `definition` holds the definition's nodes, positions removed, for `tern.emit` on another page: a `dfn`'s paragraph (the paragraph after its heading when it stands in one; its cell, as a paragraph, in a table), a block's body without its title. A `dfn` inside a block that names the block's own term is not a second term. `blocks` lists the names of the blocks that define, `['definition']` by default; a block without a title defines nothing.
+- **`terms(ast, {blocks})`** walks a transformed tree and returns every term in note order. `term` is the text as written, or the `title=` of a `dfn`, which HTML takes as the term's canonical form (`:dfn[truisms]{title=truism}` defines "truism"). `key` is the term folded as [search](#search) folds words, one form for `Café` and `cafe`; `slug` is an id for the term on a glossary page, `glossary-` and the key with hyphens. `id` is the anchor nearest above the term: its own, else its block's, else its section's heading's, `''` at the top of the note. `how` is `'dfn'` or the block's name. `definition` holds the definition's nodes, positions removed, for `luccet.emit` on another page: a `dfn`'s paragraph (the paragraph after its heading when it stands in one; its cell, as a paragraph, in a table), a block's body without its title. A `dfn` inside a block that names the block's own term is not a second term. `blocks` lists the names of the blocks that define, `['definition']` by default; a block without a title defines nothing.
 - **`uses(ast)`** lists every `:term[…]`, with `title=` as the term, so a tool can say which has no definition.
 - **`key(text)`** and **`slug(text)`** are the folding and the id, for an add-on that links a use to a glossary page's entry.
-- **`format`** is the number of `glossary.json`'s format, 1, as [`tern.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](addons.html#glossary) takes a file of its format whatever version wrote it.
+- **`format`** is the number of `glossary.json`'s format, 1, as [`luccet.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](addons.html#glossary) takes a file of its format whatever version wrote it.
 
 ### The registry {#registry}
 
 :::syntax
 ```js
-tern.block(name, spec) → entry      tern.leaf(name, spec) → entry      tern.inline(name, spec) → entry
-tern.schema                         // → { block: {…}, leaf: {…}, inline: {…} }
+luccet.block(name, spec) → entry      luccet.leaf(name, spec) → entry      luccet.inline(name, spec) → entry
+luccet.schema                         // → { block: {…}, leaf: {…}, inline: {…} }
 ```
 :::
 
-`tern.schema` is the vocabulary: which names get which element, label, counter and behaviour. It is plain data, keyed by level and name. `tern.block` declares a container name (`:::name`), `tern.leaf` a leaf (`::name`) and `tern.inline` an inline element (`:name[…]`). The core declares none; add-ons and notes declare their own ([Vocabulary and behaviour](schema.html#top)).
+`luccet.schema` is the vocabulary: which names get which element, label, counter and behaviour. It is plain data, keyed by level and name. `luccet.block` declares a container name (`:::name`), `luccet.leaf` a leaf (`::name`) and `luccet.inline` an inline element (`:name[…]`). The core declares none; add-ons and notes declare their own ([Vocabulary and behaviour](schema.html#top)).
 
 ```js
-const entry = tern.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' });
+const entry = luccet.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' });
 
-entry === tern.schema.block.theorem;   // → true
-tern.schema;
+entry === luccet.schema.block.theorem;   // → true
+luccet.schema;
 // → { block: { theorem: { tag: 'section', counter: 'theorem', label: 'Theorem' } },
 //     leaf: {}, inline: {} }
-tern.toHTML(':::theorem[Rank–nullity]{#rn}\n…\n:::\n\nBy @rn.', { positions: false });
+luccet.toHTML(':::theorem[Rank–nullity]{#rn}\n…\n:::\n\nBy @rn.', { positions: false });
 // → '<section id="rn" class="t-block theorem" data-t="theorem">'
 //   + '<div class="t-title"><span class="t-label">Theorem 1</span> Rank–nullity</div>'
 //   + '<p>…</p>\n</section>\n'
 //   + '<p>By <a class="t-ref" href="#rn">Theorem 1</a>.</p>\n'
 ```
 
-- **The entry** is a shallow copy of `spec`, stored at `tern.schema[level][name]` and returned. Declaring a name again replaces its entry.
+- **The entry** is a shallow copy of `spec`, stored at `luccet.schema[level][name]` and returned. Declaring a name again replaces its entry.
 - **Names** are case-sensitive and must be a whole NAME: a letter, then letters, marks, digits, `_` and `-`.
 - **Errors**, thrown as `TypeError`:
-  - a name that is not a NAME: `tern.leaf: "2col" is not an element name`;
-  - a reserved name: `tern.block: "main" is reserved`. The reserved names are `base body head html link main meta noscript script style template title`, `tern`, `end` and any `t-…` name ([reserved names](elements.html#reserved)); `tern.block` also refuses `macros`, the other core container;
-  - a spec that is not an object: `tern.inline("kbd", spec): spec must be an object`.
+  - a name that is not a NAME: `luccet.leaf: "2col" is not an element name`;
+  - a reserved name: `luccet.block: "main" is reserved`. The reserved names are `base body head html link main meta noscript script style template title`, `luccet`, `end` and any `t-…` name ([reserved names](elements.html#reserved)); `luccet.block` also refuses `macros`, the other core container;
+  - a spec that is not an object: `luccet.inline("kbd", spec): spec must be an object`.
 - **Who reads it.** Every engine call without `opts.schema` uses the registry. A call with `opts.schema` uses that object instead and ignores the registry entirely.
-- **`strict`.** A schema with `strict: true` reports [`name.unknown`](diagnostics.html#name-unknown) for a name that has no entry and names no element. A declared name never gets it, with or without a `tag`. In a browser, a note turns it on for its registry with `strict: true` in [`window.TERN.schema`](#config), which wins over an add-on's setting either way:
+- **`strict`.** A schema with `strict: true` reports [`name.unknown`](diagnostics.html#name-unknown) for a name that has no entry and names no element. A declared name never gets it, with or without a `tag`. In a browser, a note turns it on for its registry with `strict: true` in [`window.LUCCET.schema`](#config), which wins over an add-on's setting either way:
 
 ```js
-const strict = { block: tern.schema.block, leaf: {}, inline: {}, strict: true };
-tern.check(':::theorm\nx\n:::', { schema: strict }).map((d) => `${d.severity} ${d.code}: ${d.message}`);
+const strict = { block: luccet.schema.block, leaf: {}, inline: {}, strict: true };
+luccet.check(':::theorm\nx\n:::', { schema: strict }).map((d) => `${d.severity} ${d.code}: ${d.message}`);
 // → ['info name.unknown: `theorm` has no schema entry and names no element, so it is a div']
 ```
 
@@ -654,50 +654,50 @@ The fields of a spec, all optional ([Schema fields](schema.html#fields) has each
 | `body` | `'blocks'` (the default) or `'raw'`, a verbatim body; read by the parser |
 | `end` | a mark at the end of a container, such as `'∎'` |
 | `transform` | `'toc'`, a built-in filler, with `depth` (`'2-3'` by default) |
-| `css` | a stylesheet, added with [`tern.style`](#style) when the entry is declared in a browser |
-| `dom` | a DOM behaviour, run like a [`tern.define`](#define) function, before them |
+| `css` | a stylesheet, added with [`luccet.style`](#style) when the entry is declared in a browser |
+| `dom` | a DOM behaviour, run like a [`luccet.define`](#define) function, before them |
 
 Under node the entry is stored all the same, `css` and `dom` included, but neither does anything: there is no page.
 
-#### `tern.transforms` {#tern-transforms}
+#### `luccet.transforms` {#luccet-transforms}
 
 A new array, on each read, of the transform names in the order they run: the nine built-in ones and any you [registered](#registering-a-transform).
 
 ```js
-tern.transforms;
+luccet.transforms;
 // → ['figures', 'tables', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']
 ```
 
-#### `tern.css` {#tern-css}
+#### `luccet.css` {#luccet-css}
 
-The base stylesheet, as a string: colours as `--t-*` custom properties for light and dark, the typography, and the rules for Tern's classes (`t-block`, `t-title`, `t-math` …). The file `tern.css` holds the same rules after a two-line header comment. The runtime inserts it as `<style id="tern-style">` unless the head links `tern.css` or the tag names one with `data-css` ([CSP](publishing.html#csp)).
+The base stylesheet, as a string: colours as `--t-*` custom properties for light and dark, the typography, and the rules for Luccet's classes (`t-block`, `t-title`, `t-math` …). The file `luccet.css` holds the same rules after a two-line header comment. The runtime inserts it as `<style id="luccet-style">` unless the head links `luccet.css` or the tag names one with `data-css` ([CSP](publishing.html#csp)).
 
 ```js
-tern.css.slice(0, 26);   // → ':root {\n  color-scheme: li'
+luccet.css.slice(0, 26);   // → ':root {\n  color-scheme: li'
 ```
 
-#### `tern.version` {#tern-version}
+#### `luccet.version` {#luccet-version}
 
-The version of this tern.js, as a string: `'1.1.0'`. A script can check it to tell whether `window.tern` is Tern's object, as tern.js itself does before taking over.
+The version of this luccet.js, as a string: `'1.1.1'`. A script can check it to tell whether `window.luccet` is Luccet's object, as luccet.js itself does before taking over.
 
 ## The runtime {#runtime}
 
 The runtime is the browser half: it renders the note in the page, runs behaviours, and reports what went wrong; a [math add-on](addons.html#katex) in `data-use` typesets the math, as the engine renders none itself. [The lifecycle](#lifecycle) gives the order of everything it does. Its API is on the same object as the engine.
 
-### `tern.define` and `tern.undefine` {#define}
+### `luccet.define` and `luccet.undefine` {#define}
 
 :::syntax
 ```js
-tern.define(name, fn) → remove      fn(element), with this = element
-tern.undefine(name)
+luccet.define(name, fn) → remove      fn(element), with this = element
+luccet.undefine(name)
 ```
 :::
 
-Gives the elements named `name` a DOM behaviour. `fn` runs once on each element whose `data-t` is `name`: the elements of the note, and any rendered later with [`tern.render`](#render).
+Gives the elements named `name` a DOM behaviour. `fn` runs once on each element whose `data-t` is `name`: the elements of the note, and any rendered later with [`luccet.render`](#render).
 
 Every named element carries its name in `data-t`: containers, leaves and inline elements, whatever element they resolve to. A fence carries `data-t="code"`, so a syntax highlighter is a behaviour on `code`. A bare span `[text]{…}` has none.
 
-````tern {.live}
+````luccet {.live}
 :::box
 A container.
 :::
@@ -712,31 +712,31 @@ let x = 1;
 ````
 
 ```js
-tern.define('chart', (el) => {
+luccet.define('chart', (el) => {
   fetch(el.dataset.src)
     .then((r) => r.text())
     .then((csv) => { el.textContent = `${csv.split('\n').length} rows`; });
 });
 ```
 
-- **Once per element and function.** Each element gets each function once. The runtime remembers which elements a function has seen, so a later [`tern.render()`](#render) does not run it again on them.
+- **Once per element and function.** Each element gets each function once. The runtime remembers which elements a function has seen, so a later [`luccet.render()`](#render) does not run it again on them.
 - **Several per name.** `define` is additive: every function registered for a name runs, in registration order.
 - **Schema `dom` first.** A schema entry's `dom` function runs on the element before the `define` functions. For a `t-block` element the runtime looks the name up among containers first, then leaves, then inline elements; for any other element, leaves, then inline elements, then containers. So a fence finds a container entry named `code`.
 - **Document order.** Elements are visited in document order, and each gets all its functions before the next element.
 - **Before math.** Behaviours run after the note's scripts and before the [`render`](#on) event, and math is typeset after them. A formula is still its TeX source, in `span.t-math` with a `data-tex` attribute. A behaviour that needs typeset math listens for [`math`](#on).
 - **Late definitions.** A function defined after the behaviours ran is applied at once to the matching elements already rendered.
-- **Errors.** An exception in `fn` is caught and logged as "tern: the "NAME" behaviour failed"; the other behaviours still run.
+- **Errors.** An exception in `fn` is caught and logged as "luccet: the "NAME" behaviour failed"; the other behaviours still run.
 - **The remover** that `define` returns removes that one function: elements rendered later do not get it.
-- **`tern.undefine(name)`** removes every function defined for `name`. It does not remove a schema `dom`, and it does not undo what a behaviour already did to an element.
+- **`luccet.undefine(name)`** removes every function defined for `name`. It does not remove a schema `dom`, and it does not undo what a behaviour already did to an element.
 - **Errors in the call.** A `name` that is not a non-empty string, or an `fn` that is not a function, throws a `TypeError`.
 
 Behaviours key on `data-t` and on the class, never on the element: the same name can become a `section` in one note and a `div` in another ([output contract](elements.html#output-contract)).
 
-### `tern.on` {#on}
+### `luccet.on` {#on}
 
 :::syntax
 ```js
-tern.on(event, fn) → remove      event: 'render' | 'math' | 'ready' | 'diagnostic'
+luccet.on(event, fn) → remove      event: 'render' | 'math' | 'ready' | 'diagnostic'
 ```
 :::
 
@@ -744,49 +744,49 @@ Listens for one of the runtime's four events. There are no others.
 
 | Event | When | `fn` gets |
 |---|---|---|
-| `render` | the note is in the page, its scripts have run and its behaviours have run; math is not typeset yet | the root, `main.tern`, and `{ safe }`: true for a root rendered with `safe` |
+| `render` | the note is in the page, its scripts have run and its behaviours have run; math is not typeset yet | the root, `main.luccet`, and `{ safe }`: true for a root rendered with `safe` |
 | `math` | the formulas in view are typeset; again for a `<details>`, after the formulas inside it are typeset when it opens | the root, or the `<details>` element, and `{ safe }` |
-| `ready` | everything is done, once: math, the scroll to the URL's fragment, the console group | the root, `main.tern` |
+| `ready` | everything is done, once: math, the scroll to the URL's fragment, the console group | the root, `main.luccet` |
 | `diagnostic` | the runtime reports a problem of its own: a failed add-on, a note script's `document.write` … Never for the diagnostics of the parse and the transforms, a throwing transform's `addon.failed` included | the [diagnostic](#check) |
 
-`render` and `math` fire again for each [`tern.render`](#render) call, with that call's root. `ready` fires once per page.
+`render` and `math` fire again for each [`luccet.render`](#render) call, with that call's root. `ready` fires once per page.
 
 - **`render` is awaited before `math`.** A `render` listener may return a promise; the runtime awaits all `render` listeners (which run concurrently) before it fires `math`. A [math add-on](addons.html#katex) typesets the formulas in its `render` listener and returns a promise, which is why `math` still means "the formulas are typeset". A synchronous listener is not held up by an async one.
 
 For a note with one behaviour, a listener on each event logs:
 
 ```js
-tern.define('probe', (el) => log.push(`define ${el.id}`));
-tern.on('render', (root) => log.push(`render ${root.localName}.${root.className}`));
-tern.on('math', (root) => log.push(`math ${root.localName}`));
-tern.on('ready', (root) => log.push(`ready ${root.localName}`));
-tern.ready.then(() => log.push('tern.ready'));
+luccet.define('probe', (el) => log.push(`define ${el.id}`));
+luccet.on('render', (root) => log.push(`render ${root.localName}.${root.className}`));
+luccet.on('math', (root) => log.push(`math ${root.localName}`));
+luccet.on('ready', (root) => log.push(`ready ${root.localName}`));
+luccet.ready.then(() => log.push('luccet.ready'));
 
-// log → ['define p1', 'render main.tern', 'math main', 'ready main', 'tern.ready']
+// log → ['define p1', 'render main.luccet', 'math main', 'ready main', 'luccet.ready']
 ```
 
-- **Where to listen.** Listeners must be registered before the event. An add-on in `data-use` and a script in the note both run before `render`. A head script before the tern.js line runs before `tern` exists.
-- **`ready` after the fact.** A `ready` listener registered after `ready` never runs. Use [`tern.ready`](#ready), a Promise, which works at any time.
-- **Errors.** An exception in a listener is caught and logged as "tern: a "EVENT" listener failed"; the other listeners still run.
+- **Where to listen.** Listeners must be registered before the event. An add-on in `data-use` and a script in the note both run before `render`. A head script before the luccet.js line runs before `luccet` exists.
+- **`ready` after the fact.** A `ready` listener registered after `ready` never runs. Use [`luccet.ready`](#ready), a Promise, which works at any time.
+- **Errors.** An exception in a listener is caught and logged as "luccet: a "EVENT" listener failed"; the other listeners still run.
 - **The remover** that `on` returns removes that listener.
-- **Errors in the call.** An unknown event throws `TypeError: tern.on: "load" is not one of render, math, ready, diagnostic`; an `fn` that is not a function throws a `TypeError` too.
+- **Errors in the call.** An unknown event throws `TypeError: luccet.on: "load" is not one of render, math, ready, diagnostic`; an `fn` that is not a function throws a `TypeError` too.
 
-### `tern.render` {#render}
+### `luccet.render` {#render}
 
 :::syntax
 ```js
-tern.render(root = main.tern, source?, { safe = false, idPrefix = '', scripts = true }?) → Promise<diagnostics>
+luccet.render(root = main.luccet, source?, { safe = false, idPrefix = '', scripts = true }?) → Promise<diagnostics>
 ```
 :::
 
 Renders, or re-renders, a root element.
 
 - **Without a source**, it runs behaviours on the elements under `root` that have not had them, and typesets the formulas not yet typeset. A second call changes nothing. It fires `render` and `math` with `root`.
-- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `tern.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without a source. What the previous render's scripts registered on `tern.define`, `tern.on` and `tern.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.tern`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
-- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `tern.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `tern.define` registered afterwards, a later `tern.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument, and the math add-ons that come with Tern typeset such a root with KaTeX's `trust` off whatever the page sets, with a copy of the macro table, ignoring its `:::macros`. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`tern.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `tern.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
+- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `luccet.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without a source. What the previous render's scripts registered on `luccet.define`, `luccet.on` and `luccet.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.luccet`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
+- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument, and the math add-ons that come with Luccet typeset such a root with KaTeX's `trust` off whatever the page sets, with a copy of the macro table, ignoring its `:::macros`. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
 - **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
-- **The page's own root.** When `root` is the page's `main.tern`, the new diagnostics replace those in [`tern.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `tern.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
-- **`root`** defaults to the page's `main.tern`. Anything other than an element rejects the Promise with `TypeError: tern.render(root, source): root must be an element`.
+- **The page's own root.** When `root` is the page's `main.luccet`, the new diagnostics replace those in [`luccet.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `luccet.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
+- **`root`** defaults to the page's `main.luccet`. Anything other than an element rejects the Promise with `TypeError: luccet.render(root, source): root must be an element`.
 - **`ready`** does not fire again.
 
 A live preview re-renders an element on every edit:
@@ -796,60 +796,60 @@ const preview = document.getElementById('preview');
 const input = document.getElementById('source');
 
 input.addEventListener('input', async () => {
-  const problems = await tern.render(preview, input.value);
+  const problems = await luccet.render(preview, input.value);
   preview.dataset.problems = problems.length;
 });
 ```
 
 #### Rendering into your own page {#render-into-your-page}
 
-A page that is not a note can load tern.js in any way the runtime does not start from: `defer`, `async`, a module, or a script it inserts itself. Then `tern.render(element, source)` renders a note into any element of the page.
+A page that is not a note can load luccet.js in any way the runtime does not start from: `defer`, `async`, a module, or a script it inserts itself. Then `luccet.render(element, source)` renders a note into any element of the page.
 
-- **Styles.** The runtime adds no stylesheet. Link `tern.css` yourself, and give the element the class `tern`: most of its rules apply inside `.tern`. Its `html` and `body` rules (colours, font, margins) style the whole page, so leave them to your own CSS where they clash.
-- **Configuration.** `window.TERN` and `data-*` are not read, so [`tern.config`](#config) stays `{use: {}}`. Set what you need on it before the first render that needs it: `tern.config.lang` for labels, and `tern.config.use.katex` for the [KaTeX add-on's options](addons.html#katex) before the first render with math.
-- **Math.** The engine renders no math. To typeset it, load a math add-on script yourself — `addons/katex.js` or `addons/mathml.js` — which registers a `render` listener and reads its options from `tern.config.use.katex`. Without one, each formula stays as its TeX.
-- **`tern.ready`** never settles, and `tern.diagnostics` stays empty: use the diagnostics `tern.render` resolves to, and listen for [`diagnostic`](#on) for the ones found later, such as a note script's `document.write`.
+- **Styles.** The runtime adds no stylesheet. Link `luccet.css` yourself, and give the element the class `luccet`: most of its rules apply inside `.luccet`. Its `html` and `body` rules (colours, font, margins) style the whole page, so leave them to your own CSS where they clash.
+- **Configuration.** `window.LUCCET` and `data-*` are not read, so [`luccet.config`](#config) stays `{use: {}}`. Set what you need on it before the first render that needs it: `luccet.config.lang` for labels, and `luccet.config.use.katex` for the [KaTeX add-on's options](addons.html#katex) before the first render with math.
+- **Math.** The engine renders no math. To typeset it, load a math add-on script yourself — `addons/katex.js` or `addons/mathml.js` — which registers a `render` listener and reads its options from `luccet.config.use.katex`. Without one, each formula stays as its TeX.
+- **`luccet.ready`** never settles, and `luccet.diagnostics` stays empty: use the diagnostics `luccet.render` resolves to, and listen for [`diagnostic`](#on) for the ones found later, such as a note script's `document.write`.
 
 ```html
-<link rel="stylesheet" href="tern.css">
-<div class="tern" id="out"></div>
-<script defer src="tern.js"></script>
+<link rel="stylesheet" href="luccet.css">
+<div class="luccet" id="out"></div>
+<script defer src="luccet.js"></script>
 <script type="module">
-  tern.config.lang = 'de';
-  tern.block('lemma', { counter: 'lemma', label: { en: 'Lemma', de: 'Hilfssatz' } });
+  luccet.config.lang = 'de';
+  luccet.block('lemma', { counter: 'lemma', label: { en: 'Lemma', de: 'Hilfssatz' } });
   const out = document.getElementById('out');
-  const problems = await tern.render(out, ':::lemma\nEvery chain has a bound.\n:::');
+  const problems = await luccet.render(out, ':::lemma\nEvery chain has a bound.\n:::');
 </script>
 ```
 
-With `defer`, tern.js still warns once in the console that the note was not rendered; inserting the script yourself does not.
+With `defer`, luccet.js still warns once in the console that the note was not rendered; inserting the script yourself does not.
 
-### `tern.ready` {#ready}
+### `luccet.ready` {#ready}
 
 :::syntax
 ```js
-tern.ready → Promise<undefined>
+luccet.ready → Promise<undefined>
 ```
 :::
 
-A Promise that resolves, with no value, right after the `ready` listeners have run. It never rejects. Unlike `tern.on('ready')`, it works whenever you await it, before or after the event.
+A Promise that resolves, with no value, right after the `ready` listeners have run. It never rejects. Unlike `luccet.on('ready')`, it works whenever you await it, before or after the event.
 
 ```js
-await tern.ready;
-document.querySelectorAll('main.tern .t-math .katex').length;   // the typeset formulas
+await luccet.ready;
+document.querySelectorAll('main.luccet .t-math .katex').length;   // the typeset formulas
 ```
 
 It never settles under node, nor on a page where the runtime did not start ([When nothing starts](#no-start)).
 
-### `tern.diagnostics` {#diagnostics}
+### `luccet.diagnostics` {#diagnostics}
 
 The page's diagnostics, in one array that stays the same object for the life of the page: hold a reference and it stays current.
 
 - **At mount** it holds, sorted by position:
   - the runtime diagnostics found before the mount, at line 0, which therefore come first: [`doc.quirks`](diagnostics.html#doc-quirks), and [`addon.failed`](diagnostics.html#addon-failed) for an add-on that did not load or threw while it ran;
-  - the note's parse and transform diagnostics, as [`tern.check`](#check) returns them, including `addon.failed` for a registered transform that threw.
-- **Later** runtime diagnostics are appended as they happen: [`script.document-write`](diagnostics.html#script-document-write) and [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) while the note's scripts run. (The engine renders no math, so a math add-on reports a formula it cannot typeset to the console, not here.) They concern the page's note: one about an element that another `tern.render(root, source)` call rendered only fires the event. Each diagnostic the runtime reports itself, early or late, also fires the [`diagnostic`](#on) event; those of the parse and the transforms do not.
-- **`tern.render(main, source)`** replaces the contents with the new note's diagnostics, keeping the line-0 ones.
+  - the note's parse and transform diagnostics, as [`luccet.check`](#check) returns them, including `addon.failed` for a registered transform that threw.
+- **Later** runtime diagnostics are appended as they happen: [`script.document-write`](diagnostics.html#script-document-write) and [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) while the note's scripts run. (The engine renders no math, so a math add-on reports a formula it cannot typeset to the console, not here.) They concern the page's note: one about an element that another `luccet.render(root, source)` call rendered only fires the event. Each diagnostic the runtime reports itself, early or late, also fires the [`diagnostic`](#on) event; those of the parse and the transforms do not.
+- **`luccet.render(main, source)`** replaces the contents with the new note's diagnostics, keeping the line-0 ones.
 - **On a built page** it holds the build's diagnostics, read from the page, then an `addon.failed` for each add-on script that failed to load or threw while it ran.
 
 Each entry has the [shape of a diagnostic](#check). The runtime's four codes are all errors:
@@ -861,46 +861,46 @@ Each entry has the [shape of a diagnostic](#check). The runtime's four codes are
 | [`script.document-write`](diagnostics.html#script-document-write) | the `<script` tag | a note script calls `document.write` or `writeln` |
 | [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) | the `<script` tag | a note script listens for `DOMContentLoaded` |
 
-Line 0, column 0 is the line before the note's first: the problem is with the tern.js line or the head, not with a line of the note.
+Line 0, column 0 is the line before the note's first: the problem is with the luccet.js line or the head, not with a line of the note.
 
 The same diagnostics reach the console and, where the author works, the page ([Console and panel](diagnostics.html#console-and-panel)):
 
-- **The console.** One collapsed group, "tern: N problems", is printed at `ready`, even when N is 0. Its first line gives the time each stage took. Each diagnostic in it is a `console.warn` (error or warning) or a `console.info`, never a `console.error`. A diagnostic that arrives after `ready` gets a `console.warn` line of its own.
-- **The panel.** An `<aside class="t-diagnostics" role="status">` after `main`, listing each diagnostic as "line L:C (file line F)" with its hint. It is shown on `file:` pages, on `localhost`, `127.0.0.1` and `[::1]`, and on any page with `data-diagnostics` ([`tern.config`](#config)); `data-quiet` turns it off everywhere. It appears only when there is something to list, and it is hidden in print.
+- **The console.** One collapsed group, "luccet: N problems", is printed at `ready`, even when N is 0. Its first line gives the time each stage took. Each diagnostic in it is a `console.warn` (error or warning) or a `console.info`, never a `console.error`. A diagnostic that arrives after `ready` gets a `console.warn` line of its own.
+- **The panel.** An `<aside class="t-diagnostics" role="status">` after `main`, listing each diagnostic as "line L:C (file line F)" with its hint. It is shown on `file:` pages, on `localhost`, `127.0.0.1` and `[::1]`, and on any page with `data-diagnostics` ([`luccet.config`](#config)); `data-quiet` turns it off everywhere. It appears only when there is something to list, and it is hidden in print.
 
-### `tern.config` {#config}
+### `luccet.config` {#config}
 
-The runtime's configuration: `window.TERN` merged with the `data-*` attributes of the tern.js tag. Where both set a key, the attribute wins.
+The runtime's configuration: `window.LUCCET` merged with the `data-*` attributes of the luccet.js tag. Where both set a key, the attribute wins.
 
 ```html
 <!doctype html><meta charset="utf-8">
-<script>window.TERN = { use: { katex: { macros: { '\\R': '\\mathbb{R}' } } }, lang: 'en' }</script>
-<script src="tern.js" data-use="addons/katex.js theorems.js?labels=de theme.min.css?dark"
+<script>window.LUCCET = { use: { katex: { macros: { '\\R': '\\mathbb{R}' } } }, lang: 'en' }</script>
+<script src="luccet.js" data-use="addons/katex.js theorems.js?labels=de theme.min.css?dark"
         data-nonce="abc"></script>
 ```
 
-On that page, once tern.js has started:
+On that page, once luccet.js has started:
 
 ```js
-tern.config;
+luccet.config;
 // → { use: { katex: { macros: { '\\R': '\\mathbb{R}' } },
 //            theorems: { labels: 'de' }, theme: { dark: '' } },
 //     lang: 'en', nonce: 'abc', diagnostics: false, quiet: false }
 ```
 
-- **When.** `tern.config` is filled once, when tern.js starts. So `window.TERN` must be set by a script in the head, before the tern.js line; setting it later does nothing.
-- **What is copied.** Every key of `window.TERN` is copied into `tern.config`, including keys Tern does not use. An add-on can read its own settings from there.
+- **When.** `luccet.config` is filled once, when luccet.js starts. So `window.LUCCET` must be set by a script in the head, before the luccet.js line; setting it later does nothing.
+- **What is copied.** Every key of `window.LUCCET` is copied into `luccet.config`, including keys Luccet does not use. An add-on can read its own settings from there.
 - **`addonTimeout`** (milliseconds, 12 000 by default) is how long the mount waits for an add-on still loading once the note has arrived ([Waiting](#capture)).
 - **`holdOver`** (characters, 30 000 by default) is the note size from which the mount holds the top-level blocks out of view with `content-visibility: auto`, so a long note paints its first screen without laying out the rest ([Performance](publishing.html#performance)); `0` never holds.
-- **Booleans.** For `data-diagnostics` and `data-quiet`, the values `false`, `0`, `off` and `no` (in any case) mean false; any other value, or none, means true. Without the attribute, the `window.TERN` value counts, and false when it has none.
+- **Booleans.** For `data-diagnostics` and `data-quiet`, the values `false`, `0`, `off` and `no` (in any case) mean false; any other value, or none, means true. Without the attribute, the `window.LUCCET` value counts, and false when it has none.
 
-| `window.TERN` | Attribute | `tern.config` | Value |
+| `window.LUCCET` | Attribute | `luccet.config` | Value |
 |---|---|---|---|
-| `use` | `data-use` | `use` | the add-ons' options, a math add-on's among them (`use.katex` for [`katex.js`](addons.html#katex)). Each add-on entry's query string, in `data-use` or `:::use`, goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.TERN.use[NAME]` key of the same name |
-| `schema` | | `schema` | the note's own vocabulary, `{block, leaf, inline}` in the registry's shape, applied at mount after the add-ons ([`window.TERN.schema`](schema.html#window-tern)). Its `strict` sets `tern.schema.strict`, over an add-on's |
+| `use` | `data-use` | `use` | the add-ons' options, a math add-on's among them (`use.katex` for [`katex.js`](addons.html#katex)). Each add-on entry's query string, in `data-use` or `:::use`, goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.LUCCET.use[NAME]` key of the same name |
+| `schema` | | `schema` | the note's own vocabulary, `{block, leaf, inline}` in the registry's shape, applied at mount after the add-ons ([`window.LUCCET.schema`](schema.html#window-luccet)). Its `strict` sets `luccet.schema.strict`, over an add-on's |
 | `css` | `data-css` | `css` | a stylesheet to use as the base instead of the inline one ([CSP](publishing.html#csp)) |
-| `nonce` | `data-nonce` | `nonce` | a CSP nonce, set on every `style`, `link` and `script` Tern adds, and on the note's re-created scripts |
-| `lang` | `data-lang` | `lang` | the label language. After mount, when nothing set it, it is the `lang` of `<html>` (which `:::meta` may have set). The command line picks labels in the same order: `data-lang`, `window.TERN.lang`, the `lang` of `:::meta`, then `<html lang>` |
+| `nonce` | `data-nonce` | `nonce` | a CSP nonce, set on every `style`, `link` and `script` Luccet adds, and on the note's re-created scripts |
+| `lang` | `data-lang` | `lang` | the label language. After mount, when nothing set it, it is the `lang` of `<html>` (which `:::meta` may have set). The command line picks labels in the same order: `data-lang`, `window.LUCCET.lang`, the `lang` of `:::meta`, then `<html lang>` |
 | `diagnostics` | `data-diagnostics` | `diagnostics` | true shows the panel everywhere, not only on `file:` and `localhost` |
 | `quiet` | `data-quiet` | `quiet` | true hides the panel everywhere; it wins over `diagnostics` |
 | `strings` | | `strings` | the runtime's and the add-ons' words in another language, by key ([Strings](#strings)) |
@@ -908,52 +908,52 @@ tern.config;
 
 **`data-use`** is also how add-ons are loaded. Its value is a list of URLs, separated by spaces, resolved against the page; a [`:::use` block](syntax-blocks.html#use) at the top of the note lists more, one or more per line, loaded after the tag's. An entry ending in `.css` (before its query) is a stylesheet, linked in its place in the [cascade](#style); any other is a script. Scripts are fetched in parallel and run in the order listed, and the note mounts only once every entry has loaded or failed.
 
-**KaTeX options.** The [`katex.js` add-on](addons.html#katex) reads `tern.config.use.katex` and passes every key except `displayMode` and `throwOnError` to KaTeX: `macros`, `trust`, `strict`, `output`, `leqno` and the rest. `throwOnError` is always true, so a formula KaTeX rejects keeps its TeX, and the add-on warns in the console rather than reporting a diagnostic. `macros` is copied into one table that every formula shares; the `:::macros` blocks of the note are defined into it first. A copy of KaTeX of your own is `addons/katex.js?base=URL`, not a config key.
+**KaTeX options.** The [`katex.js` add-on](addons.html#katex) reads `luccet.config.use.katex` and passes every key except `displayMode` and `throwOnError` to KaTeX: `macros`, `trust`, `strict`, `output`, `leqno` and the rest. `throwOnError` is always true, so a formula KaTeX rejects keeps its TeX, and the add-on warns in the console rather than reporting a diagnostic. `macros` is copied into one table that every formula shares; the `:::macros` blocks of the note are defined into it first. A copy of KaTeX of your own is `addons/katex.js?base=URL`, not a config key.
 
-Two other attributes belong to the tag but not to `tern.config`. `data-built` marks a page written by `tern build` (always just `data-built`, with no value; [A built page](#built-page)). `src` must name a file called `tern.js` for editors and the command line to [detect the note](tools.html#detection).
+Two other attributes belong to the tag but not to `luccet.config`. `data-built` marks a page written by `luccet build` (always just `data-built`, with no value; [A built page](#built-page)). `src` must name a file called `luccet.js` for editors and the command line to [detect the note](tools.html#detection).
 
 An add-on reads its options like this:
 
 ```js
 // theorems.js, listed as data-use="theorems.js?labels=de"
-const opts = tern.config.use.theorems || {};   // → { labels: 'de' }
+const opts = luccet.config.use.theorems || {};   // → { labels: 'de' }
 ```
 
-### `tern.style` {#style}
+### `luccet.style` {#style}
 
 :::syntax
 ```js
-tern.style(css) → HTMLStyleElement
+luccet.style(css) → HTMLStyleElement
 ```
 :::
 
 Adds a stylesheet to the head and returns its `<style>` element. It is how a script add-on brings its CSS, and a schema entry's `css` field goes through it.
 
-Tern keeps its sheets together in the head, in this order:
+Luccet keeps its sheets together in the head, in this order:
 
-1. the base: `<style id="tern-style">`, or the `data-css` link, or a head link to `tern.css`;
-2. each `data-use` entry, in its order: a CSS add-on's link, or the sheets a script add-on adds with `tern.style` while it runs;
-3. every other `tern.style` sheet, such as one added by a note script.
+1. the base: `<style id="luccet-style">`, or the `data-css` link, or a head link to `luccet.css`;
+2. each `data-use` entry, in its order: a CSS add-on's link, or the sheets a script add-on adds with `luccet.style` while it runs;
+3. every other `luccet.style` sheet, such as one added by a note script.
 
-The group sits before the head's first stylesheet of your own, so your head CSS wins over Tern's at equal specificity, and a theme listed after another add-on wins over it. A [math add-on](addons.html#katex) appends its library's stylesheet (KaTeX's or Temml's) to the head on its own, outside this group.
+The group sits before the head's first stylesheet of your own, so your head CSS wins over Luccet's at equal specificity, and a theme listed after another add-on wins over it. A [math add-on](addons.html#katex) appends its library's stylesheet (KaTeX's or Temml's) to the head on its own, outside this group.
 
 ```js
 // my-addon.js
-tern.style('.t-block.aside { border-inline-start: 3px solid var(--t-line); }');
+luccet.style('.t-block.aside { border-inline-start: 3px solid var(--t-line); }');
 ```
 
-`tern.config.nonce` goes on the element. `css` is converted to a string; `null` and `undefined` give an empty sheet. Under node `tern.style` does nothing and returns `undefined`.
+`luccet.config.nonce` goes on the element. `css` is converted to a string; `null` and `undefined` give an empty sheet. Under node `luccet.style` does nothing and returns `undefined`.
 
-### `tern.string` and `window.TERN.strings` {#strings}
+### `luccet.string` and `window.LUCCET.strings` {#strings}
 
 :::syntax
 ```js
-tern.string(key, params?, fallback?) → string
-window.TERN = { strings: { noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer' } };
+luccet.string(key, params?, fallback?) → string
+window.LUCCET = { strings: { noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer' } };
 ```
 :::
 
-The few words the runtime and the add-ons write for the reader, in a language of your choice. `window.TERN.strings` maps a key to a string; `tern.string(key, params, fallback)` returns the string for `key`, the page's when it sets one, else `fallback`, else the runtime's own; `{name}` fields are filled from `params`, and a string with a `|` is `singular|plural`, chosen by `params.n`. An add-on brings its own keys and fallbacks the same way.
+The few words the runtime and the add-ons write for the reader, in a language of your choice. `window.LUCCET.strings` maps a key to a string; `luccet.string(key, params, fallback)` returns the string for `key`, the page's when it sets one, else `fallback`, else the runtime's own; `{name}` fields are filled from `params`, and a string with a `|` is `singular|plural`, chosen by `params.n`. An add-on brings its own keys and fallbacks the same way.
 
 | Key | Default | Where |
 |---|---|---|
@@ -967,46 +967,46 @@ The few words the runtime and the add-ons write for the reader, in a language of
 
 ```html
 <!doctype html><meta charset="utf-8"><script>
-window.TERN = { lang: 'de', strings: { searchPlaceholder: 'Notizen durchsuchen', noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer', problems: '{n} Problem|{n} Probleme' } };
-</script><script src="tern.js" data-use="addons/search.js"></script>
+window.LUCCET = { lang: 'de', strings: { searchPlaceholder: 'Notizen durchsuchen', noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer', problems: '{n} Problem|{n} Probleme' } };
+</script><script src="luccet.js" data-use="addons/search.js"></script>
 ```
 
-Under node, `tern check` and `tern build` give an add-on the fallback alone. The engine's own messages, the diagnostics, are not translated: they name codes and syntax, and the tools print them.
+Under node, `luccet check` and `luccet build` give an add-on the fallback alone. The engine's own messages, the diagnostics, are not translated: they name codes and syntax, and the tools print them.
 
 ## The lifecycle {#lifecycle}
 
-What the runtime does, in order, from the moment tern.js runs to `ready`:
+What the runtime does, in order, from the moment luccet.js runs to `ready`:
 
 ```
 capture → config → add-ons (fetched in parallel, run in order) → DOMContentLoaded
-→ window.TERN.schema → parse → transform → emit → mount → note <script>s in order
+→ window.LUCCET.schema → parse → transform → emit → mount → note <script>s in order
 → behaviours → 'render' → math in time slices → 'math' → fragment scroll → console → 'ready'
 ```
 
 ### Capture {#capture}
 
-tern.js runs from its `<script src>` tag while the HTML parser is still reading the file. Everything after the line that holds the tag is the note.
+luccet.js runs from its `<script src>` tag while the HTML parser is still reading the file. Everything after the line that holds the tag is the note.
 
-1. **Config.** It reads `window.TERN` and the tag's `data-*` into [`tern.config`](#config).
+1. **Config.** It reads `window.LUCCET` and the tag's `data-*` into [`luccet.config`](#config).
 2. **The head.** It keeps the preserved head as a string, for `:::meta` conflicts, and counts the file line of the tag, for the panel's file lines. A page in quirks mode gets [`doc.quirks`](diagnostics.html#doc-quirks).
 3. **One `document.write`** adds to the head:
    - `<meta name="color-scheme" content="light dark">`, unless the head has one, so the page never flashes white;
    - a preload for each script add-on;
-   - `<plaintext id="tern-source" hidden>`, which makes the HTML parser read the rest of the file as plain text: the note.
+   - `<plaintext id="luccet-source" hidden>`, which makes the HTML parser read the rest of the file as plain text: the note.
 4. **Add-ons and styles,** in the same task:
    - every script add-on is appended at once, with `async = false`: fetched in parallel, run in the order listed;
    - CSS add-ons and `data-css` become links;
    - the base stylesheet goes in, so the empty page already has its colours.
 
    The engine requests no KaTeX itself: a [math add-on](addons.html#katex) in `data-use` fetches its library when it meets the first formula.
-5. **Waiting.** The runtime waits for `DOMContentLoaded`, which means the whole note has arrived, and for each add-on to load or fail, with `aria-busy` on the document meanwhile. An add-on still loading 12 seconds after the note arrived (`tern.config.addonTimeout`, in milliseconds) is given up: the note mounts without it, with [`addon.failed`](diagnostics.html#addon-failed) saying it did not load in time, and after 2 seconds the console says what is still awaited. An add-on that fails to load is `addon.failed` too, and so is a script add-on that throws while it runs: the note still mounts, with whatever the add-on registered before the error. An add-on listed more than once (`data-use` and `:::use`) loads once.
+5. **Waiting.** The runtime waits for `DOMContentLoaded`, which means the whole note has arrived, and for each add-on to load or fail, with `aria-busy` on the document meanwhile. An add-on still loading 12 seconds after the note arrived (`luccet.config.addonTimeout`, in milliseconds) is given up: the note mounts without it, with [`addon.failed`](diagnostics.html#addon-failed) saying it did not load in time, and after 2 seconds the console says what is still awaited. An add-on that fails to load is `addon.failed` too, and so is a script add-on that throws while it runs: the note still mounts, with whatever the add-on registered before the error. An add-on listed more than once (`data-use` and `:::use`) loads once.
 
 ### Mount {#mount}
 
-1. **The note's vocabulary.** The entries of `window.TERN.schema` are declared with `tern.block`, `tern.leaf` and `tern.inline`, after the add-ons declared theirs: the note's own entry wins for a name both declare. A bad entry is a console warning.
-2. **The engine.** Parse, transform and emit, with the head, `tern.config.lang` and the `cssom` option. If the engine throws, which is a bug, the note is shown as escaped source in `<pre class="t-error">`, with one `console.error`.
-3. **The head.** `:::meta` is written into the existing head; a key the head already sets is left alone. `tern.config.lang` falls back to the `lang` of `<html>`. A viewport meta is added if there is none.
-4. **The DOM.** The HTML is parsed through a `<template>` as `<main class="tern">…</main>`, which replaces the body's content. There is one emitter: the DOM is built from its string, never by a second renderer.
+1. **The note's vocabulary.** The entries of `window.LUCCET.schema` are declared with `luccet.block`, `luccet.leaf` and `luccet.inline`, after the add-ons declared theirs: the note's own entry wins for a name both declare. A bad entry is a console warning.
+2. **The engine.** Parse, transform and emit, with the head, `luccet.config.lang` and the `cssom` option. If the engine throws, which is a bug, the note is shown as escaped source in `<pre class="t-error">`, with one `console.error`.
+3. **The head.** `:::meta` is written into the existing head; a key the head already sets is left alone. `luccet.config.lang` falls back to the `lang` of `<html>`. A viewport meta is added if there is none.
+4. **The DOM.** The HTML is parsed through a `<template>` as `<main class="luccet">…</main>`, which replaces the body's content. There is one emitter: the DOM is built from its string, never by a second renderer.
 5. **Presentation.** Column alignments and grid columns are set through the CSSOM. Each `<video>` gets its `poster` attribute set again, which Chromium needs to load a poster parsed in a `<template>`.
 6. **The panel**, if it is on and there is something to list.
 
@@ -1019,59 +1019,59 @@ tern.js runs from its `<script src>` tag while the HTML parser is still reading 
    - a module is awaited;
    - a type that is not JavaScript, a module, an import map or speculation rules is a data block, and stays inert.
 
-   While they run, `document.write` writes nothing ([`script.document-write`](diagnostics.html#script-document-write)), and a `DOMContentLoaded` listener is not registered ([`script.domcontentloaded`](diagnostics.html#script-domcontentloaded)): that event is over, and it is not fired again. Use `tern.on('ready', fn)`, or run the code directly.
-2. **Behaviours.** A fence with line numbers and a `start` gets its first number; then each element with `data-t` gets its schema `dom` and its [`tern.define`](#define) functions, in document order. A formula is still its TeX, in `span.t-math`.
-3. **`render`** fires with `main.tern`. A listener may return a promise; the runtime awaits all `render` listeners before it fires `math`, which is how a math add-on's typesetting completes first.
+   While they run, `document.write` writes nothing ([`script.document-write`](diagnostics.html#script-document-write)), and a `DOMContentLoaded` listener is not registered ([`script.domcontentloaded`](diagnostics.html#script-domcontentloaded)): that event is over, and it is not fired again. Use `luccet.on('ready', fn)`, or run the code directly.
+2. **Behaviours.** A fence with line numbers and a `start` gets its first number; then each element with `data-t` gets its schema `dom` and its [`luccet.define`](#define) functions, in document order. A formula is still its TeX, in `span.t-math`.
+3. **`render`** fires with `main.luccet`. A listener may return a promise; the runtime awaits all `render` listeners before it fires `math`, which is how a math add-on's typesetting completes first.
 4. **Math.** A [math add-on](addons.html#katex) loaded in `data-use` typesets the formulas in its `render` listener: it saves each formula's TeX to `data-tex`, then KaTeX (or Temml) typesets the visible ones in slices of about 10 ms, so the page stays responsive and the first paint is typeset. Formulas inside a closed `<details>` wait until it opens. A note with more than 100 formulas holds its top-level blocks with `content-visibility: auto` until they come near the viewport. A formula the add-on cannot parse keeps its TeX and the add-on warns in the console. Without a math add-on, every formula stays as its TeX.
-5. **`math`** fires with `main.tern`, after the `render` listeners have resolved.
+5. **`math`** fires with `main.luccet`, after the `render` listeners have resolved.
 6. **The fragment.** If the URL has a `#id`, its target's closed `<details>` ancestors are opened, and it is scrolled into view.
-7. **The console group** is printed: "tern: N problems".
-8. **`ready`** fires with `main.tern`, and then [`tern.ready`](#ready) resolves.
+7. **The console group** is printed: "luccet: N problems".
+8. **`ready`** fires with `main.luccet`, and then [`luccet.ready`](#ready) resolves.
 
 After `ready`, opening a `<details>` typesets its formulas and fires `math` with it. Printing first opens every `details.t-block` and typesets what is pending. Copying a selection that holds typeset formulas copies each as its TeX, `$tex$` or `$$tex$$`.
 
 ### A built page {#built-page}
 
-`tern build` writes a static page: the head, Tern's sheets, `<main class="tern">` with the emitter's HTML, the note's source in `<script type="text/tern" id="tern-source">`, and its diagnostics in `<script type="application/json" id="tern-diagnostics">`. Its tern.js tag has `data-built`. tern.js finds that attribute and skips capture, mount and the re-creation of scripts:
+`luccet build` writes a static page: the head, Luccet's sheets, `<main class="luccet">` with the emitter's HTML, the note's source in `<script type="text/luccet" id="luccet-source">`, and its diagnostics in `<script type="application/json" id="luccet-diagnostics">`. Its luccet.js tag has `data-built`. luccet.js finds that attribute and skips capture, mount and the re-creation of scripts:
 
-1. **At once:** config; the head's Tern sheets take their places in the cascade; add-on scripts that fail to load, or throw while they run, are noted.
+1. **At once:** config; the head's Luccet sheets take their places in the cascade; add-on scripts that fail to load, or throw while they run, are noted.
 2. **At `DOMContentLoaded`:**
-   1. `window.TERN.schema`;
+   1. `window.LUCCET.schema`;
    2. the note's source, so the source can be read back, and the number of file lines before it, for the panel;
-   3. the build's diagnostics, then an `addon.failed` for each add-on script that failed to load or threw, into `tern.diagnostics` and the panel;
+   3. the build's diagnostics, then an `addon.failed` for each add-on script that failed to load or threw, into `luccet.diagnostics` and the panel;
    4. behaviours, `render`, a math add-on's typesetting of the formulas the build did not pre-render, `math`, the fragment, the console group (whose first line says "a built page"), `ready`.
 
 The differences from a note:
 
-- The note's scripts are real scripts the browser runs while it parses the page. `tern` and the add-ons are already defined, `document.write` writes, and `DOMContentLoaded` listeners run. Nothing is intercepted or reported.
-- A page whose formulas were all pre-rendered (`tern build --math`) loads no math library, even if it still lists the add-on: the add-on finds them typeset and fetches nothing. A built note whose math was not pre-rendered shows it at view time only if its `data-use` loads a math add-on.
+- The note's scripts are real scripts the browser runs while it parses the page. `luccet` and the add-ons are already defined, `document.write` writes, and `DOMContentLoaded` listeners run. Nothing is intercepted or reported.
+- A page whose formulas were all pre-rendered (`luccet build --math`) loads no math library, even if it still lists the add-on: the add-on finds them typeset and fetches nothing. A built note whose math was not pre-rendered shows it at view time only if its `data-use` loads a math add-on.
 - A CSS add-on that fails to load is not reported; the browser's console shows it.
-- If tern.js itself fails to load, the content still shows with its styles, but the add-ons, and any note script that calls `tern`, throw.
+- If luccet.js itself fails to load, the content still shows with its styles, but the add-ons, and any note script that calls `luccet`, throw.
 
 ### When nothing starts {#no-start}
 
-The runtime does nothing, and `tern.ready` never settles, when:
+The runtime does nothing, and `luccet.ready` never settles, when:
 
-- tern.js is not a parser-inserted classic script in a loading document: `async`, `defer`, `type="module"`, or inserted by a script. With `async` or `defer` it warns;
-- the page already has a `main.tern` and the tag has no `data-built`: "tern: the page already has a main.tern; tern.js does nothing";
-- another tern.js is already on the page: the second warns and does nothing;
+- luccet.js is not a parser-inserted classic script in a loading document: `async`, `defer`, `type="module"`, or inserted by a script. With `async` or `defer` it warns;
+- the page already has a `main.luccet` and the tag has no `data-built`: "luccet: the page already has a main.luccet; luccet.js does nothing";
+- another luccet.js is already on the page: the second warns and does nothing;
 - the browser ignores the `document.write`, so the note holder is never created.
 
-In each case the engine and [`tern.render`](#render-into-your-page) still work.
+In each case the engine and [`luccet.render`](#render-into-your-page) still work.
 
 ## The AST {#ast}
 
-The AST is a tree of plain objects in the shape of [mdast](https://github.com/syntax-tree/mdast), the Markdown syntax tree of the unified ecosystem, with the extensions remark-directive and mdast-util-math define, plus a few Tern types.
+The AST is a tree of plain objects in the shape of [mdast](https://github.com/syntax-tree/mdast), the Markdown syntax tree of the unified ecosystem, with the extensions remark-directive and mdast-util-math define, plus a few Luccet types.
 
 - **`type`** names the node. A node holds `children` (an array of nodes) or `value` (a string), or neither. A container with a verbatim body has both, its `children` empty.
 - **`position`** is on every node the parser makes: `{start, end}`, each `{line, column, offset}` ([Positions](#positions)).
 - **`attributes`** holds the `{…}` group written for the node, as flat key-value pairs ([attributes](syntax-blocks.html#attributes)). It is absent when there is none.
-- **`data.tern`** holds what the parser and the transforms derive ([data.tern](#data-tern), [The transformed AST](#transformed-ast)). The top-level fields are mdast's and its extensions', plus those of the few Tern types.
+- **`data.luccet`** holds what the parser and the transforms derive ([data.luccet](#data-luccet), [The transformed AST](#transformed-ast)). The top-level fields are mdast's and its extensions', plus those of the few Luccet types.
 - **JSON.** Everything is plain data: `JSON.parse(JSON.stringify(ast))` is the same tree.
 
 Here is a short note, parsed and transformed with a schema that declares `theorem` (positions left out):
 
-```tern
+```luccet
 ## Kernel {#kernel}
 
 :::theorem[Rank–nullity]{#rn .big}
@@ -1083,22 +1083,22 @@ See @kernel and $\dim V$.
 {"type": "root", "children": [
   {"type": "heading", "depth": 2, "children": [{"type": "text", "value": "Kernel"}],
    "attributes": {"id": "kernel"},
-   "data": {"tern": {"idPosition": {…}}}},
+   "data": {"luccet": {"idPosition": {…}}}},
   {"type": "containerDirective", "name": "theorem", "children": [
      {"type": "paragraph", "data": {"directiveLabel": true},
       "children": [{"type": "text", "value": "Rank–nullity"}]},
      {"type": "paragraph", "children": [
        {"type": "text", "value": "See "},
-       {"type": "ref", "id": "kernel", "data": {"tern": {"resolved": true}},
+       {"type": "ref", "id": "kernel", "data": {"luccet": {"resolved": true}},
         "children": [{"type": "text", "value": "Kernel"}]},
        {"type": "text", "value": " and "},
        {"type": "inlineMath", "value": "\\dim V"},
        {"type": "text", "value": "."}]}],
-   "data": {"tern": {"colons": 3, "namePosition": {…}, "idPosition": {…},
+   "data": {"luccet": {"colons": 3, "namePosition": {…}, "idPosition": {…},
                      "tag": "section", "slot": "div",
                      "counter": "theorem", "number": 1, "text": "Theorem 1"}},
    "attributes": {"id": "rn", "class": "big"}}],
- "data": {"tern": {"diagnostics": [], "transformed": true, "footnotes": [],
+ "data": {"luccet": {"diagnostics": [], "transformed": true, "footnotes": [],
                    "ids": {"kernel": {"kind": "heading", "explicit": true, "line": 1, "column": 12},
                            "rn": {"kind": "theorem", "explicit": true, "line": 3, "column": 26}}}}}
 ```
@@ -1107,7 +1107,7 @@ See @kernel and $\dim V$.
 
 | Type | From | Fields | Written |
 |---|---|---|---|
-| `root` | mdast | `children`; `data.tern.meta` when the note has a top-level `:::meta`, `data.tern.use` when it has a leading `:::use` | the note |
+| `root` | mdast | `children`; `data.luccet.meta` when the note has a top-level `:::meta`, `data.luccet.use` when it has a leading `:::use` | the note |
 | `paragraph` | mdast | `children` | text |
 | `heading` | mdast | `depth` (1 to 6), `children` | `## Title` |
 | `thematicBreak` | mdast | | `---` |
@@ -1123,26 +1123,26 @@ See @kernel and $\dim V$.
 | `footnoteDefinition` | GFM | `identifier`, `label`, `children` | `[^n]: text` |
 | `containerDirective` | remark-directive | `name`, `children`; for a verbatim body, `value`, and `children` is empty | `:::name … :::` |
 | `leafDirective` | remark-directive | `name`, `children` | `::name[content]` |
-| `cell` | Tern | `children` | a `+++` segment of a container |
-| `attributes` | Tern | `value`, the line's text | an attribute line that binds to nothing |
+| `cell` | Luccet | `children` | a `+++` segment of a container |
+| `attributes` | Luccet | `value`, the line's text | an attribute line that binds to nothing |
 | `text` | mdast | `value` | text and soft line breaks |
 | `emphasis` | mdast | `children` | `*em*` |
 | `strong` | mdast | `children` | `**strong**` |
 | `delete` | GFM | `children` | `~~gone~~` |
-| `mark` | Tern | `children` | `==key==` |
+| `mark` | Luccet | `children` | `==key==` |
 | `inlineCode` | mdast | `value` | a code span |
 | `inlineMath` | mdast-util-math | `value` | `$x$` or verbatim math |
 | `link` | mdast | `url`, `title` (only when written), `children` | `[text](url "title")`, an autolink |
 | `image` | mdast | `url`, `alt` (plain text), `title` (only when written) | `![alt](url)` |
 | `break` | mdast | | `\` at the end of a line |
-| `span` | Tern | `attributes`, `children` | `[text]{.class}` |
+| `span` | Luccet | `attributes`, `children` | `[text]{.class}` |
 | `textDirective` | remark-directive | `name`, `children` | `:name[content]` |
-| `ref` | Tern | `id`; `children` after the transforms | `@id` |
+| `ref` | Luccet | `id`; `children` after the transforms | `@id` |
 | `footnoteReference` | GFM | `identifier`, `label` | `[^n]` |
 
-Any node may also have `attributes`, `data` and `position`. The rest of this section shows each family as `tern.parse` returns it, with positions left out.
+Any node may also have `attributes`, `data` and `position`. The rest of this section shows each family as `luccet.parse` returns it, with positions left out.
 
-**Containers.** A container's title is its first child: a paragraph with `data.directiveLabel: true`, holding the bracket content. `data.tern.colons` is the length of its colon run, and `data.tern.namePosition` is where its name is written.
+**Containers.** A container's title is its first child: a paragraph with `data.directiveLabel: true`, holding the bracket content. `data.luccet.colons` is the length of its colon run, and `data.luccet.namePosition` is where its name is written.
 
 ```json
 // :::theorem[Rank–nullity]{#rn .big}
@@ -1152,7 +1152,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
    {"type": "paragraph", "data": {"directiveLabel": true},
     "children": [{"type": "text", "value": "Rank–nullity"}]},
    {"type": "paragraph", "children": [{"type": "text", "value": "Body."}]}],
- "data": {"tern": {"colons": 3, "namePosition": {…}, "idPosition": {…}}},
+ "data": {"luccet": {"colons": 3, "namePosition": {…}, "idPosition": {…}}},
  "attributes": {"id": "rn", "class": "big"}}
 ```
 
@@ -1170,7 +1170,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
    {"type": "cell",
     "children": [{"type": "paragraph", "children": [{"type": "text", "value": "Right."}]}],
     "attributes": {"class": "muted"}}],
- "data": {"tern": {"colons": 3, "namePosition": {…}}}}
+ "data": {"luccet": {"colons": 3, "namePosition": {…}}}}
 ```
 
 **Verbatim bodies.** `:::meta`, `:::macros`, `:::script`, `:::style`, `:::html`, a container with `{raw}` and one whose schema entry has `body: 'raw'` keep their body as `value`, with empty `children`:
@@ -1180,7 +1180,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 // a --> b
 // :::
 {"type": "containerDirective", "name": "mermaid", "children": [],
- "data": {"tern": {"colons": 3, "namePosition": {…}}},
+ "data": {"luccet": {"colons": 3, "namePosition": {…}}},
  "attributes": {"raw": ""}, "value": "a --> b"}
 ```
 
@@ -1190,7 +1190,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 // ::video[Clip]{src=a.mp4 controls}
 {"type": "leafDirective", "name": "video", "children": [{"type": "text", "value": "Clip"}],
  "attributes": {"src": "a.mp4", "controls": ""},
- "data": {"tern": {"namePosition": {…}}}}
+ "data": {"luccet": {"namePosition": {…}}}}
 
 // :kbd[Ctrl]{.big}
 {"type": "textDirective", "name": "kbd", "children": [{"type": "text", "value": "Ctrl"}],
@@ -1201,7 +1201,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
  "attributes": {"class": "hl", "lang": "en"}}
 ```
 
-**Fences.** `lang` drops the `=` of `=FORMAT`; an `=html` fence is an `html` node instead. `meta` is what follows the language that is neither a title nor a group, and is reported with `fence.info-junk`. A title is kept as inline nodes in `data.tern.title`, and reserved keys such as `lines` stay in `attributes` until the transforms.
+**Fences.** `lang` drops the `=` of `=FORMAT`; an `=html` fence is an `html` node instead. `meta` is what follows the language that is neither a title nor a group, and is reported with `fence.info-junk`. A title is kept as inline nodes in `data.luccet.title`, and reserved keys such as `lines` stay in `attributes` until the transforms.
 
 ```json
 // ```js [Fibonacci]{#lst-fib lines}
@@ -1209,7 +1209,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 // ```
 {"type": "code", "lang": "js", "meta": null, "value": "fib();",
  "attributes": {"id": "lst-fib", "lines": ""},
- "data": {"tern": {"idPosition": {…}, "title": [{"type": "text", "value": "Fibonacci"}]}}}
+ "data": {"luccet": {"idPosition": {…}, "title": [{"type": "text", "value": "Fibonacci"}]}}}
 ```
 
 **Math.** Display math is `math`; the `#id` of its `$$` closer is in `attributes`. Inline and verbatim math are `inlineMath`, and a strong group glued after one is its `attributes`.
@@ -1219,11 +1219,11 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 // a^2
 // $$ {#eq-a}
 {"type": "math", "value": "a^2", "attributes": {"id": "eq-a"},
- "data": {"tern": {"idPosition": {…}}}}
+ "data": {"luccet": {"idPosition": {…}}}}
 
 // $x${#e-x}
 {"type": "inlineMath", "value": "x", "attributes": {"id": "e-x"},
- "data": {"tern": {"idPosition": {…}}}}
+ "data": {"luccet": {"idPosition": {…}}}}
 ```
 
 **Tables.** `align.length` is the number of columns. The delimiter row is not a node. A row holds the cells it has: a short row has fewer, and a row with extra cells keeps them (and gets `table.extra-cell`).
@@ -1267,7 +1267,7 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
     "children": [{"type": "paragraph", "children": [{"type": "text", "value": "Note."}]}]}]}
 ```
 
-**References, links and images.** A `ref` has no children until the `refs` transform. A link's `url` is normalised. An image has no children: `alt` is the plain text of its brackets, and the bracket content itself is in `data.tern.caption`, for an implicit figure.
+**References, links and images.** A `ref` has no children until the `refs` transform. A link's `url` is normalised. An image has no children: `alt` is the plain text of its brackets, and the bracket content itself is in `data.luccet.caption`, for an implicit figure.
 
 ```json
 // @kernel{ref=title}
@@ -1279,32 +1279,32 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 
 // ![An *osprey*](osprey.jpg){width=70%}
 {"type": "image", "url": "osprey.jpg", "alt": "An osprey", "attributes": {"width": "70%"},
- "data": {"tern": {"caption": [{"type": "text", "value": "An "},
+ "data": {"luccet": {"caption": [{"type": "text", "value": "An "},
                                {"type": "emphasis", "children": [{"type": "text", "value": "osprey"}]}]}}}
 ```
 
-**Raw HTML.** A block is one `html` node whose `data.tern.kind` says which kind ([raw HTML](syntax-blocks.html#raw-html)). Inline, each tag or comment is its own node of kind `inline`, between text nodes.
+**Raw HTML.** A block is one `html` node whose `data.luccet.kind` says which kind ([raw HTML](syntax-blocks.html#raw-html)). Inline, each tag or comment is its own node of kind `inline`, between text nodes.
 
 ```json
 // <!-- note -->
 //
 // a <b>b</b>
 {"type": "root", "children": [
-   {"type": "html", "value": "<!-- note -->", "data": {"tern": {"kind": "comment"}}},
+   {"type": "html", "value": "<!-- note -->", "data": {"luccet": {"kind": "comment"}}},
    {"type": "paragraph", "children": [
      {"type": "text", "value": "a "},
-     {"type": "html", "value": "<b>", "data": {"tern": {"kind": "inline"}}},
+     {"type": "html", "value": "<b>", "data": {"luccet": {"kind": "inline"}}},
      {"type": "text", "value": "b"},
-     {"type": "html", "value": "</b>", "data": {"tern": {"kind": "inline"}}}]}]}
+     {"type": "html", "value": "</b>", "data": {"luccet": {"kind": "inline"}}}]}]}
 ```
 
-**Text.** Text and soft line breaks merge into one `text` node; a hard break is a `break` node. An entity is a `text` node of its own: `value` is the decoded character, and `data.tern.entity` the spelling, which the emitter writes back.
+**Text.** Text and soft line breaks merge into one `text` node; a hard break is a `break` node. An entity is a `text` node of its own: `value` is the decoded character, and `data.luccet.entity` the spelling, which the emitter writes back.
 
 ```json
 // a &amp; b
 {"type": "paragraph", "children": [
    {"type": "text", "value": "a "},
-   {"type": "text", "value": "&", "data": {"tern": {"entity": "&amp;"}}},
+   {"type": "text", "value": "&", "data": {"luccet": {"entity": "&amp;"}}},
    {"type": "text", "value": " b"}]}
 ```
 
@@ -1317,9 +1317,9 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 {"type": "attributes", "value": "{#lost}"}
 ```
 
-### data.tern from the parser {#data-tern}
+### data.luccet from the parser {#data-luccet}
 
-The parser records under `data.tern` what it knows that mdast has no field for. Every field is optional: it is present only on the nodes it concerns.
+The parser records under `data.luccet` what it knows that mdast has no field for. Every field is optional: it is present only on the nodes it concerns.
 
 | Field | On | Value |
 |---|---|---|
@@ -1344,7 +1344,7 @@ The parser records under `data.tern` what it knows that mdast has no field for. 
 Each `…Position` field is a position `{start, end}` spanning the key's name (`tag`, `ref`, `raw`, `cols`).
 
 ```js
-tern.parse('[s]{ref=title}').ast.children[0].children[0].data.tern.refPosition;
+luccet.parse('[s]{ref=title}').ast.children[0].children[0].data.luccet.refPosition;
 // → { start: { line: 1, column: 5, offset: 4 }, end: { line: 1, column: 8, offset: 7 } }
 ```
 
@@ -1353,43 +1353,43 @@ One more field sits on `data` itself, as in remark-directive: `data.directiveLab
 Two things are not marked: a fence that runs to the end unclosed, and a generic raw HTML block that does. Their diagnostics, [`block.unclosed-fence`](diagnostics.html#block-unclosed-fence) and [`html.unclosed`](diagnostics.html#html-unclosed), say so.
 
 ```js
-const { ast } = tern.parse('$$\nx\n\ntext');
+const { ast } = luccet.parse('$$\nx\n\ntext');
 ast.children[0];
-// → { type: 'math', value: 'x', data: { tern: { unclosed: true, source: '$$\nx' } }, position: {…} }
+// → { type: 'math', value: 'x', data: { luccet: { unclosed: true, source: '$$\nx' } }, position: {…} }
 ```
 
 ### The transformed AST {#transformed-ast}
 
-The transforms write what the emitter reads; the emitter reads nothing else. This is the contract between them, and what `tern parse --transformed` prints. The parser's `data.tern` fields stay where they are, except on the nodes that an implicit figure or a table merge rebuilds.
+The transforms write what the emitter reads; the emitter reads nothing else. This is the contract between them, and what `luccet parse --transformed` prints. The parser's `data.luccet` fields stay where they are, except on the nodes that an implicit figure or a table merge rebuilds.
 
 #### The root
 
 | Field | Value |
 |---|---|
-| `data.tern.ids` | the id registry: `{id: {kind, explicit, line, column}}` |
-| `data.tern.diagnostics` | the transforms' diagnostics, sorted |
-| `data.tern.footnotes` | the identifiers of the footnote definitions, in output order: the referenced ones by number, then the unused ones in document order |
-| `data.tern.meta` | `:::meta`, plus the title fallback when it applies (created for it when there was no `:::meta`) |
-| `data.tern.use` | the leading `:::use` entries, as the parser left them |
-| `data.tern.transformed` | `true`, set by the first run |
+| `data.luccet.ids` | the id registry: `{id: {kind, explicit, line, column}}` |
+| `data.luccet.diagnostics` | the transforms' diagnostics, sorted |
+| `data.luccet.footnotes` | the identifiers of the footnote definitions, in output order: the referenced ones by number, then the unused ones in document order |
+| `data.luccet.meta` | `:::meta`, plus the title fallback when it applies (created for it when there was no `:::meta`) |
+| `data.luccet.use` | the leading `:::use` entries, as the parser left them |
+| `data.luccet.transformed` | `true`, set by the first run |
 
 In `ids`, `kind` is a named element's name (`theorem`), else the node type (`heading`, `math`, `code`, `span`, `footnoteDefinition` …). `explicit` is false for a heading slug and for a generated footnote id. `line` and `column` say where the id is written: the `#` or `id=` item; for a slug, the heading; for a footnote id, the definition's or the reference's `[`. `ids` is built the first time it is read, so the emitter, which never reads it, never pays for it; any reader, `JSON.stringify` included, sees a plain object.
 
 #### Attributes and ids
 
-After the transforms, a node's `attributes` is exactly what its element gets, besides Tern's own classes and `data-t`. When nothing is left, `attributes` is deleted.
+After the transforms, a node's `attributes` is exactly what its element gets, besides Luccet's own classes and `data-t`. When nothing is left, `attributes` is deleted.
 
-- **Reserved keys** leave `attributes`. `{raw}` becomes `data.tern.raw: true`, `cols` becomes `data.tern.cols`, a reference's `ref=` becomes `data.tern.ref`, and `tag` is used to resolve the element. A fence's `lines`, `start` and `hl` become [fence fields](#fences).
+- **Reserved keys** leave `attributes`. `{raw}` becomes `data.luccet.raw: true`, `cols` becomes `data.luccet.cols`, a reference's `ref=` becomes `data.luccet.ref`, and `tag` is used to resolve the element. A fence's `lines`, `start` and `hl` become [fence fields](#fences).
 - **A reserved key where it does not apply** is dropped with a diagnostic at the key: `ref=` off a reference, `raw` off a container, `cols=` off a container, leaf or inline element (or on a core container), and `tag=` on a reserved or core name get `attr.malformed`; `tag=` on anything but a container, leaf or inline element gets `tag.not-allowed`.
 - **Ids.** An invalid id is removed, and so is each later duplicate: the first element keeps it. A heading that loses its id gets its slug instead. A slug is written as `attributes.id`, first.
-- **Tern's own ids**, `tern-style`, `tern-color-scheme`, `tern-source` and `tern-diagnostics`, name elements Tern puts in the page around the note. They are taken before the note's: an id an author writes with one of them is dropped with `id.duplicate`, and a heading slug that would be one takes `-2` (`tern-style-2`), silently. They are not listed in `data.tern.ids`.
+- **Luccet's own ids**, `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics`, name elements Luccet puts in the page around the note. They are taken before the note's: an id an author writes with one of them is dropped with `id.duplicate`, and a heading slug that would be one takes `-2` (`luccet-style-2`), silently. They are not listed in `data.luccet.ids`.
 - **Core containers.** `:::macros`, `:::script`, `:::style` and `:::html` keep their id, classes and other keys, and their element gets them. `:::meta` emits nothing, so its id, classes and keys get `attr.malformed` and are dropped, and its id is not registered.
 - **Schema defaults.** The schema's `attrs` go under the author's attributes, never as an id, and its `class` comes before the author's classes.
 - **Images.** An `alt=` attribute stays in `attributes` and wins over `alt`.
 
 The registry holds every id of every kind. The ids an author wrote come first, with the generated footnote ids, in document order; heading slugs come after them and take `-2`, `-3` … when theirs is taken. So a slug never takes an id from an element the author named:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ## Kernel
 
 :::definition{#kernel}
@@ -1405,20 +1405,20 @@ Containers, leaves and inline elements, a merged `:::table`, and an implicit fig
 
 | Field | Value |
 |---|---|
-| `data.tern.tag` | the element the name resolves to ([resolving a name](elements.html#names)). The core containers `meta`, `macros`, `script`, `style` and `html` get none |
-| `data.tern.slot` | the title element: `div`, `span` (for a schema `title: 'inline'`), `summary`, `figcaption`, `caption` or `legend`. Present on a container that emits a title or a label |
-| `data.tern.end` | the end mark from the schema, on a container |
-| `data.tern.cols` | the value of `--t-cols`, on a container with cells and on any node with a valid `cols` key. The element then gets the class `t-cols` |
-| `data.tern.raw` | `true` when the container had `{raw}` |
-| `data.tern.depth` | a toc leaf's `{depth=…}`, taken out of `attributes` |
-| `data.tern.implicit` | `true` on a figure made from an image paragraph |
+| `data.luccet.tag` | the element the name resolves to ([resolving a name](elements.html#names)). The core containers `meta`, `macros`, `script`, `style` and `html` get none |
+| `data.luccet.slot` | the title element: `div`, `span` (for a schema `title: 'inline'`), `summary`, `figcaption`, `caption` or `legend`. Present on a container that emits a title or a label |
+| `data.luccet.end` | the end mark from the schema, on a container |
+| `data.luccet.cols` | the value of `--t-cols`, on a container with cells and on any node with a valid `cols` key. The element then gets the class `t-cols` |
+| `data.luccet.raw` | `true` when the container had `{raw}` |
+| `data.luccet.depth` | a toc leaf's `{depth=…}`, taken out of `attributes` |
+| `data.luccet.implicit` | `true` on a figure made from an image paragraph |
 
 - **The title** is the leading `directiveLabel` paragraph. A schema `titleDefault` fills it, or is inserted as one, when no title is written.
 - **Leaves and inline elements** are counted and labelled like containers, but get no slot. The emitter writes their `text` as `<span class="t-label">` at the start of the element, followed by a space when content follows; a void element (`img`, `hr` …) gets none, and a labelled toc leaf has it before its list.
 - **A merged `:::table`** is a `containerDirective` whose `tag` is `table`. Its body is its title paragraph and exactly one `table` node; the container holds the combined attributes, and the inner table has none.
 - **An implicit figure** is the `containerDirective` named `figure` that `:::figure[…]{#id}` would give. Its title paragraph holds the image's bracket content, and its image has `alt: ''`, keeping any `alt=` attribute.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::table[Phases]{#tbl-phases}
 | Phase | Exit |
 |---|---|
@@ -1432,14 +1432,14 @@ See @tbl-phases.
 
 | Field | Value |
 |---|---|
-| `data.tern.counter` | the counter's name, from the schema; `equation` for display math |
-| `data.tern.number` | the number in that counter, in document order; under `within`, the number within the section |
-| `data.tern.section` | under [`within`](schema.html#field-within) only: the section's number, `"2"` or `"2.1"`, and `"0"` before the first section. The number as shown is `section.number` |
-| `data.tern.text` | the label: `Theorem 1`, `Problem 2.1`, `Proof` (labelled, not counted), `(1)` for an equation, `Listing 1`. Counted without a label, it is the number. A schema `label` function returns the whole text |
+| `data.luccet.counter` | the counter's name, from the schema; `equation` for display math |
+| `data.luccet.number` | the number in that counter, in document order; under `within`, the number within the section |
+| `data.luccet.section` | under [`within`](schema.html#field-within) only: the section's number, `"2"` or `"2.1"`, and `"0"` before the first section. The number as shown is `section.number` |
+| `data.luccet.text` | the label: `Theorem 1`, `Problem 2.1`, `Proof` (labelled, not counted), `(1)` for an equation, `Listing 1`. Counted without a label, it is the number. A schema `label` function returns the whole text |
 
 Display math is numbered only when it has an id, and an unclosed `$$` never is. A titled fence is a listing, numbered with the schema's `code` entry. Numbering is document-wide, except for a counter `within` a heading level, which restarts at each section of it ([`within`](schema.html#field-within)).
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ## Kernel {#kernel}
 
 :::theorem[Rank–nullity]{#rn}
@@ -1457,13 +1457,13 @@ By @rn and @eq-rn.
 
 | Field | Value |
 |---|---|
-| `data.tern.lines` | `true` when the fence asks for line numbers |
-| `data.tern.start` | the first line number, when `start=` is an integer |
-| `data.tern.hl` | the highlighted line numbers, ascending, clipped to the fence, counted from `start` |
-| `data.tern.hlText` | `hl=` as written, for `data-hl` |
-| `data.tern.slot` | on a titled fence, the element of the listing's caption: `figcaption`, unless the schema's `code` entry sets `title` |
+| `data.luccet.lines` | `true` when the fence asks for line numbers |
+| `data.luccet.start` | the first line number, when `start=` is an integer |
+| `data.luccet.hl` | the highlighted line numbers, ascending, clipped to the fence, counted from `start` |
+| `data.luccet.hlText` | `hl=` as written, for `data-hl` |
+| `data.luccet.slot` | on a titled fence, the element of the listing's caption: `figcaption`, unless the schema's `code` entry sets `title` |
 
-````tern {.live}
+````luccet {.live}
 ```js {lines start=10 hl=11}
 let a = 1;
 let b = 2;
@@ -1472,13 +1472,13 @@ let b = 2;
 
 #### References and fragment links
 
-- **A reference** gets `data.tern.resolved`. When it resolves, its `children` are its text, built from the target's `ref` template or the [default text](elements.html#references), and `data.tern.ref` holds a `ref=` choice. When it does not, it has no children, is written as its literal `@id`, and gets [`ref.dangling`](diagnostics.html#ref-dangling).
+- **A reference** gets `data.luccet.resolved`. When it resolves, its `children` are its text, built from the target's `ref` template or the [default text](elements.html#references), and `data.luccet.ref` holds a `ref=` choice. When it does not, it has no children, is written as its literal `@id`, and gets [`ref.dangling`](diagnostics.html#ref-dangling).
 - **Copied text.** The text a reference or a toc entry copies from its target has no positions and no ids. Links are unwrapped, footnote references are left out, and a reference inside the copy becomes its target's plain text (its `ref=` is ignored there), so a link never nests in a link.
-- **A fragment link** `[text](#id)` gets `data.tern.resolved`; when it is false, the link stays a link and gets `ref.dangling` at its `[`.
+- **A fragment link** `[text](#id)` gets `data.luccet.resolved`; when it is false, the link stays a link and gets `ref.dangling` at its `[`.
 
 #### Footnotes
 
-| Node | Fields under `data.tern` |
+| Node | Fields under `data.luccet` |
 |---|---|
 | `footnoteReference` | `resolved`; when resolved, `number`, `id` (`fnref-a`, then `fnref-a-2` …) and `target` (`fn-a`). No `id` when an earlier element holds it |
 | `footnoteDefinition`, referenced | `number`, `id` (`fn-a`) and `backref` (`fnref-a`). No `id` when an earlier element holds it |
@@ -1487,7 +1487,7 @@ let b = 2;
 
 Ids use the label as written, so `[^Note]` gives `fn-Note`.
 
-```tern {.live}
+```luccet {.live}
 Footnotes are numbered by first reference[^b], here[^a], and a second use[^b] gets its own id.
 
 [^a]: Defined first, referenced second.
@@ -1496,9 +1496,9 @@ Footnotes are numbered by first reference[^b], here[^a], and a second use[^b] ge
 
 #### Table of contents
 
-A leaf whose schema entry has `transform: 'toc'` gets `data.tern.toc`: one entry `{depth, id, children}` per heading in its range, in document order, where `children` is a copy of the heading's inline content. The emitter nests the entries into lists. The range is the leaf's `depth`, else the schema's, else `2-3`; a single `N` runs from the range's lower bound to `N`.
+A leaf whose schema entry has `transform: 'toc'` gets `data.luccet.toc`: one entry `{depth, id, children}` per heading in its range, in document order, where `children` is a copy of the heading's inline content. The emitter nests the entries into lists. The range is the leaf's `depth`, else the schema's, else `2-3`; a single `N` runs from the range's lower bound to `N`.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ::toc
 
 ## One
@@ -1513,22 +1513,22 @@ A leaf whose schema entry has `transform: 'toc'` gets `data.tern.toc`: one entry
 Every node the parser makes has a `position`, in [unist](https://github.com/syntax-tree/unist)'s shape:
 
 ```js
-const { ast } = tern.parse('Hi *you*.');
+const { ast } = luccet.parse('Hi *you*.');
 ast.children[0].children[1].position;
 // → { start: { line: 1, column: 4, offset: 3 }, end: { line: 1, column: 9, offset: 8 } }
 ```
 
-- **`line`** is 1-based, counted in the note: line 1 is the line right after the tern.js line.
+- **`line`** is 1-based, counted in the note: line 1 is the line right after the luccet.js line.
 - **`column`** is 1-based, in UTF-16 code units, the unit of JavaScript strings and of the language server. A character outside the BMP, such as an emoji or `𝔽`, counts two. A tab counts one: tab stops matter only for which list item a line belongs to.
 - **`offset`** is 0-based, in UTF-16 code units, into the normalised source: `\r\n` counts as one `\n`, and a BOM is not counted.
 - **`end`** is exclusive: the position just after the node.
 
 ```js
-tern.parse('😀 *you*').ast.children[0].children[1].position;
+luccet.parse('😀 *you*').ast.children[0].children[1].position;
 // → { start: { line: 1, column: 4, offset: 3 }, end: { line: 1, column: 9, offset: 8 } }
-tern.parse('one\r\ntwo *x*').ast.children[0].children[1].position;
+luccet.parse('one\r\ntwo *x*').ast.children[0].children[1].position;
 // → { start: { line: 2, column: 5, offset: 8 }, end: { line: 2, column: 8, offset: 11 } }
-tern.parse('\t*x*').ast.children[0].children[0].position;
+luccet.parse('\t*x*').ast.children[0].children[0].position;
 // → { start: { line: 1, column: 2, offset: 1 }, end: { line: 1, column: 5, offset: 4 } }
 ```
 
@@ -1542,29 +1542,29 @@ tern.parse('\t*x*').ast.children[0].children[0].position;
 - a `cell` runs from its `+++` line, or for the first cell from its first content line, to its last content line.
 
 ```js
-tern.parse('Hi *you*.').ast.position;
+luccet.parse('Hi *you*.').ast.position;
 // → { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 10, offset: 9 } }
-tern.parse('Hi *you*.\n').ast.position;
+luccet.parse('Hi *you*.\n').ast.position;
 // → { start: { line: 1, column: 1, offset: 0 }, end: { line: 2, column: 1, offset: 10 } }
 ```
 
-**Diagnostics** carry positions of the same kind, and each code says where it points ([Positions in diagnostics](diagnostics.html#positions)). Runtime diagnostics about the head or the tern.js line are at line 0, column 0.
+**Diagnostics** carry positions of the same kind, and each code says where it points ([Positions in diagnostics](diagnostics.html#positions)). Runtime diagnostics about the head or the luccet.js line are at line 0, column 0.
 
-```tern {.live expect="block.unclosed ref.dangling"}
+```luccet {.live expect="block.unclosed ref.dangling"}
 :::note
 See @nowhere.
 ```
 
-**Note lines and file lines.** The AST counts lines in the note. The file has the head before it: with the canonical one-line head, file line = note line + 1, and in general file line = note line + the number of lines up to and including the tern.js line. Each tool says which it uses:
+**Note lines and file lines.** The AST counts lines in the note. The file has the head before it: with the canonical one-line head, file line = note line + 1, and in general file line = note line + the number of lines up to and including the luccet.js line. Each tool says which it uses:
 
 | Where | Lines |
 |---|---|
-| `tern.parse`, `tern.check`, `tern.outline`, `tern.diagnostics`, `data-pos` | note lines |
+| `luccet.parse`, `luccet.check`, `luccet.outline`, `luccet.diagnostics`, `data-pos` | note lines |
 | messages ("opened on line 12") | note lines |
-| `tern check` output | file lines; `--json` gives both, as `position` and `filePosition` |
+| `luccet check` output | file lines; `--json` gives both, as `position` and `filePosition` |
 | the panel | both: "line 2:5 (file line 3)" |
-| the language server | file lines: 0-based in LSP ranges, 1-based in the `tern/outline` notification |
+| the language server | file lines: 0-based in LSP ranges, 1-based in the `luccet/outline` notification |
 
-The runtime counts the file line of the tern.js tag from what the HTML parser kept of the head. It is exact for the canonical first line and for line breaks between head elements. But the HTML parser drops the line break after `<!doctype html>`, `<html …>` and `<head>`, so a head that puts them on lines of their own gives file lines that are too low, by one for each.
+The runtime counts the file line of the luccet.js tag from what the HTML parser kept of the head. It is exact for the canonical first line and for line breaks between head elements. But the HTML parser drops the line break after `<!doctype html>`, `<html …>` and `<head>`, so a head that puts them on lines of their own gives file lines that are too low, by one for each.
 
-**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`tern.emit`](#emit)). It is how a browser maps an element back to its note line, and how `tern build --math` positions a [`math.error`](diagnostics.html#math-error).
+**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`luccet.emit`](#emit)). It is how a browser maps an element back to its note line, and how `luccet build --math` positions a [`math.error`](diagnostics.html#math-error).

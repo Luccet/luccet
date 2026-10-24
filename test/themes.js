@@ -3,13 +3,13 @@
 // The colour themes (docs/schema.html#themes), read from the files in
 // themes/: they are the current build of tools/themes.js; each mode of each
 // file sets every colour property and its color-scheme; each prints as
-// tern.css prints; every text colour reaches its family's contrast (4.5:1,
+// luccet.css prints; every text colour reaches its family's contrast (4.5:1,
 // 7:1 for high-contrast) against what it is drawn on, and every code colour
 // too on the code background, with 3:1 (high-contrast 4.5:1) on a
-// highlighted line, as tern.css's own palettes do; a control's border is
+// highlighted line, as luccet.css's own palettes do; a control's border is
 // 3:1 against the page; text in a highlight is the text colour, so muted
 // text and links on a highlight are the checked fg-on-mark pair; each file
-// answers prefers-contrast and forced-colors as tern.css does; and the
+// answers prefers-contrast and forced-colors as luccet.css does; and the
 // documentation lists every file.
 //
 //   node test/themes.js
@@ -61,7 +61,7 @@ test('themes/ is the current build of tools/themes.js', (p) => {
   for (const n of files) if (!(n in built)) p.push(`${n} is not built by tools/themes.js`);
 });
 
-test('every mode sets every colour property and its color-scheme; every file prints as tern.css does', (p) => {
+test('every mode sets every colour property and its color-scheme; every file prints as luccet.css does', (p) => {
   const print = T.printPalette();
   for (const n of files) {
     const m = modes(fs.readFileSync(path.join(DIR, n), 'utf8'));
@@ -77,7 +77,7 @@ test('every mode sets every colour property and its color-scheme; every file pri
     if (!m.print) p.push(`${n}: no print block`);
     else {
       if (m.print['color-scheme'] !== 'light') p.push(`${n}: prints with color-scheme ${m.print['color-scheme']}`);
-      for (const k of T.COLOURS) if (m.print[k] !== print[k]) p.push(`${n}: prints --t-${k} ${m.print[k]}, tern.css ${print[k]}`);
+      for (const k of T.COLOURS) if (m.print[k] !== print[k]) p.push(`${n}: prints --t-${k} ${m.print[k]}, luccet.css ${print[k]}`);
     }
   }
 });
@@ -114,33 +114,33 @@ test('every text and code colour reaches its contrast against what it is drawn o
   }
 });
 
-test("tern.css's own light and dark palettes pass the same checks", (p) => {
+test("luccet.css's own light and dark palettes pass the same checks", (p) => {
   const { css } = require('../src/css');
   const block = (from) => props(css.slice(from, css.indexOf('}', from)));
   const light = block(css.indexOf(':root {'));
   const dark = block(css.indexOf(':root {', css.indexOf('@media (prefers-color-scheme: dark)')));
-  pairs('tern.css (light)', light, 4.5, p);
-  pairs('tern.css (dark)', dark, 4.5, p);
+  pairs('luccet.css (light)', light, 4.5, p);
+  pairs('luccet.css (dark)', dark, 4.5, p);
 });
 
 // Muted text and a link inside a highlight would be new pairs to check
-// (muted on mark fails in most dark palettes); tern.css makes them the
+// (muted on mark fails in most dark palettes); luccet.css makes them the
 // checked pair instead: text in a mark is the text colour.
-test('tern.css: text in a highlight is --t-fg, and the base answers prefers-contrast and forced-colors', (p) => {
+test('luccet.css: text in a highlight is --t-fg, and the base answers prefers-contrast and forced-colors', (p) => {
   const { css } = require('../src/css');
-  if (!/\.tern mark, \.tern mark a \{[^}]*color: var\(--t-fg\)/.test(css)) p.push('.tern mark and .tern mark a do not set color: var(--t-fg)');
-  for (const q of ['@media (prefers-contrast: more)', '@media (forced-colors: active)']) if (!css.includes(q)) p.push(`tern.css has no ${q} block`);
+  if (!/\.luccet mark, \.luccet mark a \{[^}]*color: var\(--t-fg\)/.test(css)) p.push('.luccet mark and .luccet mark a do not set color: var(--t-fg)');
+  for (const q of ['@media (prefers-contrast: more)', '@media (forced-colors: active)']) if (!css.includes(q)) p.push(`luccet.css has no ${q} block`);
   const forced = T.forcedColors();
   for (const k of ['bg', 'fg', 'muted', 'line', 'line-strong', 'soft', 'link', 'mark']) if (!new RegExp(`--t-${k}: [A-Z][A-Za-z]+;`).test(forced)) p.push(`forced-colors gives --t-${k} no system colour`);
   // --t-size follows the reader's own size: a rem on the root is the browser's default size.
   if (!/--t-size: [\d.]+rem;/.test(css)) p.push('--t-size is not in rem, so a reader’s font-size setting would be ignored');
 });
 
-test('every theme answers prefers-contrast (muted as the text colour, rules as the strong line) and forced-colors as tern.css does', (p) => {
+test('every theme answers prefers-contrast (muted as the text colour, rules as the strong line) and forced-colors as luccet.css does', (p) => {
   const forced = T.forcedColors();
   for (const n of files) {
     const css = fs.readFileSync(path.join(DIR, n), 'utf8');
-    if (!css.includes(forced)) p.push(`${n}: no forced-colors block, or not tern.css's`);
+    if (!css.includes(forced)) p.push(`${n}: no forced-colors block, or not luccet.css's`);
     const m = modes(css);
     const more = css.slice(css.indexOf('@media (prefers-contrast: more)'));
     if (!more.startsWith('@media')) {

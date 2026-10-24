@@ -16,14 +16,14 @@ const { emit } = require('./emit');
 const { css } = require('./css');
 const runtime = require('./runtime');
 
-const version = '1.1.0';
+const version = '1.1.1';
 
 // The schema a call uses: opts.schema when given (the corpus passes one),
-// else the registry that tern.block/leaf/inline write.
+// else the registry that luccet.block/leaf/inline write.
 const withSchema = (opts) => (opts && opts.schema ? opts : { ...opts, schema: registry.schema });
 
 // parse(source, {schema, head, maxDepth}) -> {ast, diagnostics}
-// `source` is the note (everything after the tern.js line); `head` is the
+// `source` is the note (everything after the luccet.js line); `head` is the
 // preserved head as a string, for `:::meta` conflicts; `schema` is the
 // registry {block, leaf, inline}, with `strict: true` for name.unknown.
 function parse(source, opts) {
@@ -33,7 +33,7 @@ function parse(source, opts) {
 }
 
 // transform(ast, opts) -> ast: runs the transforms in place and appends
-// their diagnostics to ast.data.tern.diagnostics.
+// their diagnostics to ast.data.luccet.diagnostics.
 // transform(name, fn, {before | after}) registers a transform.
 function transform(ast, opts, order) {
   if (typeof ast === 'string') return pipeline.register(ast, opts, order);
@@ -45,7 +45,7 @@ function check(source, opts) {
   const o = withSchema(opts);
   const { ast, diagnostics } = parse(source, o);
   pipeline.run(ast, o);
-  return sortDiagnostics(diagnostics.concat(ast.data.tern.diagnostics));
+  return sortDiagnostics(diagnostics.concat(ast.data.luccet.diagnostics));
 }
 
 // toHTML(source, {schema, head, positions, safe}) -> the body HTML, synchronously.

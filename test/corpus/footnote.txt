@@ -14,7 +14,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#footnote-definition
 
 The footnote-reference example: `[^LABEL]` becomes a numbered superscript link, and the definition is collected at the end.
 
-````tern
+````luccet
 Both are subspaces.[^subspace]
 
 [^subspace]: Closed under addition.
@@ -45,7 +45,7 @@ spec: syntax-blocks#footnote-definition
 
 The footnote-definition example: a line indented 2 columns continues the definition's paragraph, stripped by 2.
 
-````tern
+````luccet
 See the kernel.[^subspace]
 
 [^subspace]: Closed under addition and scaling: if $Tu = Tv = 0$
@@ -66,7 +66,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#line-algorithm
 
 A blank line followed by an indented line continues the definition with a second paragraph; the back link goes in the last one.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: First paragraph.
@@ -87,7 +87,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#line-algorithm
 
 An unindented line that cannot interrupt a paragraph continues the definition's paragraph lazily.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: A note that
@@ -108,7 +108,7 @@ spec: syntax-blocks#footnote-definition
 
 After a blank line, an unindented line ends the definition and stays in the main flow, before the collected footnotes.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: The note.
@@ -130,7 +130,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#line-algorithm
 
 An unindented line that interrupts a paragraph is not lazy, so it ends the definition with no blank line.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: The note.
@@ -151,7 +151,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#r2
 
 Membership needs 2 columns: after a blank line, a line indented by 1 is outside the definition.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: The note.
@@ -174,7 +174,7 @@ options: escaped
 
 A tab advances to column 4, which is at least 2, so a tab-indented line after a blank line stays in the definition.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: The note.
@@ -195,7 +195,7 @@ spec: syntax-blocks#footnote-definition
 
 `[^LABEL]:` may end the line; the content then starts on the indented line below.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]:
@@ -215,7 +215,7 @@ spec: syntax-blocks#footnote-definition syntax-inline#footnote-reference
 
 Without a space after the colon the line is not a definition: it is a paragraph whose `[^a]` is an undefined reference.
 
-````tern
+````luccet
 [^a]:no space
 ````
 
@@ -233,7 +233,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#character-classes
 
 A label with a space, or an empty one, is not a LABEL, so these lines are plain paragraphs.
 
-````tern
+````luccet
 [^a b]: Spaces are not allowed in a label.
 
 [^]: Nor is an empty label.
@@ -250,7 +250,7 @@ spec: syntax-blocks#footnote-definition syntax-inline#escapes
 
 `\[^x]:` is the line-start escape for a footnote definition: the line is a paragraph, holds no reference, and draws no LaTeX hint.
 
-````tern
+````luccet
 \[^x]: not a definition.
 ````
 
@@ -264,7 +264,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#line-algorithm
 
 A definition interrupts a paragraph, so it needs no blank line before it.
 
-````tern
+````luccet
 Text.[^a]
 [^a]: Right under the paragraph.
 ````
@@ -282,7 +282,7 @@ spec: syntax-blocks#footnote-definition syntax-inline#footnote-reference element
 
 Footnotes are numbered and listed by first reference, not by where they are defined; consecutive definitions interrupt each other.
 
-````tern
+````luccet
 [^a]: Note A.
 [^b]: Note B.
 
@@ -303,7 +303,7 @@ spec: syntax-inline#footnote-reference
 
 A repeated reference shows the same number and gets the id `fnref-LABEL-2`; the definition has one back link, to the first reference.
 
-````tern
+````luccet
 First use[^x], second use[^x].
 
 [^x]: Shared note.
@@ -322,7 +322,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#character-classes elements#
 
 LABEL allows digits anywhere, `_` and `-`; the label is used as written in both ids.
 
-````tern
+````luccet
 One[^1], two[^2b], three[^x_3-c].
 
 [^1]: Digits only.
@@ -345,7 +345,7 @@ spec: syntax-inline#footnote-reference
 
 `[^]` and `[^ x]` are not references; they are text, with no diagnostic.
 
-````tern
+````luccet
 Empty [^] and spaced [^ x] stay text.
 ````
 
@@ -359,7 +359,7 @@ spec: syntax-inline#footnote-reference diagnostics#footnote-undefined
 
 A reference with no definition stays literal and is warned about at its `[`.
 
-````tern
+````luccet
 See the note[^missing].
 ````
 
@@ -377,7 +377,7 @@ spec: syntax-blocks#footnote-definition diagnostics#footnote-unused
 
 A definition with no reference is reported and still emitted, after the referenced ones, with no back link.
 
-````tern
+````luccet
 Text.[^used]
 
 [^unused]: Not referenced.
@@ -402,7 +402,7 @@ spec: syntax-blocks#footnote-definition elements#ids
 
 A second definition of the same label is warned about at that definition, and the first one wins. The losing definition is dropped: its content is not emitted, it generates no `fn-` id, and `footnote.duplicate` is reported on the second definition only, with no `id.duplicate`.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: First definition.
@@ -426,7 +426,7 @@ spec: syntax-blocks#footnote-definition
 
 A reference inside a definition stays literal and is warned about; the same label referenced from the text still works.
 
-````tern
+````luccet
 Text.[^a] More.[^b]
 
 [^a]: See also[^b].
@@ -451,7 +451,7 @@ spec: syntax-blocks#footnote-definition
 
 A literal nested reference is not a reference, so a definition cited only from inside another definition is unused: it is listed after the referenced one, with no back link.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: See[^b].
@@ -477,7 +477,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#lists
 
 Definition content is block-level: a list nests at the definition's 2-column indent.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: Steps:
@@ -501,7 +501,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#fence
 
 A fence nests in a definition; its content loses the definition's 2-column indent. When the definition's last block is not a paragraph, the back link goes in a `<p>` of its own.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: Run this:
@@ -534,7 +534,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#container
 
 A definition may start inside a `:::` container; it is collected at the end of the note, and the closer ends it.
 
-````tern
+````luccet
 :::box
 Text.[^a]
 
@@ -555,7 +555,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#blockquote syntax-blocks#l
 
 Inside a quote the definition's 2-column indent is measured after the `> ` prefix.
 
-````tern
+````luccet
 > Quoted.[^q]
 >
 > [^q]: Defined in the quote,
@@ -576,7 +576,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#tables
 
 Cells are inline content, so a reference works in a table cell.
 
-````tern
+````luccet
 | Term | Note |
 |---|---|
 | kernel | a subspace[^k] |
@@ -600,7 +600,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#footnote-definition
 
 `[^a]` at the start of a line without `:` after it is a reference, not a definition.
 
-````tern
+````luccet
 [^a] begins this line.
 
 [^a]: The definition.
@@ -619,7 +619,7 @@ spec: syntax-inline#footnote-reference syntax-inline#algorithm syntax-inline#lin
 
 The tokenizer's rule 9 is `![` not followed by `^`, so at `!` no image opens, `!` is text, and rule 8 then reads `[^a]` as a footnote reference, as in GFM. The definition is used.
 
-````tern
+````luccet
 Wow![^a]
 
 [^a]: Exclamation.
@@ -641,7 +641,7 @@ spec: syntax-inline#footnote-reference syntax-inline#algorithm syntax-inline#ima
 
 `![^a](x.png)` cannot be an image: `![` followed by `^` is not an image opener. It is `!`, a footnote reference, and the text `(x.png)`.
 
-````tern
+````luccet
 See ![^a](x.png).
 
 [^a]: Not an image.
@@ -660,7 +660,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#footnote-definition element
 
 Footnote labels match case-insensitively, so `[^A]` reaches `[^a]:`; the generated ids use the definition's label as written.
 
-````tern
+````luccet
 Text.[^A]
 
 [^a]: Lower-case definition.
@@ -682,7 +682,7 @@ spec: syntax-inline#footnote-reference elements#ids
 
 References spelled in different cases are one footnote: one number, and every id (`fn-`, `fnref-`, `fnref-…-2`) is built from the definition's spelling, not the reference's.
 
-````tern
+````luccet
 Once[^KERNEL], twice[^kernel].
 
 [^Kernel]: Mixed case.
@@ -701,7 +701,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#character-classes
 
 Labels match when `label.toLowerCase().toUpperCase()` are equal (micromark's approximation of Unicode case folding): `ß` upper-cases to `SS`, so `[^ß]` reaches `[^ss]:`. Plain lower-casing would not match them.
 
-````tern
+````luccet
 Straße[^ß]
 
 [^ss]: Folded.
@@ -720,7 +720,7 @@ spec: syntax-blocks#footnote-definition syntax-inline#footnote-reference
 
 Labels that differ only in case are the same label, so `[^A]:` after `[^a]:` is a duplicate: `footnote.duplicate` on the second, which is dropped.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: First definition.
@@ -744,7 +744,7 @@ spec: syntax-inline#footnote-reference elements#ids syntax-inline#reference
 
 Footnote ids live in their own `fn-`/`fnref-` spelling, so a footnote `x` and an element `#x` do not collide: no diagnostic, and `@x` reaches the heading.
 
-````tern
+````luccet
 ## Kernel {#x}
 
 See @x and the note.[^x]
@@ -766,7 +766,7 @@ spec: syntax-blocks#footnote-definition syntax-inline#footnote-reference
 
 A definition cannot contain a definition: the indented `[^b]:` line inside `[^a]` is paragraph text. Its `[^b]` is then a nested reference to an undefined label, which gets only `footnote.nested`.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]: Outer.
@@ -791,7 +791,7 @@ spec: syntax-blocks#footnote-definition
 
 An empty definition gives an empty item with its back link; with no paragraph to hold it, the back link is in a `<p>` of its own.
 
-````tern
+````luccet
 Text.[^a]
 
 [^a]:
@@ -810,7 +810,7 @@ spec: syntax-inline#footnote-reference syntax-blocks#positions
 
 A strong group glued to a footnote reference binds to the `<sup>`, after its `t-fnref` class.
 
-````tern
+````luccet
 Text.[^a]{.x}
 
 [^a]: The note.
@@ -829,7 +829,7 @@ spec: syntax-blocks#footnote-definition syntax-blocks#attribute-line
 
 A footnote definition takes no attributes: an attribute line before one binds to nothing and stays text.
 
-````tern
+````luccet
 {.x}
 [^a]: note
 
@@ -850,7 +850,7 @@ spec: syntax-blocks#footnote-definition elements#accessibility schema#languages
 
 The footnote section is `role="doc-endnotes"` with an `aria-label`, a reference `role="doc-noteref"`, a back link labelled; the words follow the note's label language (here `:::meta`'s `lang`), English when the language has none.
 
-````tern
+````luccet
 :::meta
 lang: de
 :::

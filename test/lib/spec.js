@@ -16,7 +16,7 @@ const anchors = require('./anchors');
 
 // Codes not produced by the parser/transform (so not in src/diag.js SEVERITY):
 // the runtime's own, plus math.error (a math add-on's console message and a
-// `tern build --math` warning), head.script/addon.remote (loading, under node),
+// `luccet build --math` warning), head.script/addon.remote (loading, under node),
 // and the CLI's link checks. KaTeX is an add-on now, so there is no
 // katex.unavailable.
 const RUNTIME_CODES = ['math.error', 'output.limit', 'addon.failed', 'script.document-write', 'script.domcontentloaded', 'doc.quirks', 'head.script', 'addon.remote', 'link.missing', 'link.dangling'];

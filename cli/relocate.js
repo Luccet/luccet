@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-// What moving files and folders asks of the notes, for tern mv
+// What moving files and folders asks of the notes, for luccet mv
 // (docs/tools.html#mv): the text edits that keep every relative URL
 // pointing where it did. Two kinds:
 //   - a URL into a moved file or folder, from any note;
 //   - a moved note's own relative URLs: its targets stay, but the note
-//     moves, so its links, images, tern.js, add-ons and head scripts are
+//     moves, so its links, images, luccet.js, add-ons and head scripts are
 //     written from its new folder.
 // An edit replaces the path of one URL as written (cli/links.js urls),
 // keeping its query and fragment, its quotes or <…>, and whether it

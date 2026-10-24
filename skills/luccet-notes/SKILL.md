@@ -1,57 +1,57 @@
 ---
-name: tern-notes
-description: Write, edit, check and fix Tern notes, HTML files whose first line loads tern.js and whose body is Tern markup, a Markdown-like syntax with ::: blocks, {#id .class} attributes, @references, footnotes and TeX math, rendered in place by the browser. Use when creating or changing a .html file that loads tern.js, turning Markdown or LaTeX into a Tern note, or fixing what `tern check` or the page's diagnostics panel reports.
+name: luccet-notes
+description: Write, edit, check and fix Luccet notes, HTML files whose first line loads luccet.js and whose body is Luccet markup, a Markdown-like syntax with ::: blocks, {#id .class} attributes, @references, footnotes and TeX math, rendered in place by the browser. Use when creating or changing a .html file that loads luccet.js, turning Markdown or LaTeX into a Luccet note, or fixing what `luccet check` or the page's diagnostics panel reports.
 license: MIT
 ---
 
-# Tern notes
+# Luccet notes
 
-A Tern note is one `.html` file. Its first line loads `tern.js`; everything after that line is the note, written in Tern's syntax, and `tern.js` renders it in place when the browser opens the file. There is no build step. The command line (`tern check`) and the language server run the same engine on the same file.
+A Luccet note is one `.html` file. Its first line loads `luccet.js`; everything after that line is the note, written in Luccet's syntax, and `luccet.js` renders it in place when the browser opens the file. There is no build step. The command line (`luccet check`) and the language server run the same engine on the same file.
 
-Tern looks like Markdown but is not Markdown, and the body is not HTML. Most mistakes come from those two habits; the sections below list them.
+Luccet looks like Markdown but is not Markdown, and the body is not HTML. Most mistakes come from those two habits; the sections below list them.
 
 ## Recognize a note
 
-- **A note** has a line with a plain `<script src="…tern.js"></script>` (any path to a file named `tern.js`). Everything before it is the head, ordinary HTML. Everything after it is Tern source.
-- **Not a note:** the tag has `async`, `defer`, `type="module"` (tern.js cannot read the file), or `data-built`. A `data-built` page was written by `tern build`: edit its source note, not the page.
-- **The vocabulary** of a note is in its head. Look for `data-use="…"` on the tern.js line and a `:::use` block at the top of the note (add-ons, themes), and a `window.TERN = {schema: …}` script before the line. Names such as `theorem` or `proof` only number and label when the vocabulary declares them.
+- **A note** has a line with a plain `<script src="…luccet.js"></script>` (any path to a file named `luccet.js`). Everything before it is the head, ordinary HTML. Everything after it is Luccet source.
+- **Not a note:** the tag has `async`, `defer`, `type="module"` (luccet.js cannot read the file), or `data-built`. A `data-built` page was written by `luccet build`: edit its source note, not the page.
+- **The vocabulary** of a note is in its head. Look for `data-use="…"` on the luccet.js line and a `:::use` block at the top of the note (add-ons, themes), and a `window.LUCCET = {schema: …}` script before the line. Names such as `theorem` or `proof` only number and label when the vocabulary declares them.
 
 ## The first line
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 # Hello
 
 A note with *emphasis* and a formula, $e^{i\pi} + 1 = 0$.
 ```
 
-- The `src` is relative to the note: `../tern.js` from a subfolder. Keep the tag plain.
+- The `src` is relative to the note: `../luccet.js` from a subfolder. Keep the tag plain.
 - The doctype is required (quirks mode breaks math: `doc.quirks`), and so is `<meta charset="utf-8">`.
-- A `<title>`, `<html lang>`, stylesheets and a `window.TERN` script go before the tern.js tag, on lines of their own if you like. Put the page's title and language in a `:::meta` block instead when you prefer to keep them in the note.
-- `tern new FILE --title="…"` writes the line with the right path to the nearest `tern.js`, and after the tag a guard that shows the source as readable text when `tern.js` does not load (`--bare` leaves it out; `--lang=TAG` sets the language).
+- A `<title>`, `<html lang>`, stylesheets and a `window.LUCCET` script go before the luccet.js tag, on lines of their own if you like. Put the page's title and language in a `:::meta` block instead when you prefer to keep them in the note.
+- `luccet new FILE --title="…"` writes the line with the right path to the nearest `luccet.js`, and after the tag a guard that shows the source as readable text when `luccet.js` does not load (`--bare` leaves it out; `--lang=TAG` sets the language).
 
 ## The loop
 
-1. **Read** the note and its head: the path to `tern.js`, `data-use`, a leading `:::use` block, `window.TERN.schema`.
-2. **Edit** in Tern's syntax (below).
-3. **Check:** `tern check FILE` (or a folder). Fix every error and warning; each comes with a hint that spells the fix. The `file:line:col` in front is a line of the file; a line number inside a message counts from the note's first line.
+1. **Read** the note and its head: the path to `luccet.js`, `data-use`, a leading `:::use` block, `window.LUCCET.schema`.
+2. **Edit** in Luccet's syntax (below).
+3. **Check:** `luccet check FILE` (or a folder). Fix every error and warning; each comes with a hint that spells the fix. The `file:line:col` in front is a line of the file; a line number inside a message counts from the note's first line.
 4. **Repeat** until the check is clean. An info is a hint: fix it when it points at something you did not mean.
 
-Finding the command line: `tern` is on `PATH` after `npm link` in a Tern checkout; otherwise run `node /path/to/tern/tern-cli.js check FILE`, with the checkout that holds the note's `tern.js` if there is one. It needs Node 22 or later. Without it, say so: the user can open the note in a browser, where a panel lists the same problems (on `file:` pages and `localhost`).
+Finding the command line: `luccet` is on `PATH` after `npm link` in a Luccet checkout; otherwise run `node /path/to/luccet/luccet-cli.js check FILE`, with the checkout that holds the note's `luccet.js` if there is one. It needs Node 22 or later. Without it, say so: the user can open the note in a browser, where a panel lists the same problems (on `file:` pages and `localhost`).
 
-`tern check` cannot see the habits in the next two sections: they render without a diagnostic, as literal text. Get them right while writing.
+`luccet check` cannot see the habits in the next two sections: they render without a diagnostic, as literal text. Get them right while writing.
 
 ## The body is not HTML
 
 - **Do not escape** text for HTML. Write `a < b`, `&`, quotes and non-ASCII characters as they are; save the file as UTF-8.
-- **Do not wrap** content in `<p>`, `<div>`, `<section>` or `<details>` tags, and do not add `</body></html>`. Use a `:::` block: `:::div{.box}`, `:::section`, `:::details[Summary]`. Markup inside a raw HTML block is not Tern; Tern warns (`html.wrapper`).
+- **Do not wrap** content in `<p>`, `<div>`, `<section>` or `<details>` tags, and do not add `</body></html>`. Use a `:::` block: `:::div{.box}`, `:::section`, `:::details[Summary]`. Markup inside a raw HTML block is not Luccet; Luccet warns (`html.wrapper`).
 - **Never run Prettier** or any HTML formatter on a note, and never hard-wrap its lines. A formatter rewrites the body as if it were HTML. Wrapping breaks one-line constructs: block openers, leaves, table rows, headings with `{…}`.
 - **Raw HTML is allowed** when you mean it: a block tag such as `<form>` or `<svg>` on its own line, an inline tag such as `<sub>` in text, or a ```` ```=html ```` fence. Its content is emitted as written.
 
 ## Markdown and LaTeX habits that do not work
 
-| Habit | In Tern |
+| Habit | In Luccet |
 |---|---|
 | `_em_`, `__strong__` | `*em*`, `**strong**`. Underscores are always text. |
 | Two trailing spaces for a line break | `\` at the end of the line. |
@@ -97,7 +97,7 @@ Finding the command line: `tern` is on `PATH` after `npm link` in a Tern checkou
 | Macros | `:::macros` with `\gdef\R{\mathbb{R}}` lines |
 | Escape | `\` before any ASCII punctuation: `\*`, `\$`, `\@`, `\#` |
 
-```tern
+```luccet
 :::meta
 title: Linear maps
 lang: en
@@ -130,7 +130,7 @@ By @eq-rn, see also [the start](#maps).
 
 A name becomes an element. An HTML name becomes that element (`:::aside` is an `<aside>`, `::video` a `<video>`, `:kbd[…]` a `<kbd>`), a lower-case name with a hyphen a custom element (`::tide-chart`), and any other name a `div` or `span` with the name as its class.
 
-```tern
+```luccet
 :::aside[A title]{#side .muted}
 Any content: paragraphs, lists, math, other blocks.
 :::
@@ -160,7 +160,7 @@ Press :kbd[Ctrl]+:kbd[S]. A [defined term]{.term}.
 
 `{#id .class key=value flag}`: an id, classes, attributes, and boolean attributes. Quote values with spaces: `title="Two words"`. They go right after a link, image, span, inline element, reference, code span, formula or emphasis; at the end of a block's opening line or a heading; after a closing `$$`; or alone on the line before a block.
 
-```tern
+```luccet
 {.lead}
 An introduction with a [link](https://example.com){target=_blank} and **bold**{.key} text.
 
@@ -173,7 +173,7 @@ On a display formula the braces go after the closing `$$`; on the opening line t
 
 TeX between dollars. The engine leaves each formula as its TeX source and renders nothing; load a math add-on in `:::use` or `data-use` to typeset it — `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML). Inside math everything is TeX; outside it, a backslash before a letter is just a backslash.
 
-```tern
+```luccet
 Inline $\sum_{i=1}^n x_i$, a price of $5 left alone, and $`]0,1[` verbatim.
 
 $$
@@ -190,11 +190,11 @@ For $x \in \R$, @eq-pythagoras holds.
 - A `$` pair is math only when it looks like math: the opener followed by a non-space, the closer after a non-space and not before a digit. Prices need no escaping; escape one with `\$` when it shares a sentence with a formula (`math.suspect-price`).
 - Display math: `$$` lines, no blank line inside (`math.unclosed`). An id after the closing `$$` numbers the equation; `@id` reads "(1)".
 - Without a math add-on, formulas show as their TeX source (like a code fence with no `addons/code.js`). Load one to typeset them; for offline use point it at a local copy: `addons/katex.js?base=vendor/katex`.
-- `addons/copy.js` puts a copy button on every fence (`{data-copy=false}` on one leaves it out); `addons/lightbox.js` opens a figure's image full size in a dialog (`?images=all` for every image; `{data-lightbox=false}` leaves one alone). Both are behaviours: nothing changes in the markup or under `tern check`.
-- `addons/switcher.js` gives a `::themes` leaf: a select of Tern's themes (`{themes="nord solarized"}` for a short list) that applies the chosen one, remembers it in the browser and applies it on every page of the site that loads the add-on; `?at=SELECTOR` on the add-on puts the control inside that element instead, for a site's navigation.
-- `addons/cite.js` cites sources: a `:::bibliography` block holds BibTeX or CSL-JSON entries, `@key` cites one and reads `[1]` (`{style=author-year}` on the block: `(Knuth, 1984)`), and the block lists the cited entries, formatted. Keys must be ids `@` reaches (`knuth84`, not `knuth:84`). `window.TERN.bib` in a head script shares one bibliography across notes.
-- `addons/search.js` gives a `::search` leaf: a box that searches the notes the page links to (`::search{from=index.html}` for another page's links), indexed in the browser, each hit linking to its heading or block. Load the notes' vocabulary add-on on that page too. `tern search QUERY [PATH…]` is the same search on files, printing `FILE:LINE:` and the entry's label; use it to find where a topic is treated before editing. `tern index [PATH…]` writes `notes.json` (a catalogue: each note's path, title, description, date, headings, links), `search.json` (the index) and `glossary.json` (the terms the notes define) beside the notes; `addons/notes.js` gives `::notes`, a list drawn from the catalogue, and `::search{index=search.json}` reads the index instead of fetching the notes. In a git repository only tracked notes are indexed. Write the files again when notes change (a pre-commit hook); `tern index --check` exits 1 when they are stale.
-- `addons/glossary.js` gives a `::glossary` leaf: the terms a folder's notes define, from `glossary.json`, each linked to its definition, with the definition rendered. Define a term with `:dfn[word]` in the sentence that explains it (`{title=word}` when the text is inflected: `:dfn[kernels]{title=kernel}`) or with a titled `:::definition[Word]` block; mark a use with `:term[word]`, a link to the glossary page (`glossary.html` beside the note; `addons/glossary.js?page=/wiki/glossary.html` names another). `tern index` says when a term is defined twice or a `:term` has no definition; a glossary page that is not there is `link.missing` at the use.
+- `addons/copy.js` puts a copy button on every fence (`{data-copy=false}` on one leaves it out); `addons/lightbox.js` opens a figure's image full size in a dialog (`?images=all` for every image; `{data-lightbox=false}` leaves one alone). Both are behaviours: nothing changes in the markup or under `luccet check`.
+- `addons/switcher.js` gives a `::themes` leaf: a select of Luccet's themes (`{themes="nord solarized"}` for a short list) that applies the chosen one, remembers it in the browser and applies it on every page of the site that loads the add-on; `?at=SELECTOR` on the add-on puts the control inside that element instead, for a site's navigation.
+- `addons/cite.js` cites sources: a `:::bibliography` block holds BibTeX or CSL-JSON entries, `@key` cites one and reads `[1]` (`{style=author-year}` on the block: `(Knuth, 1984)`), and the block lists the cited entries, formatted. Keys must be ids `@` reaches (`knuth84`, not `knuth:84`). `window.LUCCET.bib` in a head script shares one bibliography across notes.
+- `addons/search.js` gives a `::search` leaf: a box that searches the notes the page links to (`::search{from=index.html}` for another page's links), indexed in the browser, each hit linking to its heading or block. Load the notes' vocabulary add-on on that page too. `luccet search QUERY [PATH…]` is the same search on files, printing `FILE:LINE:` and the entry's label; use it to find where a topic is treated before editing. `luccet index [PATH…]` writes `notes.json` (a catalogue: each note's path, title, description, date, headings, links), `search.json` (the index) and `glossary.json` (the terms the notes define) beside the notes; `addons/notes.js` gives `::notes`, a list drawn from the catalogue, and `::search{index=search.json}` reads the index instead of fetching the notes. In a git repository only tracked notes are indexed. Write the files again when notes change (a pre-commit hook); `luccet index --check` exits 1 when they are stale.
+- `addons/glossary.js` gives a `::glossary` leaf: the terms a folder's notes define, from `glossary.json`, each linked to its definition, with the definition rendered. Define a term with `:dfn[word]` in the sentence that explains it (`{title=word}` when the text is inflected: `:dfn[kernels]{title=kernel}`) or with a titled `:::definition[Word]` block; mark a use with `:term[word]`, a link to the glossary page (`glossary.html` beside the note; `addons/glossary.js?page=/wiki/glossary.html` names another). `luccet index` says when a term is defined twice or a `:term` has no definition; a glossary page that is not there is `link.missing` at the use.
 
 ## Ids and references
 
@@ -205,17 +205,17 @@ For $x \in \R$, @eq-pythagoras holds.
 
 ## Vocabulary
 
-Tern's core knows HTML's names and nothing else. Theorems, proofs, numbered figures and callouts come from a vocabulary, declared in the head or by an add-on. Without one, `:::theorem` is a plain `div.theorem` with no label or number.
+Luccet's core knows HTML's names and nothing else. Theorems, proofs, numbered figures and callouts come from a vocabulary, declared in the head or by an add-on. Without one, `:::theorem` is a plain `div.theorem` with no label or number.
 
 ```html
 <!doctype html><meta charset="utf-8">
 <script>
-window.TERN = {schema: {block: {
+window.LUCCET = {schema: {block: {
   theorem: {tag: 'section', counter: 'theorem', label: 'Theorem'},
   proof: {tag: 'section', label: 'Proof', end: '∎'},
 }}};
 </script>
-<script src="tern.js"></script>
+<script src="luccet.js"></script>
 
 :::theorem[Rank–nullity]{#thm-rn}
 $\dim V = \dim \ker T + \dim \operatorname{im} T$.
@@ -253,5 +253,5 @@ Every code, with what it means and how to fix it: [references/diagnostics.md](re
 - [references/syntax.md](references/syntax.md): every construct, its edge cases and escapes.
 - [references/vocabulary.md](references/vocabulary.md): schemas, add-ons (`:::use`, `data-use`), themes, styling and behaviours.
 - [references/diagnostics.md](references/diagnostics.md): every diagnostic code.
-- [references/tools.md](references/tools.md): `tern new`, `check`, `build`, `mv`, the language server, and publishing.
-- The documentation: [the guide](https://ozkrac.github.io/tern/docs/guide.html#top), [the eight rules](https://ozkrac.github.io/tern/docs/guide.html#rules).
+- [references/tools.md](references/tools.md): `luccet new`, `check`, `build`, `mv`, the language server, and publishing.
+- The documentation: [the guide](https://luccet.dev/docs/guide.html#top), [the eight rules](https://luccet.dev/docs/guide.html#rules).

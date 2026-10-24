@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Command line and editors · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Command line and editors · Luccet</title><link rel="icon" href="favicon-32.png" sizes="32x32"><link rel="icon" href="favicon.svg" type="image/svg+xml"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
 
 :::meta
-description: The tern command line (new, check, parse, build, mv, corpus), the language server, its tern/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, a skill for coding agents, and the note-detection rule editors share.
+description: The luccet command line (new, check, parse, build, mv, corpus), the language server, its luccet/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, a skill for coding agents, and the note-detection rule editors share.
 :::
 
 ::site-nav
@@ -10,9 +10,9 @@ description: The tern command line (new, check, parse, build, mv, corpus), the l
 
 ::toc
 
-Tern has one command-line program, `tern-cli.js`. It writes new notes, checks them, prints their syntax tree, pre-renders them into static pages, moves them with their links, and runs a language server for your editor. It runs under Node and is never loaded by a note: a note needs only `tern.js`.
+Luccet has one command-line program, `luccet-cli.js`. It writes new notes, checks them, prints their syntax tree, pre-renders them into static pages, moves them with their links, and runs a language server for your editor. It runs under Node and is never loaded by a note: a note needs only `luccet.js`.
 
-Every command runs the same engine the browser runs, on the same note, with the same vocabulary. So `tern check` reports the same diagnostics as the browser's panel, for everything the browser does not find only at run time (an add-on that fails, a script that calls `document.write`), and your editor shows them again as you type.
+Every command runs the same engine the browser runs, on the same note, with the same vocabulary. So `luccet check` reports the same diagnostics as the browser's panel, for everything the browser does not find only at run time (an add-on that fails, a script that calls `document.write`), and your editor shows them again as you type.
 
 The examples on this page are real output, run against the engine in this repository. Paths in them are relative to the folder the command ran in. A few long absolute paths are shortened with `…`.
 
@@ -22,26 +22,26 @@ You need **Node 22 or later** (`package.json` asks for `node >= 22`). The comman
 
 | How | Command | Notes |
 |---|---|---|
-| With npm, from GitHub | `npm install -g github:OzkrAC/tern#vX.Y.Z`, then `tern check notes/` | npm installs the package `@ozkrac/tern` from the repository at a tag and puts `tern` on your `PATH`; `npx github:OzkrAC/tern#vX.Y.Z check notes/` runs it without installing. It is not on the npm registry. |
-| Directly | `node path/to/tern/tern-cli.js check notes/` | Works from anywhere, from a checkout or from `node_modules/@ozkrac/tern/`. |
-| npx, inside the checkout | `npx --no -- tern check notes/` | Uses the `bin` entry of the checkout's `package.json`. |
-| A `tern` command | `npm link` in the checkout | Puts `tern` on your `PATH`, linked to the checkout. |
-| A symbolic link | `ln -s ~/src/tern/tern-cli.js ~/.local/bin/tern` | `tern-cli.js` is executable and starts with `#!/usr/bin/env node`. |
+| With npm, from GitHub | `npm install -g github:Luccet/luccet#vX.Y.Z`, then `luccet check notes/` | npm installs the package `luccet` from the repository at a tag and puts `luccet` on your `PATH`; `npx github:Luccet/luccet#vX.Y.Z check notes/` runs it without installing. It is not on the npm registry. |
+| Directly | `node path/to/luccet/luccet-cli.js check notes/` | Works from anywhere, from a checkout or from `node_modules/luccet/`. |
+| npx, inside the checkout | `npx --no -- luccet check notes/` | Uses the `bin` entry of the checkout's `package.json`. |
+| A `luccet` command | `npm link` in the checkout | Puts `luccet` on your `PATH`, linked to the checkout. |
+| A symbolic link | `ln -s ~/src/luccet/luccet-cli.js ~/.local/bin/luccet` | `luccet-cli.js` is executable and starts with `#!/usr/bin/env node`. |
 
-The rest of this page writes `tern` for whichever you chose.
+The rest of this page writes `luccet` for whichever you chose.
 
 :::warning
-The package is not on the npm registry, and `npx tern` looks there for a package called `tern`, which is an unrelated project. Inside the checkout, `npx --no -- tern` uses the checkout's `bin` entry; the `--no` flag makes `npx` refuse to install anything, so a mistake fails instead of downloading it, and `--` keeps `npx --no tern --version` from printing npm's own version.
+The package is not on the npm registry, and `npx luccet` looks there for a package called `luccet`, which is an unrelated project. Inside the checkout, `npx --no -- luccet` uses the checkout's `bin` entry; the `--no` flag makes `npx` refuse to install anything, so a mistake fails instead of downloading it, and `--` keeps `npx --no luccet --version` from printing npm's own version.
 :::
 
-`tern help` (or `tern` alone, `tern --help`, `tern -h`) prints the usage to stdout and exits 0. `tern --version` (or `-v`, `version`) prints the engine's version:
+`luccet help` (or `luccet` alone, `luccet --help`, `luccet -h`) prints the usage to stdout and exits 0. `luccet --version` (or `-v`, `version`) prints the engine's version:
 
 ```sh
-$ tern --version
-1.1.0
-$ tern bogus
-tern: unknown command "bogus"
-usage: tern COMMAND …
+$ luccet --version
+1.1.1
+$ luccet bogus
+luccet: unknown command "bogus"
+usage: luccet COMMAND …
 …
 $ echo $?
 2
@@ -49,16 +49,16 @@ $ echo $?
 
 | Command | What it does | Section |
 |---|---|---|
-| `tern new FILE` | writes a new note's first line | [tern new](#new) |
-| `tern check PATH…` | prints the diagnostics of notes; exits 1 on errors | [tern check](#check) |
-| `tern parse FILE` | prints the note's syntax tree as JSON | [tern parse](#parse) |
-| `tern build FILE…` | writes static, pre-rendered pages | [tern build](#build) |
-| `tern mv FROM… TO` | moves notes and files, rewriting the links to and from them | [tern mv](#mv) |
-| `tern search QUERY` | searches notes by word, each hit at its file and line | [tern search](#search) |
-| `tern index [PATH…]` | writes `notes.json` and `search.json`, what the `::notes` and `::search` add-ons read | [tern index](#index) |
-| `tern corpus PATH…` | prints documentation pages' live examples as corpus cases | [tern corpus](#corpus) |
-| `tern vendor DIR` | writes local copies of the add-ons' libraries, in the layout `?base=` takes | [tern vendor](#vendor) |
-| `tern lsp [--stdio]` | the language server, over stdio | [The language server](#lsp) |
+| `luccet new FILE` | writes a new note's first line | [luccet new](#new) |
+| `luccet check PATH…` | prints the diagnostics of notes; exits 1 on errors | [luccet check](#check) |
+| `luccet parse FILE` | prints the note's syntax tree as JSON | [luccet parse](#parse) |
+| `luccet build FILE…` | writes static, pre-rendered pages | [luccet build](#build) |
+| `luccet mv FROM… TO` | moves notes and files, rewriting the links to and from them | [luccet mv](#mv) |
+| `luccet search QUERY` | searches notes by word, each hit at its file and line | [luccet search](#search) |
+| `luccet index [PATH…]` | writes `notes.json` and `search.json`, what the `::notes` and `::search` add-ons read | [luccet index](#index) |
+| `luccet corpus PATH…` | prints documentation pages' live examples as corpus cases | [luccet corpus](#corpus) |
+| `luccet vendor DIR` | writes local copies of the add-ons' libraries, in the layout `?base=` takes | [luccet vendor](#vendor) |
+| `luccet lsp [--stdio]` | the language server, over stdio | [The language server](#lsp) |
 
 ## What every command shares {#common}
 
@@ -67,20 +67,20 @@ $ echo $?
 | Code | Meaning |
 |---|---|
 | `0` | Done. |
-| `1` | `tern check` found a diagnostic at or above `--fail-on`, `tern new` refused to write the file, `tern mv` refused to move or a move failed, `tern search` found nothing, `tern index --check` found a file missing or stale, or `tern corpus` left out an example. |
-| `2` | A usage error (a missing argument, an unknown option, a bad value), or a path that cannot be used: a missing or unreadable file, or, for `tern parse` and `tern build`, a file that is not a note. |
+| `1` | `luccet check` found a diagnostic at or above `--fail-on`, `luccet new` refused to write the file, `luccet mv` refused to move or a move failed, `luccet search` found nothing, `luccet index --check` found a file missing or stale, or `luccet corpus` left out an example. |
+| `2` | A usage error (a missing argument, an unknown option, a bad value), or a path that cannot be used: a missing or unreadable file, or, for `luccet parse` and `luccet build`, a file that is not a note. |
 
-Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. Options are strict: an unknown option is a usage error, printed with the synopsis. When the reader of the output closes before the command is done (`tern parse FILE | head`), the command ends quietly with exit 0.
+Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. Options are strict: an unknown option is a usage error, printed with the synopsis. When the reader of the output closes before the command is done (`luccet parse FILE | head`), the command ends quietly with exit 0.
 
 ```sh
-$ tern new x.html --bogus
-tern new: Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--bogus"
-usage: tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
+$ luccet new x.html --bogus
+luccet new: Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--bogus"
+usage: luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
 ```
 
 ### How diagnostics print {#output}
 
-`tern check` and `tern build` print each diagnostic on one line, with its hint indented on the next:
+`luccet check` and `luccet build` print each diagnostic on one line, with its hint indented on the next:
 
 ```sh
 notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is still open at line 9
@@ -89,7 +89,7 @@ notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is stil
 
 The parts are `FILE:LINE:COLUMN: SEVERITY CODE: MESSAGE`. This is the shape most editors and CI systems recognise as a clickable location.
 
-- **Lines are file lines.** The note starts on the line after the `tern.js` tag, so with the canonical first line, note line 5 is file line 6. Your editor shows file lines, so these are the numbers to jump to.
+- **Lines are file lines.** The note starts on the line after the `luccet.js` tag, so with the canonical first line, note line 5 is file line 6. Your editor shows file lines, so these are the numbers to jump to.
 - **Messages cite note lines.** The message comes from the engine, which counts lines from the first line of the note. Above, `opened on line 5` is the same line as `:6:1`.
 - **Columns** count UTF-16 code units from 1, as the engine does. They are the same in the file and in the note.
 
@@ -97,43 +97,43 @@ Every code, with what it means and how to fix it, is on the [Diagnostics](diagno
 
 ### Which files are notes {#notes}
 
-A file is a note when one of its lines loads `tern.js` with a plain script tag. The rule is exact and shared by every command, the language server and editors; it is [Note detection](#detection) below. The note is everything after that line, and everything before the tag is the preserved head.
+A file is a note when one of its lines loads `luccet.js` with a plain script tag. The rule is exact and shared by every command, the language server and editors; it is [Note detection](#detection) below. The note is everything after that line, and everything before the tag is the preserved head.
 
 When a command is given a file that is not a note, it says why:
 
 | The file | What the commands say |
 |---|---|
-| has no line loading `tern.js` | `no line loads tern.js` |
-| loads it with `defer`, `async` or `type=module` | `it loads tern.js with defer, so tern.js does not render it; use a plain <script src>` |
-| was written by `tern build` (`data-built` on the tag) | `it is a page written by tern build; check its source note` |
-| has the tag inside a comment, or split over lines | `its tern.js tag is commented out or not on one line` |
+| has no line loading `luccet.js` | `no line loads luccet.js` |
+| loads it with `defer`, `async` or `type=module` | `it loads luccet.js with defer, so luccet.js does not render it; use a plain <script src>` |
+| was written by `luccet build` (`data-built` on the tag) | `it is a page written by luccet build; check its source note` |
+| has the tag inside a comment, or split over lines | `its luccet.js tag is commented out or not on one line` |
 
 ### Vocabulary under Node {#vocabulary}
 
-A note's vocabulary comes from its own files: the scripts in its head, and the add-ons in `data-use` and `:::use` (see [Vocabulary and behaviour](schema.html#window-tern)). Every command and the language server load them the way the browser does, so names, labels and numbering match the page. This code is the note's own, not yours, so the tools run it in a **sandbox** rather than with their own privileges (see [Running a note's code](#sandbox)); a note with no head scripts and no script add-ons has none to run. The sandbox runs them in this order:
+A note's vocabulary comes from its own files: the scripts in its head, and the add-ons in `data-use` and `:::use` (see [Vocabulary and behaviour](schema.html#window-luccet)). Every command and the language server load them the way the browser does, so names, labels and numbering match the page. This code is the note's own, not yours, so the tools run it in a **sandbox** rather than with their own privileges (see [Running a note's code](#sandbox)); a note with no head scripts and no script add-ons has none to run. The sandbox runs them in this order:
 
-1. **The head's scripts**, those before the `tern.js` tag, in document order: inline scripts, and scripts with a local `src`. Modules, data blocks, and scripts with a `src` and `async` or `defer` (which run after `tern.js` has started) are left out. `tern` is not defined yet, as in the browser.
-2. **`window.TERN`** is read, as `tern.js` reads it when it starts: its `lang` and its `schema`.
-3. **The script add-ons** of `data-use`, then of the leading `:::use` block, in order. Every entry that does not end in `.css` is run as a classic script, as the browser runs it. Here `tern.block`, `tern.leaf` and `tern.inline` write the vocabulary, and `tern.transform(name, fn)` registers a transform, which then runs on the note as it does in the browser. `tern.define`, `tern.on`, `tern.style` and `tern.render` are accepted and do nothing. CSS add-ons are skipped.
-4. **`window.TERN.schema`** goes on top: the note's own entry wins over an add-on's for the same name. Its `strict: true` turns on strict mode, so a name with no schema entry gets [`name.unknown`](diagnostics.html#name-unknown); `strict: false` turns it off, whatever an add-on set.
+1. **The head's scripts**, those before the `luccet.js` tag, in document order: inline scripts, and scripts with a local `src`. Modules, data blocks, and scripts with a `src` and `async` or `defer` (which run after `luccet.js` has started) are left out. `luccet` is not defined yet, as in the browser.
+2. **`window.LUCCET`** is read, as `luccet.js` reads it when it starts: its `lang` and its `schema`.
+3. **The script add-ons** of `data-use`, then of the leading `:::use` block, in order. Every entry that does not end in `.css` is run as a classic script, as the browser runs it. Here `luccet.block`, `luccet.leaf` and `luccet.inline` write the vocabulary, and `luccet.transform(name, fn)` registers a transform, which then runs on the note as it does in the browser. `luccet.define`, `luccet.on`, `luccet.style` and `luccet.render` are accepted and do nothing. CSS add-ons are skipped.
+4. **`window.LUCCET.schema`** goes on top: the note's own entry wins over an add-on's for the same name. Its `strict: true` turns on strict mode, so a name with no schema entry gets [`name.unknown`](diagnostics.html#name-unknown); `strict: false` turns it off, whatever an add-on set.
 
-The label language follows the browser's order too: `data-lang` on the tag, then `window.TERN.lang`, then `lang` in `:::meta`, then `<html lang>`. With a theorem labelled `{ en: 'Theorem', de: 'Satz', fr: 'Théorème' }` and `<html lang="fr">`, `tern build` writes "Théorème 1"; adding `data-lang="de"` to the tag makes it "Satz 1", as in the browser.
+The label language follows the browser's order too: `data-lang` on the tag, then `window.LUCCET.lang`, then `lang` in `:::meta`, then `<html lang>`. With a theorem labelled `{ en: 'Theorem', de: 'Satz', fr: 'Théorème' }` and `<html lang="fr">`, `luccet build` writes "Théorème 1"; adding `data-lang="de"` to the tag makes it "Satz 1", as in the browser.
 
 How the sandbox behaves:
 
-- **Browser globals** (`document`, `customElements`, `HTMLElement`, `location`, `fetch` …) exist but do nothing. So an add-on that defines a custom element or adds a listener while it loads still reaches its `tern.block` calls.
-- **Output.** An add-on's `console` writes to stderr. stdout carries only the command's output: JSON for `tern parse` and `tern check --json`, the protocol for `tern lsp`.
-- **Paths.** A relative URL is resolved from the note's folder. A root-relative URL (`/lib/theorems.js`) is resolved against the note's project root: the folder of the `tern.js` its tag names, when that is a relative path (where a static host would serve it from); otherwise the repository the note is in; otherwise the note's own folder. A path that leaves that root, by `..` or as a root-relative URL to a folder above it, is not read and is reported as `addon.failed`, so a note cannot make the tools read a file outside its project and run it as code.
+- **Browser globals** (`document`, `customElements`, `HTMLElement`, `location`, `fetch` …) exist but do nothing. So an add-on that defines a custom element or adds a listener while it loads still reaches its `luccet.block` calls.
+- **Output.** An add-on's `console` writes to stderr. stdout carries only the command's output: JSON for `luccet parse` and `luccet check --json`, the protocol for `luccet lsp`.
+- **Paths.** A relative URL is resolved from the note's folder. A root-relative URL (`/lib/theorems.js`) is resolved against the note's project root: the folder of the `luccet.js` its tag names, when that is a relative path (where a static host would serve it from); otherwise the repository the note is in; otherwise the note's own folder. A path that leaves that root, by `..` or as a root-relative URL to a folder above it, is not read and is reported as `addon.failed`, so a note cannot make the tools read a file outside its project and run it as code.
 - **Time.** A note's scripts and transforms together may run for 2 seconds; still running then, they are stopped and the note gets an [`addon.failed`](diagnostics.html#addon-failed) error.
 
 What cannot be loaded is reported, and the note is still checked without it:
 
 | Problem | Code | Severity | Where |
 |---|---|---|---|
-| an add-on that is missing, is a folder, does not parse as a classic script (an ES module, for example), or throws | [`addon.failed`](diagnostics.html#addon-failed) | error | the `tern.js` line, column 1 |
-| a transform an add-on registered that throws; it is skipped, and the rest of the note is analysed | [`addon.failed`](diagnostics.html#addon-failed) | error | the `tern.js` line, column 1 |
-| the note's scripts did not finish in 2 seconds, or used too much memory | [`addon.failed`](diagnostics.html#addon-failed) | error | the `tern.js` line, column 1 |
-| a remote add-on (`https://…`), which is not fetched under Node | [`addon.remote`](diagnostics.html#addon-remote) | info | the `tern.js` line, column 1 |
+| an add-on that is missing, is a folder, does not parse as a classic script (an ES module, for example), or throws | [`addon.failed`](diagnostics.html#addon-failed) | error | the `luccet.js` line, column 1 |
+| a transform an add-on registered that throws; it is skipped, and the rest of the note is analysed | [`addon.failed`](diagnostics.html#addon-failed) | error | the `luccet.js` line, column 1 |
+| the note's scripts did not finish in 2 seconds, or used too much memory | [`addon.failed`](diagnostics.html#addon-failed) | error | the `luccet.js` line, column 1 |
+| a remote add-on (`https://…`), which is not fetched under Node | [`addon.remote`](diagnostics.html#addon-remote) | info | the `luccet.js` line, column 1 |
 | a head script with a remote `src` | [`head.script`](diagnostics.html#head-script) | info | its `<script` tag |
 | a head script that is missing or throws | [`head.script`](diagnostics.html#head-script) | warning | its `<script` tag |
 
@@ -141,10 +141,10 @@ What cannot be loaded is reported, and the note is still checked without it:
 
 ### Running a note's code {#sandbox}
 
-A note's head scripts and script add-ons are the note's own code, not the tool's. So `tern check`, `tern build`, `tern parse` and the language server run them in a sandbox, and only the result comes back, as data: the vocabulary the note declares. When the code also takes part in the parse, through a transform, a label function or a schema that is more than plain data, the note is parsed in the sandbox and its syntax tree and diagnostics come back too; otherwise the tool parses it itself with that vocabulary, which gives the same tree in a fraction of the time. Two walls hold the code in:
+A note's head scripts and script add-ons are the note's own code, not the tool's. So `luccet check`, `luccet build`, `luccet parse` and the language server run them in a sandbox, and only the result comes back, as data: the vocabulary the note declares. When the code also takes part in the parse, through a transform, a label function or a schema that is more than plain data, the note is parsed in the sandbox and its syntax tree and diagnostics come back too; otherwise the tool parses it itself with that vocabulary, which gives the same tree in a fraction of the time. Two walls hold the code in:
 
-- a **separate process**, started with Node's [permission model](https://nodejs.org/api/permissions.html) and an empty environment, able to read only `tern.js` and the sandbox's own file: it cannot reach your files, run another program, or load a native add-on. The tools read the note's add-on files and send the source in; the code never reads the disk itself;
-- inside it, a **sealed context** for each note: the code sees a fresh global with the engine and the `tern`/`window` shim and nothing of Node, so the usual ways to climb out (`this.constructor.constructor`, and so on) reach no real object. Dynamic `import()` is refused, and the 2-second limit stops a script or transform that never returns.
+- a **separate process**, started with Node's [permission model](https://nodejs.org/api/permissions.html) and an empty environment, able to read only `luccet.js` and the sandbox's own file: it cannot reach your files, run another program, or load a native add-on. The tools read the note's add-on files and send the source in; the code never reads the disk itself;
+- inside it, a **sealed context** for each note: the code sees a fresh global with the engine and the `luccet`/`window` shim and nothing of Node, so the usual ways to climb out (`this.constructor.constructor`, and so on) reach no real object. Dynamic `import()` is refused, and the 2-second limit stops a script or transform that never returns.
 
 The commands wait for the sandbox's answer; the [language server](#lsp-analysis) does not, so it keeps answering while a note's code runs, and a script that never returns costs that note its vocabulary, not the editor its server. The process speaks over its standard input and output. On Windows, where the commands cannot read that pipe themselves, a worker thread reads it for them, so there too one process serves every note of a run. Paths the commands print use forward slashes on every platform.
 
@@ -155,50 +155,50 @@ This is a seat belt for code that misbehaves or that you have not read, not a va
 A transform that throws is reported like this, and the note is checked without it:
 
 ```sh
-$ tern check tx-throws.html
+$ luccet check tx-throws.html
 tx-throws.html:1:1: error addon.failed: the transform "broken" of the add-on throws-tx.js threw: boom
-tern check: 1 note: 1 error, 0 warnings, 0 infos
+luccet check: 1 note: 1 error, 0 warnings, 0 infos
 ```
 
-- **Transforms run; behaviours do not.** A transform an add-on registers changes what `tern check`, `tern parse --transformed`, `tern build` and the language server see, as it changes the page. A note whose add-on uppercases every word reads `QUIET WORDS` in the browser and in the page `tern build` writes. Behaviours (`tern.define`, a schema's `dom`) act on the page's elements, so they run only in the browser.
-- **Remote add-ons are not fetched.** An add-on from another origin is an `addon.remote` info, not an error, so it does not fail `tern check`. The names it declares are unknown under Node, so the note may get diagnostics the browser would not give, and `tern build` writes those names without their schema. To check such a note fully, keep a local copy of the add-on and point `data-use` at it.
+- **Transforms run; behaviours do not.** A transform an add-on registers changes what `luccet check`, `luccet parse --transformed`, `luccet build` and the language server see, as it changes the page. A note whose add-on uppercases every word reads `QUIET WORDS` in the browser and in the page `luccet build` writes. Behaviours (`luccet.define`, a schema's `dom`) act on the page's elements, so they run only in the browser.
+- **Remote add-ons are not fetched.** An add-on from another origin is an `addon.remote` info, not an error, so it does not fail `luccet check`. The names it declares are unknown under Node, so the note may get diagnostics the browser would not give, and `luccet build` writes those names without their schema. To check such a note fully, keep a local copy of the add-on and point `data-use` at it.
 
-## tern new {#new}
+## luccet new {#new}
 
-`tern new` writes a new note: the canonical first line, with the right path to `tern.js`, and after the tag the [guard](#guarded), which shows the note's source, readable, when `tern.js` does not run.
+`luccet new` writes a new note: the canonical first line, with the right path to `luccet.js`, and after the tag the [guard](#guarded), which shows the note's source, readable, when `luccet.js` does not run.
 
-:::syntax[tern new]
+:::syntax[luccet new]
 ```sh
-tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
+luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
 ```
 :::
 
 ```sh
-$ tern new notes/kernel.html
-created notes/kernel.html, loading ../tern.js
+$ luccet new notes/kernel.html
+created notes/kernel.html, loading ../luccet.js
 $ cat notes/kernel.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.luccet||document.write('<p>luccet.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
 ```
 
 | Option | What it does |
 |---|---|
-| `--tern=PATH` | The `src` of the script tag, as given: a relative path, a root-relative path, or a URL. Without it, see below. |
-| `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block, and each preloaded from the first line (`<link rel="preload">`, `as="script"` or `as="style"`), so the browser fetches it alongside `tern.js` instead of after the note has arrived. Separate them with commas or spaces; the option may repeat. |
+| `--luccet=PATH` | The `src` of the script tag, as given: a relative path, a root-relative path, or a URL. Without it, see below. |
+| `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block, and each preloaded from the first line (`<link rel="preload">`, `as="script"` or `as="style"`), so the browser fetches it alongside `luccet.js` instead of after the note has arrived. Separate them with commas or spaces; the option may repeat. |
 | `--title=TEXT` | Adds a `:::meta` block with `title: TEXT`, then a blank line. One non-empty line. |
-| `--lang=TAG` | The note's language, as `lang: TAG` in the `:::meta` block (`en`, `de`, `pt-BR`), which `tern.js` puts on `<html>` when it renders. The guard's message is in that language when the command has it, English otherwise. |
+| `--lang=TAG` | The note's language, as `lang: TAG` in the `:::meta` block (`en`, `de`, `pt-BR`), which `luccet.js` puts on `<html>` when it renders. The guard's message is in that language when the command has it, English otherwise. |
 | `--bare` | Leaves the guard out: the first line is the tag alone. |
 | `--force` | Overwrites an existing file. |
 
-### The path to tern.js {#new-path}
+### The path to luccet.js {#new-path}
 
-Without `--tern`, `tern new` looks for a file called `tern.js` in the new note's folder, then in each folder above it, and writes the nearest one as a relative path with forward slashes. Two folders down, that is `../../tern.js`.
+Without `--luccet`, `luccet new` looks for a file called `luccet.js` in the new note's folder, then in each folder above it, and writes the nearest one as a relative path with forward slashes. Two folders down, that is `../../luccet.js`.
 
-When there is none, it writes `tern.js` (the note's own folder) and says so on stderr:
+When there is none, it writes `luccet.js` (the note's own folder) and says so on stderr:
 
 ```sh
-$ tern new note.html
-created note.html, loading tern.js
-tern new: no tern.js in . or above; the note loads tern.js from its own directory
+$ luccet new note.html
+created note.html, loading luccet.js
+luccet new: no luccet.js in . or above; the note loads luccet.js from its own directory
 ```
 
 Relative paths are what you want for publishing: they keep working when the folder is copied, opened from disk, or served under a sub-path such as a GitHub project page (see [Publishing](publishing.html#github-pages)).
@@ -206,12 +206,12 @@ Relative paths are what you want for publishing: they keep working when the fold
 ### Add-ons, a title and a language {#new-options}
 
 ```sh
-$ tern new notes/first.html --title="Linear maps" --use=theorems.js,theme.css
-created notes/first.html, loading ../tern.js
-tern new: :::use names theorems.js, which does not exist yet
-tern new: :::use names theme.css, which does not exist yet
+$ luccet new notes/first.html --title="Linear maps" --use=theorems.js,theme.css
+created notes/first.html, loading ../luccet.js
+luccet new: :::use names theorems.js, which does not exist yet
+luccet new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../tern.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.tern||document.write('<p>tern.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../luccet.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.luccet||document.write('<p>luccet.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
 :::meta
 title: Linear maps
 :::
@@ -223,19 +223,19 @@ theme.css
 
 ```
 
-- `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same `:::use` block, `a.js` then `b.css`, one per line, and the same two preloads on the first line. `tern.js` preloads `data-use` entries itself as it starts; a `:::use` entry it finds only once the note has arrived, so the head's preload saves a round trip there.
+- `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same `:::use` block, `a.js` then `b.css`, one per line, and the same two preloads on the first line. `luccet.js` preloads `data-use` entries itself as it starts; a `:::use` entry it finds only once the note has arrived, so the head's preload saves a round trip there.
 - A local add-on that does not exist yet (relative to the note's folder) gets a note on stderr. The file is still written: you may be about to create it. Remote URLs and root-relative paths are not checked.
-- `--title` and `--lang` are written as `:::meta`, the title first (see [Metadata](elements.html#metadata)). Before writing, `tern new` reads the file back and checks that the title and the language survive as written, and that the add-ons read back from `:::use`; a title that would not is refused. `--lang` takes a language tag: letters, then subtags after hyphens (`en`, `pt-BR`, `zh-Hant`).
+- `--title` and `--lang` are written as `:::meta`, the title first (see [Metadata](elements.html#metadata)). Before writing, `luccet new` reads the file back and checks that the title and the language survive as written, and that the add-ons read back from `:::use`; a title that would not is refused. `--lang` takes a language tag: letters, then subtags after hyphens (`en`, `pt-BR`, `zh-Hant`).
 
 ### The guard {#guarded}
 
-A note whose `tern.js` does not load shows its source run together as one paragraph of text, with any raw HTML in it rendered. The guard makes that case readable: it shows a one-line message, then the note exactly as written, wrapped at the window's width. `tern new` writes it after the tag; `--bare` leaves it out.
+A note whose `luccet.js` does not load shows its source run together as one paragraph of text, with any raw HTML in it rendered. The guard makes that case readable: it shows a one-line message, then the note exactly as written, wrapped at the window's width. `luccet new` writes it after the tag; `--bare` leaves it out.
 
 ```sh
-$ tern new notes/guarded.html --lang=fr
-created notes/guarded.html, loading ../tern.js
+$ luccet new notes/guarded.html --lang=fr
+created notes/guarded.html, loading ../luccet.js
 $ cat notes/guarded.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script><noscript><p lang="fr">JavaScript est désactivé ; voici la source.</p><xmp hidden></noscript><script>self.tern||document.write('<p lang="fr">tern.js n’a pas été chargé ; voici la source.</p><xmp hidden>')</script></xmp><plaintext lang="fr" style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script><noscript><p lang="fr">JavaScript est désactivé ; voici la source.</p><xmp hidden></noscript><script>self.luccet||document.write('<p lang="fr">luccet.js n’a pas été chargé ; voici la source.</p><xmp hidden>')</script></xmp><plaintext lang="fr" style="white-space:pre-wrap">
 :::meta
 lang: fr
 :::
@@ -246,58 +246,58 @@ The guard is the rest of the first line, after the tag. It is still one line, so
 
 | Case | What the reader sees | How |
 |---|---|---|
-| `tern.js` loads | the rendered note | `tern.js` takes everything after its tag as text, the guard included, and the note starts on the next line. The guard is never parsed as HTML. |
-| `tern.js` does not load | "tern.js did not load; the source follows.", then the note as plain text | The `<noscript>` is inert while scripts run. The guard's script finds no `tern`, writes the message and a hidden `<xmp>`, which the `</xmp>` right after closes. `<plaintext>` shows the rest as text, wrapped (`white-space: pre-wrap`). |
+| `luccet.js` loads | the rendered note | `luccet.js` takes everything after its tag as text, the guard included, and the note starts on the next line. The guard is never parsed as HTML. |
+| `luccet.js` does not load | "luccet.js did not load; the source follows.", then the note as plain text | The `<noscript>` is inert while scripts run. The guard's script finds no `luccet`, writes the message and a hidden `<xmp>`, which the `</xmp>` right after closes. `<plaintext>` shows the rest as text, wrapped (`white-space: pre-wrap`). |
 | JavaScript is off | "JavaScript is off; the source follows.", then the note as plain text | The `<noscript>`'s paragraph starts the body, and its hidden `<xmp>` hides the guard script up to the same `</xmp>`. Then `<plaintext>`, wrapped. |
 
 - **The language.** With `--lang`, the message is in the note's language when the command has it (German, English, Spanish, French, Italian, Dutch, Portuguese; the primary subtag counts, so `pt-BR` reads Portuguese), English otherwise, and the message and the text carry the tag (`lang="fr"`), so a screen reader speaks them right. The rendered note takes its language from `:::meta` as usual.
-- The guard adds nothing to the rendered page: when `tern.js` loads, its script never runs.
-- **CSP.** The guard's script is an inline script. When `tern.js` loads, the guard is never parsed, so it causes no violation. When `tern.js` does not load under a Content-Security-Policy that blocks inline scripts, the guard's script is blocked: the reader sees the note as plain text, without the message line. A policy that blocks inline styles blocks the `style` attribute that wraps the text: the source then shows unwrapped.
-- `tern build` drops the guard from the page it writes (see [tern build](#build)).
+- The guard adds nothing to the rendered page: when `luccet.js` loads, its script never runs.
+- **CSP.** The guard's script is an inline script. When `luccet.js` loads, the guard is never parsed, so it causes no violation. When `luccet.js` does not load under a Content-Security-Policy that blocks inline scripts, the guard's script is blocked: the reader sees the note as plain text, without the message line. A policy that blocks inline styles blocks the `style` attribute that wraps the text: the source then shows unwrapped.
+- `luccet build` drops the guard from the page it writes (see [luccet build](#build)).
 - `--guarded`, the option that added the guard before 1.0, is accepted and changes nothing.
 
 ### Refusals {#new-refusals}
 
-`tern new` writes one file, creates no folders, and overwrites only with `--force`. When it declines, it says why on stderr and exits 1:
+`luccet new` writes one file, creates no folders, and overwrites only with `--force`. When it declines, it says why on stderr and exits 1:
 
 | Situation | Message |
 |---|---|
-| the file exists | `tern new: notes/kernel.html exists; --force overwrites it` |
-| the path is a directory | `tern new: notes is a directory` |
-| the folder does not exist (it creates none) | `tern new: there is no directory drafts` |
-| `--tern` names a file not called `tern.js` | `tern new: <script src="lib/tern.min.js"> would not make notes/min.html a note: the src must name a file called tern.js` |
-| the title does not read back from `:::meta` | `tern new: the title does not read back from :::meta` |
+| the file exists | `luccet new: notes/kernel.html exists; --force overwrites it` |
+| the path is a directory | `luccet new: notes is a directory` |
+| the folder does not exist (it creates none) | `luccet new: there is no directory drafts` |
+| `--luccet` names a file not called `luccet.js` | `luccet new: <script src="lib/luccet.min.js"> would not make notes/min.html a note: the src must name a file called luccet.js` |
+| the title does not read back from `:::meta` | `luccet new: the title does not read back from :::meta` |
 
-Before writing, `tern new` checks that the line it would write is detected as a note line, with the same rule every tool uses. That is why `--tern=lib/tern.min.js` is refused: a file called `tern.min.js` is not detected, so the result would not be a note.
+Before writing, `luccet new` checks that the line it would write is detected as a note line, with the same rule every tool uses. That is why `--luccet=lib/luccet.min.js` is refused: a file called `luccet.min.js` is not detected, so the result would not be a note.
 
-These are usage errors instead, which exit 2 and print the synopsis: no `FILE`, more than one, a path with no file name (`notes/`, `.`, `..`), an empty `--title` or one with a line break, an empty `--tern`, an unknown option.
+These are usage errors instead, which exit 2 and print the synopsis: no `FILE`, more than one, a path with no file name (`notes/`, `.`, `..`), an empty `--title` or one with a line break, an empty `--luccet`, an unknown option.
 
-## tern check {#check}
+## luccet check {#check}
 
-`tern check` prints every diagnostic of one or more notes, and exits 1 when any is serious enough. It is the gate for CI and for publishing.
+`luccet check` prints every diagnostic of one or more notes, and exits 1 when any is serious enough. It is the gate for CI and for publishing.
 
-:::syntax[tern check]
+:::syntax[luccet check]
 ```sh
-tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]
+luccet check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]
 ```
 :::
 
 ```sh
-$ tern check notes/kernel.html
+$ luccet check notes/kernel.html
 notes/kernel.html:4:5: warning ref.dangling: no id in this note has this name, so the reference stays text
     if it is not a reference, write \@rank
 notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is still open at line 9
     add `:::` or `:::/aside`
 notes/kernel.html:9:1: error math.unclosed: `$$` opened on line 8 is never closed
     add a line holding only `$$`
-tern check: 1 note: 2 errors, 1 warning, 0 infos
+luccet check: 1 note: 2 errors, 1 warning, 0 infos
 $ echo $?
 1
 ```
 
 The diagnostics go to stdout, in the order they occur in each file. The summary line goes to stderr. The note it checked is this one, after the canonical first line; here it is live, so you can see the same three diagnostics at note lines 3, 5 and 8:
 
-```tern {.live expect="ref.dangling block.unclosed math.unclosed"}
+```luccet {.live expect="ref.dangling block.unclosed math.unclosed"}
 # The kernel
 
 See @rank for the dimension count.
@@ -329,10 +329,10 @@ A folder is searched for notes:
 A file you **name** that is not a note is skipped with a note on stderr, and does not change the exit code:
 
 ```sh
-$ tern check notes/plain.html notes/deferred.html
-tern check: notes/plain.html is not a note (no line loads tern.js); skipped
-tern check: notes/deferred.html is not a note (it loads tern.js with defer, so tern.js does not render it; use a plain <script src>); skipped
-tern check: no notes found
+$ luccet check notes/plain.html notes/deferred.html
+luccet check: notes/plain.html is not a note (no line loads luccet.js); skipped
+luccet check: notes/deferred.html is not a note (it loads luccet.js with defer, so luccet.js does not render it; use a plain <script src>); skipped
+luccet check: no notes found
 $ echo $?
 0
 ```
@@ -351,28 +351,28 @@ A path that does not exist is a usage error (exit 2). A file that exists but can
 | nothing | exit 0 | exit 0 | exit 0 |
 
 ```sh
-$ tern check notes --quiet
+$ luccet check notes --quiet
 notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is still open at line 9
     add `:::` or `:::/aside`
 notes/kernel.html:9:1: error math.unclosed: `$$` opened on line 8 is never closed
     add a line holding only `$$`
-$ tern check notes --quiet --fail-on=warning
+$ luccet check notes --quiet --fail-on=warning
 notes/kernel.html:4:5: warning ref.dangling: no id in this note has this name, so the reference stays text
     if it is not a reference, write \@rank
 notes/kernel.html:6:1: error block.unclosed: `:::aside` opened on line 5 is still open at line 9
 …
 ```
 
-In CI, `tern check site/ --quiet` prints only what fails the build. Add `--fail-on=warning` to hold notes to a stricter standard, broken links between notes included.
+In CI, `luccet check site/ --quiet` prints only what fails the build. Add `--fail-on=warning` to hold notes to a stricter standard, broken links between notes included.
 
-**Encoding.** Notes are read as UTF-8. A file that is not valid UTF-8 is checked with each byte sequence that is not read as U+FFFD, and said on stderr; a UTF-16 file, which starts with a byte order mark, is not read as a note, and said too. Every command that reads notes says the same, as `tern COMMAND: …`:
+**Encoding.** Notes are read as UTF-8. A file that is not valid UTF-8 is checked with each byte sequence that is not read as U+FFFD, and said on stderr; a UTF-16 file, which starts with a byte order mark, is not read as a note, and said too. Every command that reads notes says the same, as `luccet COMMAND: …`:
 
 ```sh
-$ tern check notes/latin.html notes/wide.html
-tern check: notes/latin.html is not valid UTF-8; 1 byte sequence that is not was read as U+FFFD
-tern check: notes/wide.html is UTF-16 (it starts with a byte order mark); Tern reads UTF-8, so it is not read as a note
-tern check: notes/wide.html is not a note (no line loads tern.js); skipped
-tern check: 1 note: 0 errors, 0 warnings, 0 infos
+$ luccet check notes/latin.html notes/wide.html
+luccet check: notes/latin.html is not valid UTF-8; 1 byte sequence that is not was read as U+FFFD
+luccet check: notes/wide.html is UTF-16 (it starts with a byte order mark); Luccet reads UTF-8, so it is not read as a note
+luccet check: notes/wide.html is not a note (no line loads luccet.js); skipped
+luccet check: 1 note: 0 errors, 0 warnings, 0 infos
 ```
 
 ### --json {#check-json}
@@ -380,7 +380,7 @@ tern check: 1 note: 0 errors, 0 warnings, 0 infos
 `--json` prints one array with every diagnostic of every note, in the same order as the lines would be. `--quiet` filters it the same way; with nothing to report, the array is empty (`[]`). The summary line still goes to stderr unless `--quiet`.
 
 ```sh
-$ tern check notes/warn.html --json
+$ luccet check notes/warn.html --json
 [
   {
     "file": "notes/warn.html",
@@ -398,7 +398,7 @@ $ tern check notes/warn.html --json
     }
   }
 ]
-tern check: 1 note: 0 errors, 1 warning, 0 infos
+luccet check: 1 note: 0 errors, 1 warning, 0 infos
 ```
 
 (The real output puts each `line`, `column` and `offset` on a line of its own.)
@@ -417,54 +417,54 @@ The engine's own diagnostics have the shape described on [Diagnostics](diagnosti
 
 ### Add-ons and head scripts {#check-vocabulary}
 
-`tern check` loads the note's vocabulary as described in [Vocabulary under Node](#vocabulary). Problems loading it come first in a file's diagnostics. This note has a head script on a remote origin, an inline head script that throws, a missing add-on and a remote one:
+`luccet check` loads the note's vocabulary as described in [Vocabulary under Node](#vocabulary). Problems loading it come first in a file's diagnostics. This note has a head script on a remote origin, an inline head script that throws, a missing add-on and a remote one:
 
 ```html
 <!doctype html><meta charset="utf-8">
 <script src="vocab.js"></script>
 <script src="https://cdn.example/analytics.js"></script>
-<script>window.TERN.schema.leaf = { toc: { tag: 'nav', transform: 'toc' } }; undefinedFunction();</script>
-<script src="../tern.js" data-use="theorems.js missing.js https://cdn.example/remote.js theme.css"></script>
+<script>window.LUCCET.schema.leaf = { toc: { tag: 'nav', transform: 'toc' } }; undefinedFunction();</script>
+<script src="../luccet.js" data-use="theorems.js missing.js https://cdn.example/remote.js theme.css"></script>
 ```
 
 ```sh
-$ tern check notes/addons.html
+$ luccet check notes/addons.html
 theorems.js loaded
-notes/addons.html:3:1: info head.script: the head script https://cdn.example/analytics.js is not run under node, so vocabulary it declares in window.TERN.schema is unknown here
+notes/addons.html:3:1: info head.script: the head script https://cdn.example/analytics.js is not run under node, so vocabulary it declares in window.LUCCET.schema is unknown here
 notes/addons.html:4:1: warning head.script: the head script inline script on line 4 threw under node: undefinedFunction is not defined; vocabulary it declares may be missing
 notes/addons.html:5:1: error addon.failed: the add-on missing.js did not load: cannot read …/site/notes/missing.js
-notes/addons.html:5:1: info addon.remote: the add-on https://cdn.example/remote.js is not loaded under node; names it declares are unknown to tern check
-tern check: 1 note: 1 error, 1 warning, 2 infos
+notes/addons.html:5:1: info addon.remote: the add-on https://cdn.example/remote.js is not loaded under node; names it declares are unknown to luccet check
+luccet check: 1 note: 1 error, 1 warning, 2 infos
 ```
 
 - `theorems.js loaded` is the add-on's own `console.log`, on stderr.
 - `vocab.js` and `theorems.js` loaded, so the names they declare are known, and the note's theorems are numbered as in the browser.
 - `theme.css` is a stylesheet, so it is not loaded under Node. Only its path is checked, as a [link](#check-links).
-- The inline script set `window.TERN.schema.leaf` before it threw, and that part stays in effect.
+- The inline script set `window.LUCCET.schema.leaf` before it threw, and that part stays in effect.
 - An entry of a [`:::use` block](syntax-blocks.html#use) is loaded and checked the same way, and a problem with one is reported at the entry's line in the note.
 
 ### Links between files {#check-links}
 
-`tern check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`; a wrong path to the `tern.js` the note loads is an error, since the note does not render:
+`luccet check` also follows each note's links to other files and checks them against the disk. A broken one is a warning, so it fails the check only with `--fail-on=warning`; a wrong path to the `luccet.js` the note loads is an error, since the note does not render:
 
 - [`link.missing`](diagnostics.html#link-missing): the file does not exist, the link names a folder with no `index.html`, or the name's case differs from the file's;
 - [`link.dangling`](diagnostics.html#link-dangling): the file exists, but the fragment after `#` names no id in it.
 
 ```sh
-$ tern check notes
+$ luccet check notes
 notes/index.html:4:5: warning link.missing: kernal.html does not exist
     fix the path: it resolves from the folder of this note
 notes/rank.html:4:4: warning link.dangling: maps.html has no element with the id thm-rank
     check the id after #: ids are case-sensitive
-tern check: 3 notes: 0 errors, 2 warnings, 0 infos
+luccet check: 3 notes: 0 errors, 2 warnings, 0 infos
 ```
 
 **What it checks:**
 
-- Tern links and images: `[text](maps.html#thm-rn)`, `![alt](img/kernel.svg)`;
+- Luccet links and images: `[text](maps.html#thm-rn)`, `![alt](img/kernel.svg)`;
 - the `href`, `src`, `poster` and `data` of elements, as in `::video{src=media/tide.mp4}`;
 - `href` and `src` in raw HTML, in the note and in the head, such as a `<link rel="stylesheet">`;
-- on the `tern.js` line: the path to `tern.js` itself, since a wrong one means the note does not render; `data-css`; and the stylesheets in `data-use` or `:::use`. Script add-ons and head scripts are not, being [`addon.failed`](diagnostics.html#addon-failed)'s and [`head.script`](diagnostics.html#head-script)'s.
+- on the `luccet.js` line: the path to `luccet.js` itself, since a wrong one means the note does not render; `data-css`; and the stylesheets in `data-use` or `:::use`. Script add-ons and head scripts are not, being [`addon.failed`](diagnostics.html#addon-failed)'s and [`head.script`](diagnostics.html#head-script)'s.
 
 **How a link resolves:**
 
@@ -477,7 +477,7 @@ tern check: 3 notes: 0 errors, 2 warnings, 0 infos
 
   `#top` always counts. A fragment in other files, such as `paper.pdf#page=3`, is not checked.
 
-A Tern link to `#id` in the same note is the engine's [`ref.dangling`](diagnostics.html#ref-dangling), reported with the note's other diagnostics.
+A Luccet link to `#id` in the same note is the engine's [`ref.dangling`](diagnostics.html#ref-dangling), reported with the note's other diagnostics.
 
 **What it leaves alone:**
 
@@ -489,29 +489,29 @@ A Tern link to `#id` in the same note is the engine's [`ref.dangling`](diagnosti
 
 Each file is read once per run, however many links name it. A note a link names is analysed with its own add-ons, so its ids are the ones it has in the browser. The language server checks the same links as you type ([links in the editor](#lsp-links)).
 
-## tern parse {#parse}
+## luccet parse {#parse}
 
-`tern parse` prints the note's syntax tree as JSON: the AST that `tern.parse` returns, with the note's vocabulary and head.
+`luccet parse` prints the note's syntax tree as JSON: the AST that `luccet.parse` returns, with the note's vocabulary and head.
 
-:::syntax[tern parse]
+:::syntax[luccet parse]
 ```sh
-tern parse FILE [--transformed] [--compact] [--no-scripts]
+luccet parse FILE [--transformed] [--compact] [--no-scripts]
 ```
 :::
 
 | Option | What it does |
 |---|---|
-| `--transformed` | Runs the transforms first, so the tree has ids, numbers, labels, resolved references and `root.data.tern` (see [The transformed AST](api.html#transformed-ast)). |
+| `--transformed` | Runs the transforms first, so the tree has ids, numbers, labels, resolved references and `root.data.luccet` (see [The transformed AST](api.html#transformed-ast)). |
 | `--compact` | One line of JSON instead of two-space indentation. |
 | `--no-scripts` | Parses without running the note's head scripts and add-ons ([Running a note's code](#sandbox)). |
 
 ```sh
 $ cat notes/small.html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script>
 # Hello {#top}
 
 See @top.
-$ tern parse notes/small.html --transformed --compact | jq '.data.tern.ids'
+$ luccet parse notes/small.html --transformed --compact | jq '.data.luccet.ids'
 {
   "top": {
     "kind": "heading",
@@ -522,20 +522,20 @@ $ tern parse notes/small.html --transformed --compact | jq '.data.tern.ids'
 }
 ```
 
-- **Positions are note positions**: line 1 is the line after the `tern.js` tag. Add the number of lines up to and including the tag to get file lines.
-- **No diagnostics.** `tern parse` prints the tree and nothing else; use `tern check` for diagnostics. With `--transformed`, the transforms' own diagnostics are in `root.data.tern.diagnostics`.
-- **Vocabulary problems** (a missing or remote add-on, a head script or transform that threw) are printed on stderr as `tern parse: …` and do not change the exit code.
+- **Positions are note positions**: line 1 is the line after the `luccet.js` tag. Add the number of lines up to and including the tag to get file lines.
+- **No diagnostics.** `luccet parse` prints the tree and nothing else; use `luccet check` for diagnostics. With `--transformed`, the transforms' own diagnostics are in `root.data.luccet.diagnostics`.
+- **Vocabulary problems** (a missing or remote add-on, a head script or transform that threw) are printed on stderr as `luccet parse: …` and do not change the exit code.
 - **Exit codes.** 0 when the tree is printed; 2 when the file is missing or is not a note.
 
 The node types and their fields are on [The AST](api.html#ast).
 
-## tern build {#build}
+## luccet build {#build}
 
-`tern build` turns a note into a static page: the same HTML the browser would mount, already in the file. The page still loads `tern.js`, which adds what HTML alone cannot: behaviours, math, the diagnostics panel, copy and print handling. When to use it, and when not to, is on [Publishing](publishing.html#build).
+`luccet build` turns a note into a static page: the same HTML the browser would mount, already in the file. The page still loads `luccet.js`, which adds what HTML alone cannot: behaviours, math, the diagnostics panel, copy and print handling. When to use it, and when not to, is on [Publishing](publishing.html#build).
 
-:::syntax[tern build]
+:::syntax[luccet build]
 ```sh
-tern build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]
+luccet build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]
 ```
 :::
 
@@ -545,60 +545,60 @@ tern build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-sc
 | `--math katex|mathml` | Pre-renders the math: `katex` to typeset HTML with the `katex` package, `mathml` to native MathML with the `temml` package. `--katex` is short for `--math katex`. See [pre-rendered math](#build-katex). |
 | `--diagrams` | Draws the `mermaid` fences into the page, in a headless Chromium through the `playwright` package. See [diagrams drawn ahead](#build-diagrams). It opens the note in that browser, where its head scripts and add-ons run, so it cannot be combined with `--no-scripts`. |
 | `--json` | Prints one JSON object on stdout instead of the page: see [--json](#build-json). |
-| `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `tern.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. Refused together with `--diagrams`, which runs them in a browser. |
+| `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `luccet.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. Refused together with `--diagrams`, which runs them in a browser. |
 
 ```sh
-$ tern build notes/maps.html -o dist/
+$ luccet build notes/maps.html -o dist/
 theorems.js loaded
 notes/maps.html:14:13: warning ref.dangling: no id in this note has this name, so the reference stays text
     if it is not a reference, write \@nowhere
-tern build: relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from dist
-tern build: wrote dist/maps.html; 2 formulas
+luccet build: relative URLs (luccet.js, add-ons, images, links) are kept as written, so they resolve from dist
+luccet build: wrote dist/maps.html; 2 formulas
 ```
 
-- **Diagnostics** go to stderr, in the same format as `tern check`. The page is written whatever they are, and the exit code is 0, just as a browser renders a note whatever its diagnostics. Run `tern check` first if problems should stop you.
-- **Relative URLs** in the note, the head and the tag are kept exactly as written. When `OUT` is in a different folder from the note, `tern build` warns you, because they now resolve from the new folder. Above, `../tern.js` now points one level above `dist/`.
-- **Several notes in one run.** Give several FILEs, or a folder, and `-o DIR`: one process builds them all, which saves the start of Node, the engine and the [sandbox](#sandbox) for every note after the first (the 16 notes of this documentation build in 0.4 s, where a `tern build` per note takes 2.8 s). A note named is written as `DIR/` its file name, a note found in a folder as `DIR/` its path in that folder, so `tern build notes -o dist/` writes `notes/sub/x.html` as `dist/sub/x.html`. The files in a folder that are not notes are left out, and counted in the last line. Two notes that would be written to the same page, or a page onto its own note, stop the run before anything is written. Pages already in `DIR`, when `DIR` is inside a folder given, are not built again. Each page is the one `tern build` writes for that note alone.
+- **Diagnostics** go to stderr, in the same format as `luccet check`. The page is written whatever they are, and the exit code is 0, just as a browser renders a note whatever its diagnostics. Run `luccet check` first if problems should stop you.
+- **Relative URLs** in the note, the head and the tag are kept exactly as written. When `OUT` is in a different folder from the note, `luccet build` warns you, because they now resolve from the new folder. Above, `../luccet.js` now points one level above `dist/`.
+- **Several notes in one run.** Give several FILEs, or a folder, and `-o DIR`: one process builds them all, which saves the start of Node, the engine and the [sandbox](#sandbox) for every note after the first (the 16 notes of this documentation build in 0.4 s, where a `luccet build` per note takes 2.8 s). A note named is written as `DIR/` its file name, a note found in a folder as `DIR/` its path in that folder, so `luccet build notes -o dist/` writes `notes/sub/x.html` as `dist/sub/x.html`. The files in a folder that are not notes are left out, and counted in the last line. Two notes that would be written to the same page, or a page onto its own note, stop the run before anything is written. Pages already in `DIR`, when `DIR` is inside a folder given, are not built again. Each page is the one `luccet build` writes for that note alone.
 
   ```sh
-  $ tern build notes -o dist/
-  tern build: wrote dist/maps.html; 2 formulas
-  tern build: wrote dist/sub/groups.html; 0 formulas
-  tern build: 2 pages written into dist/; 1 file in the folders not a note, left out
-  tern build: relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from each page's folder in dist/
+  $ luccet build notes -o dist/
+  luccet build: wrote dist/maps.html; 2 formulas
+  luccet build: wrote dist/sub/groups.html; 0 formulas
+  luccet build: 2 pages written into dist/; 1 file in the folders not a note, left out
+  luccet build: relative URLs (luccet.js, add-ons, images, links) are kept as written, so they resolve from each page's folder in dist/
   ```
 - **Folders.** `-o dist/` writes `dist/maps.html`, creating `dist/`. `-o out/deep/page.html` creates `out/deep/`. Without the final `/`, a name that is not an existing folder is a file name, and the build says so:
 
   ```sh
-  $ tern build notes/maps.html -o dist2
+  $ luccet build notes/maps.html -o dist2
   …
-  tern build: wrote dist2; 2 formulas
-  tern build: dist2 is written as a file; end -o with / to write maps.html into a directory of that name
+  luccet build: wrote dist2; 2 formulas
+  luccet build: dist2 is written as a file; end -o with / to write maps.html into a directory of that name
   ```
-- **Warnings** about the note's files go to stderr too, prefixed `tern build:`: a missing doctype or charset that the page adds, a head script or add-on that did not load (the page then writes its names without its schema), and a remote add-on, which is not loaded under Node:
+- **Warnings** about the note's files go to stderr too, prefixed `luccet build:`: a missing doctype or charset that the page adds, a head script or add-on that did not load (the page then writes its names without its schema), and a remote add-on, which is not loaded under Node:
 
   ```sh
-  tern build: the add-on https://cdn.example/remote.js is not loaded under node, so the page uses its names without its schema
+  luccet build: the add-on https://cdn.example/remote.js is not loaded under node, so the page uses its names without its schema
   ```
 - **Not a note**, `-o` naming the note itself, a missing file: exit 2.
 - The last line says how many formulas the page has, and with `--math` how many were pre-rendered, and as what.
 
 ### --json {#build-json}
 
-`--json` prints one object on stdout, and an array of them, one per note, for several notes: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, `prerendered`, `engine`: `"katex"`, `"mathml"` or `null`), `warnings` (the `tern build:` notes, as strings), `diagnostics` (the note's, as [`tern check --json`](#check-json) gives them, `math.error` among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
+`--json` prints one object on stdout, and an array of them, one per note, for several notes: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, `prerendered`, `engine`: `"katex"`, `"mathml"` or `null`), `warnings` (the `luccet build:` notes, as strings), `diagnostics` (the note's, as [`luccet check --json`](#check-json) gives them, `math.error` among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
 
 ```sh
-$ tern build notes/maps.html --json | jq '{out, math, warnings, diagnostics: (.diagnostics | length)}'
+$ luccet build notes/maps.html --json | jq '{out, math, warnings, diagnostics: (.diagnostics | length)}'
 { "out": null, "math": { "total": 2, "prerendered": 0, "engine": null }, "warnings": [], "diagnostics": 1 }
 ```
 
 ### The built page {#built-page}
 
-The page `tern build` writes has these parts, in order. This is `dist/maps.html` from the example above, with tern.css cut short:
+The page `luccet build` writes has these parts, in order. This is `dist/maps.html` from the example above, with luccet.css cut short:
 
 ```html
 <!doctype html><html lang="en"><meta charset="utf-8">
-<style id="tern-style">
+<style id="luccet-style">
 :root {
   color-scheme: light dark;
   …
@@ -607,66 +607,66 @@ The page `tern build` writes has these parts, in order. This is `dist/maps.html`
 <meta name="author" content="O. Carrera">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<script data-built src="../tern.js" data-use="theorems.js"></script><script src="theorems.js"></script>
-<main class="tern"><h1 id="linear-maps">Linear maps</h1>
+<script data-built src="../luccet.js" data-use="theorems.js"></script><script src="theorems.js"></script>
+<main class="luccet"><h1 id="linear-maps">Linear maps</h1>
 <section id="rn" class="t-block theorem" data-t="theorem" data-pos="9:1"><div class="t-title"><span class="t-label">Theorem 1</span> Rank–nullity</div><p>For <span class="t-math" data-pos="10:5">f : V \to W</span>, …</p>
 </section>
 <p>See <a class="t-ref" href="#rn">Theorem 1</a> and @nowhere.</p>
 </main>
-<script type="text/tern" id="tern-source" data-line="1">:::meta
+<script type="text/luccet" id="luccet-source" data-line="1">:::meta
 title: Linear maps
 …
 </script>
-<script type="application/json" id="tern-diagnostics">[{"code":"ref.dangling","severity":"warning",…}]</script>
+<script type="application/json" id="luccet-diagnostics">[{"code":"ref.dangling","severity":"warning",…}]</script>
 ```
 
 1. **The preserved head**, as written. When it lacks `<!doctype html>` or a `<meta charset>`, the page gets them, with a warning for each:
 
    ```sh
-   tern build: the note has no <!doctype html>; the page adds it
-   tern build: the note has no <meta charset>; the page adds <meta charset="utf-8">
+   luccet build: the note has no <!doctype html>; the page adds it
+   luccet build: the note has no <meta charset>; the page adds <meta charset="utf-8">
    ```
 2. **`:::meta`, written statically**, as the browser would write it at mount: `<title>`; `lang` and `dir` on `<html>` (into its tag, or a new `<html>` tag after the doctype); a `<meta name>` for every other key. A key the head already sets is left alone. Then a viewport meta and a `color-scheme` meta, unless the head has them.
-3. **Tern's stylesheets**, in the order the runtime uses, placed before the head's first stylesheet of your own, so yours win:
+3. **Luccet's stylesheets**, in the order the runtime uses, placed before the head's first stylesheet of your own, so yours win:
    - KaTeX's CSS, when math was pre-rendered;
-   - the base: tern.css inlined as `<style id="tern-style">`. If the head links `tern.css` (or the `data-css` URL), that link is the base and stays where it is; `data-css` without such a link becomes a `<link>`;
+   - the base: luccet.css inlined as `<style id="luccet-style">`. If the head links `luccet.css` (or the `data-css` URL), that link is the base and stays where it is; `data-css` without such a link becomes a `<link>`;
    - each CSS add-on of `data-use` and of the `:::use` block, as a `<link>`, not inlined, so its relative `url()`s keep working;
-   - with `data-nonce`, each of them carries the nonce, and so do the script add-on tags. The `tern.js` tag is kept as written: give it a `nonce` yourself if your policy needs one.
-4. **The `tern.js` tag**, as written plus `data-built` (always just `data-built`, with no value). When the note has a [`:::use` block](syntax-blocks.html#use), its entries are merged into the tag's `data-use`, after the tag's own: the block emits nothing, and `tern.js` on a built page reads the tag alone. Anything after the tag on its line, such as a [guard](#guarded), is dropped. Then each script add-on, as a static `<script src>` tag, in order. Both run before the body is parsed, so the note's own scripts find `tern` and the add-ons' globals, as after a mount. A formula the build did not pre-render typesets at view time only if `data-use` lists a [math add-on](addons.html#katex).
-5. **`<main class="tern">`** holding the emitted HTML, exactly what `tern.toHTML` returns for the note, with its vocabulary and head. So the page has its layout before any script runs.
-6. **The note's source**, in `<script type="text/tern" id="tern-source" data-line="N">`, where `N` is the number of file lines before the note. See [The source kept](#build-source).
-7. **The diagnostics**, when there are any, in `<script type="application/json" id="tern-diagnostics">`: the parse and transform diagnostics, at note positions, as JSON with each `<` written `\u003c`.
+   - with `data-nonce`, each of them carries the nonce, and so do the script add-on tags. The `luccet.js` tag is kept as written: give it a `nonce` yourself if your policy needs one.
+4. **The `luccet.js` tag**, as written plus `data-built` (always just `data-built`, with no value). When the note has a [`:::use` block](syntax-blocks.html#use), its entries are merged into the tag's `data-use`, after the tag's own: the block emits nothing, and `luccet.js` on a built page reads the tag alone. Anything after the tag on its line, such as a [guard](#guarded), is dropped. Then each script add-on, as a static `<script src>` tag, in order. Both run before the body is parsed, so the note's own scripts find `luccet` and the add-ons' globals, as after a mount. A formula the build did not pre-render typesets at view time only if `data-use` lists a [math add-on](addons.html#katex).
+5. **`<main class="luccet">`** holding the emitted HTML, exactly what `luccet.toHTML` returns for the note, with its vocabulary and head. So the page has its layout before any script runs.
+6. **The note's source**, in `<script type="text/luccet" id="luccet-source" data-line="N">`, where `N` is the number of file lines before the note. See [The source kept](#build-source).
+7. **The diagnostics**, when there are any, in `<script type="application/json" id="luccet-diagnostics">`: the parse and transform diagnostics, at note positions, as JSON with each `<` written `\u003c`.
 
-A built page is not a note: its tag has `data-built`, which [detection](#detection) refuses. `tern check dist/maps.html` skips it and tells you to check its source note.
+A built page is not a note: its tag has `data-built`, which [detection](#detection) refuses. `luccet check dist/maps.html` skips it and tells you to check its source note.
 
 ### The source kept {#build-source}
 
-The page keeps the note so that `tern.js` can position problems it finds on the page (a failed add-on), and so that the source can be read back.
+The page keeps the note so that `luccet.js` can position problems it finds on the page (a failed add-on), and so that the source can be read back.
 
-Script contents cannot hold `</script` or `<!--`, so the build adds one backslash after the `<` of each, and of each such run already escaped: `</script` becomes `<\/script`, `<\/script` becomes `<\\/script`, and so on. Removing one backslash after each `<` gives the note back exactly. `tern.js` does that on the page, and `cli/build.js` exports it as `decodeSource`.
+Script contents cannot hold `</script` or `<!--`, so the build adds one backslash after the `<` of each, and of each such run already escaped: `</script` becomes `<\/script`, `<\/script` becomes `<\\/script`, and so on. Removing one backslash after each `<` gives the note back exactly. `luccet.js` does that on the page, and `cli/build.js` exports it as `decodeSource`.
 
 ### Pre-rendered math {#build-katex}
 
 `--math` renders the formulas at build time, so the page shows its math without loading a typesetting script. `--math katex` (or just `--katex`) uses KaTeX; `--math mathml` uses Temml for native MathML ([below](#build-mathml)). Both are opt-in, so the output never depends on what happens to be installed.
 
 ```sh
-$ tern build notes/maps.html --katex -o dist/
+$ luccet build notes/maps.html --katex -o dist/
 …
-tern build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as HTML
+luccet build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as HTML
 ```
 
 - **Left to the browser without it.** Without `--math`, formulas are kept as TeX. The engine renders no math itself, so they typeset at view time only when the note's `data-use` loads a [math add-on](addons.html#katex); otherwise they stay as TeX.
-- **The package.** `katex` is not a dependency of Tern. The build loads it from where Node would find it for `tern-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder. Install it with `npm install katex` in one of those. When it cannot be loaded, the build says so and leaves the formulas to `tern.js`:
+- **The package.** `katex` is not a dependency of Luccet. The build loads it from where Node would find it for `luccet-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder. Install it with `npm install katex` in one of those. When it cannot be loaded, the build says so and leaves the formulas to `luccet.js`:
 
   ```sh
-  tern build: the katex package cannot be required (npm install katex); formulas are left to tern.js
+  luccet build: the katex package cannot be required (npm install katex); formulas are left to luccet.js
   ```
-- **As the add-on does it.** Every `:::macros` body is read first, into one table of macros, then each formula is rendered with errors thrown. Other KaTeX options are KaTeX's defaults: `window.TERN.use.katex` is not read by the build.
+- **As the add-on does it.** Every `:::macros` body is read first, into one table of macros, then each formula is rendered with errors thrown. Other KaTeX options are KaTeX's defaults: `window.LUCCET.use.katex` is not read by the build.
 - **A formula KaTeX rejects** is left as TeX, and the build prints a `math.error` warning:
 
   ```sh
-  notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so tern.js will: KaTeX parse error: Expected '\right', got 'EOF' at end of input: \left( x
-  tern build: wrote the page; 2 formulas, 1 pre-rendered
+  notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so luccet.js will: KaTeX parse error: Expected '\right', got 'EOF' at end of input: \left( x
+  luccet build: wrote the page; 2 formulas, 1 pre-rendered
   ```
 - **`data-katex="none"`** on the tag turns KaTeX pre-rendering off, so nothing is pre-rendered, with a warning.
 - **The output.** Each pre-rendered `span.t-math` gets `data-tex` (its TeX, for copying) and KaTeX's HTML and MathML. Formulas in a `::toc` entry are pre-rendered too.
@@ -682,13 +682,13 @@ Pre-rendered KaTeX output carries `style` attributes. A page served with a stric
 With `--math mathml`, formulas are rendered to native MathML with [Temml](addons.html#mathml), and since the engine renders no math itself, a published note shows its math with no script, no stylesheet and no font to fetch.
 
 ```sh
-$ tern build notes/maps.html --math mathml -o dist/
+$ luccet build notes/maps.html --math mathml -o dist/
 …
-tern build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as MathML
+luccet build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as MathML
 ```
 
-- **The package.** `temml` is not a dependency of Tern; the build finds it as it finds `katex` (above). When it cannot be loaded, the build says so and leaves the formulas to `tern.js`.
-- **Self-contained.** The build inlines Temml's small stylesheet as `<style id="tern-temml-style">`, with its one font embedded as a `data:` URL, so the page fetches nothing for its math. Native MathML is drawn with the browser's math fonts.
+- **The package.** `temml` is not a dependency of Luccet; the build finds it as it finds `katex` (above). When it cannot be loaded, the build says so and leaves the formulas to `luccet.js`.
+- **Self-contained.** The build inlines Temml's small stylesheet as `<style id="luccet-temml-style">`, with its one font embedded as a `data:` URL, so the page fetches nothing for its math. Native MathML is drawn with the browser's math fonts.
 - **No math script.** The MathML is in the page, and the engine renders no math itself, so the page loads no typesetting library. (Leave a math add-on out of `data-use`; the pre-rendered formulas need none.)
 - **The output.** Each pre-rendered `span.t-math` gets `data-tex` (its TeX, for copying) and a `<math>` element whose TeX is kept in an `<annotation>`. Formulas in a `::toc` entry are pre-rendered too.
 - **A formula Temml rejects** stays as its TeX source — the engine renders no math — and the build prints a `math.error` warning.
@@ -699,15 +699,15 @@ tern build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as MathML
 `--diagrams` draws the note's [`mermaid` fences](addons.html#mermaid) at build time, so the page shows its diagrams without loading Mermaid, with scripts off, and in print. Opt-in, like `--math`.
 
 ```sh
-$ tern build notes/flow.html --diagrams -o dist/
+$ luccet build notes/flow.html --diagrams -o dist/
 …
-tern build: wrote dist/flow.html; 0 formulas; 3 diagrams, 3 drawn ahead with Mermaid from the cached mermaid 12.1.0
+luccet build: wrote dist/flow.html; 0 formulas; 3 diagrams, 3 drawn ahead with Mermaid from the cached mermaid 12.1.0
 ```
 
-- **How.** The build opens the note itself in a headless Chromium and lets the [Mermaid add-on](addons.html#mermaid) draw, so the drawings are exactly the browser's: the page's palette, the print copy, the ids. The note's `tern.js` and add-ons must resolve from the note's folder, as they do when the note is opened in a browser. The page is read in the light scheme and in the dark one: a theme that follows the system gives each diagram two copies, a theme with one palette gives one; a print copy comes with them.
-- **The browser.** `playwright` is not a dependency of Tern. The build loads it as it loads `katex`: from where Node finds it for `tern-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder; its Chromium must be installed (`npm install playwright && npx playwright install chromium`). Without it the build says so and leaves the diagrams to the page.
-- **Mermaid.** The pinned version is handed to the page from the add-on's `?base=` folder when the note names one ([tern vendor](#vendor)), else from a `mermaid` package Node can find, else from the copy `tools/mermaid.js` keeps under `node_modules/.cache`. Failing those, the page fetches it from jsDelivr as it would for a reader, which needs the network. The summary says where it came from.
-- **The output.** Each drawn fence becomes the add-on's element, `<div class="t-mermaid">`, with the fence's id and `data-pos`: the copies as `<svg class="t-mermaid-screen t-mermaid-light">` and `t-mermaid-dark` (or `t-mermaid-screen` alone for one palette), the print copy as `t-mermaid-print`, each marked with its palette in `data-palette`, then the fence, hidden. A small stylesheet, `<style id="tern-mermaid-style">`, shows the copy for the reader's scheme and the print copy in print. A listing keeps its figure and caption.
+- **How.** The build opens the note itself in a headless Chromium and lets the [Mermaid add-on](addons.html#mermaid) draw, so the drawings are exactly the browser's: the page's palette, the print copy, the ids. The note's `luccet.js` and add-ons must resolve from the note's folder, as they do when the note is opened in a browser. The page is read in the light scheme and in the dark one: a theme that follows the system gives each diagram two copies, a theme with one palette gives one; a print copy comes with them.
+- **The browser.** `playwright` is not a dependency of Luccet. The build loads it as it loads `katex`: from where Node finds it for `luccet-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder; its Chromium must be installed (`npm install playwright && npx playwright install chromium`). Without it the build says so and leaves the diagrams to the page.
+- **Mermaid.** The pinned version is handed to the page from the add-on's `?base=` folder when the note names one ([luccet vendor](#vendor)), else from a `mermaid` package Node can find, else from the copy `tools/mermaid.js` keeps under `node_modules/.cache`. Failing those, the page fetches it from jsDelivr as it would for a reader, which needs the network. The summary says where it came from.
+- **The output.** Each drawn fence becomes the add-on's element, `<div class="t-mermaid">`, with the fence's id and `data-pos`: the copies as `<svg class="t-mermaid-screen t-mermaid-light">` and `t-mermaid-dark` (or `t-mermaid-screen` alone for one palette), the print copy as `t-mermaid-print`, each marked with its palette in `data-palette`, then the fence, hidden. A small stylesheet, `<style id="luccet-mermaid-style">`, shows the copy for the reader's scheme and the print copy in print. A listing keeps its figure and caption.
 - **On the page**, the add-on adopts the drawings: it shows the copy for the palette in effect and asks for Mermaid only for a palette that has no copy, such as a theme the [switcher](addons.html#switcher) brings in; then it draws afresh and the kept copies go. A page whose diagrams were all drawn loads no Mermaid.
 - **A diagram Mermaid cannot draw** stays a fence, and the build prints a `diagram.error` warning at its line; the page draws it again at view time, loading Mermaid, and shows the add-on's error after it.
 - **Size.** Mermaid writes its styles into each SVG, so a drawn diagram adds some tens of kilobytes per copy to the page.
@@ -717,49 +717,49 @@ tern build: wrote dist/flow.html; 0 formulas; 3 diagrams, 3 drawn ahead with Mer
 A drawn diagram carries `style` attributes and `<style>` elements, as Mermaid writes them. With a [`data-nonce`](publishing.html#csp), the `<style>` elements carry it and the add-on applies the attributes through the CSSOM once it runs; with scripts off under a strict policy, the diagrams lose their styling.
 :::
 
-### What tern.js does on a built page {#built-start}
+### What luccet.js does on a built page {#built-start}
 
-`tern.js` sees `data-built` on its own tag and skips what a note needs: it does not capture the file, mount, or re-create the note's scripts. Instead:
+`luccet.js` sees `data-built` on its own tag and skips what a note needs: it does not capture the file, mount, or re-create the note's scripts. Instead:
 
-- **At once**, it reads its configuration from the tag and `window.TERN`, adopts the stylesheets in the head as its own (so `tern.style` sheets of an add-on land in that add-on's place), and starts noting add-on scripts that fail to load or throw while they run. It requests no math library itself; a [math add-on](addons.html#katex) in `data-use` does, when it meets a formula the build left as TeX, and the [Mermaid add-on](addons.html#mermaid) asks for Mermaid only for a fence the build did not draw ([--diagrams](#build-diagrams)).
-- **When the page is parsed**, it applies `window.TERN.schema`, reads the source and its `data-line`, loads the build's diagnostics, adds an `addon.failed` for each script add-on that failed to load or threw, then runs the behaviours, fires `render` (a math add-on typesets the formulas the build did not pre-render), fires `math`, scrolls to the URL's fragment, prints the console group (whose first line says "a built page") and fires `ready`.
+- **At once**, it reads its configuration from the tag and `window.LUCCET`, adopts the stylesheets in the head as its own (so `luccet.style` sheets of an add-on land in that add-on's place), and starts noting add-on scripts that fail to load or throw while they run. It requests no math library itself; a [math add-on](addons.html#katex) in `data-use` does, when it meets a formula the build left as TeX, and the [Mermaid add-on](addons.html#mermaid) asks for Mermaid only for a fence the build did not draw ([--diagrams](#build-diagrams)).
+- **When the page is parsed**, it applies `window.LUCCET.schema`, reads the source and its `data-line`, loads the build's diagnostics, adds an `addon.failed` for each script add-on that failed to load or threw, then runs the behaviours, fires `render` (a math add-on typesets the formulas the build did not pre-render), fires `math`, scrolls to the URL's fragment, prints the console group (whose first line says "a built page") and fires `ready`.
 - Copy, print and the opening of `<details>` behave as on a note.
 
 How a built page differs from a note:
 
 - **The note's scripts are real scripts.** They run while the page is parsed. `document.write` writes, `DOMContentLoaded` listeners run, and nothing is intercepted or reported.
-- **A failed CSS add-on is not reported.** Its link comes before `tern.js`, so its error has already happened. The browser's console reports it.
-- **When `tern.js` does not load**, the content still shows, with its styles. The add-ons, and any note script that calls `tern`, throw.
-- **The transforms ran at build time**, the add-ons' included (see [Vocabulary under Node](#vocabulary)). `tern.js` does not run them again on a built page.
+- **A failed CSS add-on is not reported.** Its link comes before `luccet.js`, so its error has already happened. The browser's console reports it.
+- **When `luccet.js` does not load**, the content still shows, with its styles. The add-ons, and any note script that calls `luccet`, throw.
+- **The transforms ran at build time**, the add-ons' included (see [Vocabulary under Node](#vocabulary)). `luccet.js` does not run them again on a built page.
 
-## tern mv {#mv}
+## luccet mv {#mv}
 
-`tern mv` moves or renames notes, other files and folders, and rewrites the relative URLs that point at them, so that no link breaks. It is `mv` for a folder of notes.
+`luccet mv` moves or renames notes, other files and folders, and rewrites the relative URLs that point at them, so that no link breaks. It is `mv` for a folder of notes.
 
-:::syntax[tern mv]
+:::syntax[luccet mv]
 ```sh
-tern mv FROM… TO [--root=DIR] [--dry-run] [--json]
+luccet mv FROM… TO [--root=DIR] [--dry-run] [--json]
 ```
 :::
 
 Moving `maps.html` into a new folder, `linear/`, first as a dry run:
 
 ```sh
-$ tern mv --dry-run notes/maps.html notes/linear/
+$ luccet mv --dry-run notes/maps.html notes/linear/
 would move notes/maps.html → notes/linear/maps.html
 notes/index.html:4:17: maps.html → linear/maps.html
 notes/index.html:5:18: maps.html → linear/maps.html
-notes/linear/maps.html:1:51: ../tern.js → ../../tern.js
+notes/linear/maps.html:1:51: ../luccet.js → ../../luccet.js
 notes/linear/maps.html:4:15: img/kernel.svg → ../img/kernel.svg
 notes/linear/maps.html:10:24: index.html → ../index.html
 notes/vectors/basis.html:4:20: ../maps.html → ../linear/maps.html
-tern mv: 1 move, 6 links in 3 notes; a dry run, so nothing changed
-$ tern mv notes/maps.html notes/linear/
+luccet mv: 1 move, 6 links in 3 notes; a dry run, so nothing changed
+$ luccet mv notes/maps.html notes/linear/
 moved notes/maps.html → notes/linear/maps.html
 …
-tern mv: 1 move, 6 links in 3 notes
-$ tern check notes
-tern check: 3 notes: 0 errors, 0 warnings, 0 infos
+luccet mv: 1 move, 6 links in 3 notes
+$ luccet check notes
+luccet check: 3 notes: 0 errors, 0 warnings, 0 infos
 ```
 
 Each edit prints as `file:line:col: old → new`, with the file at its new path; the summary goes to stderr.
@@ -768,7 +768,7 @@ Each edit prints as `file:line:col: old → new`, with the file at its new path;
 |---|---|
 | `FROM…` | Notes, other files and folders. A folder moves with everything in it. |
 | `TO` | The new path. When it is a folder that exists, or ends in `/`, each FROM moves into it and keeps its name. With several FROMs, TO must be a folder that exists. Missing folders on the way are created. |
-| `--root=DIR` | The folder whose notes are searched for links, with its subfolders, as [`tern check`](#check-folders) finds notes. By default, the repository FROM is in (the nearest folder above it holding `.git`), else the current folder. |
+| `--root=DIR` | The folder whose notes are searched for links, with its subfolders, as [`luccet check`](#check-folders) finds notes. By default, the repository FROM is in (the nearest folder above it holding `.git`), else the current folder. |
 | `--dry-run`, `-n` | Prints the moves and the edits, and changes nothing. |
 | `--json` | Prints the moves, the edits and what is left alone as one JSON object instead of lines: see [--json](#mv-json). |
 
@@ -782,7 +782,7 @@ Each edit prints as `file:line:col: old → new`, with the file at its new path;
   "moves": [{ "from": "notes/maps.html", "to": "notes/linear/maps.html" }],
   "edits": [
     { "file": "notes/index.html", "line": 4, "column": 17, "was": "maps.html", "text": "linear/maps.html" },
-    { "file": "notes/linear/maps.html", "line": 1, "column": 51, "was": "../tern.js", "text": "../../tern.js" }
+    { "file": "notes/linear/maps.html", "line": 1, "column": 51, "was": "../luccet.js", "text": "../../luccet.js" }
   ],
   "left": []
 }
@@ -793,7 +793,7 @@ Each edit prints as `file:line:col: old → new`, with the file at its new path;
 Two kinds of relative URL, wherever [link checking](#check-links) finds them, and also head scripts and script add-ons:
 
 - **URLs to what moved,** in every note under the root: a link to a moved note or into a moved folder, an image, a `::video{src=…}`, a raw `<a href>`, a stylesheet in `data-use` or `:::use`.
-- **A moved note's own URLs.** Its targets did not move, but the note did, so its links, images, `tern.js`, add-ons and head scripts are written again from its new folder. A link to a file moved with it, or to itself, works out right: inside a folder that moves, nothing changes.
+- **A moved note's own URLs.** Its targets did not move, but the note did, so its links, images, `luccet.js`, add-ons and head scripts are written again from its new folder. A link to a file moved with it, or to itself, works out right: inside a folder that moves, nothing changes.
 
 Each edit replaces the path of one URL and nothing else. Its fragment and query stay (`maps.html#thm-rn` becomes `linear/maps.html#thm-rn`), and so does how it is written:
 
@@ -807,20 +807,20 @@ Each edit replaces the path of one URL and nothing else. Its fragment and query 
 
 - URLs with a scheme, or starting with `//` or `/`, as link checking does.
 - A note with a `<base href>`: its URLs do not resolve from its folder. It is named on stderr.
-- Files that are not notes. A Markdown file, a plain HTML page or a script that names a moved note keeps its old name, since a name there need not be a URL. `tern mv` lists each one on stderr, so that you can look at it:
+- Files that are not notes. A Markdown file, a plain HTML page or a script that names a moved note keeps its old name, since a name there need not be a URL. `luccet mv` lists each one on stderr, so that you can look at it:
 
   ```sh
-  tern mv: README.md names maps.html but is not a note, so it is left as it is; look at it
-  tern mv: docs/docs.js names maps.html but is not a note, so it is left as it is; look at it
+  luccet mv: README.md names maps.html but is not a note, so it is left as it is; look at it
+  luccet mv: docs/docs.js names maps.html but is not a note, so it is left as it is; look at it
   ```
 
-  A site navigation list in an add-on, such as the one in Tern's own `docs.js`, is one of these.
+  A site navigation list in an add-on, such as the one in Luccet's own `docs.js`, is one of these.
 
-`tern mv` reads the notes but does not run their add-ons: a URL is syntax, so it works on any repository. It moves files with a rename, as `mv` does; git sees the rename when you stage it (`git add -A`).
+`luccet mv` reads the notes but does not run their add-ons: a URL is syntax, so it works on any repository. It moves files with a rename, as `mv` does; git sees the rename when you stage it (`git add -A`).
 
 ### Refusals {#mv-refusals}
 
-`tern mv` moves nothing, says why on stderr, and exits 1 when:
+`luccet mv` moves nothing, says why on stderr, and exits 1 when:
 
 - a destination exists. A rename that only changes the case, on a disk that ignores case, is allowed;
 - a folder would move into itself;
@@ -832,29 +832,29 @@ A FROM that does not exist, a FROM inside another FROM, and several FROMs with a
 A move that fails on the way, such as into a folder you cannot write to, undoes the moves before it: nothing has moved and no link has changed, and the exit code is 1.
 
 ```sh
-$ tern mv notes/index.html notes/linear/maps.html
-tern mv: notes/linear/maps.html exists; move or remove it first
-$ tern mv notes notes/archive
-tern mv: cannot move notes into itself
+$ luccet mv notes/index.html notes/linear/maps.html
+luccet mv: notes/linear/maps.html exists; move or remove it first
+$ luccet mv notes notes/archive
+luccet mv: cannot move notes into itself
 ```
 
-## tern search {#search}
+## luccet search {#search}
 
-`tern search` finds the places in a folder of notes where words occur: the same lexical search as the [search add-on](addons.html#search), on files, with lines. It is `grep` that knows what a note is: a hit is a heading's section or a named block with an id, an exercise or a theorem, not a line.
+`luccet search` finds the places in a folder of notes where words occur: the same lexical search as the [search add-on](addons.html#search), on files, with lines. It is `grep` that knows what a note is: a hit is a heading's section or a named block with an id, an exercise or a theorem, not a line.
 
-:::syntax[tern search]
+:::syntax[luccet search]
 ```sh
-tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]
+luccet search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]
 ```
 :::
 
 ```sh
-$ tern search contrapositive BookOfProof/ --limit=2
+$ luccet search contrapositive BookOfProof/ --limit=2
 BookOfProof/chapter5.html:7: Contrapositive Proof (#chapter-5)
     Contrapositive Proof
 BookOfProof/chapter5.html:9: Exercises (#exercises)
     A. Use the method of contrapositive proof to prove the following statements. We prove the contrapositive: if n is not odd, then n^2 is not odd. Suppose that n…
-tern search: 13 notes, 310 entries: 2 results
+luccet search: 13 notes, 310 entries: 2 results
 $ echo $?
 0
 ```
@@ -864,36 +864,36 @@ Each hit is two lines: `FILE:LINE:` the entry's label and title, with its id in 
 | Option | What it does |
 |---|---|
 | `QUERY` | One or more words, as one argument (`"strong induction"`). Each word is folded and stemmed and stands for every word it begins: `pythag` finds Pythagoras and Pythagorean; `triangle` finds triangles; `cafe` finds Café. Chinese, Japanese and Korean are searched by pairs of characters, so `東京` finds 東京タワー. TeX is searched as written: `sqrt` finds `\sqrt`. See [Words](api.html#search). |
-| `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [tern check](#check-folders) does. |
+| `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [luccet check](#check-folders) does. |
 | `--limit=N` | At most N results (20), or `all`. |
-| `--json` | Prints one JSON array of the hits instead: `file`, `line`, `endLine`, `id`, `kind`, `label`, `title`, `page` (the note's title), `score`, `snippet` and `marks` (the matching words' ranges in it). [tern.nvim](#neovim)'s `:TernSearch` reads this into the quickfix list. |
-| `--index=FILE` | Searches the `search.json` that [tern index](#index) wrote instead of reading the notes: the same hits, from one file, no note read, so it also shows what a published site's search box finds. Takes no `PATH`: the index names the notes, and they print relative to the current folder. The file must be of the index format this version reads (its `format`, [`tern.search.format`](api.html#search)), whatever version wrote it; one of another format, or with none (written before 1.0), is refused, with the version that wrote it: run `tern index` again. |
+| `--json` | Prints one JSON array of the hits instead: `file`, `line`, `endLine`, `id`, `kind`, `label`, `title`, `page` (the note's title), `score`, `snippet` and `marks` (the matching words' ranges in it). [luccet.nvim](#neovim)'s `:LuccetSearch` reads this into the quickfix list. |
+| `--index=FILE` | Searches the `search.json` that [luccet index](#index) wrote instead of reading the notes: the same hits, from one file, no note read, so it also shows what a published site's search box finds. Takes no `PATH`: the index names the notes, and they print relative to the current folder. The file must be of the index format this version reads (its `format`, [`luccet.search.format`](api.html#search)), whatever version wrote it; one of another format, or with none (written before 1.0), is refused, with the version that wrote it: run `luccet index` again. |
 | `--no-scripts` | Searches without running the notes' head scripts and add-ons ([Running a note's code](#sandbox)): their vocabulary is unknown, so blocks declared there keep no label. |
 
-The notes are parsed with their own vocabulary, as `tern check` parses them ([Vocabulary under Node](#vocabulary)), so a hit in `:::exercise[10.3]{#ex-10-3}` reads "Exercise 10.3". A remote add-on is not loaded; a note whose vocabulary lives only on a CDN is still searched, with its blocks' names for labels. The ranking is [`tern.search`](api.html#search)'s: a word in a heading or a block's title weighs more than one in the text.
+The notes are parsed with their own vocabulary, as `luccet check` parses them ([Vocabulary under Node](#vocabulary)), so a hit in `:::exercise[10.3]{#ex-10-3}` reads "Exercise 10.3". A remote add-on is not loaded; a note whose vocabulary lives only on a CDN is still searched, with its blocks' names for labels. The ranking is [`luccet.search`](api.html#search)'s: a word in a heading or a block's title weighs more than one in the text.
 
-## tern index {#index}
+## luccet index {#index}
 
-`tern index` writes what a site's add-ons read about a folder of notes, so that a page can list them, search them and define their terms without fetching every note: `notes.json`, a catalogue, `search.json`, the search index, and `glossary.json`, the terms the notes define with their definitions. All three are plain JSON derived from the notes, to be written again whenever the notes change: by hand, by a git hook, or in a workflow. No note needs them. [`::search`](addons.html#search) without `index=` indexes the notes in the browser, and the files make it one request instead of one per note; [`::notes`](addons.html#notes) is the list a hub page draws from the catalogue.
+`luccet index` writes what a site's add-ons read about a folder of notes, so that a page can list them, search them and define their terms without fetching every note: `notes.json`, a catalogue, `search.json`, the search index, and `glossary.json`, the terms the notes define with their definitions. All three are plain JSON derived from the notes, to be written again whenever the notes change: by hand, by a git hook, or in a workflow. No note needs them. [`::search`](addons.html#search) without `index=` indexes the notes in the browser, and the files make it one request instead of one per note; [`::notes`](addons.html#notes) is the list a hub page draws from the catalogue.
 
-:::syntax[tern index]
+:::syntax[luccet index]
 ```sh
-tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]
+luccet index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]
 ```
 :::
 
 ```sh
-$ tern index
-tern index: 17 notes, 410 entries, 23 terms; 1 left out (not tracked by git) → notes.json, search.json, glossary.json
-$ tern index --check
-tern index: 17 notes, 410 entries, 23 terms; 1 left out (not tracked by git); all three files are up to date
+$ luccet index
+luccet index: 17 notes, 410 entries, 23 terms; 1 left out (not tracked by git) → notes.json, search.json, glossary.json
+$ luccet index --check
+luccet index: 17 notes, 410 entries, 23 terms; 1 left out (not tracked by git); all three files are up to date
 $ echo $?
 0
 ```
 
 | Option | What it does |
 |---|---|
-| `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [tern check](#check-folders) does. |
+| `PATH…` | Files and folders; the current folder when none is given. A folder is searched for notes as [luccet check](#check-folders) does. |
 | `-o DIR` | Where the three files go, and what the paths in them are relative to. Without it, the first `PATH` when it is a folder, else that file's folder. Created if missing. |
 | `--check` | Writes nothing. Exits 1, naming the file, when one of the three files is missing or differs from what would be written: for a workflow that keeps them honest. |
 | `--all` | Indexes every note found. Without it, in a git repository, only tracked files are indexed ([What is left out](#index-left-out)). |
@@ -902,11 +902,11 @@ $ echo $?
 
 ### What is written {#index-files}
 
-**`notes.json`** is the catalogue: `tern`, the version that wrote it, and `notes`, one object per note, in the folder's order.
+**`notes.json`** is the catalogue: `luccet`, the version that wrote it, and `notes`, one object per note, in the folder's order.
 
 ```json
 {
-  "tern": "1.1.0",
+  "luccet": "1.1.1",
   "notes": [
     {
       "url": "BookOfProof/chapter5.html",
@@ -922,18 +922,18 @@ $ echo $?
 
 - **`url`** is the note's path relative to the file, with forward slashes, so a site can be served under any path.
 - **`title`** is the head's `<title>`, else `:::meta`'s `title`, else the first heading's text. **`description`** is the head's `<meta name="description">`, else `:::meta`'s `description`, else empty.
-- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD` (a time may follow), so that lists sort: another form is written as it is, said on stderr, and [`::notes`](addons.html#notes) sorts it last without a `<time>`. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist. The log is asked for the indexed notes alone, so a repository full of other files costs nothing; should it still run past 256 MB, it is cut there, and `tern index` says how many notes are dated by their modification time instead.
+- **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD` (a time may follow), so that lists sort: another form is written as it is, said on stderr, and [`::notes`](addons.html#notes) sorts it last without a `<time>`. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist. The log is asked for the indexed notes alone, so a repository full of other files costs nothing; should it still run past 256 MB, it is cut there, and `luccet index` says how many notes are dated by their modification time instead.
 - **`headings`** are every heading of the note, with its depth, its id as the page gives it, and its text. **`links`** are the notes in the catalogue this note links to, as paths like `url`, each once.
 
-**`search.json`** is the search index: `tern` (the version that wrote it), `format` (the number of its format, [`tern.search.format`](api.html#search)), `notes` (each note's `url` and `title`), and the index [`tern.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The words in `terms` are the tokeniser's, which changes only with the format, in a major release, so an index serves every reader of its format whatever version wrote it; a reader of another format says so and does without it.
+**`search.json`** is the search index: `luccet` (the version that wrote it), `format` (the number of its format, [`luccet.search.format`](api.html#search)), `notes` (each note's `url` and `title`), and the index [`luccet.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The words in `terms` are the tokeniser's, which changes only with the format, in a major release, so an index serves every reader of its format whatever version wrote it; a reader of another format says so and does without it.
 
-**`glossary.json`** is the glossary: `tern`, `format` ([`tern.glossary.format`](api.html#glossary); the [add-on](addons.html#glossary) takes a file of its own format, whatever version wrote it), `notes` (each note's `url` and `title`) and `terms`, the terms the notes define ([`tern.glossary`](api.html#glossary)), in the order of their folded key, then by note: each with `term`, `key`, `slug` (its id on a glossary page), `url` (the note, relative to the file), `id` (the anchor to jump to), `line` (a file line), `how` (`dfn`, or the block's name) and `definition`, the definition's nodes, which the [glossary add-on](addons.html#glossary) renders. One term per line. A term is a `:dfn[…]`, defined by its paragraph, or a titled `:::definition` block, defined by its body. The summary counts the terms when there are any, and two things are said on stderr, as notes, the exit code unchanged: a term defined more than once, `the term "kernel" is defined in a.html:12 and b.html:3; the glossary lists both`, and a `:term[…]` no note defines, `c.html:5: the term "x" has no definition in these notes`.
+**`glossary.json`** is the glossary: `luccet`, `format` ([`luccet.glossary.format`](api.html#glossary); the [add-on](addons.html#glossary) takes a file of its own format, whatever version wrote it), `notes` (each note's `url` and `title`) and `terms`, the terms the notes define ([`luccet.glossary`](api.html#glossary)), in the order of their folded key, then by note: each with `term`, `key`, `slug` (its id on a glossary page), `url` (the note, relative to the file), `id` (the anchor to jump to), `line` (a file line), `how` (`dfn`, or the block's name) and `definition`, the definition's nodes, which the [glossary add-on](addons.html#glossary) renders. One term per line. A term is a `:dfn[…]`, defined by its paragraph, or a titled `:::definition` block, defined by its body. The summary counts the terms when there are any, and two things are said on stderr, as notes, the exit code unchanged: a term defined more than once, `the term "kernel" is defined in a.html:12 and b.html:3; the glossary lists both`, and a `:term[…]` no note defines, `c.html:5: the term "x" has no definition in these notes`.
 
 ### What is left out {#index-left-out}
 
 - **Files git does not track.** In a repository, a note that is untracked or ignored is not indexed, so that a private note never reaches the published files; the summary counts them. A staged new file is tracked, so a hook sees it. `--all` indexes every note found, and a file named on the command line is always indexed. Outside a repository, or when git is not installed (said once on stderr), every note found is indexed.
 - **`robots: noindex`.** A note whose `:::meta` or head says so (`<meta name="robots" content="noindex">`, the convention search engines follow) is left out of the three files: a search page, a draft, the page that lists the others.
-- **Files that are not notes,** and pages `tern build` wrote.
+- **Files that are not notes,** and pages `luccet build` wrote.
 
 ### Keeping the files current {#index-hook}
 
@@ -944,7 +944,7 @@ $ mkdir -p .githooks
 $ cat > .githooks/pre-commit <<'EOF'
 #!/bin/sh
 # The notes' catalogue, search index and glossary, written again and staged.
-tern index || exit 1
+luccet index || exit 1
 git add notes.json search.json glossary.json
 EOF
 $ printf '#!/bin/sh\nexec "$(dirname "$0")/pre-commit"\n' > .githooks/pre-merge-commit
@@ -954,20 +954,20 @@ $ git config core.hooksPath .githooks
 
 `pre-commit` runs for every commit, on every branch. `git merge` runs `pre-merge-commit` instead when it makes a merge commit, which is why the second script hands over to the first; a fast-forward merge makes no commit and needs no hook, since the branch was committed with it. `post-merge` is not the one: it runs after the merge is recorded, so files it wrote would sit uncommitted. The hook indexes the working tree, not what is staged: commit with a clean tree, or expect a partial commit to carry the tree's index.
 
-In a workflow, `tern index --check` fails the build when the files are stale. A site built by a workflow can instead run `tern index` there and deploy the result, so that nothing generated is committed.
+In a workflow, `luccet index --check` fails the build when the files are stale. A site built by a workflow can instead run `luccet index` there and deploy the result, so that nothing generated is committed.
 
-## tern vendor {#vendor}
+## luccet vendor {#vendor}
 
-`tern vendor` writes the local copies that the add-ons' `?base=` option takes ([a copy of your own](addons.html#katex-loading)), from the packages the add-ons pin, for notes that must work offline or under a policy that allows no CDN.
+`luccet vendor` writes the local copies that the add-ons' `?base=` option takes ([a copy of your own](addons.html#katex-loading)), from the packages the add-ons pin, for notes that must work offline or under a policy that allows no CDN.
 
-:::syntax[tern vendor]
+:::syntax[luccet vendor]
 ```sh
-tern vendor DIR [--katex] [--code] [--mermaid] [--mathml]
+luccet vendor DIR [--katex] [--code] [--mermaid] [--mathml]
 ```
 :::
 
 ```sh
-$ tern vendor vendor --katex --mathml
+$ luccet vendor vendor --katex --mathml
 vendor/katex/fonts/KaTeX_AMS-Regular.ttf
 …
 vendor/katex/katex.min.css
@@ -975,9 +975,9 @@ vendor/katex/katex.min.js
 vendor/temml/Temml-Local.css
 vendor/temml/Temml.woff2
 vendor/temml/temml.min.js
-tern vendor: katex 0.19.0 → vendor/katex (62 files); load it with addons/katex.js?base=vendor/katex
-tern vendor: mathml 0.14.0 → vendor/temml (3 files); load it with addons/mathml.js?base=vendor/temml
-tern vendor: 2 packages, 65 files, 1.5 MB; a ?base= resolves from the note's folder, so write the path from there
+luccet vendor: katex 0.19.0 → vendor/katex (62 files); load it with addons/katex.js?base=vendor/katex
+luccet vendor: mathml 0.14.0 → vendor/temml (3 files); load it with addons/mathml.js?base=vendor/temml
+luccet vendor: 2 packages, 65 files, 1.5 MB; a ?base= resolves from the note's folder, so write the path from there
 ```
 
 | Option | What it does |
@@ -993,30 +993,30 @@ tern vendor: 2 packages, 65 files, 1.5 MB; a ?base= resolves from the note's fol
 | `DIR/temml/` | `temml.min.js`, `Temml-Local.css`, `Temml.woff2` | `addons/mathml.js?base=DIR/temml` |
 
 - **The versions** are the ones the add-ons pin, read from their tables, so a copy is the file the add-on would fetch from jsDelivr, byte for byte: the add-on's SRI hash matches it, though a `?base=` copy is loaded without one.
-- **The packages** are downloaded from the npm registry once, checked against the registry's hash, into `node_modules/.cache/tern-smoke/` beside `tern.js` (the cache the test suite shares), and copied from there. Offline with an empty cache, the library is reported as not fetched and the exit code is 1; the others are still written.
+- **The packages** are downloaded from the npm registry once, checked against the registry's hash, into `node_modules/.cache/luccet-smoke/` beside `luccet.js` (the cache the test suite shares), and copied from there. Offline with an empty cache, the library is reported as not fetched and the exit code is 1; the others are still written.
 - **The paths.** The `?base=` the summary prints is `DIR` as you gave it; a note in another folder writes the path from its own folder, as for any relative URL.
 - **Files already there** are overwritten. Nothing else in `DIR` is touched.
 
-## tern corpus {#corpus}
+## luccet corpus {#corpus}
 
-`tern corpus` turns the live examples of documentation pages, such as this one, into cases of the conformance corpus, the test format of `test/corpus/`. So every example in the documentation is also a test of the engine.
+`luccet corpus` turns the live examples of documentation pages, such as this one, into cases of the conformance corpus, the test format of `test/corpus/`. So every example in the documentation is also a test of the engine.
 
-:::syntax[tern corpus]
+:::syntax[luccet corpus]
 ```sh
-tern corpus PATH… [--out=DIR]
+luccet corpus PATH… [--out=DIR]
 ```
 :::
 
 | Option | What it does |
 |---|---|
-| `PATH…` | Pages and folders, at least one. Folders are searched as by [tern check](#check-folders). |
+| `PATH…` | Pages and folders, at least one. Folders are searched as by [luccet check](#check-folders). |
 | `--out=DIR` | Writes one file per page with examples, `DIR/docs-PAGE.txt`, and creates `DIR` if needed. Without it, the cases go to stdout, page after page. |
 
-An example is a `tern` fence with the class `live` (see `docs/README.md`). Its attributes say how to run it: `expect="…"`, the codes it must produce; `schema=none` (the default) or `schema=demo`; `head="…"`, a preserved head; and `spec="syntax-blocks#fence"`, the documentation sections it illustrates. For the first example on this page:
+An example is a `luccet` fence with the class `live` (see `docs/README.md`). Its attributes say how to run it: `expect="…"`, the codes it must produce; `schema=none` (the default) or `schema=demo`; `head="…"`, a preserved head; and `spec="syntax-blocks#fence"`, the documentation sections it illustrates. For the first example on this page:
 
 `````sh
-$ tern corpus docs/tools.html
-# docs/tools.html: live examples (tern corpus)
+$ luccet corpus docs/tools.html
+# docs/tools.html: live examples (luccet corpus)
 
 ## docs/tools-check-1
 
@@ -1025,7 +1025,7 @@ options: schema=none
 
 The live example on line 269 of docs/tools.html.
 
-````tern
+````luccet
 # The kernel
 
 See @rank for the dimension count.
@@ -1043,22 +1043,22 @@ $$
 8:1 error math.unclosed
 ````
 …
-tern corpus: 3 cases from 1 page
+luccet corpus: 3 cases from 1 page
 `````
 
 - **The id** is `docs/PAGE-SLUG`. `PAGE` is the file name (`examples-NAME` for a page in `examples/`). `SLUG` is the fence's own `#id` when it has one; otherwise the id of the heading the example follows and its number under that heading, as `check-1` above. Adding an example renumbers only its own section.
 - **`spec:`** cites documentation sections as `PAGE#ID`, where `PAGE` is a page of `docs/` without `.html`. It is the fence's `spec=`, else the section the example is in: the nearest heading before it with an id, as `tools#check` above, or `PAGE#top` before any heading. Examples on a page outside `docs/`, such as `index.html` or an example note, cite `guide#top`.
 - **`options:`** is `schema=none` for an example without a schema. An example with `schema=demo` has no such line: the corpus's own schema, `test/fixtures/schema.js`, is the demo schema. `escaped` is added when the source holds tabs, carriage returns, NUL, a byte-order mark or trailing spaces.
-- **The blocks.** `tern` is the example's text; `html head` its `head=`; `diagnostics` its expected codes, with the positions and severities the engine gives them.
+- **The blocks.** `luccet` is the example's text; `html head` its `head=`; `diagnostics` its expected codes, with the positions and severities the engine gives them.
 
 **Problems.** An example that cannot become a case is left out and reported on stderr as `FILE:LINE: message`, and the command exits 1:
 
 ```sh
-$ tern corpus page.html
-page.html:10: schema=demo, but the page's add-ons expose no demo schema (window.ternDocs.demo from docs.js)
+$ luccet corpus page.html
+page.html:10: schema=demo, but the page's add-ons expose no demo schema (window.luccetDocs.demo from docs.js)
 page.html:16: schema="other" is not a schema the docs know (none, demo)
 page.html:6: example page-first-1: expect="" but the engine reports ref.dangling (missing nothing, unexpected ref.dangling)
-tern corpus: 0 cases from 0 pages
+luccet corpus: 0 cases from 0 pages
 ```
 
 - **Exit codes.** 0 when every example became a case; 1 when one was left out; 2 for a usage error: no `PATH`, an empty `--out`, a path that does not exist, or two pages that would write the same file.
@@ -1067,22 +1067,22 @@ tern corpus: 0 cases from 0 pages
 
 ## The language server {#lsp}
 
-`tern lsp` is a language server: it speaks the Language Server Protocol over stdin and stdout, so any editor with an LSP client can use it. It runs the same analysis as `tern check` on every note you open, as you type, and answers questions about ids, references and element names from the syntax tree, at exact columns. When you rename a file in the editor, it fixes the links to it, as `tern mv` does. It never guesses with a second grammar. The answers come from one module, which an editor can also run itself: see [The language module](#language).
+`luccet lsp` is a language server: it speaks the Language Server Protocol over stdin and stdout, so any editor with an LSP client can use it. It runs the same analysis as `luccet check` on every note you open, as you type, and answers questions about ids, references and element names from the syntax tree, at exact columns. When you rename a file in the editor, it fixes the links to it, as `luccet mv` does. It never guesses with a second grammar. The answers come from one module, which an editor can also run itself: see [The language module](#language).
 
-:::syntax[tern lsp]
+:::syntax[luccet lsp]
 ```sh
-tern lsp [--stdio]
+luccet lsp [--stdio]
 ```
 :::
 
 It always speaks over stdio. `--stdio` and `--clientProcessId=N`, which some editors pass, are accepted and change nothing. Any other argument is a usage error (exit 2), and `--help` prints the synopsis. It is written in plain Node, with no dependencies.
 
-The examples in this section are real requests and responses for this file, `notes/maps.html`, whose add-on `theorems.js` declares `tern.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' })`, a `proof` block and an inline `kbd`:
+The examples in this section are real requests and responses for this file, `notes/maps.html`, whose add-on `theorems.js` declares `luccet.block('theorem', { tag: 'section', counter: 'theorem', label: 'Theorem' })`, a `proof` block and an inline `kbd`:
 
 ```html
 <!doctype html><meta charset="utf-8">
 <title>Linear maps</title>
-<script src="tern.js" data-use="theorems.js"></script>
+<script src="luccet.js" data-use="theorems.js"></script>
 ## Kernel {#kernel}
 
 :::theorem[Rank–nullity]{#rn}
@@ -1104,7 +1104,7 @@ $$ {#eq}
 
 The note starts on file line 4. LSP positions are 0-based, so file line 4 is LSP line 3. Here is the note rendered with the [demo schema](schema.html#demo-schema), which declares `theorem` the same way:
 
-```tern {.live schema=demo expect="ref.dangling"}
+```luccet {.live schema=demo expect="ref.dangling"}
 ## Kernel {#kernel}
 
 :::theorem[Rank–nullity]{#rn}
@@ -1156,7 +1156,7 @@ $$ {#eq}
       }
     }
   },
-  "serverInfo": { "name": "tern", "version": "1.1.0" }
+  "serverInfo": { "name": "luccet", "version": "1.1.1" }
 }
 ```
 
@@ -1197,13 +1197,13 @@ $$ {#eq}
 
 ### When a note is analysed {#lsp-analysis}
 
-- **`didOpen`** analyses the note at once and publishes its diagnostics, then the [`tern/outline`](#outline) notification.
+- **`didOpen`** analyses the note at once and publishes its diagnostics, then the [`luccet/outline`](#outline) notification.
 - **`didChange`** analyses a change at once when it comes after a pause. While changes keep coming, an analysis starts every 150 ms at most, of the text as it is then, and the last text is always analysed: typing publishes a few times a second, and the last change's diagnostics come at most 150 ms after it, plus the analysis's own time. Editors pace their changes as well (Neovim sends one every 150 ms at most).
 - **Requests are answered at once, from the last analysis.** The note's own code runs in the [sandbox](#sandbox) over a bridge that does not block the server, so a request that arrives while an analysis runs, or while a change still waits, is answered from the analysis before it: hover, definition, references, symbols and folds can lag one edit behind, and the next publication catches up. A request on a document with a change still waiting starts its analysis right away. Two requests take care: [completion](#lsp-completion) reads what you typed from the text as it is, and a [rename](#lsp-rename) waits for the analysis, since its edits must match the text.
 - **A stuck script does not stop the server.** A note whose head script or add-on does not finish in 2 seconds is published with [`addon.failed`](diagnostics.html#addon-failed) when the sandbox cuts it off, and every other document is served meanwhile. One analysis runs per document at a time: a change made during one is analysed after it.
 - **`didClose`** forgets the document and publishes an empty list of diagnostics for it.
-- **Files that are not notes** get an empty list of diagnostics and no outline, and requests on them answer nothing. A file that stops being a note (you deleted its `tern.js` line) gets one last, empty outline. So it is safe to attach the server to every `.html` file.
-- **The analysis** is the one `tern check` runs, so the diagnostics are the same, in the same order.
+- **Files that are not notes** get an empty list of diagnostics and no outline, and requests on them answer nothing. A file that stops being a note (you deleted its `luccet.js` line) gets one last, empty outline. So it is safe to attach the server to every `.html` file.
+- **The analysis** is the one `luccet check` runs, so the diagnostics are the same, in the same order.
 - **Untitled buffers.** The server finds a note's add-ons from its `file:` URI. A document with another kind of URI (an unsaved buffer) loads its add-ons relative to the server's working folder.
 
 ### Vocabulary and the sandbox {#lsp-cache}
@@ -1223,7 +1223,7 @@ Each analysis sends `textDocument/publishDiagnostics` with the document's `versi
   "range": { "start": { "line": 19, "character": 12 }, "end": { "line": 19, "character": 20 } },
   "severity": 2,
   "code": "ref.dangling",
-  "source": "tern",
+  "source": "luccet",
   "message": "no id in this note has this name, so the reference stays text\nif it is not a reference, write \\@nowhere",
   "data": { "hint": "if it is not a reference, write \\@nowhere" }
 }
@@ -1233,14 +1233,14 @@ Each analysis sends `textDocument/publishDiagnostics` with the document's `versi
 |---|---|
 | `range` | The file position, 0-based: file line 20, column 13 becomes line 19, character 12. Vocabulary problems are a point at their file position. |
 | `severity` | `1` error, `2` warning, `3` info. |
-| `code` | The Tern code, as on [Diagnostics](diagnostics.html#top). |
-| `source` | `"tern"`. |
+| `code` | The Luccet code, as on [Diagnostics](diagnostics.html#top). |
+| `source` | `"luccet"`. |
 | `message` | The message, then a line break and the hint, when there is one. |
 | `data` | `{ "hint": … }` when there is a hint, for clients that show it apart. |
 
 ### Links in the editor {#lsp-links}
 
-Each analysis also checks the note's links to other files, as [`tern check`](#check-links) does, and publishes [`link.missing`](diagnostics.html#link-missing) and [`link.dangling`](diagnostics.html#link-dangling) with the note's other diagnostics. Each one's range spans its link. In the editor:
+Each analysis also checks the note's links to other files, as [`luccet check`](#check-links) does, and publishes [`link.missing`](diagnostics.html#link-missing) and [`link.dangling`](diagnostics.html#link-dangling) with the note's other diagnostics. Each one's range spans its link. In the editor:
 
 - **A note open in the editor is read as it is there,** unsaved changes included. Add `{#thm-rank}` to `maps.html` and a link to `maps.html#thm-rank` from another note stops being dangling before you save. A file open but never saved exists.
 - **The other open notes are checked again** whenever a note is analysed, opened, closed or saved, when the editor creates, renames or deletes a file, and on `workspace/didChangeWatchedFiles`. A note is published again only when its link diagnostics changed.
@@ -1249,9 +1249,9 @@ Each analysis also checks the note's links to other files, as [`tern check`](#ch
 
 ### Moving files {#lsp-files}
 
-When you rename or move a file or a folder in the editor, the client asks the server first, with `workspace/willRenameFiles`. The answer holds the edits that [`tern mv`](#mv) would make. The client applies them, then renames. It is `tern mv`, from the editor: the same edits, worked out by the same code.
+When you rename or move a file or a folder in the editor, the client asks the server first, with `workspace/willRenameFiles`. The answer holds the edits that [`luccet mv`](#mv) would make. The client applies them, then renames. It is `luccet mv`, from the editor: the same edits, worked out by the same code.
 
-Moving `notes/maps.html` into `notes/linear/`, from the [`tern mv` example](#mv):
+Moving `notes/maps.html` into `notes/linear/`, from the [`luccet mv` example](#mv):
 
 ```json
 { "files": [{ "oldUri": "file:///…/notes/maps.html", "newUri": "file:///…/notes/linear/maps.html" }] }
@@ -1264,7 +1264,7 @@ Moving `notes/maps.html` into `notes/linear/`, from the [`tern mv` example](#mv)
     { "range": { "start": { "line": 4, "character": 17 }, "end": { "line": 4, "character": 26 } }, "newText": "linear/maps.html" }
   ],
   "file:///…/notes/maps.html": [
-    { "range": { "start": { "line": 0, "character": 50 }, "end": { "line": 0, "character": 60 } }, "newText": "../../tern.js" },
+    { "range": { "start": { "line": 0, "character": 50 }, "end": { "line": 0, "character": 60 } }, "newText": "../../luccet.js" },
     { "range": { "start": { "line": 3, "character": 14 }, "end": { "line": 3, "character": 28 } }, "newText": "../img/kernel.svg" },
     { "range": { "start": { "line": 9, "character": 23 }, "end": { "line": 9, "character": 33 } }, "newText": "../index.html" }
   ],
@@ -1276,14 +1276,14 @@ Moving `notes/maps.html` into `notes/linear/`, from the [`tern mv` example](#mv)
 
 - **The edits name each file where it is,** before the rename: the moved note's own links are edits to `notes/maps.html`. Each one replaces the path of one URL and keeps the rest, as in [What it rewrites](#mv-rewrites).
 - **Which notes are read:** those in the workspace folders the client gave at `initialize`, and every open document. An open note is read as it is in the editor, unsaved changes included. A move outside the workspace folders, or with none, reads the notes in the moved file's repository, else in its folder.
-- **What is left alone** is what `tern mv` leaves ([What it leaves alone](#mv-leaves)). A note with a `<base href>`, or a URL whose writing was not found, is named in one `window/showMessage` warning. Files that are not notes are not read at all; `tern mv --dry-run` lists the ones that name a moved file.
+- **What is left alone** is what `luccet mv` leaves ([What it leaves alone](#mv-leaves)). A note with a `<base href>`, or a URL whose writing was not found, is named in one `window/showMessage` warning. Files that are not notes are not read at all; `luccet mv --dry-run` lists the ones that name a moved file.
 - **The answer is `null`** when no note links to what moves.
 
 Clients that support file operations, such as VS Code's `vscode-languageclient`, send the request when you rename in their file explorer, and save the edited files. Neovim 0.12 does not send it: [Neovim](#neovim) has a command that does.
 
 ### Completion {#lsp-completion}
 
-Completion offers what may come next where you are typing. It never offers anything inside code, inline code, math, inline math, raw HTML or the body of a raw container (`:::meta`, `:::macros`, `{raw}`), where Tern syntax does not apply.
+Completion offers what may come next where you are typing. It never offers anything inside code, inline code, math, inline math, raw HTML or the body of a raw container (`:::meta`, `:::macros`, `{raw}`), where Luccet syntax does not apply.
 
 | After | At | Offers |
 |---|---|---|
@@ -1390,7 +1390,7 @@ On text where there is nothing to rename, it answers `null`.
 
 **A heading's slug.** `## Image` has the id `image`, made from its text. Renaming it to `img` adds an explicit id at the end of the heading line, ` {#img}`, and renames the references. A heading that already has an attribute group without an id is refused, with the code `-32803`: `the heading's id is its slug; write {#image} in its attribute group first`. Add the id yourself, then rename. After the rename, the heading reads:
 
-```tern {.live}
+```luccet {.live}
 ## Image {#img}
 
 See @img.
@@ -1457,11 +1457,11 @@ Image                     ## #image         lines 9–19
 
 ### Document links {#lsp-document-links}
 
-`textDocument/documentLink` lists every URL written in the note, its head and its `tern.js` tag, each with the range of the URL as written and the `target` it goes to, so a client can underline them and follow them:
+`textDocument/documentLink` lists every URL written in the note, its head and its `luccet.js` tag, each with the range of the URL as written and the `target` it goes to, so a client can underline them and follow them:
 
 | URL | Target |
 |---|---|
-| a relative path, `maps.html#rn`, `../img/kernel.svg`, the `tern.js` and the add-ons of the tag | the file's `file:` URI, with the fragment |
+| a relative path, `maps.html#rn`, `../img/kernel.svg`, the `luccet.js` and the add-ons of the tag | the file's `file:` URI, with the fragment |
 | a fragment of the note itself, `#rn` | the document's own URI with the fragment |
 | an absolute URL, `https://…`, `mailto:…` | as written |
 | a root-relative URL (`/notes/maps.html`) or a protocol-relative one (`//host/…`), which depend on where the site is served; a path to a file that does not exist | no link |
@@ -1501,11 +1501,11 @@ The first fix of each is `isPreferred`. For `See @kernl` in a note with the id `
 
 ### The language module {#language}
 
-The server's answers come from one module, `cli/language.js`. An editor that runs the engine itself, in a browser worker for example, can require it and give the same answers as `tern lsp`, with no server. It uses nothing from Node: it requires only `tern.js` and the engine's sources for the element [allowlists](elements.html#allowlists) (`src/schema.js`, with the `src/scan.js` it needs), so a bundler such as esbuild packs it for the browser. It is a CommonJS module, like the rest of the command line.
+The server's answers come from one module, `cli/language.js`. An editor that runs the engine itself, in a browser worker for example, can require it and give the same answers as `luccet lsp`, with no server. It uses nothing from Node: it requires only `luccet.js` and the engine's sources for the element [allowlists](elements.html#allowlists) (`src/schema.js`, with the `src/scan.js` it needs), so a bundler such as esbuild packs it for the browser. It is a CommonJS module, like the rest of the command line.
 
 ```js
-const tern = require('@ozkrac/tern');
-const language = require('@ozkrac/tern/cli/language.js');
+const luccet = require('luccet');
+const language = require('luccet/cli/language.js');
 ```
 
 You run the engine on the note, index the result, then ask the index.
@@ -1514,16 +1514,16 @@ You run the engine on the note, index the result, then ask the index.
 
 | Field | What it holds |
 |---|---|
-| `note` | The note: the text after the `tern.js` line. |
-| `line` | The `tern.js` line's 1-based file line, which is also the number of file lines before the note. |
-| `ast` | The **transformed** syntax tree: `tern.parse`, then `tern.transform` with the same options. |
+| `note` | The note: the text after the `luccet.js` line. |
+| `line` | The `luccet.js` line's 1-based file line, which is also the number of file lines before the note. |
+| `ast` | The **transformed** syntax tree: `luccet.parse`, then `luccet.transform` with the same options. |
 | `diagnostics` | The parser's and the transforms' diagnostics, with their note positions. The module reads `block.unclosed` among them: a container that is not closed has no named closer. |
-| `schema` | The vocabulary the analysis used, its `opts.schema`. Without it, the engine's [registry](api.html#registry), which `tern.parse` uses then too. |
+| `schema` | The vocabulary the analysis used, its `opts.schema`. Without it, the engine's [registry](api.html#registry), which `luccet.parse` uses then too. |
 
 In a browser, find the note with the [detection pattern](#detection-fixtures), then parse and transform it:
 
 ```js
-const detect = require('@ozkrac/tern/test/fixtures/detect.json');
+const detect = require('luccet/test/fixtures/detect.json');
 const DETECT = new RegExp(detect.pattern, detect.flags);
 
 // One analysis of a file's text, with \n line breaks; null when it is not a note.
@@ -1535,9 +1535,9 @@ function analyse(text, schema) {
   const head = [...lines.slice(0, i), lines[i].slice(0, m[0].length - m[1].length)].join('\n');
   const note = lines.slice(i + 1).join('\n');
   const opts = { schema, head };
-  const { ast, diagnostics } = tern.parse(note, opts);
-  tern.transform(ast, opts);
-  return { note, line: i + 1, ast, diagnostics: diagnostics.concat(ast.data.tern.diagnostics), schema };
+  const { ast, diagnostics } = luccet.parse(note, opts);
+  luccet.transform(ast, opts);
+  return { note, line: i + 1, ast, diagnostics: diagnostics.concat(ast.data.luccet.diagnostics), schema };
 }
 
 const doc = language.index(analyse(text, schema));
@@ -1555,11 +1555,11 @@ language.hover(doc, { line: 11, character: 5 });
 - A position on the head, or past the end of the file, answers nothing.
 - A column past the end of a line stands for the end of the line.
 - A function acts on the innermost occurrence at the position, its last character included, as the server does ([Definition and references](#lsp-definition)).
-- `outline` alone counts otherwise: 1-based file lines, like the [`tern/outline`](#outline) notification.
+- `outline` alone counts otherwise: 1-based file lines, like the [`luccet/outline`](#outline) notification.
 
 **The functions**, each with the request it answers in the server:
 
-| Call | Returns | In `tern lsp` |
+| Call | Returns | In `luccet lsp` |
 |---|---|---|
 | `index(a)` | The index, or `null`. | |
 | `idAt(doc, pos)` | The id at the position, or `null`: what references and rename act on. | the server's [cross-file](#lsp-across) requests |
@@ -1574,14 +1574,14 @@ language.hover(doc, { line: 11, character: 5 });
 | `completion(doc, pos, now?)` | `[{label, kind, detail, sortText, filterText, range, newText}]`, possibly empty. `now`, `{note, line}`, is the text as it is when the index is of an older one: the trigger and the `range` are read from it, the rest from the index. | `textDocument/completion`, with `range` and `newText` as the `textEdit` |
 | `symbols(doc)` | `[{name, detail, kind, range, selectionRange, children}]`. | `textDocument/documentSymbol` |
 | `folds(doc)` | `[{startLine, endLine}]`, in 0-based file lines. | `textDocument/foldingRange` |
-| `outline(a)` | `tern.outline(a.ast)` with 1-based file lines; empty arrays for `null`. | the `tern/outline` notification |
+| `outline(a)` | `luccet.outline(a.ast)` with 1-based file lines; empty arrays for `null`. | the `luccet/outline` notification |
 | `LanguageError` | The class of what `prepareRename` and `rename` throw. | |
 
 What each answer holds is described above, request by request: [Completion](#lsp-completion), [Definition and references](#lsp-definition), [Highlights](#lsp-highlight), [Rename](#lsp-rename), [Hover](#lsp-hover), [Symbols](#lsp-symbols), [Folding](#lsp-folding) and [Code actions](#lsp-code-actions). What crosses files ([Across files](#lsp-across), [Document links](#lsp-document-links), [Workspace symbols](#lsp-workspace-symbols)) reads the disk, so it is the server's, over `cli/links.js`. A symbol's `range` covers what it holds, a heading's whole section, and its `selectionRange` the element itself: for a heading, its line.
 
 **Kinds** are words; the server turns them into the protocol's numbers:
 
-| Kind | What it marks | In `tern lsp` |
+| Kind | What it marks | In `luccet lsp` |
 |---|---|---|
 | `"name"` | a completion from the note's vocabulary | `7` (Class) |
 | `"core"` | a completion `meta` or `macros` | `14` (Keyword) |
@@ -1601,7 +1601,7 @@ language.completion(doc, { line: 11, character: 5 }).find((item) => item.label =
 
 **Errors.** `prepareRename` and `rename` throw a `LanguageError` when a rename cannot be made. It is an `Error` whose `name` is `"LanguageError"`, whose `message` says why, for the person renaming, and whose `code` is one of:
 
-| `code` | When | In `tern lsp` |
+| `code` | When | In `luccet lsp` |
 |---|---|---|
 | `"invalid"` | The new name is not one: an id that `@` cannot reach, an id the note already uses, a name that is not an element name, or no name at all. | `-32602` |
 | `"refused"` | The note cannot take the rename: a footnote's generated id, or a heading's slug when the heading has an attribute group. | `-32803` |
@@ -1621,39 +1621,39 @@ try {
 
 ## Editor setup {#editors}
 
-Any editor with an LSP client can use Tern: point it at `tern lsp` for HTML files. The Neovim plugin is a client of `tern lsp` that lives in its own repository; this repository keeps only what every client shares: the server, the [`tern/outline`](#outline) notification and the [detection pattern](#detection).
+Any editor with an LSP client can use Luccet: point it at `luccet lsp` for HTML files. The Neovim plugin is a client of `luccet lsp` that lives in its own repository; this repository keeps only what every client shares: the server, the [`luccet/outline`](#outline) notification and the [detection pattern](#detection).
 
 ### What a client needs {#editors-client}
 
 | Setting | Value |
 |---|---|
-| Command | `node /path/to/tern/tern-cli.js lsp`, or `tern lsp` if `tern` is on your `PATH`. A client may add `--stdio`. |
+| Command | `node /path/to/luccet/luccet-cli.js lsp`, or `luccet lsp` if `luccet` is on your `PATH`. A client may add `--stdio`. |
 | Transport | stdio |
 | Files | HTML (`.html`, `.htm`). Notes are HTML files, so the server is attached to HTML buffers; it answers nothing for files that are not notes. |
 | Position encoding | UTF-16 |
-| Root folder | Not needed to analyse a note: its add-ons are found from its own path. [Moving files](#lsp-files) reads the notes in the workspace folders. A folder holding `tern.js`, or the repository root, is a sensible root. |
-| Custom notification | `tern/outline`, optional: see [The tern/outline notification](#outline) |
+| Root folder | Not needed to analyse a note: its add-ons are found from its own path. [Moving files](#lsp-files) reads the notes in the workspace folders. A folder holding `luccet.js`, or the repository root, is a sensible root. |
+| Custom notification | `luccet/outline`, optional: see [The luccet/outline notification](#outline) |
 
-You may run it beside an HTML language server. Tern's diagnostics come with `source: "tern"`.
+You may run it beside an HTML language server. Luccet's diagnostics come with `source: "luccet"`.
 
-The Neovim configurations below were run against `tern lsp` with Neovim 0.12. The others are those editors' usual way of adding a language server.
+The Neovim configurations below were run against `luccet lsp` with Neovim 0.12. The others are those editors' usual way of adding a language server.
 
 ### Neovim {#neovim}
 
 With Neovim 0.11 or later, declare the server and enable it:
 
 ```lua
-vim.lsp.config('tern', {
-  cmd = { 'node', '/path/to/tern/tern-cli.js', 'lsp' },
+vim.lsp.config('luccet', {
+  cmd = { 'node', '/path/to/luccet/luccet-cli.js', 'lsp' },
   filetypes = { 'html' },
-  root_markers = { 'tern.js', '.git' },
+  root_markers = { 'luccet.js', '.git' },
   handlers = {
-    ['tern/outline'] = function(_, outline, ctx)
+    ['luccet/outline'] = function(_, outline, ctx)
       -- outline.headings, outline.blocks, outline.refs … (file lines, 1-based)
     end,
   },
 })
-vim.lsp.enable('tern')
+vim.lsp.enable('luccet')
 ```
 
 With `vim.lsp.start`, from a `FileType` autocommand:
@@ -1663,27 +1663,27 @@ vim.api.nvim_create_autocmd('FileType', {
   pattern = 'html',
   callback = function(args)
     vim.lsp.start({
-      name = 'tern',
-      cmd = { 'node', '/path/to/tern/tern-cli.js', 'lsp' },
-      root_dir = vim.fs.root(args.buf, { 'tern.js', '.git' }),
+      name = 'luccet',
+      cmd = { 'node', '/path/to/luccet/luccet-cli.js', 'lsp' },
+      root_dir = vim.fs.root(args.buf, { 'luccet.js', '.git' }),
     })
   end,
 })
 ```
 
-Either way, opening an HTML file starts the server, or attaches it to the running one, and a note's diagnostics appear with the source `tern`. The `handlers` entry is optional; without it, Neovim ignores the outline notification.
+Either way, opening an HTML file starts the server, or attaches it to the running one, and a note's diagnostics appear with the source `luccet`. The `handlers` entry is optional; without it, Neovim ignores the outline notification.
 
 To start the server only for notes, test the buffer's lines against the [detection pattern](#detection) before `vim.lsp.start`.
 
 Neovim does not ask the server before a rename, so its renames leave links as they were. This command moves the current file and fixes them ([Moving files](#lsp-files)), saving each file it edits:
 
 ```lua
--- :TernMove {to}: move this file, and fix the links to it and in it
-vim.api.nvim_create_user_command('TernMove', function(o)
+-- :LuccetMove {to}: move this file, and fix the links to it and in it
+vim.api.nvim_create_user_command('LuccetMove', function(o)
   local from = vim.api.nvim_buf_get_name(0)
   local to = vim.fn.fnamemodify(o.args, ':p')
   local files = { { oldUri = vim.uri_from_fname(from), newUri = vim.uri_from_fname(to) } }
-  for _, client in ipairs(vim.lsp.get_clients({ name = 'tern', bufnr = 0 })) do
+  for _, client in ipairs(vim.lsp.get_clients({ name = 'luccet', bufnr = 0 })) do
     local r = client:request_sync('workspace/willRenameFiles', { files = files }, 5000)
     if r and r.result then
       vim.lsp.util.apply_workspace_edit(r.result, client.offset_encoding)
@@ -1696,7 +1696,7 @@ vim.api.nvim_create_user_command('TernMove', function(o)
 end, { nargs = 1, complete = 'file' })
 ```
 
-`:TernMove notes/linear/maps.html` then makes the edits above. Plugins that rename from a file tree and send `workspace/willRenameFiles` work too.
+`:LuccetMove notes/linear/maps.html` then makes the edits above. Plugins that rename from a file tree and send `workspace/willRenameFiles` work too.
 
 ### VS Code {#vscode}
 
@@ -1711,9 +1711,9 @@ let client;
 
 exports.activate = () => {
   client = new LanguageClient(
-    'tern',
-    'Tern',
-    { command: 'node', args: ['/path/to/tern/tern-cli.js', 'lsp'] },
+    'luccet',
+    'Luccet',
+    { command: 'node', args: ['/path/to/luccet/luccet-cli.js', 'lsp'] },
     { documentSelector: [{ scheme: 'file', language: 'html' }] },
   );
   return client.start();
@@ -1727,13 +1727,13 @@ exports.deactivate = () => client && client.stop();
 In `languages.toml`, declare the server and add it to HTML, after the servers HTML already uses:
 
 ```toml
-[language-server.tern]
+[language-server.luccet]
 command = "node"
-args = ["/path/to/tern/tern-cli.js", "lsp"]
+args = ["/path/to/luccet/luccet-cli.js", "lsp"]
 
 [[language]]
 name = "html"
-language-servers = ["vscode-html-language-server", "tern"]
+language-servers = ["vscode-html-language-server", "luccet"]
 ```
 
 ### Settings for notes {#editor-settings}
@@ -1766,23 +1766,23 @@ In Vim and Neovim, `setlocal formatoptions-=t` for HTML buffers stops wrapping w
 
 Coding agents, such as GitHub Copilot, Claude Code, Codex or Cursor, know Markdown and HTML, and both habits break notes. `_emphasis_`, a heading underlined with `===` and a reference link render as text, with no diagnostic. An agent that takes the body for HTML escapes it, wraps it in tags or runs a formatter on it.
 
-The repository's `skills/` folder has a skill that teaches an agent Tern, `tern-notes`, in the [Agent Skills](https://agentskills.io/specification) format these agents read. Install it in your project with the GitHub CLI:
+The repository's `skills/` folder has a skill that teaches an agent Luccet, `luccet-notes`, in the [Agent Skills](https://agentskills.io/specification) format these agents read. Install it in your project with the GitHub CLI:
 
 ```sh
-gh skill install OzkrAC/tern tern-notes                        # Copilot, Codex, Cursor …
-gh skill install OzkrAC/tern tern-notes --agent claude-code    # Claude Code
+gh skill install Luccet/luccet luccet-notes                        # Copilot, Codex, Cursor …
+gh skill install Luccet/luccet luccet-notes --agent claude-code    # Claude Code
 ```
 
-Or copy `skills/tern-notes/` into your project's `.github/skills/`, `.agents/skills/` or `.claude/skills/`. Install the skill from the release of Tern your notes load, so that it describes the same syntax.
+Or copy `skills/luccet-notes/` into your project's `.github/skills/`, `.agents/skills/` or `.claude/skills/`. Install the skill from the release of Luccet your notes load, so that it describes the same syntax.
 
-- **`SKILL.md`** is what the agent reads when you ask it to write or fix a note: the first line, the habits that do not carry over from Markdown and LaTeX, the syntax at a glance, vocabularies, the common diagnostics, and the loop of editing and running `tern check` until the note is clean.
+- **`SKILL.md`** is what the agent reads when you ask it to write or fix a note: the first line, the habits that do not carry over from Markdown and LaTeX, the syntax at a glance, vocabularies, the common diagnostics, and the loop of editing and running `luccet check` until the note is clean.
 - **`references/`** holds what it reads when it needs more: the whole syntax, vocabularies and themes, every diagnostic with its fix, and the command line and publishing.
 
-Every example in the skill is checked against the engine by the test suite, as this documentation's examples are, so the skill changes when Tern does.
+Every example in the skill is checked against the engine by the test suite, as this documentation's examples are, so the skill changes when Luccet does.
 
-## The tern/outline notification {#outline}
+## The luccet/outline notification {#outline}
 
-After every analysis of a note, the server sends a notification of its own, `tern/outline`. It is a digest of the note's structure, so an editor can draw an outline, highlight exact extents, or show labels, without parsing the note itself. It is one walk over the same syntax tree the browser renders (`tern.outline`, see the [API](api.html#outline)), so it cannot disagree with the page.
+After every analysis of a note, the server sends a notification of its own, `luccet/outline`. It is a digest of the note's structure, so an editor can draw an outline, highlight exact extents, or show labels, without parsing the note itself. It is one walk over the same syntax tree the browser renders (`luccet.outline`, see the [API](api.html#outline)), so it cannot disagree with the page.
 
 A client that does not know the method ignores it.
 
@@ -1791,7 +1791,7 @@ For the note in [The language server](#lsp), the notification is:
 ```json
 {
   "jsonrpc": "2.0",
-  "method": "tern/outline",
+  "method": "luccet/outline",
   "params": {
     "uri": "file:///…/notes/maps.html",
     "version": 1,
@@ -1885,43 +1885,43 @@ Editors, the command line and the language server must agree on which `.html` fi
 
 ### The rule {#detection-rule}
 
-Test each line of the file, in order. The **first line that matches is the `tern.js` line**: the note is every line after it, and the preserved head is everything before the tag on it. A line matches when it has a `<script` tag that:
+Test each line of the file, in order. The **first line that matches is the `luccet.js` line**: the note is every line after it, and the preserved head is everything before the tag on it. A line matches when it has a `<script` tag that:
 
-- has a `src` whose file name is exactly `tern.js`: any path before it, any quotes or none, and a query string or fragment after it (`tern.js?v=2`);
+- has a `src` whose file name is exactly `luccet.js`: any path before it, any quotes or none, and a query string or fragment after it (`luccet.js?v=2`);
 - is not inside a comment opened earlier on the same line;
-- has no `async`, `defer` or `type=module`, because then `tern.js` could not read the note;
-- has no `data-built`, because a page written by `tern build` is not a note;
+- has no `async`, `defer` or `type=module`, because then `luccet.js` could not read the note;
+- has no `data-built`, because a page written by `luccet build` is not a note;
 - is written on one line, with no `<` or `>` inside the tag.
 
-The match ignores case. Every tag it accepts is one `tern.js` starts from. The file name is the one condition the browser does not share: a copy of `tern.js` renamed `tern.min.js` still runs in the browser, but the tools do not take the file for a note.
+The match ignores case. Every tag it accepts is one `luccet.js` starts from. The file name is the one condition the browser does not share: a copy of `luccet.js` renamed `luccet.min.js` still runs in the browser, but the tools do not take the file for a note.
 
 **Lines that count:**
 
 | Line | Why |
 |---|---|
-| `<!doctype html><meta charset="utf-8"><script src="tern.js"></script>` | the canonical first line |
-| `<script src="../../tern.js"></script>`, `<script src="/tern.js"></script>` | relative and root-relative paths |
-| `<script src="https://cdn.example/tern/tern.js"></script>` | a URL |
-| `<script src='tern.js'></script>`, `<script src=tern.js></script>`, `<script src = "tern.js"></script>` | any quotes, spaces around `=` |
-| `<script src="tern.js?v=2"></script>`, `<script src="lib/tern.js#x"></script>` | a query or a fragment |
-| `<script nonce="r4nd0m" src="tern.js" data-lang="de"></script>` | other attributes before and after |
-| `<script type="text/javascript" src="tern.js"></script>` | a classic script type |
-| `<SCRIPT SRC="TERN.JS"></SCRIPT>` | upper case |
-| `<html lang="de"><title>Notizen</title><script src="tern.js"></script>` | the tag after other head elements |
-| `<!-- my notes --><script src="tern.js"></script>` | a comment closed before the tag |
-| `<script src="tern.js" data-use="async.js defer.css" data-async="1"></script>` | `async` and `defer` inside other attributes do not count |
+| `<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>` | the canonical first line |
+| `<script src="../../luccet.js"></script>`, `<script src="/luccet.js"></script>` | relative and root-relative paths |
+| `<script src="https://cdn.example/luccet/luccet.js"></script>` | a URL |
+| `<script src='luccet.js'></script>`, `<script src=luccet.js></script>`, `<script src = "luccet.js"></script>` | any quotes, spaces around `=` |
+| `<script src="luccet.js?v=2"></script>`, `<script src="lib/luccet.js#x"></script>` | a query or a fragment |
+| `<script nonce="r4nd0m" src="luccet.js" data-lang="de"></script>` | other attributes before and after |
+| `<script type="text/javascript" src="luccet.js"></script>` | a classic script type |
+| `<SCRIPT SRC="LUCCET.JS"></SCRIPT>` | upper case |
+| `<html lang="de"><title>Notizen</title><script src="luccet.js"></script>` | the tag after other head elements |
+| `<!-- my notes --><script src="luccet.js"></script>` | a comment closed before the tag |
+| `<script src="luccet.js" data-use="async.js defer.css" data-async="1"></script>` | `async` and `defer` inside other attributes do not count |
 
 **Lines that do not:**
 
 | Line | Why |
 |---|---|
-| `<script src="mytern.js"></script>`, `<script src="tern.min.js"></script>`, `<script src="tern.json"></script>` | the file name is not exactly `tern.js` |
-| `<!-- <script src="tern.js"></script> -->` | inside a comment |
-| `<script defer src="tern.js"></script>`, `<script src="tern.js" async></script>` | `defer` or `async` |
-| `<script type="module" src="tern.js"></script>` | a module |
-| `<script data-built src="tern.js"></script>` | a built page |
-| `<script data-src="tern.js"></script>` | `data-src` is not `src` |
-| `<link rel="preload" href="tern.js" as="script">`, `<img src="tern.js">` | not a script tag |
+| `<script src="mytern.js"></script>`, `<script src="luccet.min.js"></script>`, `<script src="luccet.json"></script>` | the file name is not exactly `luccet.js` |
+| `<!-- <script src="luccet.js"></script> -->` | inside a comment |
+| `<script defer src="luccet.js"></script>`, `<script src="luccet.js" async></script>` | `defer` or `async` |
+| `<script type="module" src="luccet.js"></script>` | a module |
+| `<script data-built src="luccet.js"></script>` | a built page |
+| `<script data-src="luccet.js"></script>` | `data-src` is not `src` |
+| `<link rel="preload" href="luccet.js" as="script">`, `<img src="luccet.js">` | not a script tag |
 
 **Limits.** A tag split over two lines, or a comment that spans lines, is not seen, so a tag inside a multi-line comment still counts. Each attempt stops at the next `<` or `>`, so testing a line takes time linear in its length, even on hostile input.
 
@@ -1931,14 +1931,14 @@ The match ignores case. Every tag it accepts is one `tern.js` starts from. The f
 
 ```json
 {
-  "description": "Lines that make an HTML file a Tern note, and lines that do not …",
+  "description": "Lines that make an HTML file a Luccet note, and lines that do not …",
   "pattern": "^(?:[^<]|<(?!!--)|<!--(?:[^-]|-(?!->))*-->)*?(<script(?=[\\s>/])…",
   "flags": "i",
   "tagGroup": 1,
   "match": [
     { "why": "the canonical first line",
-      "line": "<!doctype html><meta charset=\"utf-8\"><script src=\"tern.js\"></script>",
-      "tag": "<script src=\"tern.js\">" },
+      "line": "<!doctype html><meta charset=\"utf-8\"><script src=\"luccet.js\"></script>",
+      "tag": "<script src=\"luccet.js\">" },
     …
   ],
   "noMatch": [

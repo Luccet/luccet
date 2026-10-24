@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-/* One for Tern, after Atom's One Light and One Dark (https://github.com/atom/atom/tree/master/packages/one-dark-syntax).
-   Dark for every reader. Use: <script src="tern.js" data-use="themes/one-dark.css"></script>
+/* One for Luccet, after Atom's One Light and One Dark (https://github.com/atom/atom/tree/master/packages/one-dark-syntax).
+   Dark for every reader. Use: <script src="luccet.js" data-use="themes/one-dark.css"></script>
    Raised to 4.5:1 contrast: muted, line-strong, error, code comment.
    Built by tools/themes.js; edit that, not this file. */
 :root {
@@ -29,6 +29,6 @@
     --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
     --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
   }
-  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
-  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
 }

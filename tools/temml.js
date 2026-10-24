@@ -6,7 +6,7 @@
 // network once per version.
 //
 // The package comes from the npm registry, through tools/npm.js, which keeps
-// those files in node_modules/.cache/tern-smoke/ (test/smoke.js serves the
+// those files in node_modules/.cache/luccet-smoke/ (test/smoke.js serves the
 // same copy). jsDelivr's /npm/ files are the package's bytes, so the hashes
 // hold.
 //
@@ -23,7 +23,7 @@ const ADDON = path.join(ROOT, 'addons', 'mathml.js');
 const START = '  // <temml> written by tools/temml.js; do not edit by hand';
 const END = '  // </temml>';
 
-// node_modules/.cache/tern-smoke/temml-VERSION/dist/: the whole dist, so the
+// node_modules/.cache/luccet-smoke/temml-VERSION/dist/: the whole dist, so the
 // same copy serves the add-on (temml.min.js, Temml-Local.css, Temml.woff2) and
 // pre-renders in node (temml.cjs), as test/smoke.js uses it.
 const packageDir = (version) => npm.packageDir('temml', version, { folder: `temml-${version}`, keep: ['dist/'], has: 'dist/temml.min.js' });

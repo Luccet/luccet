@@ -1,10 +1,10 @@
 <!doctype html><meta charset="utf-8">
 <script>
-  // This note's vocabulary (window.TERN.schema). `table` gives the captioned
+  // This note's vocabulary (window.LUCCET.schema). `table` gives the captioned
   // table its "Table 1" label and number, `toc` fills ::toc with the headings.
   // :::row, :::grid, :::card, :::glance and :::center need no entry: unknown names become
   // div.row, div.grid and so on, and the styles at the end give them their look.
-  window.TERN = {schema: {
+  window.LUCCET = {schema: {
     block: {
       note: {tag: 'aside', label: 'Note'},
       table: {tag: 'table', counter: 'table', label: 'Table'},
@@ -14,14 +14,14 @@
     },
   }};
 </script>
-<script src="../tern.js"></script>
+<script src="../luccet.js"></script>
 
 :::meta
 title: Project plan: Q4
 lang: en-GB
 author: O. Carrera
 date: 2026-10-07
-description: Phases, workstreams and exit criteria for the Tern rewrite
+description: Phases, workstreams and exit criteria for the Luccet rewrite
 :::
 
 # Project plan: Q4
@@ -31,7 +31,7 @@ This example is about layout. It shows a floating aside that holds the contents,
 row with a muted second cell, a three-column grid of cards, collapsible sections, a centred
 line, an inline margin note, and a table with a numbered caption and a continued row. Only
 `note`, `table` and `toc` are declared; the rest is HTML names, plain names and CSS. Part of
-[Tern's documentation](../index.html).
+[Luccet's documentation](../index.html).
 :::
 
 {.byline}
@@ -102,7 +102,7 @@ Roughly 5,000 lines, zero runtime dependencies.
   #side-toc { position: sticky; top: 1rem; float: right; width: 14rem; margin-left: 1rem; font-size: .9em; }
   #side-toc ol { padding-inline-start: 1.2rem; margin: 0; }
   .byline { color: var(--t-muted); margin-top: -1rem; }
-  .tern h2 { display: flow-root; } /* a heading's rule stops at the floating contents */
+  .luccet h2 { display: flow-root; } /* a heading's rule stops at the floating contents */
   .t-cell.muted { color: var(--t-muted); }
   .glance { background: var(--t-soft); padding: .6rem 1rem; border-radius: 6px; }
   span.aside { display: block; font-size: .85em; color: var(--t-muted); border-inline-start: 2px solid var(--t-line); padding-inline-start: .6rem; margin-block: .5rem; }

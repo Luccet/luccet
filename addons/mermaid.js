@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: MIT
-// mermaid.js, Tern's diagram add-on (docs/addons.html#mermaid). It draws
+// mermaid.js, Luccet's diagram add-on (docs/addons.html#mermaid). It draws
 // each ```mermaid fence, titled ones (listings) too, as a diagram with
 // Mermaid, in the page theme's colours and sans-serif font.
 //
-//   <script src="tern.js" data-use="addons/mermaid.js"></script>
+//   <script src="luccet.js" data-use="addons/mermaid.js"></script>
 //
 // Mermaid comes from jsDelivr, pinned with SRI (the table below), and only
 // to a page that has a mermaid fence. `?base=URL` names a copy instead (the
 // folder of mermaid.min.js), loaded without SRI; a window.mermaid already on
 // the page is used as it is. The add-on's other options go to
-// mermaid.initialize: `?look=classic&layout=dagre`, or window.TERN = {use:
+// mermaid.initialize: `?look=classic&layout=dagre`, or window.LUCCET = {use:
 // {mermaid: {...}}} for nested ones.
 //
 // Mermaid writes the colours into each SVG, so a diagram is drawn for the
 // palette in effect where it stands, and again when that changes (the
 // reader's light or dark preference, or a theme switched in). A dark
-// palette's diagram is drawn a second time in tern.css's print palette, the
+// palette's diagram is drawn a second time in luccet.css's print palette, the
 // copy shown in print. The
 // fence stays, hidden, inside the diagram's element; one that Mermaid
 // cannot read stays as it is, with the error after it.
 //
-// A page `tern build --diagrams` wrote has its diagrams drawn already, a
+// A page `luccet build --diagrams` wrote has its diagrams drawn already, a
 // copy per palette the build saw (light, dark) and the print copy, each
 // marked with its palette (data-palette). The add-on adopts them: it shows
 // the copy for the palette in effect, and asks for Mermaid only when none
@@ -31,11 +31,11 @@
 // they go through the CSSOM instead, which a CSP allows, and its <style>
 // elements carry the nonce (guarded, below).
 //
-// Under node (tern check, tern build, the language server) it only adds its
+// Under node (luccet check, luccet build, the language server) it only adds its
 // styles: drawing needs the page.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   // <mermaid> written by tools/mermaid.js; do not edit by hand
@@ -48,7 +48,7 @@
   T.style(
     [
       '.t-mermaid { font-family: var(--t-sans); font-size: 16px; line-height: 1.5; }',
-      '.tern .t-mermaid { margin-block: 0 1rem; }',
+      '.luccet .t-mermaid { margin-block: 0 1rem; }',
       '.t-mermaid > svg { display: block; margin-inline: auto; max-inline-size: 100%; height: auto; }',
       '.t-mermaid > .t-mermaid-print, .t-mermaid > .t-mermaid-alt { display: none; }',
       '.t-mermaid-box { position: absolute; inset-inline-start: -10000px; inset-block-start: 0; inline-size: var(--t-width); visibility: hidden; }',
@@ -65,7 +65,7 @@
   delete opts.base;
   for (const k of Object.keys(opts)) if (opts[k] === 'true' || opts[k] === 'false') opts[k] = opts[k] === 'true';
 
-  // tern.css's print palette (src/css.js, @media print).
+  // luccet.css's print palette (src/css.js, @media print).
   const PRINT = {
     bg: '#ffffff', fg: '#000000', muted: '#555555', line: '#d9dde3', 'line-strong': '#767676', soft: '#f3f4f1',
     link: '#0b62c4', mark: '#fff2a8', error: '#b3261e', 'error-bg': '#fdecea', warn: '#8a5300',
@@ -95,7 +95,7 @@
     // network may be back. Until then every fence stays as its source.
     mermaidP.then((M) => {
       if (M) return;
-      console.warn(`Tern mermaid.js: Mermaid did not load from ${base}, so diagrams stay as their source`);
+      console.warn(`Luccet mermaid.js: Mermaid did not load from ${base}, so diagrams stay as their source`);
       failed = true;
     });
     return mermaidP;
@@ -444,7 +444,7 @@
     if (r.error) return fail(wrap, r.error);
     place(wrap, r.svg, 't-mermaid-screen', key);
     wrap.querySelector(':scope > pre').hidden = true;
-    // The print copy, in tern.css's print palette, for every palette that is
+    // The print copy, in luccet.css's print palette, for every palette that is
     // not it: a light theme's colours are not print's black on white either.
     const old = wrap.querySelector(':scope > .t-mermaid-print');
     const print = Object.assign({}, PRINT, { font: screen.font });
@@ -492,16 +492,16 @@
     if (wrap.id) pre.id = wrap.id;
     wrap.replaceWith(pre, err);
     pre.hidden = false;
-    console.warn(`Tern mermaid.js: ${message}`);
+    console.warn(`Luccet mermaid.js: ${message}`);
   }
 
   // Redraw what a palette change leaves stale: the reader's light or dark
-  // preference, or a theme switched in (the switcher add-on's tern:theme).
+  // preference, or a theme switched in (the switcher add-on's luccet:theme).
   const repaint = () => {
     for (const wrap of document.querySelectorAll('.t-mermaid:not(.t-mermaid-box)')) if (sources.has(wrap) && keyOf(palette(wrap)) !== drawnFor.get(wrap) && !pick(wrap)) show(wrap);
   };
   if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
-  window.addEventListener('tern:theme', repaint);
+  window.addEventListener('luccet:theme', repaint);
 
   // Fences are pre[data-t=code], listings figure[data-t=code] holding one
   // (inside the build's wrapper on a built page).

@@ -12,7 +12,7 @@ options: escaped
 
 Outside lists and footnotes, leading whitespace is ignored when a line is classified: there are no indented code blocks.
 
-````tern
+````luccet
     # Heading
         > quote
 \t---
@@ -31,7 +31,7 @@ options: schema=none
 
 Container bodies may be indented freely; the indentation means nothing.
 
-````tern
+````luccet
 :::box
     # Title
         Indented text.
@@ -48,7 +48,7 @@ spec: syntax-blocks#r2 syntax-blocks#fence
 
 Fence content is dedented by the indentation of its opening fence, and no more.
 
-````tern
+````luccet
   ```
   a
     b
@@ -67,7 +67,7 @@ options: escaped
 
 A line holding only spaces and tabs is blank (row 1), so it ends the paragraph.
 
-````tern
+````luccet
 One
  \t
 Two
@@ -85,7 +85,7 @@ options: schema=none
 
 Row 2: a closer ends the open paragraph and closes the container.
 
-````tern
+````luccet
 :::box
 Inside
 :::
@@ -103,7 +103,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#fence
 
 Row 3: a fence opener interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 ```js
 x
@@ -121,7 +121,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#raw-html
 
 Row 4: a block-level tag interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 <div class="x">raw</div>
 ````
@@ -137,7 +137,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#raw-html
 
 A phrasing tag is not row 4, so it continues the paragraph and passes through inline.
 
-````tern
+````luccet
 Some prose
 <b>bold</b> continues it
 ````
@@ -153,7 +153,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#tables
 
 Row 7, first form: a `|` line followed by a delimiter row interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 | a | b |
 |---|---|
@@ -171,7 +171,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#tables syntax-blocks#paragraph
 
 Row 7, second form: a delimiter row starts a table only at a block start, so inside a paragraph it is text, with a warning.
 
-````tern
+````luccet
 Some prose
 |---|---|
 ````
@@ -192,7 +192,7 @@ options: schema=none
 
 Row 10: a container opener interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 :::box
 Inside
@@ -211,7 +211,7 @@ options: schema=none
 
 Row 11: a `+++` line inside a container interrupts the paragraph and starts a new cell.
 
-````tern
+````luccet
 :::box
 Left text
 +++
@@ -230,7 +230,7 @@ options: schema=none
 
 Row 12: a line that is a whole leaf interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 ::box[x]
 ````
@@ -246,7 +246,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#leaf
 
 A leaf interrupts only on a whole-line match; a prose line starting with `::` continues the paragraph. A line that never matched a block row is an ordinary paragraph line and carries its diagnostic wherever it appears, continuation lines included, so `leaf.demoted` fires here.
 
-````tern
+````luccet
 Some prose about CSS:
 ::before and ::after are pseudo-elements.
 ````
@@ -266,7 +266,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#display-math
 
 Row 13: a `$$` line interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 $$
 x^2
@@ -284,7 +284,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#footnote-definition
 
 Row 14: a footnote definition interrupts a paragraph.
 
-````tern
+````luccet
 Closed under addition.[^a]
 [^a]: Scaling too.
 ````
@@ -300,7 +300,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#attribute-line
 
 Row 15: an attribute line interrupts a paragraph and attaches to the next block.
 
-````tern
+````luccet
 Some prose
 {.lead}
 Next paragraph
@@ -317,7 +317,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#attribute-line
 
 Weak or unparsable groups are not row 15, so they continue the paragraph, silently.
 
-````tern
+````luccet
 Some prose
 {x}
 {1, 2}
@@ -335,7 +335,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#fence syntax-blocks#blockquote
 
 Step 2: when a prefix fails, an open verbatim leaf closes as unclosed (no lazy continuation into code), with its diagnostic at the opener.
 
-````tern
+````luccet
 > ```
 > code
 after
@@ -356,7 +356,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#display-math syntax-blocks#list
 
 Step 2 for display math: the list item's prefix fails, so the equation closes as unclosed and `y` starts a paragraph after the list. The error block holds the remainders, without the item's prefix.
 
-````tern
+````luccet
 - $$
   x
 y
@@ -376,9 +376,9 @@ x</div></li></ul>
 
 spec: syntax-blocks#line-algorithm syntax-blocks#raw-html syntax-blocks#blockquote
 
-Step 2 for a generic raw block: the quote's prefix fails, which is a parent end, so the block closes with `html.unclosed` at the tag line, at the remainder's column inside the quote. A generic block stays raw HTML (the error block applies only to comment and raw-text blocks), and `inside` holds no Tern syntax, so there is no `html.wrapper`.
+Step 2 for a generic raw block: the quote's prefix fails, which is a parent end, so the block closes with `html.unclosed` at the tag line, at the remainder's column inside the quote. A generic block stays raw HTML (the error block applies only to comment and raw-text blocks), and `inside` holds no Luccet syntax, so there is no `html.wrapper`.
 
-````tern
+````luccet
 > <div>
 > inside
 outside
@@ -400,7 +400,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#fence syntax-blocks#blockquote
 
 Step 2: when every prefix matches, the remainder goes to the open leaf as content, so `#` inside a quoted fence is code.
 
-````tern
+````luccet
 > ```
 > # not a heading
 > ```
@@ -417,7 +417,7 @@ options: schema=none
 
 Step 5: at the end of the note every open block is closed, each with its own diagnostic.
 
-````tern
+````luccet
 :::box
 ```js
 x
@@ -438,7 +438,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#heading
 
 `\#` at the start of a line is text, not a heading.
 
-````tern
+````luccet
 \# Not a heading
 ````
 
@@ -452,7 +452,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#blockquote
 
 `\>` at the start of a line is text, not a quote.
 
-````tern
+````luccet
 \> Not a quote
 ````
 
@@ -466,7 +466,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#lists
 
 `\-`, `\+`, `\*` and `1\.` at the start of a line are text, not list items.
 
-````tern
+````luccet
 \- not a bullet
 \+ not a bullet
 \* not a bullet
@@ -486,7 +486,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#tables
 
 `\|` at the start of a line is text, not a table row.
 
-````tern
+````luccet
 \| not | a row |
 ````
 
@@ -500,7 +500,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#container syntax-blocks#lea
 
 `\:::` and `\::` at the start of a line are text, not an opener or a leaf.
 
-````tern
+````luccet
 \:::box
 \::box
 ````
@@ -516,7 +516,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#display-math
 
 `\$$` at the start of a line is text; the remaining single `$` is followed by a space, so nothing opens.
 
-````tern
+````luccet
 \$$ is not display math
 ````
 
@@ -530,7 +530,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#attribute-line
 
 `\{` at the start of a line is text, not an attribute line.
 
-````tern
+````luccet
 \{.lead}
 Text
 ````
@@ -546,7 +546,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#raw-html
 
 `\<` at the start of a line is text, not a raw HTML block.
 
-````tern
+````luccet
 \<div> is not raw HTML
 ````
 
@@ -560,7 +560,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#footnote-definition syntax-
 
 `\[^x]:` at the start of a line is text, not a footnote definition, and a lone `\[` draws no LaTeX hint.
 
-````tern
+````luccet
 \[^x]: not a definition
 ````
 
@@ -578,7 +578,7 @@ options: schema=none
 
 `\+++` at the start of a line inside a container is text, not a cell separator.
 
-````tern
+````luccet
 :::box
 Left
 \+++
@@ -598,7 +598,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#thematic-break
 
 `\---` at the start of a line is text, not a thematic break.
 
-````tern
+````luccet
 \---
 ````
 
@@ -612,7 +612,7 @@ spec: syntax-inline#line-start-escapes syntax-blocks#fence
 
 ``\``` `` at the start of a line is text, not a fence; the remaining two backticks find no closing run and stay literal.
 
-````tern
+````luccet
 \```js
 ````
 

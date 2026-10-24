@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-/* Everforest for Tern, after sainnhe's Everforest (medium) (https://github.com/sainnhe/everforest).
-   Light or dark, by the reader's system setting. Use: <script src="tern.js" data-use="themes/everforest.css"></script>
+/* Everforest for Luccet, after sainnhe's Everforest (medium) (https://github.com/sainnhe/everforest).
+   Light or dark, by the reader's system setting. Use: <script src="luccet.js" data-use="themes/everforest.css"></script>
    Raised to 4.5:1 contrast: muted, line-strong, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted (light); muted, line-strong, error, code comment, code keyword, code deleted (dark).
    Built by tools/themes.js; edit that, not this file. */
 :root {
@@ -39,6 +39,6 @@
     --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
     --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
   }
-  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
-  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
 }

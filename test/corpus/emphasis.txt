@@ -1,7 +1,7 @@
 # Emphasis, strong, strikethrough and highlight
 
 Cases for emphasis, strong, strikethrough and highlight, and their rows of the ambiguity rules. CommonMark's numbered `*`
-examples are imported elsewhere; these are Tern's own.
+examples are imported elsewhere; these are Luccet's own.
 
 ## emphasis/spelling
 
@@ -9,7 +9,7 @@ spec: syntax-inline#emphasis
 
 The three spellings of emphasis and strong.
 
-````tern
+````luccet
 *em*, **strong**, ***both***
 ````
 
@@ -23,7 +23,7 @@ spec: syntax-inline#emphasis syntax-inline#ambiguity
 
 A `*` with whitespace on both sides is neither left- nor right-flanking; a later closer then has no opener.
 
-````tern
+````luccet
 2 * 3 * 4 and x * a*
 ````
 
@@ -37,7 +37,7 @@ spec: syntax-inline#emphasis
 
 `*` may open and close inside a word, as on GitHub.
 
-````tern
+````luccet
 x*y*z
 ````
 
@@ -51,7 +51,7 @@ spec: syntax-inline#emphasis
 
 The `**` can both open and close, and 1 + 2 is a multiple of 3, so it does not pair with either `*`; the outer pair matches and the `**` is text.
 
-````tern
+````luccet
 *a**b*
 ````
 
@@ -65,7 +65,7 @@ spec: syntax-inline#emphasis
 
 The rule of 3 keeps the first `**` from closing the `*`, so the two `**` pair inside the emphasis.
 
-````tern
+````luccet
 *x**y**z*
 ````
 
@@ -79,7 +79,7 @@ spec: syntax-inline#emphasis
 
 A closer uses only as many stars as it has; the opener's leftover star is text.
 
-````tern
+````luccet
 **a*
 ````
 
@@ -93,7 +93,7 @@ spec: syntax-inline#emphasis
 
 A `*` after a letter and before punctuation is not left-flanking, so `a*"b"*` has no opener; a `*` at the start before punctuation is.
 
-````tern
+````luccet
 a*"b"* is text.
 
 *(a)* is emphasis.
@@ -110,7 +110,7 @@ spec: syntax-inline#emphasis syntax-inline#ambiguity
 
 An opener with no closer is text.
 
-````tern
+````luccet
 *a and b
 ````
 
@@ -124,7 +124,7 @@ spec: syntax-inline#emphasis syntax-inline#ambiguity
 
 Underscore runs of any length are text, even where `*` would be emphasis.
 
-````tern
+````luccet
 _a_ and __b__ and ___c___
 ````
 
@@ -138,7 +138,7 @@ spec: syntax-inline#emphasis syntax-inline#autolinks
 
 `_a_` inside a bare URL is neither emphasis nor a stop.
 
-````tern
+````luccet
 https://x.com/_a_/b
 ````
 
@@ -152,7 +152,7 @@ spec: syntax-inline#emphasis
 
 An underscore inside emphasis is just a character.
 
-````tern
+````luccet
 *snake_case*
 ````
 
@@ -166,7 +166,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions
 
 A strong group glued to a `**` closer attaches to the `<strong>`.
 
-````tern
+````luccet
 **b**{.y}
 ````
 
@@ -180,7 +180,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions
 
 `***x***` is `<em><strong>x</strong></em>`, and a strong group glued to its closer binds to the outer element, the `<em>`.
 
-````tern
+````luccet
 ***x***{.c}
 ````
 
@@ -194,7 +194,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions elements#ids
 
 An `#id` glued to a `*` closer goes on the `<em>`.
 
-````tern
+````luccet
 *a*{#e}
 ````
 
@@ -208,7 +208,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions
 
 After a delimiter closer only strong groups attach; `{open}` stays text, silently.
 
-````tern
+````luccet
 **b**{open}
 ````
 
@@ -222,7 +222,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions diagnostics#attr-malformed
 
 A candidate starting with `#` that does not parse stays text, with `attr.malformed` (W) at the first bad column.
 
-````tern
+````luccet
 **b**{#x "y"}
 ````
 
@@ -240,7 +240,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions
 
 After a delimiter closer, a bad candidate that does not start with `#` or `.` is text with no diagnostic.
 
-````tern
+````luccet
 **b**{x "y"}
 ````
 
@@ -254,7 +254,7 @@ spec: syntax-inline#emphasis syntax-blocks#positions
 
 A group after a space is not glued.
 
-````tern
+````luccet
 **b** {.y}
 ````
 
@@ -268,7 +268,7 @@ spec: syntax-inline#emphasis syntax-inline#links
 
 Emphasis may contain a link.
 
-````tern
+````luccet
 *[a](u)*
 ````
 
@@ -282,7 +282,7 @@ spec: syntax-inline#emphasis syntax-inline#algorithm
 
 Delimiters inside link text are resolved there: the inner `*` cannot close the outer opener.
 
-````tern
+````luccet
 *[a*](u)
 ````
 
@@ -296,7 +296,7 @@ spec: syntax-inline#emphasis syntax-inline#algorithm syntax-inline#inline-elemen
 
 The same holds for inline-element content: emphasis cannot cross the element's brackets.
 
-````tern
+````luccet
 *a :kbd[b* c]
 ````
 
@@ -310,7 +310,7 @@ spec: syntax-inline#strike-highlight
 
 The two spellings of strikethrough and highlight.
 
-````tern
+````luccet
 ~~gone~~ and ==key==
 ````
 
@@ -324,7 +324,7 @@ spec: syntax-inline#strike-highlight syntax-inline#ambiguity
 
 `~~` glued to ASCII letters on the outside can neither open nor close.
 
-````tern
+````luccet
 x~~y~~z
 ````
 
@@ -338,7 +338,7 @@ spec: syntax-inline#strike-highlight syntax-inline#ambiguity
 
 A single `~` is never a delimiter.
 
-````tern
+````luccet
 ~/.vimrc and ~user and a~b
 ````
 
@@ -352,7 +352,7 @@ spec: syntax-inline#strike-highlight
 
 Punctuation outside is not an ASCII letter or digit, so `(==x==)` highlights.
 
-````tern
+````luccet
 (==x==)
 ````
 
@@ -366,7 +366,7 @@ spec: syntax-inline#strike-highlight syntax-blocks#character-classes
 
 The glue test is ASCII only, so `==` and `~~` work between CJK characters.
 
-````tern
+````luccet
 これは==重要==です
 
 中文~~删除~~中文
@@ -383,7 +383,7 @@ spec: syntax-inline#strike-highlight syntax-blocks#character-classes
 
 A consequence of the ASCII test: non-ASCII letters outside the run do not block it.
 
-````tern
+````luccet
 α==β==γ
 ````
 
@@ -397,7 +397,7 @@ spec: syntax-inline#strike-highlight syntax-blocks#character-classes
 
 `_` is not an ASCII letter or digit, so it does not block a run.
 
-````tern
+````luccet
 _==x==_
 ````
 
@@ -411,7 +411,7 @@ spec: syntax-inline#strike-highlight syntax-inline#ambiguity
 
 Runs of one, or of three or more, are text.
 
-````tern
+````luccet
 a ~x~ b ===y=== c ~~~z~~~ d ====w====
 ````
 
@@ -425,7 +425,7 @@ spec: syntax-inline#strike-highlight
 
 The opening `==` follows an ASCII letter, so it cannot open; the closing one has nothing to close.
 
-````tern
+````luccet
 a==b==
 ````
 
@@ -439,7 +439,7 @@ spec: syntax-inline#strike-highlight
 
 The closing `==` is followed by an ASCII letter, so it cannot close.
 
-````tern
+````luccet
 ==b==c
 ````
 
@@ -453,7 +453,7 @@ spec: syntax-inline#strike-highlight
 
 `==` uses `*`'s flanking: an opener followed by a space, or a closer preceded by one, does not count.
 
-````tern
+````luccet
 == x ==
 ````
 
@@ -467,7 +467,7 @@ spec: syntax-inline#strike-highlight syntax-inline#emphasis
 
 `~~` and `**` nest through the one stack.
 
-````tern
+````luccet
 ~~**a**~~
 ````
 
@@ -481,7 +481,7 @@ spec: syntax-inline#strike-highlight syntax-inline#algorithm
 
 `~~` and `==` resolve through the same stack: when the `~~` pair closes, the `==` opener between them is dropped, and the last `==` has nothing to close.
 
-````tern
+````luccet
 ~~a ==b~~ c==
 ````
 
@@ -495,7 +495,7 @@ spec: syntax-inline#strike-highlight syntax-blocks#positions
 
 Strong groups glued to `==` and `~~` closers attach to `<mark>` and `<del>`.
 
-````tern
+````luccet
 ==k=={.x} and ~~g~~{#d}
 ````
 
@@ -507,9 +507,9 @@ Strong groups glued to `==` and `~~` closers attach to `<mark>` and `<del>`.
 
 spec: syntax-inline#emphasis diagnostics#nesting-limit
 
-Inline constructs nest at most 1,000 deep. A run of 2,002 asterisks closed by another nests strong 1,001 times; the construct past the limit, the innermost but one, is shown as its source text with `nesting.limit`, once, and the rest of the tree is as usual. A tree deeper than that would break the readers of the tree (`JSON.stringify`, `tern.visit`, the outline, search).
+Inline constructs nest at most 1,000 deep. A run of 2,002 asterisks closed by another nests strong 1,001 times; the construct past the limit, the innermost but one, is shown as its source text with `nesting.limit`, once, and the rest of the tree is as usual. A tree deeper than that would break the readers of the tree (`JSON.stringify`, `luccet.visit`, the outline, search).
 
-````tern js
+````luccet js
 '*'.repeat(2002) + 'x' + '*'.repeat(2002) + '\n'
 ````
 

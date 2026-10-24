@@ -4,7 +4,7 @@
 // Nothing recurses, so a deep tree cannot overflow the stack: `figures` and
 // `tables` walk the blocks, and one walk (index) collects what the others
 // read, so the pipeline stays linear in the note. Their diagnostics go to
-// root.data.tern.diagnostics.
+// root.data.luccet.diagnostics.
 //
 //   run(ast, opts) -> ast         opts: {schema, head, lang}
 //   register(name, fn, {before | after}) -> unregister
@@ -13,7 +13,7 @@
 //   names() -> the order
 //
 // The contract with src/emit.js, which reads nothing else from the schema or
-// the source (in full: docs/api.html#transformed-ast). Under data.tern:
+// the source (in full: docs/api.html#transformed-ast). Under data.luccet:
 //   named elements  tag; slot (the title element); text (the label); end; cols
 //   toc leaves      toc: [{depth, id, children}]
 //   fences          lines, start, hl (displayed line numbers), hlText;
@@ -23,7 +23,7 @@
 //   footnote refs   resolved, number, id, target
 //   footnote defs   id, backref; dropped when a duplicate
 //   root            footnotes: definition identifiers in output order
-// `attributes` ends as exactly what the element gets besides tern's own
+// `attributes` ends as exactly what the element gets besides luccet's own
 // classes and data-t. The tree changes too: an image paragraph may become a
 // `figure` container, and a schema's titleDefault a label paragraph.
 // Written for other readers (the runtime, the command line, the language
@@ -42,17 +42,17 @@ const SEV = Object.assign(Object.create(null), SEVERITY); // a lookup that needs
 // Nodes that hold blocks: the only places a block-level node can be.
 const BLOCKS = new Set(['root', 'containerDirective', 'cell', 'blockquote', 'list', 'listItem', 'footnoteDefinition']);
 
-const tern = (n) => {
+const luccet = (n) => {
   const d = n.data || (n.data = {});
-  return d.tern || (d.tern = {});
+  return d.luccet || (d.luccet = {});
 };
-const peek = (n) => (n.data && n.data.tern) || EMPTY;
-// Gives a node the fields of `o`: as its data.tern when it has none, which
+const peek = (n) => (n.data && n.data.luccet) || EMPTY;
+// Gives a node the fields of `o`: as its data.luccet when it has none, which
 // builds it in one go, else copied in.
 const set = (n, o) => {
-  if (!n.data) n.data = { tern: o };
-  else if (!n.data.tern) n.data.tern = o;
-  else Object.assign(n.data.tern, o);
+  if (!n.data) n.data = { luccet: o };
+  else if (!n.data.luccet) n.data.luccet = o;
+  else Object.assign(n.data.luccet, o);
 };
 const isNamed = (n) => n.type === 'containerDirective' || n.type === 'leafDirective' || n.type === 'textDirective';
 const isCore = (n) => n.type === 'containerDirective' && S.CORE.has(n.name); // meta, macros, script …: own output
@@ -159,16 +159,16 @@ function headInfo(h) {
 }
 
 function context(ast, opts) {
-  const list = ast.data.tern.diagnostics;
+  const list = ast.data.luccet.diagnostics;
   const head = headInfo(opts.head);
-  const meta = ast.data.tern.meta;
+  const meta = ast.data.luccet.meta;
   return {
     schema: opts.schema || S.schema,
     opts,
     head,
     // The label language: the caller's, then `:::meta`, then <html lang>;
     // recorded on the tree for the emitter's own words (its ARIA labels).
-    lang: (ast.data.tern.lang = String(opts.lang || (meta && meta.lang) || head.lang || '')),
+    lang: (ast.data.luccet.lang = String(opts.lang || (meta && meta.lang) || head.lang || '')),
     reg: null, // the id registry, once the ids transform has run
     report(code, at, message, hint, severity) {
       const position = !at ? ORIGIN : at.position || (at.start && at.start.line !== undefined ? at : ORIGIN);
@@ -239,10 +239,10 @@ function toFigure(p) {
   delete ia.id;
   if (img.attributes && !Object.keys(ia).length) delete img.attributes;
   img.alt = '';
-  if (img.data && img.data.tern) {
-    delete img.data.tern.idPosition;
-    delete img.data.tern.caption;
-    if (!Object.keys(img.data.tern).length) delete img.data;
+  if (img.data && img.data.luccet) {
+    delete img.data.luccet.idPosition;
+    delete img.data.luccet.caption;
+    if (!Object.keys(img.data.luccet).length) delete img.data;
   }
   delete p.attributes;
   delete p.data;
@@ -250,7 +250,7 @@ function toFigure(p) {
   if (Object.keys(attrs).length) figure.attributes = attrs;
   figure.children = [{ type: 'paragraph', data: { directiveLabel: true }, children: caption, position: img.position }, p];
   figure.position = p.position;
-  figure.data = { tern: t };
+  figure.data = { luccet: t };
   p.position = img.position;
   return figure;
 }
@@ -307,7 +307,7 @@ function merge(n, tbl, ctx) {
   for (const k in T) if (k !== 'id' && k !== 'class' && k !== 'tag' && k !== 'raw' && k !== 'ref') put(m, k, T[k]);
   for (const k in C) if (k !== 'id' && k !== 'class') put(m, k, C[k]);
   n.attributes = m;
-  if (C.id === undefined && T.id !== undefined && tt.idPosition) tern(n).idPosition = tt.idPosition;
+  if (C.id === undefined && T.id !== undefined && tt.idPosition) luccet(n).idPosition = tt.idPosition;
   delete tbl.attributes;
   if (tt !== EMPTY) delete tt.idPosition, delete tt.tagPosition, delete tt.refPosition, delete tt.rawPosition, delete tt.colsPosition;
 }
@@ -315,7 +315,7 @@ function merge(n, tbl, ctx) {
 // ---------------------------------------------------------------- attributes
 
 // Takes the reserved keys (tag, raw, cols, ref, and a fence's lines, start,
-// hl) out of `attributes` into data.tern, reporting those that do not apply;
+// hl) out of `attributes` into data.luccet, reporting those that do not apply;
 // resolves each named element (tag, schema defaults, title slot, void
 // content); and turns `cols` into a grid.
 function attributes(ast, ctx) {
@@ -331,7 +331,7 @@ function attributes(ast, ctx) {
         else if ((isCore(n) || isReservedName(n.name)) && !isReservedName(String(want))) misplaced(n, 'tag', ctx); // a reserved value: name.reserved at parse
       }
       if ('raw' in a) {
-        tern(n).raw = true;
+        luccet(n).raw = true;
         delete a.raw;
         if (n.type !== 'containerDirective' || peek(n).implicit) misplaced(n, 'raw', ctx); // an implicit figure's body was parsed already
       }
@@ -341,16 +341,16 @@ function attributes(ast, ctx) {
         if (!isNamed(n) || isCore(n)) misplaced(n, 'cols', ctx);
       }
       if ('ref' in a) {
-        if (n.type === 'ref') tern(n).ref = a.ref; // checked at parse (attr.malformed)
+        if (n.type === 'ref') luccet(n).ref = a.ref; // checked at parse (attr.malformed)
         else misplaced(n, 'ref', ctx);
         delete a.ref;
       }
       if (n.type === 'code') fenceKeys(n, a);
     }
     if (isNamed(n) && !isCore(n)) element(n, want, ctx);
-    else if (n.type === 'code' && titled(n)) tern(n).slot = S.slotFor(code && code.title, 'figure');
+    else if (n.type === 'code' && titled(n)) luccet(n).slot = S.slotFor(code && code.title, 'figure');
     const g = n.type === 'containerDirective' || cols !== undefined ? grid(cols, n) : null;
-    if (g) tern(n).cols = g;
+    if (g) luccet(n).cols = g;
     if (a && n.attributes === a && empty(a)) delete n.attributes;
   }
 }
@@ -388,7 +388,7 @@ function misplaced(n, key, ctx) {
 // A fence's `lines`, `start=N` and `hl=4,6-7`; hl names displayed line
 // numbers, so they count from `start`.
 function fenceKeys(n, a) {
-  const t = tern(n);
+  const t = luccet(n);
   if ('lines' in a) (t.lines = true), delete a.lines;
   if ('start' in a) {
     const v = String(a.start).trim();
@@ -441,11 +441,11 @@ function grid(raw, n) {
 
 // A named element: its tag, schema defaults, end mark and title slot.
 function element(n, want, ctx) {
-  const t = tern(n);
+  const t = luccet(n);
   const r = S.resolve(n, want, ctx.schema, ctx.report);
   t.tag = r.tag === 'table' && n.type === 'containerDirective' && !soleTable(n) ? 'div' : r.tag; // table.body (tables)
   if (r.unknown && ctx.schema.strict) // only a name with no schema entry
-    ctx.report('name.unknown', S.namePosition(n), `\`${n.name}\` has no schema entry and names no element, so it is a ${t.tag}`, 'check the spelling, or declare the name with tern.block, tern.leaf or tern.inline');
+    ctx.report('name.unknown', S.namePosition(n), `\`${n.name}\` has no schema entry and names no element, so it is a ${t.tag}`, 'check the spelling, or declare the name with luccet.block, luccet.leaf or luccet.inline');
   const spec = r.spec;
   if (spec) defaults(n, spec);
   if (n.type === 'containerDirective') {
@@ -506,7 +506,7 @@ function footnotes(ast, ctx) {
     if (n.type !== 'footnoteDefinition') continue;
     const first = defs.get(n.identifier);
     if (first) {
-      tern(n).dropped = true;
+      luccet(n).dropped = true;
       ctx.report('footnote.duplicate', marker(n), `[^${n.label}] is already defined on line ${first.node.position.start.line}; this definition is dropped`, 'merge the two definitions, or give one another label');
     } else defs.set(n.identifier, { node: n, uses: 0, number: 0, backref: '', target: '' }), kept.push(n);
   }
@@ -522,34 +522,34 @@ function footnotes(ast, ctx) {
     }
     if (!d.uses) {
       const label = d.node.label;
-      Object.assign(tern(d.node), { number: (d.number = ++count), backref: (d.backref = `fnref-${label}`), id: (d.target = `fn-${label}`) });
+      Object.assign(luccet(d.node), { number: (d.number = ++count), backref: (d.backref = `fnref-${label}`), id: (d.target = `fn-${label}`) });
       order.push(d.node.identifier);
     }
     const k = ++d.uses;
     set(r, { resolved: true, number: d.number, id: k > 1 ? `${d.backref}-${k}` : d.backref, target: d.target });
   }
   for (const d of kept) {
-    const dt = tern(d);
+    const dt = luccet(d);
     if (dt.number !== undefined) continue;
     dt.id = `fn-${d.label}`;
     order.push(d.identifier);
     ctx.report('footnote.unused', marker(d), `[^${d.label}] is never referenced; it is listed after the referenced footnotes`, `reference it with [^${d.label}], or remove it`);
   }
-  ast.data.tern.footnotes = order;
+  ast.data.luccet.footnotes = order;
 }
 
 // ---------------------------------------------------------------- ids
 
 const DUP = 'give each element its own id';
 
-// The ids tern gives elements of its own, in the page around the note: the
+// The ids luccet gives elements of its own, in the page around the note: the
 // base stylesheet, the colour-scheme meta, the holder of the source and a
 // built page's diagnostics (src/runtime.js, cli/build.js). Exported for the
 // runtime, the command line and the tests.
-const TERN_IDS = Object.freeze(['tern-style', 'tern-color-scheme', 'tern-source', 'tern-diagnostics']);
-const TERN = Object.freeze({ type: '#tern' }); // their holder in the registry
+const LUCCET_IDS = Object.freeze(['luccet-style', 'luccet-color-scheme', 'luccet-source', 'luccet-diagnostics']);
+const LUCCET = Object.freeze({ type: '#luccet' }); // their holder in the registry
 
-// One registry for every id. Tern's own ids first, then the fixed ids, in
+// One registry for every id. Luccet's own ids first, then the fixed ids, in
 // document order: the ids authors wrote and the generated fn-/fnref- ids.
 // Then heading slugs, which yield silently with -2, -3 … A heading whose own
 // id was dropped gets a slug.
@@ -560,8 +560,8 @@ function ids(ast, ctx) {
   const add = (id, node, at) => {
     const prev = reg.node(id);
     if (!prev) return reg.add(id, node, false), true;
-    if (prev === TERN) {
-      ctx.report('id.duplicate', at, `the id "${id}" belongs to tern itself, which gives it to an element of its own in the page; this element drops it`, 'choose another id');
+    if (prev === LUCCET) {
+      ctx.report('id.duplicate', at, `the id "${id}" belongs to luccet itself, which gives it to an element of its own in the page; this element drops it`, 'choose another id');
       return false;
     }
     const first = idAt(prev, id);
@@ -605,11 +605,11 @@ function ids(ast, ctx) {
     for (const k in h.attributes) if (k !== 'id') put(a, k, h.attributes[k]);
     h.attributes = a;
   }
-  reg.publish(ast.data.tern);
+  reg.publish(ast.data.luccet);
 }
 
 // The registry: a Map from each id to its element, so an id costs no object
-// of its own. Its JSON form, root.data.tern.ids = {id: {kind, explicit, line,
+// of its own. Its JSON form, root.data.luccet.ids = {id: {kind, explicit, line,
 // column}}, is built when first read: an enumerable accessor that replaces
 // itself with the plain object. Building it up front would put every id (20k
 // fnref ids for a footnote cited 20k times) through the string table, for an
@@ -618,7 +618,7 @@ class Registry {
   constructor() {
     this.nodes = new Map();
     this.slugs = new Set();
-    for (const id of TERN_IDS) this.nodes.set(id, TERN); // taken before the note's own
+    for (const id of LUCCET_IDS) this.nodes.set(id, LUCCET); // taken before the note's own
   }
   node(id) {
     const n = this.nodes.get(id);
@@ -631,7 +631,7 @@ class Registry {
   json() {
     const out = Object.create(null);
     for (const [id, n] of this.nodes) {
-      if (n === TERN) continue; // the note's ids only
+      if (n === LUCCET) continue; // the note's ids only
       const generated = this.slugs.has(id) || ((n.type === 'footnoteDefinition' || n.type === 'footnoteReference') && peek(n).id === id);
       const p = (this.slugs.has(id) ? n.position || ORIGIN : idAt(n, id)).start;
       out[id] = { kind: isNamed(n) ? n.name : n.type, explicit: !generated, line: p.line, column: p.column };
@@ -643,10 +643,10 @@ class Registry {
     Object.defineProperty(rt, 'ids', { get: () => (plain(this.json()), rt.ids), set: plain, enumerable: true, configurable: true });
   }
 }
-// The element an id names in the note; tern's own ids name none of its elements.
+// The element an id names in the note; luccet's own ids name none of its elements.
 const target = (ctx, id) => {
   const n = ctx.reg ? ctx.reg.node(id) : null;
-  return n === TERN ? null : n;
+  return n === LUCCET ? null : n;
 };
 
 // Where a node's id is written, for diagnostics: the `#` or `id=` item, a
@@ -720,7 +720,7 @@ function plain(nodes, useText) {
 // Counters come from the schema and are shared by name; equations are on
 // `equation`, and only with an id. A counter `within` level N restarts at
 // each heading of levels 2 to N, and keeps the section's number in
-// data.tern.section: "2.1" shows "2.1.3". Section numbers run from h2 down;
+// data.luccet.section: "2.1" shows "2.1.3". Section numbers run from h2 down;
 // h1, the note's title or a part, stays outside them (it neither resets nor
 // restarts them, as \part in a LaTeX article), and a counter within h1
 // counts h1s and restarts at them. Before its first section a counter's
@@ -751,21 +751,21 @@ function numbering(ast, ctx) {
     }
     if (n.type === 'math') {
       if (n.attributes && n.attributes.id !== undefined && !peek(n).unclosed) {
-        const t = tern(n);
+        const t = luccet(n);
         t.text = `(${next(t, 'equation')})`;
       }
       continue;
     }
     const spec = n.type === 'code' ? (titled(n) ? code : null) : specOf(n, ctx);
     if (!spec) continue;
-    const t = tern(n);
+    const t = luccet(n);
     let k;
     if (spec.counter != null && spec.counter !== '') k = next(t, String(spec.counter));
     const { text } = labelOf(spec, k, n, ctx);
     if (text) t.text = text;
   }
 }
-// The number as shown: data.tern.number, after its section under `within`.
+// The number as shown: data.luccet.number, after its section under `within`.
 const shown = (t) => (t.section !== undefined && t.number != null ? `${t.section}.${t.number}` : t.number);
 
 // ---------------------------------------------------------------- refs
@@ -805,7 +805,7 @@ function fragment(n, ctx) {
     // not percent-encoded UTF-8: compared as written
   }
   const ok = !!target(ctx, id);
-  tern(n).resolved = ok;
+  luccet(n).resolved = ok;
   if (!ok) ctx.report('ref.dangling', prefix(n.position || ORIGIN, 1), `the link points to #${id}, which names no id in this note`, 'check the id, or give the target that id');
 }
 
@@ -945,7 +945,7 @@ function copy(nodes, ctx) {
       continue;
     }
     if (n.type === 'ref') add(out, { type: 'text', value: take(shortText(n, ctx)) });
-    else if (n.type === 'text' && !(n.data && n.data.tern && n.data.tern.entity)) add(out, { type: 'text', value: take(n.value) });
+    else if (n.type === 'text' && !(n.data && n.data.luccet && n.data.luccet.entity)) add(out, { type: 'text', value: take(n.value) });
     else {
       const c = clone(n);
       if (typeof c.value === 'string') c.value = take(c.value); // code, math
@@ -967,8 +967,8 @@ function clone(n) {
   }
   if (n.data) {
     c.data = Object.assign({}, n.data);
-    if (n.data.tern) {
-      const t = (c.data.tern = Object.assign({}, n.data.tern));
+    if (n.data.luccet) {
+      const t = (c.data.luccet = Object.assign({}, n.data.luccet));
       delete t.idPosition, delete t.tagPosition, delete t.namePosition, delete t.caption;
       delete t.refPosition, delete t.rawPosition, delete t.colsPosition;
     }
@@ -988,7 +988,7 @@ function shortText(n, ctx) {
 // ---------------------------------------------------------------- toc
 
 // A leaf whose schema `transform` is 'toc' lists the headings in its depth
-// range in document order: data.tern.toc = [{depth, id, children}], the
+// range in document order: data.luccet.toc = [{depth, id, children}], the
 // children a copy of the heading's inline content, flattened as ref text is
 // (copy: a reference is its target's plain text). Its range is `{depth=…}`
 // on the leaf, else the schema's `depth`, else '2-3'; a single N is the range
@@ -1010,7 +1010,7 @@ function toc(ast, ctx) {
     const entries = [];
     for (const h of heads)
       if (h.depth >= lo && h.depth <= hi && h.attributes && h.attributes.id !== undefined) entries.push({ depth: h.depth, id: h.attributes.id, children: copy(h.children, ctx) });
-    tern(n).toc = entries;
+    luccet(n).toc = entries;
   }
 }
 
@@ -1028,7 +1028,7 @@ function depthRange(v, fallback) {
 // The title fallback: with no title in the head or in `:::meta`, the plain
 // text of the first level-1 heading is meta.title.
 function meta(ast, ctx) {
-  const rt = ast.data.tern;
+  const rt = ast.data.luccet;
   if ((rt.meta && rt.meta.title !== undefined) || ctx.head.title !== undefined) return;
   const { heads, inDef } = index(ast, ctx);
   const h1 = heads.find((n) => n.type === 'heading' && n.depth === 1 && !dead(n, inDef));
@@ -1047,7 +1047,7 @@ const KEEPS = new Set(['attributes', 'footnotes', 'ids', 'numbering', 'refs', 't
 
 function run(ast, opts) {
   const d = ast.data || (ast.data = {});
-  const rt = d.tern || (d.tern = {});
+  const rt = d.luccet || (d.luccet = {});
   if (!Array.isArray(rt.diagnostics)) rt.diagnostics = [];
   if (rt.transformed) return ast; // once per tree: a second run would take slugs for authors' ids
   rt.transformed = true;
@@ -1063,7 +1063,7 @@ function run(ast, opts) {
 
 // A registered transform that throws is skipped, and the rest run: one
 // add-on's bug must not cost the reader the note. It is addon.failed at
-// line 0, the tern.js line, as the runtime reports add-on problems, since no
+// line 0, the luccet.js line, as the runtime reports add-on problems, since no
 // note line is at fault.
 function guarded(name, fn, ast, ctx) {
   try {
@@ -1076,7 +1076,7 @@ function guarded(name, fn, ast, ctx) {
       why = 'a value that cannot be shown';
     }
     const at = () => ({ line: 0, column: 0, offset: 0 });
-    ctx.report('addon.failed', { start: at(), end: at() }, `the transform "${name}" threw: ${why}; the note renders without it`, `fix the function given to tern.transform("${name}", …)`, 'error');
+    ctx.report('addon.failed', { start: at(), end: at() }, `the transform "${name}" threw: ${why}; the note renders without it`, `fix the function given to luccet.transform("${name}", …)`, 'error');
   }
 }
 
@@ -1092,16 +1092,16 @@ function ordered(list) {
   return true;
 }
 
-// tern.transform(name, fn, {before | after}): adds a transform, at the end by
+// luccet.transform(name, fn, {before | after}): adds a transform, at the end by
 // default; registering a name again moves and replaces it. Returns a function
 // that removes it.
 function register(name, fn, where) {
-  if (typeof name !== 'string' || !name) throw new TypeError('tern.transform(name, fn): name must be a non-empty string');
-  if (typeof fn !== 'function') throw new TypeError(`tern.transform("${name}", fn): fn must be a function`);
-  if (S.own(BUILTIN, name)) throw new Error(`tern.transform: "${name}" is a built-in transform`);
+  if (typeof name !== 'string' || !name) throw new TypeError('luccet.transform(name, fn): name must be a non-empty string');
+  if (typeof fn !== 'function') throw new TypeError(`luccet.transform("${name}", fn): fn must be a function`);
+  if (S.own(BUILTIN, name)) throw new Error(`luccet.transform: "${name}" is a built-in transform`);
   const w = where || {};
   const anchor = w.before !== undefined ? w.before : w.after;
-  if (anchor !== undefined && (anchor === name || !order.includes(anchor))) throw new Error(`tern.transform("${name}"): there is no transform "${anchor}"`);
+  if (anchor !== undefined && (anchor === name || !order.includes(anchor))) throw new Error(`luccet.transform("${name}"): there is no transform "${anchor}"`);
   if (custom.has(name)) order.splice(order.indexOf(name), 1), custom.delete(name);
   let i = order.length;
   if (anchor !== undefined) i = order.indexOf(anchor) + (w.before !== undefined ? 0 : 1);
@@ -1114,4 +1114,4 @@ function register(name, fn, where) {
   };
 }
 
-module.exports = { run, register, names: () => order.slice(), TERN_IDS };
+module.exports = { run, register, names: () => order.slice(), LUCCET_IDS };

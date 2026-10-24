@@ -1,14 +1,14 @@
 {
-  "name": "@ozkrac/tern",
-  "version": "1.1.0",
+  "name": "luccet",
+  "version": "1.1.1",
   "description": "Documents with the full power of HTML, CSS and JS.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OzkrAC/tern.git"
+    "url": "git+https://github.com/Luccet/luccet.git"
   },
-  "homepage": "https://ozkr.ac/tern/",
-  "bugs": "https://github.com/OzkrAC/tern/issues",
+  "homepage": "https://luccet.dev/",
+  "bugs": "https://github.com/Luccet/luccet/issues",
   "keywords": [
     "markdown",
     "html",
@@ -18,14 +18,14 @@
     "language-server",
     "static-site"
   ],
-  "main": "tern.js",
-  "types": "tern.d.ts",
+  "main": "luccet.js",
+  "types": "luccet.d.ts",
   "exports": {
     ".": {
-      "types": "./tern.d.ts",
-      "default": "./tern.js"
+      "types": "./luccet.d.ts",
+      "default": "./luccet.js"
     },
-    "./tern.css": "./tern.css",
+    "./luccet.css": "./luccet.css",
     "./cli/*": "./cli/*",
     "./src/*": "./src/*",
     "./addons/*": "./addons/*",
@@ -35,13 +35,13 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "tern": "tern-cli.js"
+    "luccet": "luccet-cli.js"
   },
   "files": [
-    "tern.js",
-    "tern.css",
-    "tern.d.ts",
-    "tern-cli.js",
+    "luccet.js",
+    "luccet.css",
+    "luccet.d.ts",
+    "luccet-cli.js",
     "cli/",
     "src/",
     "addons/",

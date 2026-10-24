@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // A documentation page's live examples (docs/README.md "Live examples"): the
-// `tern` fences with the class `live`, which docs/docs.js renders on the
-// page. Shared by `tern corpus` (cli/commands.js), test/docs.js and the docs
+// `luccet` fences with the class `live`, which docs/docs.js renders on the
+// page. Shared by `luccet corpus` (cli/commands.js), test/docs.js and the docs
 // smoke tests, so all three read the same examples the same way. Node only.
 //
 // An example's attributes, as written on the fence and emitted on its
@@ -9,18 +9,18 @@
 //   expect="a.b c.d"   the diagnostic codes it must produce, a multiset;
 //                      none by default
 //   schema=none|demo   none (the default) is a plain note's empty registry;
-//                      demo is window.ternDocs.demo from the page's add-ons
+//                      demo is window.luccetDocs.demo from the page's add-ons
 //                      (docs.js), which equals test/fixtures/schema.js
 //   head="…"           the preserved head, as a string
-//   spec="PAGE#ID …"   the documentation anchors `tern corpus` cites on the
+//   spec="PAGE#ID …"   the documentation anchors `luccet corpus` cites on the
 //                      case's spec: line, as `syntax-blocks#fence`; when
 //                      absent, the example's own section (citation below)
 // The example's note is the fence's text plus a final line break, as a
-// note file ends with one (and as the corpus harness reads a `tern` block).
+// note file ends with one (and as the corpus harness reads a `luccet` block).
 'use strict';
 
 const path = require('path');
-const { analyse, tern } = require('./note');
+const { analyse, luccet } = require('./note');
 
 const NONE = Object.freeze({ block: Object.freeze({}), leaf: Object.freeze({}), inline: Object.freeze({}) });
 
@@ -83,14 +83,14 @@ function extract(text, file) {
   let section = null;
   let anchor = 'top';
   let k = 0;
-  tern.visit(a.ast, (node) => {
+  luccet.visit(a.ast, (node) => {
     if (node.type === 'heading') {
       section = (node.attributes && node.attributes.id) || null;
       if (section) anchor = String(section);
       k = 0;
       return;
     }
-    if (node.type !== 'code' || node.lang !== 'tern' || !classes(node).includes('live')) return;
+    if (node.type !== 'code' || node.lang !== 'luccet' || !classes(node).includes('live')) return;
     k++;
     const at = a.toFile(node.position).start;
     const attrs = node.attributes || {};
@@ -104,7 +104,7 @@ function extract(text, file) {
     if (schemaName === 'none') schema = NONE;
     else if (schemaName === 'demo') {
       schema = demo;
-      if (!demo) problems.push({ line: at.line, message: 'schema=demo, but the page\'s add-ons expose no demo schema (window.ternDocs.demo from docs.js)' });
+      if (!demo) problems.push({ line: at.line, message: 'schema=demo, but the page\'s add-ons expose no demo schema (window.luccetDocs.demo from docs.js)' });
     } else problems.push({ line: at.line, message: `schema="${schemaName}" is not a schema the docs know (none, demo)` });
     examples.push({
       n: examples.length + 1,
@@ -130,7 +130,7 @@ const options = (ex) => (ex.head === undefined ? { schema: ex.schema } : { schem
 // Runs an example: its diagnostics, and how they differ from `expect` as
 // multisets ({missing, unexpected}, codes; both empty when they agree).
 function check(ex) {
-  const diagnostics = tern.check(ex.source, options(ex));
+  const diagnostics = luccet.check(ex.source, options(ex));
   const left = diagnostics.map((d) => d.code);
   const missing = [];
   for (const code of ex.expect) {
@@ -146,7 +146,7 @@ function check(ex) {
 //   section, `cite`), options:
 //   (schema=none unless schema=demo, which is the corpus's own fixture
 //   schema; escaped when the source has tabs, CR, NUL, a BOM or trailing
-//   spaces), a prose line naming the page, the `tern` block, an `html head`
+//   spaces), a prose line naming the page, the `luccet` block, an `html head`
 //   block for head=, and a `diagnostics` block: each expected code with the
 //   position and severity the engine gives it.
 // An example whose diagnostics differ from its expect, or that has no
@@ -193,14 +193,14 @@ function toCorpus(x, shown) {
         '',
         `The live example on line ${ex.line} of ${shown}.`,
         '',
-        block('tern', body),
+        block('luccet', body),
         ...(ex.head === undefined ? [] : ['', block('html head', ex.head)]),
         '',
         block('diagnostics', diags),
       ].join('\n'),
     );
   }
-  const text = cases ? `# ${shown}: live examples (tern corpus)\n\n${out.join('\n\n')}\n` : '';
+  const text = cases ? `# ${shown}: live examples (luccet corpus)\n\n${out.join('\n\n')}\n` : '';
   return { text, cases, problems };
 }
 

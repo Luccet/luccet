@@ -18,7 +18,7 @@ spec: syntax-blocks#display-math elements#numbering
 
 The display-math example: a multi-line equation with an id on its closer is numbered; the one-line form after it is not.
 
-````tern
+````luccet
 $$
 \dim V = \dim \ker T + \dim \im T.
 $$ {#eq-rn}
@@ -37,7 +37,7 @@ spec: syntax-blocks#display-math syntax-blocks#lines
 
 Form (c) with an empty rest: the lines between the opener and the closer are the TeX, joined with `\n`.
 
-````tern
+````luccet
 $$
 a = b
 c = d
@@ -59,7 +59,7 @@ spec: syntax-blocks#display-math
 
 Form (a): an unescaped `$$` later on the opener line, followed by nothing, completes the equation; the TeX between is trimmed as in the display-math example.
 
-````tern
+````luccet
 $$ \int_0^1 x\,dx = \tfrac12 $$
 ````
 
@@ -77,7 +77,7 @@ spec: syntax-blocks#display-math
 
 Form (a) needs no spaces: `$$x^2$$` is a complete equation.
 
-````tern
+````luccet
 $$x^2$$
 ````
 
@@ -91,7 +91,7 @@ spec: syntax-blocks#display-math syntax-blocks#positions elements#numbering elem
 
 Form (a) takes an attribute group after the second `$$`; with an id the equation is numbered and `@eq-e` renders `(1)`.
 
-````tern
+````luccet
 $$ E = mc^2 $$ {#eq-e}
 
 See @eq-e.
@@ -108,7 +108,7 @@ spec: syntax-blocks#display-math syntax-inline#escapes
 
 On the opener line `\$` is skipped as a pair, so in `5\$$$` the closing `$$` is the last two dollars and the TeX keeps `\$`.
 
-````tern
+````luccet
 $$\text{cost} = 5\$$$
 ````
 
@@ -122,7 +122,7 @@ spec: syntax-blocks#display-math syntax-inline#inline-display syntax-inline#ambi
 
 Form (b): text after the second `$$` makes the whole line a paragraph, and each `$$` in it is text with `math.inline-display`, which fires once per `$$` run, so twice here.
 
-````tern
+````luccet
 $$ E = mc^2 $$, as Einstein wrote.
 ````
 
@@ -141,7 +141,7 @@ spec: syntax-blocks#display-math
 
 Form (c) with a non-empty rest: the text glued after `$$` is the first TeX line.
 
-````tern
+````luccet
 $$\begin{aligned}
 a &= b
 \end{aligned}
@@ -164,7 +164,7 @@ spec: syntax-blocks#display-math syntax-blocks#r3
 
 Form (c) with a space between `$$` and the first TeX line, the way most authors write it: the rest of the opener line has its leading whitespace stripped, as the one-line form strips it in the display-math example.
 
-````tern
+````luccet
 $$ \begin{aligned}
 a &= b
 \end{aligned}
@@ -187,7 +187,7 @@ spec: syntax-blocks#display-math diagnostics#math-opener-tail
 
 A rest that is a strong group starting with `#` is `math.opener-tail` at the group; the block still opens and closes normally (the TeX value is asserted in math/opener-tail-glued-kept-as-tex).
 
-````tern
+````luccet
 $$ {#eq-x}
 x = 1
 $$
@@ -207,7 +207,7 @@ spec: syntax-blocks#display-math diagnostics#math-opener-tail
 
 The misplaced group stays in the TeX (KaTeX shows it as an error), and the equation gets no id and no number.
 
-````tern
+````luccet
 $${#eq-x}
 x = 1
 $$
@@ -228,7 +228,7 @@ spec: syntax-blocks#display-math
 
 A rest that is a strong group starting with `.` is `math.opener-tail` too.
 
-````tern
+````luccet
 $$ {.wide}
 x = 1
 $$
@@ -248,7 +248,7 @@ spec: syntax-blocks#display-math syntax-blocks#strong-and-weak
 
 Only a strong group starting with `#` or `.` is an opener tail; `{n=1}` is strong but is ordinary TeX, with no diagnostic.
 
-````tern
+````luccet
 $${n=1}
 \implies x
 $$
@@ -265,7 +265,7 @@ spec: syntax-blocks#display-math syntax-blocks#positions syntax-blocks#merging-a
 
 The closer takes any attribute group after spaces; the id numbers the equation, and other attributes go on `div.t-eq`.
 
-````tern
+````luccet
 $$
 x = 1
 $$ {#eq-a data-k=v}
@@ -285,7 +285,7 @@ spec: syntax-blocks#display-math syntax-blocks#positions
 
 The closer's group may be glued to the `$$`.
 
-````tern
+````luccet
 $$
 x = 1
 $${#eq-x}
@@ -301,7 +301,7 @@ spec: syntax-blocks#display-math syntax-blocks#positions syntax-blocks#strong-an
 
 The closer is a structural line, so a weak group is accepted too: `{hidden}` becomes a boolean attribute, and without an id there is no number.
 
-````tern
+````luccet
 $$
 x = 1
 $$ {hidden}
@@ -317,7 +317,7 @@ spec: syntax-blocks#display-math diagnostics#math-closer-tail
 
 Text after the closing `$$` is `math.closer-tail` at its first character and is emitted as a paragraph after the equation.
 
-````tern
+````luccet
 $$
 x = 1
 $$ where x is real.
@@ -338,7 +338,7 @@ spec: syntax-blocks#display-math syntax-blocks#positions
 
 A group after the closer that does not parse (`#1` is not an IDENT) is a closer tail, not `attr.malformed`, and becomes paragraph text.
 
-````tern
+````luccet
 $$
 x = 1
 $$ {#1}
@@ -359,7 +359,7 @@ spec: syntax-blocks#display-math
 
 A valid group followed by more text after the closer: the whole tail is junk, so `math.closer-tail` is at the `{`, the equation gets no id and no number, and the tail paragraph is `{#e} more`.
 
-````tern
+````luccet
 $$
 x = 1
 $$ {#e} more
@@ -380,7 +380,7 @@ spec: syntax-blocks#display-math
 
 A closer tail followed directly by a paragraph line: the tail paragraph continues on the following lines by the normal paragraph rules.
 
-````tern
+````luccet
 $$
 x = 1
 $$ where
@@ -403,7 +403,7 @@ spec: syntax-blocks#display-math
 
 Text before the closing `$$` on the closer line is the last TeX line.
 
-````tern
+````luccet
 $$
 a = b
 c = d$$
@@ -424,7 +424,7 @@ spec: syntax-blocks#display-math syntax-blocks#r2
 
 The closer line's leading whitespace is not TeX: text before an indented closing `$$` is the last TeX line without that whitespace.
 
-````tern
+````luccet
 $$
 a = b
    c = d$$
@@ -441,7 +441,7 @@ options: escaped
 
 The closer is tested on the right-trimmed line, so trailing spaces after the closing `$$` are not a closer tail.
 
-````tern
+````luccet
 $$
 x = 1
 $$\u0020\u0020
@@ -460,7 +460,7 @@ spec: syntax-blocks#display-math syntax-inline#escapes
 
 The closer is the first unescaped `$$`: in `5\$$$` the `\$` is skipped as a pair, so the closer is the last two dollars and `\$` stays in the TeX.
 
-````tern
+````luccet
 $$
 \text{price} = 5\$$$
 ````
@@ -475,7 +475,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm
 
 Only the listed terminators end display math: lines shaped like a list item, a quote, a table row, raw HTML, a leaf and an attribute line are TeX.
 
-````tern
+````luccet
 $$
 - x
 > y
@@ -501,7 +501,7 @@ spec: syntax-blocks#display-math diagnostics#three-mistakes
 
 The third likely mistake: a blank line inside `$$` ends the block with `math.unclosed`; the intended closer then opens a second block that the next blank line ends too, and the heading survives. Each `math.unclosed` runs from its opener to where its terminating blank line starts.
 
-````tern
+````luccet
 $$
 a = b
 
@@ -530,7 +530,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm
 
 A blank line ends unclosed display math; the source, opening `$$` included, is shown escaped in `div.t-eq.t-error`. The diagnostic ends where the terminating line starts.
 
-````tern
+````luccet
 $$
 a < b
 
@@ -553,7 +553,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm
 
 A heading line ends unclosed display math and is reprocessed as a heading; the diagnostic ends where the heading line starts.
 
-````tern
+````luccet
 $$
 x = 1
 ## Results
@@ -575,7 +575,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm
 
 A fence line ends unclosed display math and is reprocessed as a fence opener.
 
-````tern
+````luccet
 $$
 x = 1
 ```js
@@ -599,7 +599,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm
 
 A `:::` opener line ends unclosed display math and is reprocessed, so the container opens.
 
-````tern
+````luccet
 $$
 x = 1
 :::idea[K]
@@ -623,7 +623,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm syntax-blocks#clos
 
 A `:::` closer line ends unclosed display math and is reprocessed, so it still closes its container and the next line is outside it.
 
-````tern
+````luccet
 :::idea[K]
 $$
 x = 1
@@ -647,7 +647,7 @@ spec: syntax-blocks#display-math syntax-blocks#closer
 
 A `:::` closer line terminates display math even with no container open; reprocessed, it is a stray closer.
 
-````tern
+````luccet
 $$
 x = 1
 :::
@@ -670,7 +670,7 @@ spec: syntax-blocks#display-math syntax-blocks#cells
 
 A `+++` line ends unclosed display math and is reprocessed as a cell separator.
 
-````tern
+````luccet
 :::row
 $$
 x = 1
@@ -697,7 +697,7 @@ spec: syntax-blocks#display-math syntax-blocks#cells
 
 A `+++` line always terminates display math, inside a container or not (the terminator is lexical); outside a container it is then reprocessed as an orphan cell line.
 
-````tern
+````luccet
 $$
 x = 1
 +++
@@ -720,7 +720,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm syntax-blocks#bloc
 
 The end of the parent ends display math: a line without `>` closes the leaf as unclosed together with the quote, and is then a paragraph after the quote. The `.t-eq.t-error` source holds the remainders, without the `> ` prefixes.
 
-````tern
+````luccet
 > $$
 > x = 1
 After.
@@ -748,7 +748,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm syntax-blocks#list
 
 A closing `$$` at a column below the item's content column ends the item: the math closes as unclosed, and the `$$` line opens a new block at the top level, which the end of the note leaves unclosed. The item's error block holds the remainders, without the item's indentation.
 
-````tern
+````luccet
 - $$
   x = 1
 $$
@@ -777,7 +777,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm
 
 The end of the note ends unclosed display math.
 
-````tern
+````luccet
 $$
 x = 1
 ````
@@ -788,7 +788,7 @@ x = 1</div>
 ````
 
 ````json ast
-{"type":"root","children":[{"type":"math","data":{"tern":{"unclosed":true}}}]}
+{"type":"root","children":[{"type":"math","data":{"luccet":{"unclosed":true}}}]}
 ````
 
 ````diagnostics
@@ -801,7 +801,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm syntax-blocks#head
 
 Terminators are tested before the closer: `## $$` is a heading line, so it ends the block instead of closing it, and its `$$` is then heading text.
 
-````tern
+````luccet
 $$
 x = 1
 ## $$
@@ -824,7 +824,7 @@ spec: syntax-blocks#display-math syntax-blocks#line-algorithm syntax-blocks#bloc
 
 Lazy continuation needs an open paragraph, so a line without `>` never continues display math in a quote: it closes the block and the quote, and the later `> $$` opens a new quote and block.
 
-````tern
+````luccet
 > $$
 x = 1
 > $$
@@ -855,7 +855,7 @@ spec: syntax-blocks#display-math syntax-blocks#blockquote
 
 A bare `>` line continues the quote with an empty remainder, which is a blank line for the display math inside it.
 
-````tern
+````luccet
 > $$
 > x = 1
 >
@@ -884,7 +884,7 @@ spec: syntax-blocks#display-math syntax-inline#ambiguity syntax-inline#escapes
 
 `\$$` at the start of a line is text: the escaped `$` is not a dollar, so the next `$` is not adjacent to one, and it is followed by a space so it does not open.
 
-````tern
+````luccet
 \$$ is not display math
 ````
 
@@ -898,7 +898,7 @@ spec: syntax-blocks#display-math syntax-blocks#paragraph
 
 A `$$` line interrupts a paragraph.
 
-````tern
+````luccet
 Consider
 $$
 x = 1
@@ -916,7 +916,7 @@ spec: syntax-blocks#display-math syntax-blocks#container elements#numbering elem
 
 Display math in a theorem body (the "In one screen" example): the theorem and the equation are numbered on their own counters, and both references resolve.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 If $V$ is finite-dimensional then
 $$
@@ -942,7 +942,7 @@ spec: syntax-blocks#display-math syntax-blocks#blockquote
 
 Display math inside a blockquote: each line's `> ` prefix is stripped before the remainder reaches the block.
 
-````tern
+````luccet
 > $$
 > x^2
 > $$
@@ -958,7 +958,7 @@ spec: syntax-blocks#display-math syntax-blocks#lists
 
 Display math inside a list item, at its content column, interrupting the item's paragraph.
 
-````tern
+````luccet
 - Item:
   $$
   x^2
@@ -979,7 +979,7 @@ spec: syntax-blocks#display-math syntax-blocks#r2 syntax-blocks#lines
 
 Container bodies may be indented freely: indented `$$` lines still open and close display math. TeX lines are dedented by the opener's indentation, as fence content is, and the closer line's leading whitespace is not TeX, so the TeX is `x^2`.
 
-````tern
+````luccet
 :::idea[K]
   $$
   x^2
@@ -1004,7 +1004,7 @@ spec: syntax-blocks#display-math elements#numbering elements#references
 
 Equations are numbered in document order, and only those with an id; an equation without one takes no number.
 
-````tern
+````luccet
 $$ a = b $$ {#eq-a}
 
 $$ c = d $$
@@ -1027,7 +1027,7 @@ spec: syntax-blocks#display-math syntax-inline#reference elements#references
 
 A reference to an equation id that does not exist stays literal, with `ref.dangling`.
 
-````tern
+````luccet
 $$ x = 1 $$
 
 See @eq-x.
@@ -1048,7 +1048,7 @@ spec: syntax-blocks#display-math syntax-blocks#attribute-line elements#numbering
 
 An attribute line before display math attaches to `div.t-eq`; its id numbers the equation like a closer id.
 
-````tern
+````luccet
 {#eq-a}
 $$
 x = 1
@@ -1068,7 +1068,7 @@ spec: syntax-blocks#display-math elements#numbering
 
 A class on the closer does not number the equation; only an id does. `div.t-eq` has the classes `t-eq`, then the author's classes.
 
-````tern
+````luccet
 $$
 x = 1
 $$ {.wide}
@@ -1078,13 +1078,13 @@ $$ {.wide}
 <div class="t-eq wide"><span class="t-math" data-display>x = 1</span></div>
 ````
 
-## math/content-not-tern
+## math/content-not-luccet
 
 spec: syntax-blocks#display-math syntax-blocks#r4
 
 The body is verbatim TeX: emphasis, references, links and code spans are not recognised (so `@eq-a` is no reference and gets no `ref.dangling`).
 
-````tern
+````luccet
 $$
 *a* + @eq-a + [b](c) + `d`
 $$
@@ -1100,7 +1100,7 @@ spec: syntax-blocks#display-math syntax-blocks#r4
 
 The TeX is HTML-escaped and otherwise unchanged: `<` and `&` are escaped, and an entity is not passed through.
 
-````tern
+````luccet
 $$
 a < b & c \\ d &amp; e
 $$

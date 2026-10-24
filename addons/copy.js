@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: MIT
-// copy.js, Tern's copy-button add-on (docs/addons.html#copy). Every fence and
+// copy.js, Luccet's copy-button add-on (docs/addons.html#copy). Every fence and
 // listing gets a button that copies its code to the clipboard: the code
 // alone, as written, without line numbers or highlighting. The button says
 // "Copy", then "Copied" for a moment, and a status line says the same to a
 // screen reader.
 //
-//   <script src="tern.js" data-use="addons/copy.js"></script>
+//   <script src="luccet.js" data-use="addons/copy.js"></script>
 //
 // A fence with {data-copy=false} gets no button. The words come from
-// window.TERN.strings (copy, copied, copyFailed; docs/api.html#strings). The
+// window.LUCCET.strings (copy, copied, copyFailed; docs/api.html#strings). The
 // clipboard API is used where the page may (a secure context: https, a local
 // file, localhost); elsewhere the copy goes through a selection, which works
 // inside a click everywhere. The button is not printed. Under node the add-on
 // declares nothing and does nothing.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
   const str = (key, params, fallback) => (T.string ? T.string(key, params, fallback) : fallback);
 
   T.style(
     [
-      '.tern pre.t-copyable { position: relative; }',
+      '.luccet pre.t-copyable { position: relative; }',
       // Muted text at rest, the text colour on hover or focus: both pairs are
       // the theme's checked ones (opacity would blend the button into the
       // fence and fail the contrast check in some light themes).

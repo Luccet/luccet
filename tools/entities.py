@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # Generates src/entities.js, the named character references HTML defines,
 # from Python's html.entities.html5. Only the names that end in `;` are
-# kept: tern passes a reference through only when it is terminated.
+# kept: luccet passes a reference through only when it is terminated.
 #   python3 tools/entities.py          (from any directory)
 #
 # Encoding (decoded by the generated file, once, on first use):

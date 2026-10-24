@@ -6,7 +6,7 @@
 // once per version.
 //
 // The package comes from the npm registry, through tools/npm.js, which keeps
-// its dist in node_modules/.cache/tern-smoke/ (test/smoke.js serves the same
+// its dist in node_modules/.cache/luccet-smoke/ (test/smoke.js serves the same
 // copy). jsDelivr's /npm/ files are the package's bytes, so the hashes hold.
 //
 //   node tools/katex.js [VERSION]   rewrite the table (default: the version in it)
@@ -22,7 +22,7 @@ const ADDON = path.join(ROOT, 'addons', 'katex.js');
 const START = '  // <katex> written by tools/katex.js; do not edit by hand';
 const END = '  // </katex>';
 
-// node_modules/.cache/tern-smoke/katex-VERSION/dist/: the whole dist, so the
+// node_modules/.cache/luccet-smoke/katex-VERSION/dist/: the whole dist, so the
 // same copy serves the add-on (katex.min.js, katex.min.css and its fonts) and
 // pre-renders in node (katex.js), as test/smoke.js uses it.
 const packageDir = (version) => npm.packageDir('katex', version, { folder: `katex-${version}`, keep: ['dist/'], has: 'dist/katex.min.js' });

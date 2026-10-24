@@ -1,5 +1,5 @@
 {
-  "tern": "0.4.0",
+  "luccet": "0.4.0",
   "notes": [
     { "url": "index.html", "title": "Smoke: a folder's index", "date": "2026-01-01", "headings": [], "links": ["index.html", "post.html"] },
     { "url": "post.html", "title": "Smoke: a post", "date": "2026-01-02", "headings": [{ "depth": 1, "id": "post", "text": "A post" }], "links": [] },

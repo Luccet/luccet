@@ -1,16 +1,16 @@
 <!doctype html><meta charset="utf-8">
 <script>
-  // This note's vocabulary (window.TERN.schema): figures get a counter and a
+  // This note's vocabulary (window.LUCCET.schema): figures get a counter and a
   // label, so @fig-… reads "Figure 2". ::video, ::iframe and ::tide-clock need
   // no entry: video and iframe are HTML elements, tide-clock a custom element.
-  window.TERN = {schema: {
+  window.LUCCET = {schema: {
     block: {
       note: {tag: 'aside', label: 'Note'},
       figure: {tag: 'figure', counter: 'figure', label: 'Figure'},
     },
   }};
 </script>
-<script src="../tern.js" data-use="../addons/katex.js"></script>
+<script src="../luccet.js" data-use="../addons/katex.js"></script>
 
 :::meta
 title: Field notes: the estuary
@@ -24,7 +24,7 @@ This example is about media. It shows images that become numbered figures becaus
 carry an id, an image that stays an image, a video and an embedded page as one-line leaves
 (`::video`, `::iframe`), a web component defined by a script in the note, and a plot drawn
 by a script into a figure. The pictures are small SVG files in `img/`; the video's clip is
-not included, so it shows its poster. Part of [Tern's documentation](../index.html).
+not included, so it shows its poster. Part of [Luccet's documentation](../index.html).
 :::
 
 ![Osprey over the estuary, 06:40.](img/osprey.svg){#fig-osprey width=70% alt="An osprey in flight above grey water"}

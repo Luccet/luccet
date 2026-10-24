@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Properties every parse must have, whatever the input. The corpus harness
 // checks them on every case and the fuzzer on every mutated input.
-//   checkParse(result, source)  the problems in tern.parse(source), as strings
+//   checkParse(result, source)  the problems in luccet.parse(source), as strings
 //
 // - The result is JSON-serialisable and round-trips (no cycles, no functions).
 // - Every node has a type and a position; offsets lie in the normalised

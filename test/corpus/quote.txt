@@ -9,7 +9,7 @@ spec: syntax-blocks#blockquote syntax-inline#ambiguity
 
 A quote needs a space, a tab or the end of the line after `>`: `>5 people` and `>= 3` are paragraphs.
 
-````tern
+````luccet
 >5 people came
 >= 3 is enough
 ````
@@ -25,7 +25,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 The blockquote example: a paragraph line without `>` continues the quoted paragraph lazily.
 
-````tern
+````luccet
 > A quote,
 lazily continued.
 ````
@@ -41,7 +41,7 @@ spec: syntax-blocks#blockquote
 
 A bare `>` line is a blank line inside the quote: it ends the paragraph but not the quote.
 
-````tern
+````luccet
 > First paragraph.
 >
 > Second paragraph.
@@ -57,7 +57,7 @@ spec: syntax-blocks#blockquote
 
 A blank line ends the quote, so two quotes separated by a blank line stay two quotes.
 
-````tern
+````luccet
 > First quote.
 
 > Second quote.
@@ -78,7 +78,7 @@ options: escaped
 
 A tab after `>` opens a quote like a space.
 
-````tern
+````luccet
 >\tTabbed
 ````
 
@@ -92,7 +92,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 `>` alone on a line opens an empty quote.
 
-````tern
+````luccet
 >
 ````
 
@@ -106,7 +106,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm syntax-blocks#lists
 
 Exactly one space after `>` is stripped: `>   b` leaves `b` at the item's content column (2), `>  c` leaves `c` at column 1, outside the item.
 
-````tern
+````luccet
 > - a
 >
 >   b
@@ -124,7 +124,7 @@ spec: syntax-blocks#blockquote
 
 The rest of a quoted line is parsed as blocks, so `> :::note` nests a container.
 
-````tern
+````luccet
 > :::note
 > Inside.
 > :::
@@ -140,7 +140,7 @@ spec: syntax-blocks#blockquote syntax-blocks#lists
 
 `> - item` nests a list.
 
-````tern
+````luccet
 > - item
 > - item two
 ````
@@ -155,7 +155,7 @@ spec: syntax-blocks#blockquote
 
 `> > ` nests a quote in a quote.
 
-````tern
+````luccet
 > > deep
 ````
 
@@ -169,7 +169,7 @@ spec: syntax-blocks#blockquote syntax-inline#ambiguity
 
 `>>` is not two quote markers: the first `>` is followed by `>`, not by a space, so the line is a paragraph (unlike CommonMark).
 
-````tern
+````luccet
 >> deep
 ````
 
@@ -183,7 +183,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 The continuation prefix is `>` plus an *optional* space or tab, so `>b` inside an open quote continues it, although `>b` cannot open one.
 
-````tern
+````luccet
 > a
 >b
 ````
@@ -199,7 +199,7 @@ spec: syntax-blocks#blockquote syntax-blocks#r2
 
 Leading whitespace is ignored when a line is classified, so an indented `>` opens a quote (there is no indented code).
 
-````tern
+````luccet
       > a
 ````
 
@@ -213,7 +213,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm syntax-blocks#r2
 
 Leading whitespace may precede the `>` of the quote prefix, so an indented `>` on a continuation line continues the quote. (Without that rule the prefix would fail, `> b` would interrupt, and this would be two quotes.)
 
-````tern
+````luccet
 > a
    > b
 ````
@@ -229,7 +229,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 Row 8: a quote interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 > A quote
 ````
@@ -245,7 +245,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 Lazy continuation needs an open paragraph; after a quoted heading the next line without `>` ends the quote.
 
-````tern
+````luccet
 > # Title
 continued
 ````
@@ -261,7 +261,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 A line that would interrupt a paragraph is not lazy, so `---` ends the quote (and is no setext underline).
 
-````tern
+````luccet
 > a
 ---
 ````
@@ -277,7 +277,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 When an inner prefix fails but an outer one matches, the line continues the innermost paragraph lazily.
 
-````tern
+````luccet
 > > a
 > b
 ````
@@ -293,7 +293,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm syntax-blocks#lists
 
 Laziness reaches through every failed prefix: `b` continues the paragraph of the item inside the quote.
 
-````tern
+````luccet
 > - a
 b
 ````
@@ -309,7 +309,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm syntax-blocks#lists
 
 The quote prefix fails and `2. b` starts a block, so it is not lazy: the quote closes and an ordered list starting at 2 begins (the lazy-continuation rule; as cmark).
 
-````tern
+````luccet
 > a
 2. b
 ````
@@ -326,7 +326,7 @@ options: schema=none
 
 A closer is neither `>` nor lazy (it interrupts), so it ends the quote and then closes the container.
 
-````tern
+````luccet
 :::box
 > a
 :::
@@ -341,9 +341,9 @@ A closer is neither `>` nor lazy (it interrupts), so it ends the quote and then 
 spec: syntax-blocks#blockquote syntax-blocks#line-algorithm syntax-blocks#columns syntax-blocks#lists
 options: escaped
 
-A tab after `>` is consumed whole by the prefix (Tern's simpler rule, unlike CommonMark's partial tab, which would keep two columns and put `b` inside the item), so `b` starts at column 0 of the remainder, outside the item.
+A tab after `>` is consumed whole by the prefix (Luccet's simpler rule, unlike CommonMark's partial tab, which would keep two columns and put `b` inside the item), so `b` starts at column 0 of the remainder, outside the item.
 
-````tern
+````luccet
 > - a
 >
 >\tb
@@ -359,7 +359,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 The 65th nested quote opener would make the stack deeper than 64, so from there the line is paragraph text, with `nesting.limit` at that `>`. The root is not counted, so 64 nested quotes are allowed.
 
-````tern js
+````luccet js
 '> '.repeat(65) + 'x\n'
 ````
 
@@ -374,7 +374,7 @@ options: schema=none
 
 Containers, list items and quotes share one depth: after 63 containers, the first quote is level 64 and the second is refused.
 
-````tern js
+````luccet js
 ':::d\n'.repeat(63) + '> > x\n' + ':::\n'.repeat(63)
 ````
 

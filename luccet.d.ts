@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-// Type declarations for tern.js, the engine and the runtime, as docs/api.html
+// Type declarations for luccet.js, the engine and the runtime, as docs/api.html
 // describes them. The AST is unist-shaped plain data; the shapes here name
 // what the engine guarantees and leave the rest open.
 
-declare namespace tern {
+declare namespace luccet {
   export interface Point {
     line: number;
     column: number;
@@ -14,7 +14,7 @@ declare namespace tern {
     end: Point;
   }
 
-  /** A node of the AST: `type`, its children or value, the author's attributes and `data.tern`, what the transforms wrote. */
+  /** A node of the AST: `type`, its children or value, the author's attributes and `data.luccet`, what the transforms wrote. */
   export interface Node {
     type: string;
     children?: Node[];
@@ -22,7 +22,7 @@ declare namespace tern {
     name?: string;
     attributes?: Record<string, string>;
     position?: Position;
-    data?: { tern?: Record<string, any>; [key: string]: any };
+    data?: { luccet?: Record<string, any>; [key: string]: any };
     [key: string]: any;
   }
   export interface Root extends Node {
@@ -67,7 +67,7 @@ declare namespace tern {
   export interface ParseOptions {
     /** The vocabulary; the registry when absent. */
     schema?: Schema;
-    /** The preserved head, the HTML before the tern.js line. */
+    /** The preserved head, the HTML before the luccet.js line. */
     head?: string;
     /** The label language. */
     lang?: string;
@@ -128,7 +128,7 @@ declare namespace tern {
     snippet(text: string, matched: string[], opts?: { width?: number }): { text: string; marks: Array<[number, number]> };
     title(head: string, ast: Root): string;
     describe(head: string, ast: Root): { title: string; description: string; meta: Record<string, string>; headings: Outline['headings']; links: string[] };
-    /** The format of search.json, which `tern index` writes into the file: a reader takes a file of its own format, whatever version wrote it. 1 since 1.0; changes only in a major release. */
+    /** The format of search.json, which `luccet index` writes into the file: a reader takes a file of its own format, whatever version wrote it. 1 since 1.0; changes only in a major release. */
     readonly format: number;
   }
 
@@ -157,7 +157,7 @@ declare namespace tern {
     readonly format: number;
   }
 
-  export type TernEvent = 'render' | 'math' | 'ready' | 'diagnostic';
+  export type LuccetEvent = 'render' | 'math' | 'ready' | 'diagnostic';
   export type Remove = () => void;
 
   export interface Config {
@@ -178,7 +178,7 @@ declare namespace tern {
     [key: string]: any;
   }
 
-  export interface Tern {
+  export interface Luccet {
     readonly version: string;
 
     // ---- the engine
@@ -196,7 +196,7 @@ declare namespace tern {
     readonly glossary: Glossary;
     /** The names of the registered transforms, in order. */
     readonly transforms: string[];
-    /** The base stylesheet, tern.css. */
+    /** The base stylesheet, luccet.css. */
     readonly css: string;
 
     // ---- the registry
@@ -211,10 +211,10 @@ declare namespace tern {
     readonly ready: Promise<void>;
     define(name: string, fn: (this: Element, el: Element) => void): Remove;
     undefine(name: string): void;
-    on(event: TernEvent, fn: (root: Element, info: { safe: boolean }) => void | Promise<void>): Remove;
+    on(event: LuccetEvent, fn: (root: Element, info: { safe: boolean }) => void | Promise<void>): Remove;
     render(root?: Element, source?: string, opts?: { safe?: boolean; idPrefix?: string; scripts?: boolean }): Promise<Diagnostic[]>;
     style(css: string): HTMLStyleElement | undefined;
-    /** The page's string for a key (window.TERN.strings), else the fallback, else the runtime's own. */
+    /** The page's string for a key (window.LUCCET.strings), else the fallback, else the runtime's own. */
     string(key: string, params?: Record<string, unknown>, fallback?: string): string;
   }
 
@@ -228,5 +228,5 @@ declare namespace tern {
 
 }
 
-declare const tern: tern.Tern;
-export = tern;
+declare const luccet: luccet.Luccet;
+export = luccet;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // outline(ast) -> {headings, blocks, refs, math, tables, raw, inline}: the
-// editor digest, one walk over the AST, sent by the LSP as `tern/outline` so
+// editor digest, one walk over the AST, sent by the LSP as `luccet/outline` so
 // the editor never re-parses. It reads whatever the tree holds: on a parse
 // AST, explicit ids only; after the transforms, slugs, labels, numbers and
 // resolved references too.
@@ -31,7 +31,7 @@ function plainText(nodes) {
   return out;
 }
 
-const tern = (n) => (n.data && n.data.tern) || {};
+const luccet = (n) => (n.data && n.data.luccet) || {};
 const line = (n) => n.position.start.line;
 const endLine = (n) => n.position.end.line;
 const id = (n) => (n.attributes && n.attributes.id) || undefined;
@@ -40,7 +40,7 @@ function outline(ast) {
   const out = { headings: [], blocks: [], refs: [], math: [], tables: [], raw: [], inline: [] };
   visit(ast, (n) => {
     if (!n.position) return false; // text the transforms copied (a reference's, a toc entry's): not in the source
-    const t = tern(n);
+    const t = luccet(n);
     switch (n.type) {
       case 'heading':
         out.headings.push({ line: line(n), depth: n.depth, id: id(n), text: plainText(n.children) });

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-// katex.js, Tern's math add-on (docs/addons.html#katex). It typesets every
+// katex.js, Luccet's math add-on (docs/addons.html#katex). It typesets every
 // formula — $x$, $$…$$ and :::macros — with KaTeX, to styled HTML with KaTeX's
 // own fonts, so the math looks the same in every browser.
 //
-//   <script src="tern.js" data-use="addons/katex.js"></script>
+//   <script src="luccet.js" data-use="addons/katex.js"></script>
 //
 // Without a math add-on, the engine leaves each formula as its TeX source
 // (like a code fence with no code.js). This add-on is the typeset default; for
@@ -13,7 +13,7 @@
 // stylesheet, loaded at the first formula. `?base=URL` names a copy instead
 // (the folder of katex.min.js and katex.min.css), loaded without SRI; a
 // window.katex already on the page is used as it is. Options go in
-// window.TERN = {use: {katex: {macros: {…}, strict: false, …}}} — anything
+// window.LUCCET = {use: {katex: {macros: {…}, strict: false, …}}} — anything
 // KaTeX takes but displayMode and throwOnError. The TeX is kept in each
 // formula's data-tex, so it still copies as $tex$.
 //
@@ -23,11 +23,11 @@
 // pending is typeset before printing or a fragment scroll. A formula KaTeX
 // rejects stays as its TeX source, marked t-error.
 //
-// Under node (tern check, tern build, the language server) it does nothing:
+// Under node (luccet check, luccet build, the language server) it does nothing:
 // typesetting needs the page.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   // <katex> written by tools/katex.js; do not edit by hand
@@ -105,7 +105,7 @@
     return katexP;
   }
 
-  // Options from window.TERN.use.katex: trust, strict, output, leqno, macros,
+  // Options from window.LUCCET.use.katex: trust, strict, output, leqno, macros,
   // and any other KaTeX option but displayMode and throwOnError. One macro
   // table is shared by every formula, the :::macros bodies filling it first.
   let K = null;
@@ -146,12 +146,12 @@
     const visible = [];
     for (const el of all) {
       if (done.has(el) || deferred.has(el)) continue;
-      if (el.firstElementChild) done.add(el); // typeset already (tern build)
+      if (el.firstElementChild) done.add(el); // typeset already (luccet build)
       else if (closedDetails(el)) deferred.add(el);
       else visible.push(el);
     }
     // Macros matter only to a formula typeset here; a page whose formulas are
-    // all pre-rendered (tern build --katex) needs no KaTeX, not even for them.
+    // all pre-rendered (luccet build --katex) needs no KaTeX, not even for them.
     // A :::macros block in a safe root is untrusted and fills no table.
     const macros = !visible.length && !deferred.size ? [] : [...root.querySelectorAll('.t-macros')].filter((m) => !untrusted(m));
     if (!visible.length && !deferred.size && !macros.length) return;
@@ -212,7 +212,7 @@
   }
 
   const now = () => performance.now();
-  const warn = (message) => console.warn(`Tern katex.js: ${message}`);
+  const warn = (message) => console.warn(`Luccet katex.js: ${message}`);
 
   // The next slice: after the next frame while the page is visible (the frame
   // callback posts a MessageChannel task, so the slice runs after the paint,

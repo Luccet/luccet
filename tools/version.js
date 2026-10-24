@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// Tern's version, everywhere it is written. package.json holds it; the
-// PLACES below repeat it (tern.version in src/index.js, the README's
+// Luccet's version, everywhere it is written. package.json holds it; the
+// PLACES below repeat it (luccet.version in src/index.js, the README's
 // jsDelivr tag, release series and major, the docs' examples of output), each
-// found by the text around it. tern.js is rebuilt from src/, not edited.
+// found by the text around it. luccet.js is rebuilt from src/, not edited.
 //
 //   node tools/version.js                    list the places and what each says
-//   node tools/version.js X.Y.Z              set the version everywhere, rebuild tern.js
+//   node tools/version.js X.Y.Z              set the version everywhere, rebuild luccet.js
 //   node tools/version.js patch|minor|major  the same, with the next version
 //   node tools/version.js --check            exit 1 if a place disagrees with package.json (CI)
 //   node tools/version.js --tag              tag the release: vX.Y.Z on a clean main that passes --check
@@ -37,22 +37,22 @@ const ROOT = path.join(__dirname, '..');
 // `built` places are tools/concat.js's to write.
 const PLACES = [
   ['package.json', '"version": "{v}"'],
-  ['package-lock.json', '"name": "@ozkrac/tern",\n  "version": "{v}"'], // the root
-  ['package-lock.json', '"name": "@ozkrac/tern",\n      "version": "{v}"'], // packages[""]
+  ['package-lock.json', '"name": "luccet",\n  "version": "{v}"'], // the root
+  ['package-lock.json', '"name": "luccet",\n      "version": "{v}"'], // packages[""]
   ['src/index.js', "const version = '{v}';"],
-  ['tern.js', '// tern.js {v}: built from src/', { built: true }],
-  ['tern.js', "const version = '{v}';", { built: true }],
-  ['README.md', 'cdn.jsdelivr.net/gh/OzkrAC/tern@v{v}/tern.js'],
+  ['luccet.js', '// luccet.js {v}: built from src/', { built: true }],
+  ['luccet.js', "const version = '{v}';", { built: true }],
+  ['README.md', 'cdn.jsdelivr.net/gh/Luccet/luccet@v{v}/luccet.js'],
   ['README.md', 'use `@{xy}` (the newest {xy}.x)'],
   ['README.md', '`@{x}` (the newest {x}.x'],
   ['docs/api.html', "| engine | `'{v}'` |"],
-  ['docs/api.html', "tern.version;                    // → '{v}'"],
+  ['docs/api.html', "luccet.version;                    // → '{v}'"],
   ['docs/api.html', "as a string: `'{v}'`"],
-  ['docs/publishing.html', '```text\ntern {v}: '],
-  ['docs/tools.html', '$ tern --version\n{v}\n'],
-  ['docs/tools.html', '"serverInfo": { "name": "tern", "version": "{v}" }'],
-  ['docs/tools.html', '"tern": "{v}",'],
-  ['index.html', 'is at version {v} (`tern.version`'],
+  ['docs/publishing.html', '```text\nluccet {v}: '],
+  ['docs/tools.html', '$ luccet --version\n{v}\n'],
+  ['docs/tools.html', '"serverInfo": { "name": "luccet", "version": "{v}" }'],
+  ['docs/tools.html', '"luccet": "{v}",'],
+  ['index.html', 'is at version {v} (`luccet.version`'],
   ['index.html', 'Pin a release (`@v{v}`) to be sure; `@{xy}` follows the fixes of a series.'],
   ['index.html', '`@{x}` follows every release of a major'],
 ];
@@ -131,6 +131,7 @@ function problems(v) {
   const token = new RegExp(`(?<![\\d.])${esc(v)}(?!\\.?\\d)`, 'g');
   for (const file of tracked()) {
     if (file === CHANGELOG) continue; // names every version, by design
+    if (file.startsWith('test/corpus/')) continue; // the cases' numbering (a claim numbered within its subsection) looks like a version and is not one
     let body;
     try {
       body = fs.readFileSync(path.join(ROOT, file));
@@ -194,7 +195,7 @@ function tag(current) {
   if (remote === null) console.log(`(origin could not be reached; ${name} was not checked there)`);
   else if (remote.trim()) fail([`${name} already exists on origin; bump the version first`]);
   const built = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'concat.js'), '--check'], { cwd: ROOT, encoding: 'utf8' });
-  if (built.status !== 0) fail([`tern.js is not the build of src/: ${(built.stdout + built.stderr).trim()}`]);
+  if (built.status !== 0) fail([`luccet.js is not the build of src/: ${(built.stdout + built.stderr).trim()}`]);
   const made = spawnSync('git', ['tag', '-a', name, '-m', name], { cwd: ROOT, encoding: 'utf8' });
   if (made.status !== 0) fail([`git tag failed: ${(made.stdout + made.stderr).trim()}`]);
   console.log(`✓ tagged ${name} on main (${(git(['rev-parse', '--short', 'HEAD']) || '').trim()})`);
@@ -252,7 +253,7 @@ function main() {
   }
 
   if (!args.length) {
-    console.log(`tern ${current} (package.json)`);
+    console.log(`luccet ${current} (package.json)`);
     for (const p of places()) {
       if (!p.found.length) console.log(`  ✗ ${p.file}: ${JSON.stringify(p.text)} not found`);
       for (const f of p.found) console.log(`  ${f.values.every((x) => x.value === (x.kind === 'v' ? current : x.kind === 'xy' ? series(current) : major(current))) ? '✓' : '✗'} ${p.file}:${f.line}  ${f.values.map((x) => x.value).join(', ')}`);
@@ -291,7 +292,7 @@ function main() {
   const after = problems(want);
   if (after.length) fail(after);
 
-  console.log(`tern ${current} → ${want}: ${[...edits.keys(), 'tern.js'].join(', ')}${log ? `; ${CHANGELOG} has a new section to fill` : ''}`);
+  console.log(`luccet ${current} → ${want}: ${[...edits.keys(), 'luccet.js'].join(', ')}${log ? `; ${CHANGELOG} has a new section to fill` : ''}`);
   console.log(`Next: ${log ? `write the ${want} section of ${CHANGELOG}, ` : ''}npm test, commit, and once it is on main: npm run tag, then git push origin v${want}`);
   console.log('npm run tag refuses a tag the release workflow would: a dirty tree, a place that disagrees, a tag that exists.');
 }

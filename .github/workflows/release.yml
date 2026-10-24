@@ -1,10 +1,10 @@
 # The release job. Pushing a tag vX.Y.Z runs every test, checks that the tag
-# matches tern.version and that tern.js is the build of src/, publishes
-# the site (index.html, docs/, examples/, themes/, addons/, tern.js, tern.css) to GitHub Pages,
-# and drafts the GitHub Release with a minified tern.js (under the same
-# name), tern.css and a zip of the distribution attached; the maintainer
+# matches luccet.version and that luccet.js is the build of src/, publishes
+# the site (index.html, docs/, examples/, themes/, addons/, luccet.js, luccet.css) to GitHub Pages,
+# and drafts the GitHub Release with a minified luccet.js (under the same
+# name), luccet.css and a zip of the distribution attached; the maintainer
 # publishes the draft. The npm package is installed from the tag
-# (npm install github:OzkrAC/tern#vX.Y.Z), not from the registry. Between
+# (npm install github:Luccet/luccet#vX.Y.Z), not from the registry. Between
 # releases, site.yml publishes the pages of main with this tag's engine.
 name: release
 
@@ -29,20 +29,20 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: the tag matches tern.version and package.json
+      - name: the tag matches luccet.version and package.json
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          engine="$(node -p "require('./tern.js').version")"
+          engine="$(node -p "require('./luccet.js').version")"
           pkg="$(node -p "require('./package.json').version")"
-          echo "tag $tag, tern.version $engine, package.json $pkg"
+          echo "tag $tag, luccet.version $engine, package.json $pkg"
           test "$tag" = "$engine" && test "$tag" = "$pkg"
       - run: node tools/version.js --check # and so do the README and the docs
       - run: npm test
       - run: npm ci --no-audit --no-fund
       - uses: actions/cache@v6
         with:
-          path: node_modules/.cache/tern-smoke
-          key: tern-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+          path: node_modules/.cache/luccet-smoke
+          key: luccet-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -51,9 +51,9 @@ jobs:
       - run: sudo apt-get install -y mupdf-tools
       - run: node test/smoke.js
 
-  # A minified tern.js, built from the committed one with a pinned terser,
+  # A minified luccet.js, built from the committed one with a pinned terser,
   # checked to be the same version and to render, and attached to a draft
-  # release as `tern.js`: the same name, so the tools and the editors take a
+  # release as `luccet.js`: the same name, so the tools and the editors take a
   # note that loads it. The release's notes are the changelog's section.
   asset:
     needs: verify
@@ -63,34 +63,34 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: min/tern.js
+      - name: min/luccet.js
         run: |
           mkdir -p min
-          npx --yes terser@5.51.2 tern.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output min/tern.js
-          test "$(head -1 min/tern.js)" = '//# allFunctionsCalledOnLoad' # V8's compile hint, before the code
+          npx --yes terser@5.51.2 luccet.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output min/luccet.js
+          test "$(head -1 min/luccet.js)" = '//# allFunctionsCalledOnLoad' # V8's compile hint, before the code
           tag="${GITHUB_REF_NAME#v}"
-          test "$(node -p "require('./min/tern.js').version")" = "$tag"
-          node -e "const t = require('./min/tern.js'); const h = t.toHTML('# Hi {#top}\n\nSee @top.\n'); if (!/<h1 id=\"top\">Hi<\/h1>/.test(h) || !/t-ref/.test(h)) throw new Error('the minified build does not render')"
-          ls -l tern.js min/tern.js
+          test "$(node -p "require('./min/luccet.js').version")" = "$tag"
+          node -e "const t = require('./min/luccet.js'); const h = t.toHTML('# Hi {#top}\n\nSee @top.\n'); if (!/<h1 id=\"top\">Hi<\/h1>/.test(h) || !/t-ref/.test(h)) throw new Error('the minified build does not render')"
+          ls -l luccet.js min/luccet.js
       - name: the release notes, from CHANGELOG.md
         run: |
           node tools/version.js --notes > notes.md
-          printf '\n\n`tern.js` below is the minified build of this release: the same version, under the same name, for a site where bytes matter.\n' >> notes.md
+          printf '\n\n`luccet.js` below is the minified build of this release: the same version, under the same name, for a site where bytes matter.\n' >> notes.md
           cat notes.md
       - name: the distribution zip
         run: |
-          mkdir -p dist/tern
-          cp -r tern.js tern.css tern.d.ts LICENSE CHANGELOG.md addons themes dist/tern/
-          (cd dist && zip -qr "tern-$GITHUB_REF_NAME.zip" tern)
+          mkdir -p dist/luccet
+          cp -r luccet.js luccet.css luccet.d.ts LICENSE CHANGELOG.md addons themes dist/luccet/
+          (cd dist && zip -qr "luccet-$GITHUB_REF_NAME.zip" luccet)
           ls -l dist/*.zip
-      - name: the draft release, with min/tern.js as tern.js, tern.css and the zip
+      - name: the draft release, with min/luccet.js as luccet.js, luccet.css and the zip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" min/tern.js tern.css "dist/tern-$GITHUB_REF_NAME.zip" --clobber
+            gh release upload "$GITHUB_REF_NAME" min/luccet.js luccet.css "dist/luccet-$GITHUB_REF_NAME.zip" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file notes.md min/tern.js tern.css "dist/tern-$GITHUB_REF_NAME.zip"
+            gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file notes.md min/luccet.js luccet.css "dist/luccet-$GITHUB_REF_NAME.zip"
           fi
 
   pages:
@@ -106,13 +106,13 @@ jobs:
           node-version: 22
       # A site deployed from an artifact is served as it is (no Jekyll), so
       # .nojekyll is not copied; upload-pages-artifact leaves dotfiles out anyway.
-      # Its tern.js is the release's, minified as the asset job's (site.yml says why).
+      # Its luccet.js is the release's, minified as the asset job's (site.yml says why).
       - name: the site
         run: |
           mkdir -p _site
-          cp -r index.html docs examples themes addons tern.css LICENSE _site/
-          npx --yes terser@5.51.2 tern.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output _site/tern.js
-          test "$(node -p "require('./_site/tern.js').version")" = "${GITHUB_REF_NAME#v}"
+          cp -r index.html docs examples themes addons luccet.css LICENSE _site/
+          npx --yes terser@5.51.2 luccet.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output _site/luccet.js
+          test "$(node -p "require('./_site/luccet.js').version")" = "${GITHUB_REF_NAME#v}"
           rm -f _site/docs/README.md
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

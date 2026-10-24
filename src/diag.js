@@ -73,7 +73,7 @@ const SEVERITY = {
 // engine, so it throws rather than reporting something unlisted.
 function report(ctx, code, start, end, message, hint) {
   const severity = SEVERITY[code];
-  if (!severity) throw new Error(`tern: unknown diagnostic code ${code}`);
+  if (!severity) throw new Error(`luccet: unknown diagnostic code ${code}`);
   const d = { code, severity, message, position: ctx.position(start, end == null ? start : end) };
   if (hint) d.hint = hint;
   ctx.diagnostics.push(d);

@@ -1,8 +1,8 @@
-# Tern syntax reference
+# Luccet syntax reference
 
 Every construct of a note's body, with its exact rules, its edge cases, its escape, and the diagnostic a mistake produces. Read [../SKILL.md](../SKILL.md) first; come here when a construct does not do what you expect, or before you write one you have not used. What vocabulary names such as `theorem`, `proof` or `::toc` become is in [vocabulary.md](vocabulary.md); every diagnostic code is explained in [diagnostics.md](diagnostics.md).
 
-The examples are note bodies, the text after the `tern.js` line, rendered with no vocabulary unless the fence says `schema=demo`. Each one was run through the engine; one that shows a mistake lists, in its fence's `expect=`, the codes it produces.
+The examples are note bodies, the text after the `luccet.js` line, rendered with no vocabulary unless the fence says `schema=demo`. Each one was run through the engine; one that shows a mistake lists, in its fence's `expect=`, the codes it produces.
 
 Sections: [the eight rules](#the-eight-rules) · [lines, names and case](#lines-names-and-case) · [how a line is read](#how-a-line-is-read) · [blocks](#blocks) · [inline](#inline) · [attributes](#attributes) · [what a name becomes](#what-a-name-becomes) · [ids](#ids) · [escapes](#escapes).
 
@@ -11,17 +11,17 @@ Sections: [the eight rules](#the-eight-rules) · [lines, names and case](#lines-
 1. **Blocks own their lines.** A block is decided by its first line, and its end is fixed when it opens. Only a table reads one line ahead, for its delimiter row. So there are no setext headings: `Title` over `=====` is one paragraph.
 2. **Indentation is insignificant**, except for list-item and footnote membership, and for fence and display-math content, which loses the opener's indentation. There is no indented code; indent `:::` bodies freely.
 3. **Trailing whitespace means nothing.** Lines are right-trimmed before they are read (verbatim bodies excepted). A hard break is `\` at the end of a line, never two spaces.
-4. **Two alphabets.** Tern's marks are `:` `[ ]` `{ }` `@` `#` `|` `>` `*` `~~` `==`, the backtick and `$`; TeX's are `\` `{ }` `^` `_` `&`. Inside math (`$…$`, `` $`…` ``, `$$`, `:::macros`) nothing is Tern. Outside math, `\` before a letter is a literal backslash: `\alpha` and `C:\Users` stay as written.
+4. **Two alphabets.** Luccet's marks are `:` `[ ]` `{ }` `@` `#` `|` `>` `*` `~~` `==`, the backtick and `$`; TeX's are `\` `{ }` `^` `_` `&`. Inside math (`$…$`, `` $`…` ``, `$$`, `:::macros`) nothing is Luccet. Outside math, `\` before a letter is a literal backslash: `\alpha` and `C:\Users` stay as written.
 5. **One attribute grammar**, `{#id .class key=value flag}`, always in braces, in a few fixed places ([attributes](#attributes)).
 6. **Elements are names.** `:::name`, `::name` and `:name[…]` become the element the name denotes, else a `div` or `span` with the name as its class ([what a name becomes](#what-a-name-becomes)).
 7. **Nothing is lost silently.** A malformed construct stays visible where it is and gets a diagnostic: an error (content lost or meaning changed), a warning (probably not what you meant) or an info (a hint).
 8. **One spelling per construct.** A few Markdown alternates are accepted (`***`, `___`, `- - -` for `---`; `~~~` for a fence). Write the documented spelling.
 
-Docs: [the eight rules](https://ozkrac.github.io/tern/docs/syntax-blocks.html#rules).
+Docs: [the eight rules](https://luccet.dev/docs/syntax-blocks.html#rules).
 
 ## Lines, names and case
 
-- **The note** starts on the line after the one holding the `tern.js` tag; everything before it is the HTML head. Line numbers inside messages count from the note's first line; `tern check` puts the file line in front.
+- **The note** starts on the line after the one holding the `luccet.js` tag; everything before it is the HTML head. Line numbers inside messages count from the note's first line; `luccet check` puts the file line in front.
 - **Normalisation:** CRLF and CR become LF, a leading byte-order mark is dropped, NUL becomes U+FFFD.
 - **Right-trimming** applies to every line except those of a verbatim body: fence content, a raw HTML block, display math, and the body of `:::macros`, `:::meta` or a `{raw}` container. A whitespace-only line is blank.
 - **Tabs** advance to the next multiple of 4 columns. Columns matter only for list and footnote membership and for dedenting fences and display math.
@@ -41,7 +41,7 @@ Docs: [the eight rules](https://ozkrac.github.io/tern/docs/syntax-blocks.html#ru
 |---|---|
 | element names: `:::Aside` is not `aside` but `div.Aside` | sensitive |
 | ids and references: `@kern` does not reach `{#Kern}` | sensitive |
-| classes: `.Tern` is ordinary, `.tern` is reserved | sensitive |
+| classes: `.Luccet` is ordinary, `.luccet` is reserved | sensitive |
 | attribute keys: `{ID=k CLASS=w}` is `{#k .w}` | ASCII-insensitive, lower-cased |
 | footnote labels: `[^A]` reaches `[^a]:` | insensitive |
 | tag names in a raw HTML block: `<DIV>` … `</div>` balance | insensitive |
@@ -52,7 +52,7 @@ The "glued to a word" tests for `:` (inline element), `@` (reference), `~~` and 
 
 ## How a line is read
 
-Tern first matches the prefixes of the open containers: a quote's `>` (plus one optional space or tab), a list item's indentation to its content column (or a blank line), a footnote definition's indentation of 2 or more (or a blank line). `:::` blocks have no prefix. Then it classifies the rest of the line, leading whitespace ignored; the first row that matches wins.
+Luccet first matches the prefixes of the open containers: a quote's `>` (plus one optional space or tab), a list item's indentation to its content column (or a blank line), a footnote definition's indentation of 2 or more (or a blank line). `:::` blocks have no prefix. Then it classifies the rest of the line, leading whitespace ignored; the first row that matches wins.
 
 | # | The line is | Construct |
 |---|---|---|
@@ -79,11 +79,11 @@ Tern first matches the prefixes of the open containers: a quote's `>` (plus one 
 - **Fallback lines.** A closer-shaped or `+++` line that cannot act (stray, mismatched, orphan) is text, but it still ends the paragraph above and starts its own. A `::: name` line or a demoted `::word` line is an ordinary paragraph line.
 - **Depth.** Containers, quotes, items and footnotes nest 64 deep; a deeper opener is text (`nesting.limit`).
 
-Docs: [the line algorithm](https://ozkrac.github.io/tern/docs/syntax-blocks.html#line-algorithm).
+Docs: [the line algorithm](https://luccet.dev/docs/syntax-blocks.html#line-algorithm).
 
 ## Blocks
 
-Docs: [Syntax: blocks](https://ozkrac.github.io/tern/docs/syntax-blocks.html#top), one section per construct.
+Docs: [Syntax: blocks](https://luccet.dev/docs/syntax-blocks.html#top), one section per construct.
 
 ### Paragraphs and line breaks
 
@@ -91,7 +91,7 @@ Docs: [Syntax: blocks](https://ozkrac.github.io/tern/docs/syntax-blocks.html#top
 - **Hard break:** `\` at the end of a line inside a paragraph, also in a quote, item, footnote or `:::` block, and inside a named element that spans lines. On a paragraph's last line, and in a heading, a title or a leaf, the `\` is literal. In a table row it continues the row.
 - Two trailing spaces do nothing. `\\` at the end of a line is an escaped backslash followed by a soft break (`latex.linebreak`); `\\\` is a backslash and a break.
 
-```tern
+```luccet
 Roses are red,\
 violets are blue.
    Leading spaces on a line are dropped.
@@ -105,7 +105,7 @@ violets are blue.
 - **Slugs.** A heading without an id gets one from its plain text (math as its TeX, a reference as its target's id, a link as its text, footnote references ignored): NFKC, lower case, everything before the first letter or `_` dropped, each run of characters other than letters, marks, digits, `_` and `-` replaced by one `-`, `-` trimmed, `section` if nothing is left. `## 2. Results` is `results`; `## 2024` is `section`. A taken slug gets `-2`, `-3` silently; ids written anywhere in the note are registered first, so a slug yields to them.
 - Give `{#id}` to every heading you link to or reference: a slug changes when the wording does.
 
-```tern expect="attr.malformed"
+```luccet expect="attr.malformed"
 ## Kernel and image {#kernel .wide}
 ## Closing hashes stay ##
 ## Plan {#2024-plan}
@@ -119,7 +119,7 @@ violets are blue.
 - Under a line of text, `---` is a rule, never a setext heading.
 - **No front matter.** A note whose first block is `---`, `key: value` lines and `---` renders as a rule, a paragraph and a rule, with `doc.frontmatter`. Move the lines into `:::meta`.
 
-```tern expect="doc.frontmatter"
+```luccet expect="doc.frontmatter"
 ---
 title: Linear maps
 ---
@@ -132,7 +132,7 @@ title: Linear maps
 - A line that would interrupt a paragraph, such as `---` or a heading, ends the quote.
 - A `:::` closer inside a quote sees only the blocks opened inside the quote; otherwise it is `block.stray-closer`.
 
-```tern
+```luccet
 > A quote,
 lazily continued.
 >
@@ -154,7 +154,7 @@ lazily continued.
 - **Tasks:** an item that starts with `[ ]`, `[x]` or `[X]` and then a space or the end of the line is a task, `li.t-task` with a disabled checkbox. `[x]Done` and `[-]` are text. Ordered items can be tasks.
 - A `:::` closer inside an item must be indented to the content column; at a lower column it ends the item.
 
-````tern
+````luccet
 1. Install:
    ```sh
    npm install
@@ -166,7 +166,7 @@ lazily continued.
 - [ ] to do
 ````
 
-```tern expect="block.unclosed block.stray-closer"
+```luccet expect="block.unclosed block.stray-closer"
 - an item
   :::aside
   inside the item
@@ -180,13 +180,13 @@ lazily continued.
 - **Junk** in the info (parts out of order, an unclosed `[`, a group that does not parse) gets `fence.info-junk`; the fence still opens and the junk is kept in `data-meta`. Once junk starts, the rest of the info is junk.
 - **Closer:** a line with at least as many of the same character and nothing else, at any indentation. A shorter run, or a run with text after it, is content. A tilde fence closes only with tildes.
 - **Fences in fences:** make the outer fence longer (four backticks around three), or use tildes outside.
-- **Content** is verbatim: no escapes, and nothing is Tern (`:::`, `$$`, `#` and blank lines are code). Each line loses up to the opener's indentation.
+- **Content** is verbatim: no escapes, and nothing is Luccet (`:::`, `$$`, `#` and blank lines are code). Each line loses up to the opener's indentation.
 - **Line keys**, reserved and never emitted: `lines` numbers the lines; `hl=2,4-6` highlights lines, counted as displayed; `start=10` starts the numbering at 10. Other keys and classes go on `<pre>`.
 - **A titled fence is a listing:** a `figure.t-block.code` holding the `<pre>` and a `<figcaption>`; author attributes go on the figure, line keys on `<pre>`. It is numbered ("Listing 1") only when the vocabulary declares `code`. An empty title, ```` ```js[] ````, makes a plain fence.
 - **Unclosed:** a fence runs to the end of the quote, item or footnote that holds it, or of the note, through `:::` closers: `block.unclosed-fence`, plus `block.unclosed` for each container it swallowed.
 - Every fence carries `data-t="code"`; highlighting and diagrams (a `mermaid` fence) come from add-ons ([vocabulary.md](vocabulary.md)).
 
-`````tern
+`````luccet
 ```python[Take n items]{#lst-take lines hl=2 start=10}
 def take(it, n):
     return [x for _, x in zip(range(n), it)]
@@ -199,17 +199,17 @@ an inner fence, shown as code
 ````
 `````
 
-Docs: [fenced code](https://ozkrac.github.io/tern/docs/syntax-blocks.html#fence).
+Docs: [fenced code](https://luccet.dev/docs/syntax-blocks.html#fence).
 
 ### The `=html` fence
 
-- A fence whose info is exactly `=html` (lower case) emits its body as raw HTML, with no `<pre>`. Use it for HTML that starts with phrasing content, has omitted or unbalanced tags, or does not fit the raw-block rules below. It ends like a fence, so the next line is Tern again.
+- A fence whose info is exactly `=html` (lower case) emits its body as raw HTML, with no `<pre>`. Use it for HTML that starts with phrasing content, has omitted or unbalanced tags, or does not fit the raw-block rules below. It ends like a fence, so the next line is Luccet again.
 - A title or a group on it is `fence.info-junk`, dropped; an attribute line before it stays text (`attributes.raw`). Unclosed, it runs to the end (`block.unclosed-fence`) and is still raw.
 - Any other `=word`, `=HTML` included, is an ordinary code fence with the class `language-word`.
 
 ### Raw HTML blocks
 
-A line starting with `<` starts a raw block when it is one of four kinds. The content is never Tern and is emitted as written.
+A line starting with `<` starts a raw block when it is one of four kinds. The content is never Luccet and is emitted as written.
 
 | Kind | First line | Ends |
 |---|---|---|
@@ -220,19 +220,19 @@ A line starting with `<` starts a raw block when it is one of four kinds. The co
 
 - **Block-level names:** `address article aside audio blockquote canvas details dialog div dl fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr iframe link math menu nav noscript object ol picture search section summary svg table template ul video`. A custom element is lower case, starts with a letter and holds a hyphen: `<tide-clock>`.
 - **Phrasing tags** (`<b>`, `<span>`, `<a>`, `<img>`, `<input>`, `<kbd>`) start a paragraph and pass through inline; `<3` and `< 5` are text.
-- **Tern inside raw HTML is not parsed.** In a generic block, the first inner line that does not start with `<` and either follows a blank line or holds Tern marks (`*`, a backtick, `$`, `[`, `:::`, or a heading, list, `>` or `|` start) gets `html.wrapper`. Write a container instead: `:::div{.box}`, `:::details[Summary]`, `:::section`.
-- `<p>`, a line of Tern, `</p>` on three lines give a raw `<p>`, a Tern paragraph and a stray `</p>` (`html.stray-closer`).
+- **Luccet inside raw HTML is not parsed.** In a generic block, the first inner line that does not start with `<` and either follows a blank line or holds Luccet marks (`*`, a backtick, `$`, `[`, `:::`, or a heading, list, `>` or `|` start) gets `html.wrapper`. Write a container instead: `:::div{.box}`, `:::details[Summary]`, `:::section`.
+- `<p>`, a line of Luccet, `</p>` on three lines give a raw `<p>`, a Luccet paragraph and a stray `</p>` (`html.stray-closer`).
 - **Unclosed:** a generic block is cut before the next `:::` opener or closer line (`html.unclosed`). An unclosed comment or raw-text block runs to the end of its parent or of the note, and is shown as escaped source in `pre.t-error`, never as HTML (`html.unclosed`).
 - An attribute line before a raw block stays text (`attributes.raw`): put the attributes in the tag.
 - `\<` at the start of the line makes it a paragraph.
 
-```tern expect="html.wrapper"
+```luccet expect="html.wrapper"
 <div class="box">
 Some **bold** text
 </div>
 ```
 
-```tern
+```luccet
 :::div{.box}
 Some **bold** text
 :::
@@ -243,7 +243,7 @@ Some **bold** text
 </form>
 ```
 
-Docs: [raw HTML blocks](https://ozkrac.github.io/tern/docs/syntax-blocks.html#raw-html).
+Docs: [raw HTML blocks](https://luccet.dev/docs/syntax-blocks.html#raw-html).
 
 ### Display math
 
@@ -251,11 +251,11 @@ Docs: [raw HTML blocks](https://ozkrac.github.io/tern/docs/syntax-blocks.html#ra
 - **Closer:** the first later line containing an unescaped `$$`, at any indentation; text before it is the last TeX line. After it comes nothing, or one group (strong or weak). Anything else is `math.closer-tail` and becomes a paragraph after the equation.
 - **Attributes go after the closing `$$`.** On the opening line, a group starting with `#` or `.` is `math.opener-tail`: it stays in the TeX and the equation gets no id.
 - **No blank lines inside.** A blank line, a heading, a fence, a `:::` line, a `+++` line, or the end of the parent or the note ends the equation as `math.unclosed`, shown as its source, marked as an error; that line is then read normally. Lines shaped like lists, quotes, table rows, tags or `{…}` are TeX.
-- **Content** is verbatim TeX, dedented like a fence; nothing in it is Tern. Use TeX environments such as `aligned` inside `$$`.
+- **Content** is verbatim TeX, dedented like a fence; nothing in it is Luccet. Use TeX environments such as `aligned` inside `$$`.
 - **Numbering:** an equation with an id (after the closer, or from an attribute line before the opener) is numbered `(n)` on the counter `equation`, with or without a vocabulary; `@id` reads "(1)". A class alone does not number it.
 - `\$$` at the start of a line is text. `$$` inside a line is never math (`math.inline-display`): write `$\displaystyle …$`.
 
-```tern
+```luccet
 $$
 \begin{aligned}
 a &= b + c \\
@@ -268,20 +268,20 @@ $$ e^{i\pi} + 1 = 0 $$ {#eq-euler}
 By @eq-chain and @eq-euler.
 ```
 
-```tern expect="math.opener-tail"
+```luccet expect="math.opener-tail"
 $$ {#eq-wrong}
 x^2
 $$
 ```
 
-```tern expect="math.unclosed"
+```luccet expect="math.unclosed"
 $$
 a^2 + b^2
 
 ## The heading survives
 ```
 
-Docs: [display math](https://ozkrac.github.io/tern/docs/syntax-blocks.html#display-math).
+Docs: [display math](https://luccet.dev/docs/syntax-blocks.html#display-math).
 
 ### Tables
 
@@ -294,7 +294,7 @@ Docs: [display math](https://ozkrac.github.io/tern/docs/syntax-blocks.html#displ
 - **Attributes** come from an attribute line before the table; a `{…}` line after it belongs to the next block.
 - **Caption and number:** wrap the table in `:::table[Caption]{#tbl-id}`. When the body is exactly one pipe table, the two merge into one `<table>` with a `<caption>`, the container's id and keys winning. Any other body is a `div`, with `table.body`. "Table 1" labels need the vocabulary.
 
-```tern
+```luccet
 {.wide}
 | Phase | Weeks | Note |
 |:--|--:|---|
@@ -314,13 +314,13 @@ Docs: [display math](https://ozkrac.github.io/tern/docs/syntax-blocks.html#displ
 See @tbl-phases.
 ```
 
-```tern expect="table.stray-delimiter"
+```luccet expect="table.stray-delimiter"
 Key | Action
 ---|---
 w | next word
 ```
 
-Docs: [tables](https://ozkrac.github.io/tern/docs/syntax-blocks.html#tables).
+Docs: [tables](https://luccet.dev/docs/syntax-blocks.html#tables).
 
 ### Containers
 
@@ -345,7 +345,7 @@ Docs: [tables](https://ozkrac.github.io/tern/docs/syntax-blocks.html#tables).
 - At the end of the note, every container still open gets `block.unclosed` at its opener.
 - Use `:::/name` for long or nested blocks: a forgotten inner closer is then reported at the inner block, and the outer block still ends where you meant.
 
-```tern
+```luccet
 :::section
 :::details[Show the answer]{open}
 The answer is 42.
@@ -354,14 +354,14 @@ Back in the section.
 :::/section
 ```
 
-```tern expect="block.unclosed"
+```luccet expect="block.unclosed"
 :::section
 :::aside
 The aside is never closed.
 :::/section
 ```
 
-```tern expect="block.closer-count"
+```luccet expect="block.closer-count"
 ::::section
 :::aside
 The next line closes the aside, not the section.
@@ -369,7 +369,7 @@ The next line closes the aside, not the section.
 ::::
 ```
 
-Docs: [containers](https://ozkrac.github.io/tern/docs/syntax-blocks.html#container), [closers](https://ozkrac.github.io/tern/docs/syntax-blocks.html#closer).
+Docs: [containers](https://luccet.dev/docs/syntax-blocks.html#container), [closers](https://luccet.dev/docs/syntax-blocks.html#closer).
 
 ### Cells and grids
 
@@ -377,7 +377,7 @@ Docs: [containers](https://ozkrac.github.io/tern/docs/syntax-blocks.html#contain
 - The container gets the class `t-cols` and a grid: one column per cell; `cols=N`, N equal columns; or `cols="2 1"`, relative widths, where an entry that is not a number, such as `12rem`, is used as written. `cols=0` or a negative number is `attr.malformed`. `cols` without `+++` makes each direct child a grid item.
 - A `+++` outside any container, or inside a list item or a quote, is text with `cell.orphan`. `+++ text` and `++` are plain text. An attribute line before `+++` is an orphan: put the group on the `+++` line.
 
-```tern
+```luccet
 :::row{cols="2 1"}
 +++ {.lead}
 Left, twice as wide.
@@ -393,7 +393,7 @@ Right.
 - A `::name` line with text after the leaf is a paragraph line (`leaf.demoted`, info); `:: name` is `block.spaced-name`; a broken trailing group makes the line a paragraph, with `attr.malformed`. `::` alone is text.
 - An attribute line before a leaf merges into it. `::toc` is filled with the headings only when the vocabulary declares it ([vocabulary.md](vocabulary.md)); otherwise it is an empty `div.toc`.
 
-```tern expect="leaf.demoted"
+```luccet expect="leaf.demoted"
 ::video{src=tide.mp4 controls width=640}
 ::tide-clock{station=leith}
 ::before and ::after are CSS pseudo-elements.
@@ -401,20 +401,20 @@ Right.
 
 ### Raw bodies: `{raw}`, `:::macros`, `:::meta`
 
-A raw body is one verbatim text node in which nothing is Tern. It ends only at a bare `:::` (any count) or at `:::/` and its own name. Every other line, openers and closers included, is content, so an opener inside does not nest and the first bare `:::` ends the block.
+A raw body is one verbatim text node in which nothing is Luccet. It ends only at a bare `:::` (any count) or at `:::/` and its own name. Every other line, openers and closers included, is content, so an opener inside does not nest and the first bare `:::` ends the block.
 
 - **`{raw}` on any container** keeps the body as text, escaped inside the element, for a script or an add-on to read (diagrams, data). The title, id, classes and keys stay.
-- **`:::macros`** holds TeX definitions, one per line: `\gdef\R{\mathbb{R}}`. Every macros block is read before any formula is typeset, so its macros work in every formula of the note, wherever the block stands; it may sit inside other blocks. It renders as a hidden `div.t-macros`. TeX a math add-on cannot parse stays as its TeX source, marked `t-error`, with the reason in the browser console; `tern build --math` reports it as a `math.error` warning.
+- **`:::macros`** holds TeX definitions, one per line: `\gdef\R{\mathbb{R}}`. Every macros block is read before any formula is typeset, so its macros work in every formula of the note, wherever the block stands; it may sit inside other blocks. It renders as a hidden `div.t-macros`. TeX a math add-on cannot parse stays as its TeX source, marked `t-error`, with the reason in the browser console; `luccet build --math` reports it as a `math.error` warning.
 - **`:::meta`** sets the page's metadata with `key: value` lines, and renders nothing.
   - A key starts with an ASCII letter, continues with letters, digits, `_ . : -`, and does not end in `:`. The separator is the first colon followed by a space, so `title: Maps: a survey` works. A line without it, an indented line or a bad key is `meta.malformed`. Blank lines are ignored.
-  - A value is plain text, right-trimmed; nothing in it is Tern.
+  - A value is plain text, right-trimmed; nothing in it is Luccet.
   - `title` sets `<title>`; `lang` and `dir` set `<html lang>` and `<html dir>` (`lang` also picks the language of labels); every other key becomes `<meta name="key" content="value">`: `author`, `date`, `description`, `keywords`, `viewport`, `color-scheme` … Keys are case-sensitive. Open Graph tags need `property=`: put them in the head.
   - Only top-level blocks count; anywhere else it is `meta.nested`. Several blocks merge; a repeated key is `meta.duplicate` (the first wins). A key the head sets to a different value is `meta.conflict` (the head wins).
   - An id, class or key on `:::meta` applies to nothing: `attr.malformed`.
   - With no title anywhere, the page title is the text of the first `#` heading.
 - **`:::script`, `:::style` and `:::html`** are reserved: the body is shown as text in `pre.t-error` and never runs (`name.reserved`). Write a raw `<script>` … `</script>` block or an `=html` fence.
 
-```tern
+```luccet
 :::meta
 title: Linear maps: kernel and image
 lang: en
@@ -434,7 +434,7 @@ graph TD
 :::
 ```
 
-Docs: [raw bodies](https://ozkrac.github.io/tern/docs/syntax-blocks.html#raw-body), [metadata](https://ozkrac.github.io/tern/docs/elements.html#metadata).
+Docs: [raw bodies](https://luccet.dev/docs/syntax-blocks.html#raw-body), [metadata](https://luccet.dev/docs/elements.html#metadata).
 
 ### Footnote definitions
 
@@ -443,7 +443,7 @@ Docs: [raw bodies](https://ozkrac.github.io/tern/docs/syntax-blocks.html#raw-bod
 - Definitions are collected at the end of the note, numbered in order of first reference, each with a back link. An unreferenced one is `footnote.unused` and listed last. A second definition of a label is `footnote.duplicate`, dropped. A reference inside a definition is `footnote.nested`, left as text.
 - A definition takes no attributes: an attribute line before one is an orphan.
 
-```tern
+```luccet
 A claim.[^src] The same source again.[^SRC]
 
 [^src]: The first paragraph of the footnote.
@@ -460,7 +460,7 @@ A claim.[^src] The same source again.[^SRC]
 - A weak or unparsable group (`{x}`, `{1, 2}`) is paragraph text, silently; a broken line starting `{#` or `{.` gets `attr.malformed`.
 - Between list items it ends the list, and the next item starts a new list with the attributes.
 
-```tern expect="attributes.orphan"
+```luccet expect="attributes.orphan"
 {.lead}
 An introduction in a larger font.
 
@@ -475,11 +475,11 @@ A blank line came between, so the line above is an orphan.
 
 ## Inline
 
-Inline content is the text of paragraphs, headings, titles, leaf and element content, and table cells. Docs: [Syntax: inline](https://ozkrac.github.io/tern/docs/syntax-inline.html#top), [figures](https://ozkrac.github.io/tern/docs/elements.html#figures).
+Inline content is the text of paragraphs, headings, titles, leaf and element content, and table cells. Docs: [Syntax: inline](https://luccet.dev/docs/syntax-inline.html#top), [figures](https://luccet.dev/docs/elements.html#figures).
 
 ### Reading order
 
-Left to right, Tern first reads **atoms**: escapes, code spans, math and verbatim math, `<…>` (autolinks, comments, raw tags), entities, bare URLs, `@` references and `[^x]` footnote references. Nothing inside an atom is seen by another rule: no emphasis, brackets, references or table pipes. Then brackets (`[`, `![`, `:name[`) pair with `]`, and runs of `*`, `~~` and `==` pair. So:
+Left to right, Luccet first reads **atoms**: escapes, code spans, math and verbatim math, `<…>` (autolinks, comments, raw tags), entities, bare URLs, `@` references and `[^x]` footnote references. Nothing inside an atom is seen by another rule: no emphasis, brackets, references or table pipes. Then brackets (`[`, `![`, `:name[`) pair with `]`, and runs of `*`, `~~` and `==` pair. So:
 
 - The first atom wins: in `` `a$` and b$ `` the code holds the dollar; in `` $a `b$ `` the math holds the backtick.
 - A backtick inside link text, a destination or an attribute value pairs with a later backtick and breaks the construct. Write `` \` ``, or `%60` in a URL, or `&#96;` in a quoted value.
@@ -520,7 +520,7 @@ Left to right, Tern first reads **atoms**: escapes, code spans, math and verbati
 
 - **Opener:** a `$` not next to another `$`, followed by a non-space that is not one of `)` `]` `}` `,` `.` `;` `:`.
 - **Closer:** only the next unescaped `$` is a candidate: the first dollar decides. It closes when it follows a non-space that is not an unescaped `(` `[` `{`, is not followed by a digit or a `$`, and is at most one line break from the opener. Otherwise the opener is text, and the candidate gets its own chance to open.
-- Everything inside is TeX: `_`, `^`, `*`, `|` and `@` are not Tern, and entities are not decoded.
+- Everything inside is TeX: `_`, `^`, `*`, `|` and `@` are not Luccet, and entities are not decoded.
 - A strong group glued after the closer lands on the formula: `$x${#e}`. Inline math is never numbered.
 
 | Text | Result |
@@ -542,12 +542,12 @@ Left to right, Tern first reads **atoms**: escapes, code spans, math and verbati
 
 `` $` `` opens math that is always math: a dollar glued to a run of n backticks, closed by the next run of exactly n backticks, with no closing dollar. No price rules, no bracket clause, no line limit; it is trimmed like a code span. Use it for TeX holding a dollar or odd brackets: `` $`\$5 + \$10` ``, `` $`]0,1[` ``. With no closing run, the `$` is text. `\$` before a code span is a dollar and a code span.
 
-```tern expect="math.suspect-price"
+```luccet expect="math.suspect-price"
 Prices stay text: $5, or $10 at peak hours. The $n$th term is math.
 Verbatim math: $`]0,1[` and $`\$5 + \$10`. A mix that pairs wrongly: $5 then x$.
 ```
 
-Docs: [inline math](https://ozkrac.github.io/tern/docs/syntax-inline.html#inline-math), [verbatim math](https://ozkrac.github.io/tern/docs/syntax-inline.html#verbatim-math).
+Docs: [inline math](https://luccet.dev/docs/syntax-inline.html#inline-math), [verbatim math](https://luccet.dev/docs/syntax-inline.html#verbatim-math).
 
 ### Links
 
@@ -558,7 +558,7 @@ Docs: [inline math](https://ozkrac.github.io/tern/docs/syntax-inline.html#inline
 - Link text is inline content (emphasis, code, math, images, elements); an `@x` or a bare URL inside it is text.
 - Any glued group lands on the `<a>`, weak ones too: `{download}`, `{target=_blank rel=noopener}`.
 
-```tern
+```luccet
 See [the guide](https://example.com/guide "The guide"){.btn}, [week 1](<notes/week 1.html>), [the report](r.pdf){download}, <https://example.com> and https://example.com/docs.
 ```
 
@@ -569,7 +569,7 @@ See [the guide](https://example.com/guide "The guide"){.btn}, [week 1](<notes/we
 - **Implicit figure:** an image alone in its paragraph, with an `#id` (on the image, or on an attribute line before it), and not inside a `figure`, becomes a `<figure>`. The bracket text is the caption (inline content, last child); the id goes to the figure, the image's other attributes stay on the `<img>`, and its `alt` is empty unless `alt=` is given, so the caption is not read twice. Without an id it stays an image. "Figure 1" labels need the vocabulary.
 - For a video, several images or a map, write `:::figure[Caption]{#fig-id}` around them. A figure whose body is one image paragraph drops the `<p>`.
 
-```tern
+```luccet
 ![Osprey over the estuary.](osprey.jpg){#fig-osprey width=320 alt="An osprey in flight"}
 
 See @fig-osprey. Inline, ![an icon](icon.png){width=16} stays an image.
@@ -591,7 +591,7 @@ See @fig-osprey. Inline, ![an icon](icon.png){width=16} stays an image.
 - `:wbr[]` is a void element; content given to a void element is emitted after it (`leaf.void-content`).
 - In a table row, write a `|` inside an element as `\|`.
 
-```tern expect="inline.glued"
+```luccet expect="inline.glued"
 Press :kbd[Ctrl]+:kbd[S]. :abbr[HTML]{title="HyperText Markup Language"} and :ruby[漢:rt[kan]].
 A subscript glued to a word needs the tag, H<sub>2</sub>O; press:kbd[S] stays text.
 ```
@@ -615,7 +615,7 @@ A subscript glued to a word needs the tag, H<sub>2</sub>O; press:kbd[S] stays te
 - For your own words, link to the fragment: `[the main result](#thm-rn)`.
 - A reference may come before its target. Without a vocabulary nothing is counted, so `@thm` to a titled `:::theorem` reads as its title.
 
-```tern expect="ref.dangling"
+```luccet expect="ref.dangling"
 ## Kernel and image {#ki}
 
 $$ e^{i\pi} + 1 = 0 $$ {#eq-euler}
@@ -623,7 +623,7 @@ $$ e^{i\pi} + 1 = 0 $$ {#eq-euler}
 See @ki, @ki{ref=title} and @eq-euler. Write to me@example.org, in @2024. Thanks @alice and \@bob.
 ```
 
-Docs: [references](https://ozkrac.github.io/tern/docs/syntax-inline.html#reference).
+Docs: [references](https://luccet.dev/docs/syntax-inline.html#reference).
 
 ### Footnote references
 
@@ -637,7 +637,7 @@ Docs: [references](https://ozkrac.github.io/tern/docs/syntax-inline.html#referen
 
 ### Raw inline HTML
 
-- Lower-case phrasing tags pass through as written, attributes and all: `a abbr audio b bdi bdo br button canvas cite code data datalist del dfn em embed i iframe img input ins kbd label mark meter object optgroup option output picture progress q rp rt ruby s samp select small source span strong sub sup time track u var video wbr`; so do custom elements (`<tide-chip>`) and comments. Text between an open and a close tag is Tern.
+- Lower-case phrasing tags pass through as written, attributes and all: `a abbr audio b bdi bdo br button canvas cite code data datalist del dfn em embed i iframe img input ins kbd label mark meter object optgroup option output picture progress q rp rt ruby s samp select small source span strong sub sup time track u var video wbr`; so do custom elements (`<tide-chip>`) and comments. Text between an open and a close tag is Luccet.
 - An inline `<svg>`, `<math>` or `<textarea>` is taken verbatim up to its closing tag.
 - Everything else is text with `<` escaped: `a < b`, `Vec<T>`, `<3`. An inline `<div>` or `<p>`, or a tag with capitals (`<B>bold</B>`, `<Span>`), gets `html.inline-escaped`.
 - Close every inline tag in the same paragraph: an unclosed one is `html.inline-unclosed`, an end tag with no opener `html.stray-closer` (void tags such as `<br>`, `<img>` and `<input>` are exempt).
@@ -678,7 +678,7 @@ So in three places braces count only with an `#id`, a `.class` or a `key=value`:
 
 **Merging (last wins).** Keys are lower-cased first. The last `#id` (or `id=`) wins; classes accumulate in order, and `class="a b"` adds two; for any other repeated key the last value wins. Between two groups for one element the same holds, with three exceptions: a container's or leaf's opener wins over its attribute line (whose classes come first), an image's id wins over the id of its attribute line, and a `:::table` wins over the table it wraps. HTML gets `id`, then `class`, then the rest in order of first appearance; a bare key is a boolean attribute.
 
-**Reserved keys** are consumed by Tern and never emitted:
+**Reserved keys** are consumed by Luccet and never emitted:
 
 | Key | Applies to | Elsewhere |
 |---|---|---|
@@ -688,16 +688,16 @@ So in three places braces count only with an `#id`, a `.class` or a `key=value`:
 | `ref=` | references | `attr.malformed` |
 | `lines`, `hl=`, `start=` | fences | ordinary attributes |
 
-**Reserved names:** the key `data-t` (in any case), the class `tern` and every class starting with `t-` belong to Tern's output; each is dropped, with `name.reserved`. `.Tern` is an ordinary class.
+**Reserved names:** the key `data-t` (in any case), the class `luccet` and every class starting with `t-` belong to Luccet's output; each is dropped, with `name.reserved`. `.Luccet` is an ordinary class.
 
-```tern expect="tag.not-allowed name.reserved attr.malformed"
+```luccet expect="tag.not-allowed name.reserved attr.malformed"
 {#intro .lead data-level=1}
 A [link](https://example.com){target=_blank rel=noopener}, `code`{.lang-js}, $x${#ex}, **strong**{.key} and a [span]{title="Two words"}.
 
 A [span]{tag=b}, a [chip]{.t-chip} and [x]{#k!}.
 ```
 
-Docs: [attributes](https://ozkrac.github.io/tern/docs/syntax-blocks.html#attributes), [the five positions](https://ozkrac.github.io/tern/docs/syntax-blocks.html#positions).
+Docs: [attributes](https://luccet.dev/docs/syntax-blocks.html#attributes), [the five positions](https://luccet.dev/docs/syntax-blocks.html#positions).
 
 ## What a name becomes
 
@@ -720,7 +720,7 @@ Docs: [attributes](https://ozkrac.github.io/tern/docs/syntax-blocks.html#attribu
 - Names are case-sensitive: `:::Section` is a `div.Section`.
 - A vocabulary name (`theorem`, `note`) without a vocabulary is a plain `div.theorem`: no label, no number ([vocabulary.md](vocabulary.md)). With a strict vocabulary, a fallback name it does not declare gets `name.unknown`.
 
-**Reserved names** never become their element: `html head body base link meta title noscript template script style main tern end` and every `t-*` name. They fall back to a `div` or `span` without the name as a class, with `name.reserved`. Special cases: `:::script`, `:::style` and `:::html` show their body as text; `:::end` is a closer; `:::meta` and `:::macros` are core blocks (`::macros` is an ordinary `div.macros`).
+**Reserved names** never become their element: `html head body base link meta title noscript template script style main luccet end` and every `t-*` name. They fall back to a `div` or `span` without the name as a class, with `name.reserved`. Special cases: `:::script`, `:::style` and `:::html` show their body as text; `:::end` is a closer; `:::meta` and `:::macros` are core blocks (`::macros` is an ordinary `div.macros`).
 
 **Output shape.** A container is `<TAG id class="t-block NAME …" data-t="NAME" …>` holding the title slot, the body and any end mark; a leaf or an inline element is `<TAG id class="NAME …" data-t="NAME" …>` holding its label, when the vocabulary gives one, and its content. Style and script against `data-t` and the name class, never the tag.
 
@@ -734,7 +734,7 @@ Docs: [attributes](https://ozkrac.github.io/tern/docs/syntax-blocks.html#attribu
 
 The slot follows the resolved element, so `:::box[More]{tag=details}` gets a `<summary>`. Leaves and inline elements have no title: their brackets are their content.
 
-```tern expect="name.reserved"
+```luccet expect="name.reserved"
 :::box[More]{tag=details}
 Hidden until opened.
 :::
@@ -748,19 +748,19 @@ Not a main element: a div, with a warning.
 :::
 ```
 
-Docs: [names](https://ozkrac.github.io/tern/docs/elements.html#names), [allowlists](https://ozkrac.github.io/tern/docs/elements.html#allowlists), [reserved names](https://ozkrac.github.io/tern/docs/elements.html#reserved), [title slots](https://ozkrac.github.io/tern/docs/elements.html#title-slots).
+Docs: [names](https://luccet.dev/docs/elements.html#names), [allowlists](https://luccet.dev/docs/elements.html#allowlists), [reserved names](https://luccet.dev/docs/elements.html#reserved), [title slots](https://luccet.dev/docs/elements.html#title-slots).
 
 ## Ids
 
 - Every id lives in one registry: headings, containers, leaves, elements, spans, links, images, code and math spans, equations, tables and footnotes. Author ids (`#id`, `id=`, attribute lines, `$$` closers) and footnote ids are registered first, then heading slugs, which yield silently with `-2`, `-3`.
 - Two author ids that collide get `id.duplicate` at both places; the first keeps the id, later elements lose it, and references go to the first. A heading that loses its id gets its slug.
-- `tern-style`, `tern-color-scheme`, `tern-source` and `tern-diagnostics` belong to Tern: an author id with one of these names is dropped, with `id.duplicate`.
+- `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics` belong to Luccet: an author id with one of these names is dropped, with `id.duplicate`.
 - Through `id=` only: an empty id or one with whitespace is dropped (`id.invalid`); one that starts with a digit or holds `:` or `.` is kept, but `@` cannot reach it (`ref.unreferenceable`).
 - Footnotes get `fn-LABEL` and `fnref-LABEL` (`fnref-LABEL-2` for a repeat), so a hand-written `#fn-x` collides with footnote `x`.
 - An id on `:::meta` is not registered.
 - Prefer short kebab-case ids with a kind prefix, as the documentation does: `#thm-rank`, `#eq-euler`, `#fig-map`, `#tbl-phases`, `#lst-setup`.
 
-Docs: [ids](https://ozkrac.github.io/tern/docs/elements.html#ids).
+Docs: [ids](https://luccet.dev/docs/elements.html#ids).
 
 ## Escapes
 
@@ -793,4 +793,4 @@ Docs: [ids](https://ozkrac.github.io/tern/docs/elements.html#ids).
 
 Nothing needs escaping for `_`, a `#` inside a line, `%`, a lone `~` or `^`, `<` before a space or a digit, an `&` that forms no entity, the `@` of an e-mail address, ordinary prices, or `{` in prose. Escapes do not work inside code spans, fences, raw HTML, raw bodies and attribute values; inside math, `\` is TeX's.
 
-Docs: [escapes](https://ozkrac.github.io/tern/docs/syntax-inline.html#escapes), [residual cases](https://ozkrac.github.io/tern/docs/syntax-inline.html#residuals).
+Docs: [escapes](https://luccet.dev/docs/syntax-inline.html#escapes), [residual cases](https://luccet.dev/docs/syntax-inline.html#residuals).

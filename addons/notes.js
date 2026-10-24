@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-// notes.js, Tern's notes add-on (docs/addons.html#notes). A `::notes` leaf
-// becomes a list of notes, read from the catalogue `tern index` writes
+// notes.js, Luccet's notes add-on (docs/addons.html#notes). A `::notes` leaf
+// becomes a list of notes, read from the catalogue `luccet index` writes
 // (notes.json, docs/tools.html#index): each note's title, linked, its date
 // and its description. Nothing is fetched but that one file.
 //
-//   <script src="tern.js" data-use="addons/notes.js"></script>
+//   <script src="luccet.js" data-use="addons/notes.js"></script>
 //
 //   ::notes                              the notes.json next to this page
 //   ::notes{from=../notes.json}          that catalogue
@@ -16,27 +16,27 @@
 // lists none). A date that is not a date (YYYY-MM-DD, with a time allowed)
 // is shown as written, sorts last and gets no <time datetime>.
 // The page itself is left out. The same options go on the add-on
-// (`?from=…`) or in window.TERN = {use: {notes: {…}}}; an attribute on the
-// leaf wins. Under node (tern check, tern build, the language server) the
+// (`?from=…`) or in window.LUCCET = {use: {notes: {…}}}; an attribute on the
+// leaf wins. Under node (luccet check, luccet build, the language server) the
 // add-on only declares `notes` and adds its styles.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
-  // The list's words: window.TERN.strings[key] over these (tern.string; the
+  // The list's words: window.LUCCET.strings[key] over these (luccet.string; the
   // command line's shim has the fallback alone).
   const str = (key, params, fallback) => (T.string ? T.string(key, params, fallback) : fallback);
   T.leaf('notes', { tag: 'nav', attrs: { 'aria-label': str('notes', {}, 'Notes') } });
   T.style(
     [
-      '.tern .t-notes { margin-block: 0 1rem; }',
-      '.tern .t-notes-list { list-style: none; margin: 0; padding: 0; }',
+      '.luccet .t-notes { margin-block: 0 1rem; }',
+      '.luccet .t-notes-list { list-style: none; margin: 0; padding: 0; }',
       '.t-notes-list > li { padding: .55rem 0; border-block-start: 1px solid var(--t-line); }',
       '.t-notes-title { font-weight: 600; text-decoration: none; }',
       '.t-notes-title:hover { text-decoration: underline; }',
       '.t-notes-date { color: var(--t-muted); font-size: .85em; margin-inline-start: .5em; font-family: var(--t-sans); }',
-      '.tern .t-notes-desc { margin: .2rem 0 0; font-size: .9em; }',
+      '.luccet .t-notes-desc { margin: .2rem 0 0; font-size: .9em; }',
       '.t-notes-status { color: var(--t-muted); font-size: .85em; }',
     ].join('\n'),
   );
@@ -69,7 +69,7 @@
 
   // The catalogue is fetched from http(s), or the page's own scheme when it
   // is opened from a file. An entry resolves against the catalogue and must
-  // stay on its origin: tern index writes paths, so a crafted file cannot
+  // stay on its origin: luccet index writes paths, so a crafted file cannot
   // send a reader to javascript:, data: or another site.
   const SCHEMES = new Set(['http:', 'https:', location.protocol]);
   const fetchable = (u) => SCHEMES.has(u.protocol);
@@ -79,7 +79,7 @@
       u = new URL(url, base);
     } catch {}
     if (u && fetchable(u) && u.origin === new URL(base).origin) return u.href;
-    console.warn(`Tern notes.js: ${url} in the catalogue is not a page of this site; left out`);
+    console.warn(`Luccet notes.js: ${url} in the catalogue is not a page of this site; left out`);
     return null;
   }
 
@@ -93,14 +93,14 @@
       url = new URL(o.from, location.href);
     } catch {}
     let data = null;
-    if (!url || !fetchable(url)) console.warn(`Tern notes.js: from=${o.from} is not an http(s) file`);
+    if (!url || !fetchable(url)) console.warn(`Luccet notes.js: from=${o.from} is not an http(s) file`);
     else {
       try {
         const res = await fetch(url.href, { credentials: 'same-origin' });
         if (!res.ok) throw new Error(`${res.status}`);
         data = await res.json();
       } catch (e) {
-        console.warn(`Tern notes.js: the catalogue ${url.href} could not be loaded: ${(e && e.message) || e}`);
+        console.warn(`Luccet notes.js: the catalogue ${url.href} could not be loaded: ${(e && e.message) || e}`);
       }
     }
     if (!data || !Array.isArray(data.notes)) {
@@ -135,7 +135,7 @@
     if (host.closest('.docs-live-out')) return; // an example's result on the docs stays inert
     build(host).catch((e) => {
       const why = (e && e.message) || String(e);
-      console.warn(`Tern notes.js: the list could not be built: ${why}`);
+      console.warn(`Luccet notes.js: the list could not be built: ${why}`);
       host.replaceChildren(el('p', { class: 't-notes-status', text: str('notesFailed', { from: why }, 'The list of notes could not be built ({from}).') }));
     });
   });

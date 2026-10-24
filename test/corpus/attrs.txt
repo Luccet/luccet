@@ -8,7 +8,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#r5
 
 The attribute-line example: an attribute line attaches its group to the block that starts on the next line.
 
-````tern
+````luccet
 {.byline}
 Lecture 7 · O. Carrera
 ````
@@ -23,7 +23,7 @@ spec: syntax-blocks#attribute-line
 
 An attribute line before a list goes on the list element.
 
-````tern
+````luccet
 {.steps}
 - one
 - two
@@ -42,7 +42,7 @@ spec: syntax-blocks#attribute-line
 
 An attribute line before a heading gives it its id, so no slug is made.
 
-````tern
+````luccet
 {#intro .x}
 ## Start
 ````
@@ -57,7 +57,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#fence
 
 On an untitled fence the attributes go on `<pre>`.
 
-````tern
+````luccet
 {.wide}
 ```js
 let x;
@@ -74,7 +74,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#fence
 
 On a titled fence the attributes go on the listing's figure.
 
-````tern
+````luccet
 {.wide}
 ```js[Setup]
 let x;
@@ -94,7 +94,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#display-math
 
 On display math the attributes go on `div.t-eq`; an id there numbers the equation.
 
-````tern
+````luccet
 {#eq-a}
 $$
 x = 1
@@ -111,7 +111,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#merging-and-emission
 
 An attribute line merges into the container it precedes; where both set the id or a key, the opener's own value wins.
 
-````tern
+````luccet
 {#a .x key=1}
 :::box{#b key=2}
 Text.
@@ -130,7 +130,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#merging-and-emission
 
 Classes from the attribute line and from the opener both reach the container, the line's first: "the opener's own attributes win" applies to the id and other keys, never to classes, which accumulate.
 
-````tern
+````luccet
 {.x}
 :::box{.y}
 Text.
@@ -149,7 +149,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#leaf
 
 An attribute line merges into the leaf it precedes.
 
-````tern
+````luccet
 {.x}
 ::spacer{#s}
 ````
@@ -164,7 +164,7 @@ spec: syntax-blocks#attribute-line elements#figures
 
 Before an image-only paragraph whose image has an id, the attributes go to the implicit figure, not to `<img>`.
 
-````tern
+````luccet
 {.wide}
 ![Osprey](o.jpg){#fig-o}
 ````
@@ -182,7 +182,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#merging-and-emission
 
 Consecutive attribute lines merge into one group for the next block.
 
-````tern
+````luccet
 {#a .x}
 {.y k=1}
 Text.
@@ -198,7 +198,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#line-algorithm
 
 An attribute line interrupts a paragraph and attaches to the next one.
 
-````tern
+````luccet
 One.
 {.x}
 Two.
@@ -215,7 +215,7 @@ spec: syntax-blocks#attribute-line
 
 An attribute line followed by a blank line has nothing to attach to: it is shown as paragraph text, with `attributes.orphan`, and is an `attributes` node in the AST.
 
-````tern
+````luccet
 {.lead}
 
 Text.
@@ -240,7 +240,7 @@ spec: syntax-blocks#attribute-line
 
 An attribute line at the end of the note is an orphan.
 
-````tern
+````luccet
 Text.
 
 {.x}
@@ -261,7 +261,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#closer
 
 A closer after an attribute line leaves it an orphan; it does not attach across the container's end.
 
-````tern
+````luccet
 :::box
 Text.
 
@@ -286,7 +286,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#cells
 
 An attribute line does not attach to the cell that a following `+++` starts (the `+++` takes its own group).
 
-````tern
+````luccet
 :::row
 A.
 
@@ -313,7 +313,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#line-algorithm
 
 An attribute line interrupts the paragraph above it; when no block follows, consecutive orphan lines form one paragraph of their own, with one `attributes.orphan` at the first line.
 
-````tern
+````luccet
 Text.
 {.a}
 {#b}
@@ -338,7 +338,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#raw-html
 
 Before a raw HTML block the line stays text, with `attributes.raw`: attributes go in the tag.
 
-````tern
+````luccet
 {.x}
 <div>raw</div>
 ````
@@ -358,7 +358,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#strong-and-weak
 
 A line holding only a weak group is an ordinary paragraph line, with no diagnostic; the next line continues the paragraph.
 
-````tern
+````luccet
 {open}
 Text.
 ````
@@ -377,7 +377,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#positions
 
 The attribute-line example: `{1, 2}` alone on a line is a paragraph, with no diagnostic.
 
-````tern
+````luccet
 {1, 2}
 ````
 
@@ -394,7 +394,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#positions
 
 An unparsable group alone on a line is not an attribute line: it is a paragraph line, and the next line continues the paragraph. A line that starts `{#` or `{.` gets `attr.malformed` at the first character the grammar rejects (the `%`), as a heading's trailing group does.
 
-````tern
+````luccet
 {#intro %}
 Text.
 ````
@@ -414,7 +414,7 @@ spec: syntax-blocks#finding-the-group syntax-blocks#attribute-line
 
 `{}` is not a group, so the line is paragraph text.
 
-````tern
+````luccet
 {}
 Text.
 ````
@@ -433,7 +433,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#merging-and-emission
 
 An attribute line may hold several strong groups, separated by spaces; they merge as consecutive attribute lines do.
 
-````tern
+````luccet
 {.a} {.b}
 Text.
 ````
@@ -451,7 +451,7 @@ spec: syntax-blocks#positions
 
 Outside the positions `{` is text: in prose, glued to a word, after a bracket with a space, and at the end of a paragraph line.
 
-````tern
+````luccet
 The set {1, 2}, f{x}, [x] {.c} and a tail {.x}
 ````
 
@@ -468,7 +468,7 @@ spec: syntax-blocks#r5 syntax-blocks#heading
 
 Attributes are always braced: `#k` at the end of a heading is heading text, part of the slug.
 
-````tern
+````luccet
 ## Kernel #k
 ````
 
@@ -482,7 +482,7 @@ spec: syntax-blocks#positions syntax-blocks#strong-and-weak syntax-inline#span
 
 Glued after a bracket construct any group binds, weak ones included.
 
-````tern
+````luccet
 Click [answer]{hidden}.
 ````
 
@@ -496,7 +496,7 @@ spec: syntax-blocks#positions syntax-blocks#strong-and-weak
 
 After a math span only strong groups bind; a weak one stays text, with no diagnostic because it does not start with `#` or `.`.
 
-````tern
+````luccet
 See $f${x} and $g${open}.
 ````
 
@@ -513,7 +513,7 @@ spec: syntax-blocks#positions
 
 A strong group glued after a math span binds to it (as in `$x${#e}`).
 
-````tern
+````luccet
 $x${#e}
 ````
 
@@ -527,7 +527,7 @@ spec: syntax-blocks#positions syntax-inline#inline-element
 
 A group glued after an inline element binds to it; author classes follow the name class.
 
-````tern
+````luccet
 Press :kbd[C]{.big}.
 ````
 
@@ -541,7 +541,7 @@ spec: syntax-blocks#positions syntax-inline#span
 
 After a bracket, a candidate that does not parse stays text, with `attr.malformed` at the first bad column, whatever it starts with.
 
-````tern
+````luccet
 [x]{x %}
 ````
 
@@ -559,7 +559,7 @@ spec: syntax-blocks#positions
 
 After a code span an unparsable candidate is text, with `attr.malformed` because it starts with `.`.
 
-````tern
+````luccet
 `c`{.x %}
 ````
 
@@ -577,7 +577,7 @@ spec: syntax-blocks#positions
 
 After a code span an unparsable candidate that starts with neither `#` nor `.` is text without a diagnostic.
 
-````tern
+````luccet
 `c`{x %}
 ````
 
@@ -594,7 +594,7 @@ spec: syntax-blocks#finding-the-group syntax-inline#algorithm
 
 An unquoted `{` before the first `}` aborts the candidate: it is not a group, the bracket stays text, and the inner `{b}` is not glued to anything. An aborted candidate, like `{}`, is silent; only a candidate that runs to its `}` and fails to parse gets `attr.malformed`.
 
-````tern
+````luccet
 [x]{.a {b}}
 ````
 
@@ -611,7 +611,7 @@ spec: syntax-blocks#finding-the-group syntax-inline#algorithm
 
 Thirty thousand `[x]{` in a row, then `}`: each candidate stops at the next `{`, so finding groups stays linear and the line is one paragraph. Every candidate is aborted except the last, which is the empty `{}`; all are silent.
 
-````tern js
+````luccet js
 '[x]{'.repeat(30000) + '}\n'
 ````
 
@@ -628,7 +628,7 @@ spec: syntax-blocks#finding-the-group syntax-inline#span
 
 `{}` is not a group, so `[x]{}` is not a span and stays text, silently: an empty group is never `attr.malformed`.
 
-````tern
+````luccet
 [x]{}
 ````
 
@@ -645,7 +645,7 @@ spec: syntax-blocks#finding-the-group
 
 A `}` inside quotes does not end the candidate.
 
-````tern
+````luccet
 [x]{title="a}b"}
 ````
 
@@ -659,7 +659,7 @@ spec: syntax-blocks#finding-the-group
 
 A `{` inside quotes does not abort the candidate.
 
-````tern
+````luccet
 [x]{title="a{b"}
 ````
 
@@ -673,7 +673,7 @@ spec: syntax-blocks#finding-the-group syntax-inline#escapes
 
 Quoted values have no escapes, so `pattern="\d+"` is literal.
 
-````tern
+````luccet
 [n]{pattern="\d+"}
 ````
 
@@ -687,7 +687,7 @@ spec: syntax-blocks#finding-the-group syntax-blocks#merging-and-emission
 
 To put `"` in a value, single-quote it; the emitted value escapes `"`.
 
-````tern
+````luccet
 [x]{title='say "hi"'}
 ````
 
@@ -701,7 +701,7 @@ spec: syntax-blocks#merging-and-emission
 
 In emitted values `<` and a bare `&` are escaped.
 
-````tern
+````luccet
 [x]{title="a<b & c"}
 ````
 
@@ -715,7 +715,7 @@ spec: syntax-blocks#merging-and-emission
 
 A well-formed entity in a value is kept as written.
 
-````tern
+````luccet
 [x]{title="&copy; 2026"}
 ````
 
@@ -729,7 +729,7 @@ spec: syntax-blocks#merging-and-emission
 
 Of several `#id` items the last wins.
 
-````tern
+````luccet
 {#a #b}
 Text.
 ````
@@ -744,7 +744,7 @@ spec: syntax-blocks#merging-and-emission
 
 Classes accumulate in source order.
 
-````tern
+````luccet
 {.b .a .c}
 Text.
 ````
@@ -759,7 +759,7 @@ spec: syntax-blocks#merging-and-emission
 
 `id=` is the same attribute as `#`: the last one wins and only one `id` is emitted.
 
-````tern
+````luccet
 {#a id=b}
 Text.
 ````
@@ -774,7 +774,7 @@ spec: syntax-blocks#merging-and-emission
 
 `class=` merges with `.class` items, in source order.
 
-````tern
+````luccet
 {.a class="b c" .d}
 Text.
 ````
@@ -789,7 +789,7 @@ spec: syntax-blocks#merging-and-emission
 
 For any other repeated key the last value wins.
 
-````tern
+````luccet
 {k=1 .x k=2}
 Text.
 ````
@@ -804,7 +804,7 @@ spec: syntax-blocks#attribute-grammar syntax-blocks#character-classes
 
 A KEY may hold `-`, `:` and `.` after its first letter, so `data-*`, `aria-*` and `xml:lang` are plain keys.
 
-````tern
+````luccet
 [x]{data-x=1 aria-label="A b" xml:lang=fr}
 ````
 
@@ -818,7 +818,7 @@ spec: syntax-blocks#attribute-grammar
 
 An unquoted value runs to whitespace or `}` and may hold `%`, `/`, `?` and `#`.
 
-````tern
+````luccet
 [x]{w=50% u=a/b?c#d}
 ````
 
@@ -832,7 +832,7 @@ spec: syntax-blocks#attribute-grammar syntax-blocks#positions
 
 An unquoted value cannot hold `=`, so the group does not parse; the first bad column is the second `=`.
 
-````tern
+````luccet
 [x]{k=a=b}
 ````
 
@@ -850,7 +850,7 @@ spec: syntax-blocks#attribute-grammar syntax-blocks#character-classes
 
 An IDENT holds no `.`, and items are separated by whitespace, so `{#a.b}` does not parse; the first bad column is the `.`.
 
-````tern
+````luccet
 [x]{#a.b}
 ````
 
@@ -868,7 +868,7 @@ spec: syntax-blocks#attribute-grammar
 
 Whitespace is allowed after `{`, between items and before `}`.
 
-````tern
+````luccet
 [x]{  #a   .b  }
 ````
 
@@ -882,7 +882,7 @@ spec: syntax-blocks#strong-and-weak syntax-blocks#merging-and-emission syntax-bl
 
 One `key=value` makes a group strong, so it works as an attribute line, and its bare keys come along as boolean attributes.
 
-````tern
+````luccet
 {k=v open}
 Text.
 ````
@@ -897,7 +897,7 @@ spec: syntax-blocks#reserved
 
 `data-t` as a key is reserved: it is dropped with `name.reserved` at the key.
 
-````tern
+````luccet
 {data-t=x .y}
 Text.
 ````
@@ -916,7 +916,7 @@ spec: syntax-blocks#reserved elements#output-contract
 
 A `data-t` key cannot hijack a container's contract: the element keeps `data-t="box"`.
 
-````tern
+````luccet
 :::box{data-t=x}
 Text.
 :::
@@ -938,7 +938,7 @@ spec: syntax-blocks#merging-and-emission syntax-blocks#character-classes
 
 Keys are ASCII-lower-cased, as the browser lower-cases attribute names, so `ID=` and `CLASS=` merge with `#` and `.`, and a repeated key in another case is the same key.
 
-````tern
+````luccet
 [x]{ID=a CLASS=b .c Title=one title=two}
 ````
 
@@ -952,7 +952,7 @@ spec: syntax-blocks#reserved
 
 `DATA-T` is `data-t` once lower-cased, so it is reserved and dropped like the lower-case spelling; the container keeps its own `data-t`.
 
-````tern
+````luccet
 :::box{DATA-T=x}
 Text.
 :::
@@ -972,9 +972,9 @@ Text.
 
 spec: syntax-blocks#reserved
 
-Class names `t-*` (and `tern`) are reserved: dropped with `name.reserved`, which points at the start of the item, the `.`, as `id.duplicate` points at the `#`.
+Class names `t-*` (and `luccet`) are reserved: dropped with `name.reserved`, which points at the start of the item, the `.`, as `id.duplicate` points at the `#`.
 
-````tern
+````luccet
 {.t-block .ok}
 Text.
 ````
@@ -993,7 +993,7 @@ spec: syntax-blocks#reserved elements#reserved
 
 `tag` is consumed: it chooses the element and is never emitted.
 
-````tern
+````luccet
 :::box{tag=aside}
 Text.
 :::
@@ -1011,7 +1011,7 @@ spec: syntax-blocks#reserved elements#reserved syntax-blocks#r7
 
 `tag=` chooses the element of `:::name`, `::name` and `:name[…]` only. Anywhere else (a bare span, a code span, a heading, a paragraph through its attribute line, an image) it gets `tag.not-allowed` at the key and is dropped, rather than vanishing silently.
 
-````tern
+````luccet
 [x]{tag=kbd} and `c`{tag=b}
 
 ## Heading {tag=section}
@@ -1043,7 +1043,7 @@ spec: syntax-blocks#reserved syntax-inline#reference
 
 `ref` is consumed: it chooses the reference text and is never emitted.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 Text.
 :::
@@ -1065,7 +1065,7 @@ spec: syntax-blocks#reserved syntax-inline#reference syntax-blocks#r7
 
 `ref=` chooses a reference's text. Anywhere else (a heading, a bare span, a fence, an attribute line) it gets `attr.malformed` at the key, saying where it applies, and is dropped, rather than vanishing silently.
 
-````tern
+````luccet
 ## Heading {ref=title}
 
 [x]{ref=label} and @h{ref=title}.
@@ -1102,7 +1102,7 @@ spec: syntax-blocks#reserved syntax-blocks#raw-attribute syntax-blocks#r7
 
 `raw` makes a container's body verbatim. On a leaf, an inline element, a paragraph through its attribute line, or an implicit figure (whose body was parsed before it became a container), it gets `attr.malformed` at the key and is dropped.
 
-````tern
+````luccet
 ::spacer[*a*]{raw}
 
 An :kbd[*b*]{raw} key.
@@ -1134,7 +1134,7 @@ spec: syntax-blocks#reserved syntax-blocks#cells syntax-blocks#r7
 
 `cols=` sets the grid of a container, a leaf or an inline element, which all emit `t-cols` and `--t-cols`. On anything else (a paragraph, a bare span) and on a core block such as `:::macros`, which has its own output, it gets `attr.malformed` at the key and is dropped.
 
-````tern
+````luccet
 ::panel[a]{cols=2}
 
 {#p cols=2}
@@ -1163,7 +1163,7 @@ spec: syntax-blocks#merging-and-emission
 
 `lines`, `hl` and `start` are reserved on fences only; on a container they are ordinary attributes.
 
-````tern
+````luccet
 :::box{start=3}
 Text.
 :::
@@ -1181,7 +1181,7 @@ spec: syntax-blocks#merging-and-emission syntax-blocks#character-classes
 
 `__proto__` is a KEY like any other: it is kept as an attribute and emitted, never taken as the object's prototype.
 
-````tern
+````luccet
 [x]{__proto__=a}
 ````
 

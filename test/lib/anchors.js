@@ -24,9 +24,9 @@ const ROOT = path.join(__dirname, '..', '..');
 const PAGES = ['index', 'guide', 'syntax-blocks', 'syntax-inline', 'elements', 'schema', 'diagnostics', 'tools', 'publishing', 'api'];
 
 // Required on first use, so that an engine that does not load (cli/note.js
-// requires tern.js) is reported for the page instead of thrown on require.
+// requires luccet.js) is reported for the page instead of thrown on require.
 let cli = null;
-const engine = () => cli || (cli = { examples: require('../../cli/examples'), tern: require('../../cli/note').tern });
+const engine = () => cli || (cli = { examples: require('../../cli/examples'), luccet: require('../../cli/note').luccet });
 
 const decode = (s) => s.replace(/&(amp|quot|lt|gt|#39);/g, (m, k) => ({ amp: '&', quot: '"', lt: '<', gt: '>', '#39': "'" })[k]);
 
@@ -35,12 +35,12 @@ function load(file) {
   if (cache.has(file)) return cache.get(file);
   let entry = null;
   try {
-    const { examples, tern } = engine();
+    const { examples, luccet } = engine();
     const text = fs.readFileSync(file, 'utf8');
     const x = examples.extract(text, file);
     if (x) {
-      const ids = new Set(Object.keys(x.a.ast.data.tern.ids));
-      const html = tern.emit(x.a.ast, { ...x.a.opts, positions: false });
+      const ids = new Set(Object.keys(x.a.ast.data.luccet.ids));
+      const html = luccet.emit(x.a.ast, { ...x.a.opts, positions: false });
       for (const m of html.matchAll(/<[a-zA-Z][^<>]*?\sid="([^"]*)"/g)) ids.add(decode(m[1]));
       entry = { file, text, x, ids, html };
     }
@@ -77,7 +77,7 @@ function headings(name) {
   let list = null;
   if (!p.error) {
     list = [];
-    engine().tern.visit(p.x.a.ast, (node) => {
+    engine().luccet.visit(p.x.a.ast, (node) => {
       if (node.type === 'heading' && node.attributes && node.attributes.id) list.push({ id: String(node.attributes.id), depth: node.depth, line: node.position.start.line });
     });
   }
@@ -93,7 +93,7 @@ function section(name, id) {
   const { depth, line } = list[i];
   const next = list.slice(i + 1).find((h) => h.depth <= depth);
   const end = next ? next.line : Infinity;
-  const ids = page(name).x.a.ast.data.tern.ids;
+  const ids = page(name).x.a.ast.data.luccet.ids;
   const out = new Set([`${name}#${id}`]);
   for (const [k, v] of Object.entries(ids)) if (v.line >= line && v.line < end) out.add(`${name}#${k}`);
   return out;

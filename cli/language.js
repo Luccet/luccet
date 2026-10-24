@@ -2,7 +2,7 @@
 // The language features of a note (docs/tools.html#language): an index of
 // one analysis, its ids, references and element names at exact columns, and
 // definition, references, highlights, hover, rename, completion, symbols,
-// folds and the outline over it. `tern lsp` (cli/lsp.js) maps the answers
+// folds and the outline over it. `luccet lsp` (cli/lsp.js) maps the answers
 // onto the protocol; an editor runs this module in a browser worker, so it
 // uses no Node built-ins and requires only the engine and its allowlists.
 //
@@ -12,18 +12,18 @@
 // takes the index, or null for a file that is not a note.
 'use strict';
 
-const tern = require('../tern.js');
+const luccet = require('../luccet.js');
 const { ALLOW } = require('../src/schema'); // the HTML element allowlists, for completion and hover
 
 const IDENT = /^[\p{L}_][\p{L}\p{M}\p{N}_-]*$/u; // an id that `{#id}` and `@id` accept
 const NAME = /^\p{L}[\p{L}\p{M}\p{N}_-]*$/u;
 const LEVEL = { containerDirective: 'block', leafDirective: 'leaf', textDirective: 'inline' };
 const USES = new Set(['ref', 'link', 'footnote']); // what references an id
-const OPAQUE = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'html']); // no Tern syntax inside
+const OPAQUE = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'html']); // no Luccet syntax inside
 const FOLDS = new Set(['containerDirective', 'code', 'math', 'table', 'list', 'footnoteDefinition']);
 const NESTS = new Set(['blockquote', 'list', 'listItem', 'cell', 'footnoteDefinition']); // block parents
 
-const tn = (n) => (n.data && n.data.tern) || {};
+const tn = (n) => (n.data && n.data.luccet) || {};
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 // What a rename or a prepareRename cannot do: code 'invalid' for a new name
@@ -45,18 +45,18 @@ class LanguageError extends Error {
 // [from, to) a rename replaces.
 // `a` is what cli/note.js `analyse` returns, or the same built by hand:
 // {note, line, ast, diagnostics, schema}, with the note's text after the
-// tern.js line, the tag's 1-based file line, the transformed AST, its
+// luccet.js line, the tag's 1-based file line, the transformed AST, its
 // diagnostics (note `position`s; block.unclosed is read) and the schema the
 // analysis used (the engine's registry when absent). null gives null. The
 // index holds AST nodes: it is built and used where the AST lives.
 function index(a) {
   if (!a) return null;
   const { src, starts } = lines(a.note);
-  const ids = (a.ast.data && a.ast.data.tern && a.ast.data.tern.ids) || {};
+  const ids = (a.ast.data && a.ast.data.luccet && a.ast.data.luccet.ids) || {};
   const holders = new Map();
   const occ = [];
   const ends = new Map(); // an end offset -> the innermost container ending there
-  tern.visit(a.ast, (n) => {
+  luccet.visit(a.ast, (n) => {
     if (!n.position) return false; // copied text: reference text, toc entries
     const t = tn(n);
     const s = n.position.start.offset;
@@ -104,7 +104,7 @@ function index(a) {
     if (d.from !== undefined) occ.push({ kind: 'decl', id, s: d.s, e: d.e, from: d.from, to: d.to });
     if (n.type === 'heading') occ.push({ kind: 'decl', id, s, e: n.position.end.offset, from: s, to: n.position.end.offset });
   }
-  return { line: Number(a.line) || 0, src, starts, schema: a.schema || tern.schema, ast: a.ast, ids, holders, decls, occ };
+  return { line: Number(a.line) || 0, src, starts, schema: a.schema || luccet.schema, ast: a.ast, ids, holders, decls, occ };
 }
 
 // A note's text as the parser normalises it, with where its lines start.
@@ -364,7 +364,7 @@ function names(d, level, from, add) {
 // The containers open at a line, innermost first.
 function open(d, bol) {
   const out = [];
-  tern.visit(d.ast, (n) => {
+  luccet.visit(d.ast, (n) => {
     if (!n.position || n.position.start.offset >= bol || n.position.end.offset < bol) return n.type === 'root' ? undefined : false;
     if (n.type === 'containerDirective' && !tn(n).implicit) out.unshift(n);
   });
@@ -375,7 +375,7 @@ function open(d, bol) {
 function opaque(d, off) {
   const line = point(d, off).line - d.line + 1;
   let inside = false;
-  tern.visit(d.ast, (n) => {
+  luccet.visit(d.ast, (n) => {
     if (inside || !n.position) return false;
     const { start, end } = n.position;
     const holds = start.offset < off && (off < end.offset || (off === end.offset && off === d.src.length)); // an open block runs to the end
@@ -445,7 +445,7 @@ function actions(d, diag) {
 // The node of a type starting at an offset.
 function nodeAt(d, off, type) {
   let found = null;
-  tern.visit(d.ast, (n) => {
+  luccet.visit(d.ast, (n) => {
     if (found || !n.position || n.position.end.offset < off) return found ? false : undefined;
     if (n.type === type && n.position.start.offset === off) found = n;
   });
@@ -536,7 +536,7 @@ function folds(d) {
   if (!d) return [];
   const out = [];
   const fold = (r) => r.end.line > r.start.line && out.push({ startLine: r.start.line, endLine: r.end.line });
-  tern.visit(d.ast, (n) => {
+  luccet.visit(d.ast, (n) => {
     if (!n.position) return false;
     if (FOLDS.has(n.type) || (n.type === 'html' && tn(n).kind !== 'inline')) fold(range(d, n.position.start.offset, n.position.end.offset));
   });
@@ -550,11 +550,11 @@ function folds(d) {
   return out;
 }
 
-// outline(a) -> tern.outline(a.ast) with every `line` and `endLine` a file
-// line, 1-based like the outline's own: the `tern/outline` notification.
+// outline(a) -> luccet.outline(a.ast) with every `line` and `endLine` a file
+// line, 1-based like the outline's own: the `luccet/outline` notification.
 // It takes the analysis, not the index; null gives the empty outline.
 function outline(a) {
-  const o = tern.outline(a ? a.ast : { type: 'root', children: [] });
+  const o = luccet.outline(a ? a.ast : { type: 'root', children: [] });
   const line = a ? Number(a.line) || 0 : 0;
   for (const k in o) for (const e of o[k]) (e.line += line), e.endLine && (e.endLine += line);
   return o;

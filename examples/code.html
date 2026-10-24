@@ -1,16 +1,16 @@
 <!doctype html><meta charset="utf-8">
 <script>
-  // This note's vocabulary (window.TERN.schema): `code` is the entry for
+  // This note's vocabulary (window.LUCCET.schema): `code` is the entry for
   // titled fences, so they are numbered listings and @lst-fib reads
   // "Listing 1".
-  window.TERN = {schema: {
+  window.LUCCET = {schema: {
     block: {
       note: {tag: 'aside', label: 'Note'},
       code: {counter: 'code', label: 'Listing'},
     },
   }};
 </script>
-<script src="../tern.js" data-use="../addons/katex.js"></script>
+<script src="../luccet.js" data-use="../addons/katex.js"></script>
 
 :::meta
 title: Notes on iterators
@@ -23,7 +23,7 @@ lang: en
 This example is about code. It shows a numbered listing with a title, line numbers and a
 highlighted line; a fence that starts its numbering at 10; code spans that hold pipes,
 backticks and tags; escapes; an HTML comment; a raw HTML form and table; and a note script
-that adds a copy button to every code block. Part of [Tern's documentation](../index.html).
+that adds a copy button to every code block. Part of [Luccet's documentation](../index.html).
 :::
 
 ```js[A lazy Fibonacci generator]{#lst-fib lines hl=4}
@@ -82,7 +82,7 @@ itself: \\. Some_file_name.txt and 2 * 3 * 4 need nothing.
 <script>
   // Add a copy button to every code block. Note scripts run after the note is
   // rendered, in document order, so the blocks are already there.
-  for (const pre of document.querySelectorAll('main.tern pre[data-t="code"], main.tern figure.code pre')) {
+  for (const pre of document.querySelectorAll('main.luccet pre[data-t="code"], main.luccet figure.code pre')) {
     const b = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Copy', className: 'copy' });
     b.onclick = () => navigator.clipboard.writeText(pre.innerText);
     pre.before(b);

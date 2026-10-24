@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: MIT
-// switcher.js, Tern's theme switcher (docs/addons.html#switcher). A `::themes`
-// leaf becomes a labelled <select> of Tern's themes, "Solarized (dark)". Choosing one applies it
+// switcher.js, Luccet's theme switcher (docs/addons.html#switcher). A `::themes`
+// leaf becomes a labelled <select> of Luccet's themes, "Solarized (dark)". Choosing one applies it
 // at once, the choice is kept in localStorage, and every page of the site
 // that loads the add-on applies it again before it first paints. A
-// `tern:theme` event on window says when the theme changed, so an add-on
+// `luccet:theme` event on window says when the theme changed, so an add-on
 // that paints colours itself (mermaid.js) draws again.
 //
-//   <script src="tern.js" data-use="addons/switcher.js"></script>
+//   <script src="luccet.js" data-use="addons/switcher.js"></script>
 //
-//   ::themes                                   every theme Tern ships
+//   ::themes                                   every theme Luccet ships
 //   ::themes{themes="nord solarized sepia"}     these, in this order
 //   ::themes{label=Colours}
 //
 // Options go on the leaf, on the add-on (`addons/switcher.js?themes=…`) or
-// in window.TERN = {use: {switcher: {…}}}; the leaf's win:
+// in window.LUCCET = {use: {switcher: {…}}}; the leaf's win:
 //   themes  the names to offer, separated by spaces or commas: a family
 //           (`solarized`: its system, light and dark files) or one file
-//           (`solarized-dark`); a name Tern does not know is offered as
+//           (`solarized-dark`); a name Luccet does not know is offered as
 //           written, for your own NAME.css in the folder
 //   base    the folder of the theme files; else the folder of the theme the
 //           page loads itself, else `themes/` next to the add-on
 //   at      a CSS selector: after each render the control is put inside the
 //           first element that matches, for a page without `::themes`
-//   key     the localStorage key, `tern.theme`: one choice per key and origin
+//   key     the localStorage key, `luccet.theme`: one choice per key and origin
 //   label   the control's label, else the string `theme` (Theme)
-// The words come from window.TERN.strings (theme, themeDefault, themeSystem,
+// The words come from window.LUCCET.strings (theme, themeDefault, themeSystem,
 // themeLight, themeDark; docs/api.html#strings). The control is not printed.
-// Under node (tern check, tern build) the add-on declares the leaf and its
+// Under node (luccet check, luccet build) the add-on declares the leaf and its
 // styles and does nothing else.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
   const str = (key, params, fallback) => (T.string ? T.string(key, params, fallback) : fallback);
 
@@ -38,7 +38,7 @@
   T.style(
     [
       '.t-themes { display: flex; align-items: center; flex-wrap: wrap; gap: .5em; font: .9rem/1.4 var(--t-sans); }',
-      '.tern > .t-themes { margin-block: 0 1rem; }',
+      '.luccet > .t-themes { margin-block: 0 1rem; }',
       '.t-themes select { font: inherit; color: var(--t-fg); background: var(--t-bg); border: 1px solid var(--t-line-strong); border-radius: 4px; padding: .3em .5em; max-inline-size: 100%; }',
       '.t-themes select:focus-visible { outline: 2px solid var(--t-link); outline-offset: 1px; }',
       '@media print { .t-themes { display: none; } }',
@@ -70,7 +70,7 @@
   const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i; // a file name without its .css
 
   const options = Object.assign({}, T.config && T.config.use && T.config.use.switcher);
-  const KEY = String(options.key || 'tern.theme');
+  const KEY = String(options.key || 'luccet.theme');
   const script = document.currentScript;
 
   // The folder of the theme files, with its slash.
@@ -98,7 +98,7 @@
   const hrefOf = (name) => base + encodeURIComponent(name) + '.css';
 
   // The theme in effect: the stylesheet in the folder, whoever listed it.
-  let current = null; // {name, link} or null for tern.css alone
+  let current = null; // {name, link} or null for luccet.css alone
   function detect() {
     for (const l of stylesheets()) {
       const href = l.href.replace(/[?#].*$/, '');
@@ -148,15 +148,15 @@
   }
 
   // Where a theme goes when the page has none: after the base stylesheet
-  // (tern.css, as a link or inlined), so the author's own CSS still wins.
+  // (luccet.css, as a link or inlined), so the author's own CSS still wins.
   function anchor() {
-    const inline = document.getElementById('tern-style');
+    const inline = document.getElementById('luccet-style');
     if (inline) return inline;
     let named = null;
     try {
       if (T.config && T.config.css) named = new URL(T.config.css, document.baseURI).href;
     } catch {}
-    return stylesheets().find((l) => l.href === named || /(?:^|\/)tern(?:\.min)?\.css$/.test(l.href.replace(/[?#].*$/, ''))) || null;
+    return stylesheets().find((l) => l.href === named || /(?:^|\/)luccet(?:\.min)?\.css$/.test(l.href.replace(/[?#].*$/, ''))) || null;
   }
 
   const selects = new Set();
@@ -184,7 +184,7 @@
   }
   function announce(name) {
     try {
-      window.dispatchEvent(new CustomEvent('tern:theme', { detail: { theme: name, href: name ? hrefOf(name) : null } }));
+      window.dispatchEvent(new CustomEvent('luccet:theme', { detail: { theme: name, href: name ? hrefOf(name) : null } }));
     } catch {}
   }
 
@@ -233,7 +233,7 @@
       link.addEventListener('error', () => {
         if (pendingLink === link) pendingLink = null;
         link.remove();
-        console.warn(`Tern switcher.js: the theme ${name} did not load (${link.href}); ${current ? `${current.name} stays` : 'the page keeps tern.css alone'}`);
+        console.warn(`Luccet switcher.js: the theme ${name} did not load (${link.href}); ${current ? `${current.name} stays` : 'the page keeps luccet.css alone'}`);
         sync();
         resolve(false);
       });

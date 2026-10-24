@@ -1,30 +1,30 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Tern</title><script src="tern.js" data-use="docs/docs.js docs/docs.css addons/katex.js addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Luccet</title><link rel="icon" href="docs/favicon-32.png" sizes="32x32"><link rel="icon" href="docs/favicon.svg" type="image/svg+xml"><script src="luccet.js" data-use="docs/docs.js docs/docs.css addons/katex.js addons/copy.js"></script>
 
 :::meta
-description: Tern is a document format with the full power of HTML, CSS and JavaScript and none of HTML's verbosity: one file that renders itself in the browser.
+description: Luccet is a document format with the full power of HTML, CSS and JavaScript and none of HTML's verbosity: one file that renders itself in the browser.
 :::
 
 ::site-nav
 
 ::logo
 
-# Tern {#top}
+# Luccet {#top}
 
 ::toc
 
-**Tern gives you the full power of HTML, CSS and JavaScript without the verbosity of HTML.** A note is one HTML file that renders itself: its first line loads `tern.js`, and everything below it is written in a light, Markdown-like syntax that the browser turns into real HTML when the file is opened.
+**Luccet gives you the full power of HTML, CSS and JavaScript without the verbosity of HTML.** A note is one HTML file that renders itself: its first line loads `luccet.js`, and everything below it is written in a light, Markdown-like syntax that the browser turns into real HTML when the file is opened.
 
 ## A first note {#first-note}
 
 This line is all the setup a note needs:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 ```
 
-Everything after it is the note. Save the file next to `tern.js`, open it in a browser, and it renders:
+Everything after it is the note. Save the file next to `luccet.js`, open it in a browser, and it renders:
 
-```tern {.live}
+```luccet {.live}
 # Hello
 
 This is a note. It has *emphasis*, a [link](https://example.com), a formula,
@@ -34,7 +34,7 @@ $e^{i\pi} + 1 = 0$, and a key to press, :kbd[Ctrl]+:kbd[S].
 - [ ] Publish it
 ```
 
-Every example on these pages is live: it shows the source, the result, the HTML Tern made, and any diagnostics, all computed by `tern.js` in your browser.
+Every example on these pages is live: it shows the source, the result, the HTML Luccet made, and any diagnostics, all computed by `luccet.js` in your browser.
 
 ## A tour {#tour}
 
@@ -42,7 +42,7 @@ Every example on these pages is live: it shows the source, the result, the HTML 
 
 TeX between dollars, typeset by KaTeX. A display formula with an id is numbered, and `@id` refers to it.
 
-```tern {.live}
+```luccet {.live}
 The roots of $ax^2 + bx + c = 0$ are
 $$
 x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}.
@@ -55,7 +55,7 @@ By @eq-roots, a real root needs $b^2 \ge 4ac$. Prices like $5 stay prices.
 
 Three colons and a name wrap anything in an element. HTML names become that element; other names become a `div` with the name as its class, ready for your CSS.
 
-```tern {.live}
+```luccet {.live}
 :::details[Why is the sky blue?]
 Short wavelengths scatter more: *Rayleigh scattering*.
 :::
@@ -69,7 +69,7 @@ This is an `<aside>`, because `aside` is an HTML element.
 
 A note's vocabulary turns names into numbered, labelled elements. This example uses the demo vocabulary from [the Vocabulary page](docs/schema.html#demo-schema); a note declares its own in one script.
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Pythagoras]{#thm-py}
 In a right triangle with legs $a$, $b$ and hypotenuse $c$, $a^2 + b^2 = c^2$.
 :::
@@ -85,7 +85,7 @@ By @thm-py, a triangle with sides 3, 4 and 5 has a right angle.
 
 Pipe tables, with alignment from the colons.
 
-```tern {.live}
+```luccet {.live}
 | Element | Symbol | Mass |
 |---|:-:|--:|
 | Hydrogen | H | 1.008 |
@@ -97,7 +97,7 @@ Pipe tables, with alignment from the colons.
 
 An image with an id becomes a figure, its bracket text the caption (demo vocabulary, for the number).
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![Osprey over the estuary, at dawn.](examples/img/osprey.svg){#fig-osprey width=320}
 
 @fig-osprey was drawn from memory.
@@ -107,7 +107,7 @@ An image with an id becomes a figure, its bracket text the caption (demo vocabul
 
 `@id` links to anything with an id, and its text comes from the target: a heading's text, a title, a number. Nothing to keep in sync by hand.
 
-```tern {.live}
+```luccet {.live}
 ## Results {#results}
 
 :::aside[A caveat]{#caveat}
@@ -119,10 +119,10 @@ See @results, and read @caveat before relying on them.
 
 ### Footnotes {#tour-footnotes}
 
-```tern {.live}
+```luccet {.live}
 Terns are long-distance migrants.[^arctic]
 
-[^arctic]: The Arctic tern's yearly journey, from the Arctic to the
+[^arctic]: The Arctic luccet's yearly journey, from the Arctic to the
   Antarctic and back, is among the longest of any animal.
 ```
 
@@ -130,7 +130,7 @@ Terns are long-distance migrants.[^arctic]
 
 `+++` splits a block into cells, and the block becomes a grid. On a phone, it is one column.
 
-```tern {.live}
+```luccet {.live}
 :::row{cols=3}
 **Write** a note in any editor.
 +++
@@ -140,27 +140,27 @@ Terns are long-distance migrants.[^arctic]
 :::
 ```
 
-## Why Tern {#why}
+## Why Luccet {#why}
 
-- **One file.** A note is a single `.html` file next to `tern.js`. Open it from disk, keep it in a repository, put it on any static host. There is no project to set up.
-- **No build.** The browser renders the note when it opens. `tern build` can pre-render a page for search engines, but you never need it to see your work.
+- **One file.** A note is a single `.html` file next to `luccet.js`. Open it from disk, keep it in a repository, put it on any static host. There is no project to set up.
+- **No build.** The browser renders the note when it opens. `luccet build` can pre-render a page for search engines, but you never need it to see your work.
 - **Real HTML out.** Every construct becomes ordinary, accessible HTML: headings, sections, figures, tables, real `<kbd>` and `<details>`. Labels such as "Theorem 1" are text, so they copy, print and are found by search. When you need more, HTML, CSS and JavaScript are right there in the note.
 - **Your vocabulary.** Theorems, callouts, cards or web components: a note names what it needs, and a few lines of schema give the names labels, numbers and behaviour.
-- **Diagnostics.** Nothing is lost silently. Malformed markup stays visible where you wrote it, and Tern reports a positioned diagnostic with a hint that spells the fix:
+- **Diagnostics.** Nothing is lost silently. Malformed markup stays visible where you wrote it, and Luccet reports a positioned diagnostic with a hint that spells the fix:
 
-  ```tern {.live expect="block.unclosed ref.dangling"}
+  ```luccet {.live expect="block.unclosed ref.dangling"}
   :::aside
   An aside nobody closed, with a reference to @nowhere.
   ```
-- **A language server.** `tern lsp` brings the same diagnostics to your editor as you type, with completion of names and ids, go to definition, rename, an outline, and links fixed when you move a file. `tern check` prints them for a whole folder of notes.
+- **A language server.** `luccet lsp` brings the same diagnostics to your editor as you type, with completion of names and ids, go to definition, rename, an outline, and links fixed when you move a file. `luccet check` prints them for a whole folder of notes.
 
 ## Get started {#get-started}
 
-1. **Download [`tern.js`](tern.js)** and put it in the folder where your notes live. It is the whole engine, with no dependencies.
+1. **Download [`luccet.js`](luccet.js)** and put it in the folder where your notes live. It is the whole engine, with no dependencies.
 2. **Start a note.** Write the first line yourself, or let the command line write it with the right path:
 
    ```sh
-   node tern-cli.js new notes/hello.html --title="Hello"
+   node luccet-cli.js new notes/hello.html --title="Hello"
    ```
 3. **Open the file** in your browser, from disk. Edit, save, reload. A panel in the corner lists any problems while you work.
 
@@ -174,12 +174,12 @@ Then read [the Guide](docs/guide.html#top), which goes from the first line to vo
 | [Syntax: blocks](docs/syntax-blocks.html#top) | the eight rules, attributes, and every block construct |
 | [Syntax: inline](docs/syntax-inline.html#top) | every inline construct, the ambiguity rules, escapes |
 | [Elements and output](docs/elements.html#top) | how names become elements, titles and labels, numbering, references, ids, figures, raw HTML, metadata |
-| [Vocabulary and behaviour](docs/schema.html#top) | schemas, `window.TERN.schema`, add-ons, `tern.define`, styling, themes |
-| [Add-ons](docs/addons.html#top) | the add-ons that come with Tern: math, code highlighting, Mermaid diagrams, search, a list of notes |
+| [Vocabulary and behaviour](docs/schema.html#top) | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, styling, themes |
+| [Add-ons](docs/addons.html#top) | the add-ons that come with Luccet: math, code highlighting, Mermaid diagrams, search, a list of notes |
 | [Diagnostics](docs/diagnostics.html#top) | every diagnostic: when it fires, what happens to the content, the fix |
-| [Command line and editors](docs/tools.html#top) | `tern new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`; editor setup; a skill for coding agents |
-| [Publishing](docs/publishing.html#top) | hosting, `tern build`, CSP, KaTeX and offline use, browsers, trust |
-| [JavaScript API](docs/api.html#top) | `tern.*`, the AST, the runtime lifecycle, events, config |
+| [Command line and editors](docs/tools.html#top) | `luccet new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`; editor setup; a skill for coding agents |
+| [Publishing](docs/publishing.html#top) | hosting, `luccet build`, CSP, KaTeX and offline use, browsers, trust |
+| [JavaScript API](docs/api.html#top) | `luccet.*`, the AST, the runtime lifecycle, events, config |
 
 ## Examples {#examples}
 
@@ -195,10 +195,10 @@ Complete notes, each declaring its own vocabulary in a few lines at the top. Ope
 
 ## Status {#status}
 
-**Versions.** The syntax these pages describe and the engine that renders it, `tern.js`, carry one number from 1.0 on. These pages and the engine's conformance tests are the reference, every live example on them is checked against the engine, and a note written to them keeps rendering. The engine is at version 1.1.0 (`tern.version`; the tags on GitHub and jsDelivr carry the same number) and follows [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `tern index` writes, after the deprecation below. Pin a release (`@v1.1.0`) to be sure; `@1.1` follows the fixes of a series. `@1` follows every release of a major, which keeps every note rendering the same; the [changelog](https://github.com/OzkrAC/tern/blob/main/CHANGELOG.md) says what each release changed.
+**Versions.** The syntax these pages describe and the engine that renders it, `luccet.js`, carry one number from 1.0 on. These pages and the engine's conformance tests are the reference, every live example on them is checked against the engine, and a note written to them keeps rendering. The engine is at version 1.1.1 (`luccet.version`; the tags on GitHub and jsDelivr carry the same number) and follows [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `luccet index` writes, after the deprecation below. Pin a release (`@v1.1.1`) to be sure; `@1.1` follows the fixes of a series. `@1` follows every release of a major, which keeps every note rendering the same; the [changelog](https://github.com/Luccet/luccet/blob/main/CHANGELOG.md) says what each release changed.
 
 **Deprecation.** A construct, an option or an API that is to go is marked deprecated in the changelog and on its page, keeps working for at least one minor release with a diagnostic or a console line that names the replacement, and is removed in the release after that. Nothing described on these pages is deprecated today.
 
-**What 1.0 rests on.** The engine reached 1.0 when its readiness plan was through: the safe-rendering contract complete and documented ([Trust](docs/publishing.html#trust)), the browser floor stated and guarded ([Browsers](docs/publishing.html#browsers)), an npm package, Windows and WebKit in the test matrix, and no open finding of consequence. Tern is MIT licensed; the source is at [github.com/OzkrAC/tern](https://github.com/OzkrAC/tern).
+**What 1.0 rests on.** The engine reached 1.0 when its readiness plan was through: the safe-rendering contract complete and documented ([Trust](docs/publishing.html#trust)), the browser floor stated and guarded ([Browsers](docs/publishing.html#browsers)), an npm package, Windows and WebKit in the test matrix, and no open finding of consequence. Luccet is MIT licensed; the source is at [github.com/Luccet/luccet](https://github.com/Luccet/luccet).
 
-**AI assistance.** Tern is developed with the help of an AI coding assistant: it drafts code, tests and documentation under the author's direction. Everything that lands is read and run by the author, and the tests, the conformance corpus and the live examples on these pages are the record of what was verified. A page that reads as if a person wrote it was reviewed by one.
+**AI assistance.** Luccet is developed with the help of an AI coding assistant: it drafts code, tests and documentation under the author's direction. Everything that lands is read and run by the author, and the tests, the conformance corpus and the live examples on these pages are the record of what was verified. A page that reads as if a person wrote it was reviewed by one.

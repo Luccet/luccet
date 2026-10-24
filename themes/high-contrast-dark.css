@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-/* High contrast for Tern, after black and white, for low vision.
-   Dark for every reader. Use: <script src="tern.js" data-use="themes/high-contrast-dark.css"></script>
+/* High contrast for Luccet, after black and white, for low vision.
+   Dark for every reader. Use: <script src="luccet.js" data-use="themes/high-contrast-dark.css"></script>
    Raised to 7:1 contrast: code deleted.
    Built by tools/themes.js; edit that, not this file. */
 :root {
@@ -29,6 +29,6 @@
     --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
     --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
   }
-  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
-  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
 }

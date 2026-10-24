@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-// mathml.js, Tern's MathML add-on (docs/addons.html#mathml). It renders every
-// formula as native MathML with Temml, instead of tern.js's own KaTeX. The
+// mathml.js, Luccet's MathML add-on (docs/addons.html#mathml). It renders every
+// formula as native MathML with Temml, instead of luccet.js's own KaTeX. The
 // browser draws the MathML with its math fonts: no KaTeX, and once Temml has
 // run nothing else is fetched.
 //
-//   <script src="tern.js" data-use="addons/mathml.js"></script>
+//   <script src="luccet.js" data-use="addons/mathml.js"></script>
 //
 // It is a math add-on like addons/katex.js: load one or the other. The engine
 // renders no math itself, so the two never clash.
@@ -22,13 +22,13 @@
 // blocks the few style attributes Temml writes on a formula; its stylesheet
 // (nonce'd with data-nonce) still applies, so the math renders, with at most
 // some spacing off. For exact math under a strict policy, pre-render instead:
-// `tern build --math=mathml`.
+// `luccet build --math=mathml`.
 //
-// Under node (tern check, tern build, the language server) it only adds its
+// Under node (luccet check, luccet build, the language server) it only adds its
 // styles: rendering needs the page.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   // <temml> written by tools/temml.js; do not edit by hand
@@ -41,7 +41,7 @@
 
   // Display math as a block even before Temml's stylesheet arrives (Firefox
   // and Safari need it; Chromium reads the inline "display: block math").
-  T.style(['.tern .t-math > math { font-size: inherit; }', '.tern .t-math > math.tml-display { display: block; width: 100%; }'].join('\n'));
+  T.style(['.luccet .t-math > math { font-size: inherit; }', '.luccet .t-math > math.tml-display { display: block; width: 100%; }'].join('\n'));
 
   const DOM = typeof document === 'object' && document !== null && document.nodeType === 9;
   if (!DOM) return;
@@ -87,7 +87,7 @@
     // A load that failed is asked for again at the next render.
     temmlP.then((M) => {
       if (M) return;
-      console.warn(`Tern mathml.js: Temml did not load from ${base}, so math stays as TeX source`);
+      console.warn(`Luccet mathml.js: Temml did not load from ${base}, so math stays as TeX source`);
       temmlP = null;
     });
     return temmlP;
@@ -108,7 +108,7 @@
     } catch (e) {
       el.classList.add('t-error');
       el.title = (e && e.message) || String(e);
-      console.warn(`Tern mathml.js: ${el.title}`);
+      console.warn(`Luccet mathml.js: ${el.title}`);
       return;
     }
     const t = document.createElement('template');
@@ -117,7 +117,7 @@
   }
 
   // Every formula under a root, once it is rendered. The TeX is saved to
-  // data-tex synchronously, before tern.js's own math pass would read the
+  // data-tex synchronously, before luccet.js's own math pass would read the
   // element's text, so it survives this replacement and the copy handler.
   const done = new WeakSet();
   function run(root) {
@@ -145,7 +145,7 @@
       try {
         macros = M.definePreamble(preamble);
       } catch (e) {
-        console.warn(`Tern mathml.js: the :::macros block does not parse: ${(e && e.message) || e}`);
+        console.warn(`Luccet mathml.js: the :::macros block does not parse: ${(e && e.message) || e}`);
       }
     }
     for (const el of maths) one(M, el, macros);

@@ -13,7 +13,7 @@ spec: elements#figures elements#title-slots
 
 An explicit figure takes any body; its caption is the last child, with the counted label first.
 
-````tern
+````luccet
 :::figure[Two ospreys]{#fig-pair}
 Ospreys at dawn.
 :::
@@ -29,7 +29,7 @@ spec: elements#figures
 
 A figure whose body is a single image-only paragraph emits the `<img>` without a `<p>`; the image's alt is its own bracket text.
 
-````tern
+````luccet
 :::figure[An osprey]{#fig-o}
 ![Osprey](osprey.jpg)
 :::
@@ -45,7 +45,7 @@ spec: elements#figures
 
 Only a single image-only paragraph loses its `<p>`; a body of two image paragraphs keeps both.
 
-````tern
+````luccet
 :::figure[Before and after]
 ![Before](a.jpg)
 
@@ -63,7 +63,7 @@ spec: elements#figures
 
 An image with `#id` inside an explicit figure is not an implicit figure: one figure, one number, and the image keeps its id and alt.
 
-````tern
+````luccet
 :::figure[Two ospreys]{#fig-pair}
 ![Osprey](osprey.jpg){#img-osprey}
 :::
@@ -79,7 +79,7 @@ spec: elements#figures elements#title-slots
 
 A figure without a written title still gets a caption holding its label.
 
-````tern
+````luccet
 :::figure{#fig-x}
 ![A chart](chart.png)
 :::
@@ -95,7 +95,7 @@ spec: elements#figures
 
 The implicit-figure example: the bracket text is the caption, `#id` goes to the figure, `alt=` and the other attributes stay on `<img>`.
 
-````tern
+````luccet
 ![Osprey, 06:40.](osprey.jpg){#fig-osprey width=70% alt="An osprey in flight"}
 ````
 
@@ -109,7 +109,7 @@ spec: elements#figures
 
 Without `alt=`, an implicit figure's image has an empty alt, so the caption is read once.
 
-````tern
+````luccet
 ![Osprey, 06:40.](osprey.jpg){#fig-osprey}
 ````
 
@@ -123,7 +123,7 @@ spec: elements#figures syntax-inline#links
 
 An image without an id is always just an image in its paragraph, with or without other attributes.
 
-````tern
+````luccet
 ![Osprey](osprey.jpg)
 
 ![Osprey](osprey.jpg){.wide}
@@ -140,7 +140,7 @@ spec: elements#figures
 
 The caption is the bracket text as inline content, markup and math included.
 
-````tern
+````luccet
 ![The *kernel* of $T$](kernel.svg){#fig-ker}
 ````
 
@@ -154,7 +154,7 @@ spec: elements#figures
 
 Only the `#id` moves to the figure; the image's classes and other attributes stay on `<img>`.
 
-````tern
+````luccet
 ![Osprey](osprey.jpg){#fig-o .round width=50%}
 ````
 
@@ -168,7 +168,7 @@ spec: elements#figures syntax-blocks#attribute-line
 
 An attribute line before the paragraph goes to the figure, after `t-block figure`.
 
-````tern
+````luccet
 {.wide}
 ![Osprey](osprey.jpg){#fig-o}
 ````
@@ -183,7 +183,7 @@ spec: elements#figures
 
 A paragraph holding an image and text is not a figure, even when the image has an id.
 
-````tern
+````luccet
 ![Osprey](osprey.jpg){#img-o} at dawn.
 ````
 
@@ -197,7 +197,7 @@ spec: elements#figures
 
 A paragraph of two images is not a figure: the only content must be one image.
 
-````tern
+````luccet
 ![A](a.jpg){#img-a} ![B](b.jpg){#img-b}
 ````
 
@@ -211,7 +211,7 @@ spec: elements#figures elements#names
 
 The "not inside a figure" condition is about the tag: inside `:::gallery{tag=figure}` an image with `#id` stays an image.
 
-````tern
+````luccet
 :::gallery{tag=figure}
 ![A](a.jpg){#img-a}
 
@@ -229,7 +229,7 @@ spec: elements#figures
 
 Inside an element whose tag is not `figure`, the implicit figure applies as usual.
 
-````tern
+````luccet
 :::box
 ![Nest](nest.jpg){#fig-nest}
 :::
@@ -246,7 +246,7 @@ options: schema=none
 
 The implicit figure is a core transform: without a schema it is still a `figure` (from the allowlist), with no label or number.
 
-````tern
+````luccet
 ![Osprey](osprey.jpg){#fig-o}
 ````
 
@@ -260,7 +260,7 @@ spec: elements#figures elements#title-slots
 
 Empty brackets give a caption holding only the label.
 
-````tern
+````luccet
 ![](a.jpg){#fig-a}
 ````
 
@@ -274,7 +274,7 @@ spec: elements#figures syntax-blocks#attribute-line
 
 An attribute line with `#id` before an image-only paragraph makes the implicit figure, as if the image carried the id. The bracket text is the caption and the alt is empty.
 
-````tern
+````luccet
 {#fig-a}
 ![A](a.jpg)
 ````
@@ -289,7 +289,7 @@ spec: elements#figures syntax-blocks#attribute-line
 
 Without an id anywhere, an attribute line on an image-only paragraph does not make a figure; its attributes go to the `<p>`.
 
-````tern
+````luccet
 {.wide}
 ![A](a.jpg)
 ````
@@ -304,7 +304,7 @@ spec: elements#figures elements#names
 
 The no-`<p>` rule follows the tag, not the name: a `:::gallery{tag=figure}` whose body is one image-only paragraph emits the bare `<img>`.
 
-````tern
+````luccet
 :::gallery{tag=figure}
 ![A](a.jpg)
 :::
@@ -320,7 +320,7 @@ spec: elements#figures
 
 "Not inside a figure" means any ancestor: an image with `#id` in a box inside a figure stays an image, and the box keeps its `<p>` because its own tag is not `figure`.
 
-````tern
+````luccet
 :::figure[Pair]{#fig-p}
 :::box
 ![A](a.jpg){#img-a}
@@ -338,7 +338,7 @@ spec: elements#figures elements#references
 
 An implicit figure is a counted block, so a reference to it reads "Figure 1".
 
-````tern
+````luccet
 ![Osprey](osprey.jpg){#fig-o}
 
 See @fig-o.
@@ -355,13 +355,13 @@ spec: elements#figures elements#numbering
 
 The implicit figure becomes the same node as `:::figure[bracket text]{#id}`: a `figure` containerDirective holding the id and the number.
 
-````tern
+````luccet
 ![Osprey](osprey.jpg){#fig-o}
 ````
 
 ````json transformed
 {"children":[{"type":"containerDirective","name":"figure","attributes":{"id":"fig-o"},
-  "data":{"tern":{"counter":"figure","number":1,"text":"Figure 1"}}}]}
+  "data":{"luccet":{"counter":"figure","number":1,"text":"Figure 1"}}}]}
 ````
 
 ## figure/end-mark-before-caption
@@ -371,7 +371,7 @@ spec: elements#title-slots elements#output-contract
 A figure's caption is its last child, so an end mark from the schema goes just before it, after the body.
 In a figure the end mark comes just before the `figcaption`, which HTML allows only first or last.
 
-````tern
+````luccet
 :::proof[Sketch]{tag=figure}
 Body.
 :::

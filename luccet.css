@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-/* tern.css: built from src/css.js by tools/concat.js. Edit the source, not this file. */
+/* luccet.css: built from src/css.js by tools/concat.js. Edit the source, not this file. */
 :root {
   color-scheme: light dark;
   --t-bg: #fdfdfb; --t-fg: #1f2328; --t-muted: #636c76; --t-line: #d9dde3; --t-line-strong: #767676; --t-soft: #f3f4f1;
@@ -21,59 +21,59 @@
 }
 html { background: var(--t-bg); color: var(--t-fg); font: var(--t-size)/var(--t-leading) var(--t-font); -webkit-text-size-adjust: 100%; }
 body { margin: 0; padding: 2.5rem 1rem 6rem; }
-.tern { max-width: var(--t-width); margin-inline: auto; overflow-wrap: break-word; hanging-punctuation: first last; }
-.tern > :first-child { margin-block-start: 0; }
-.tern :is(h1, h2, h3, h4, h5, h6) { font-family: var(--t-sans); line-height: 1.25; margin-block: 2em .6em; text-wrap: balance; }
+.luccet { max-width: var(--t-width); margin-inline: auto; overflow-wrap: break-word; hanging-punctuation: first last; }
+.luccet > :first-child { margin-block-start: 0; }
+.luccet :is(h1, h2, h3, h4, h5, h6) { font-family: var(--t-sans); line-height: 1.25; margin-block: 2em .6em; text-wrap: balance; }
 /* Body text wraps for an even rag and no stranded last word; headings balance. */
-.tern :is(p, li, dd, blockquote, figcaption, caption, .t-title) { text-wrap: pretty; }
-.tern h1 { font-size: 1.9rem; }
-.tern h2 { font-size: 1.4rem; padding-block-end: .25em; border-block-end: 1px solid var(--t-line); }
-.tern h3 { font-size: 1.15rem; }
-.tern :is(h4, h5, h6) { font-size: 1rem; }
-.tern :is(p, ul, ol, dl, pre, table, blockquote, figure, details), .t-block, .t-eq { margin-block: 0 1rem; margin-inline: 0; }
-.tern a { color: var(--t-link); text-decoration-thickness: .06em; text-underline-offset: .15em; }
-.tern :is(ul, ol) { padding-inline-start: 1.6rem; }
-.tern li > :is(ul, ol) { margin-block-end: 0; }
-.tern li > p { margin-block-end: .5rem; }
-.tern hr { border: 0; border-block-start: 1px solid var(--t-line); margin-block: 2rem; }
-.tern blockquote { padding-inline-start: 1rem; border-inline-start: 3px solid var(--t-line); color: var(--t-muted); }
+.luccet :is(p, li, dd, blockquote, figcaption, caption, .t-title) { text-wrap: pretty; }
+.luccet h1 { font-size: 1.9rem; }
+.luccet h2 { font-size: 1.4rem; padding-block-end: .25em; border-block-end: 1px solid var(--t-line); }
+.luccet h3 { font-size: 1.15rem; }
+.luccet :is(h4, h5, h6) { font-size: 1rem; }
+.luccet :is(p, ul, ol, dl, pre, table, blockquote, figure, details), .t-block, .t-eq { margin-block: 0 1rem; margin-inline: 0; }
+.luccet a { color: var(--t-link); text-decoration-thickness: .06em; text-underline-offset: .15em; }
+.luccet :is(ul, ol) { padding-inline-start: 1.6rem; }
+.luccet li > :is(ul, ol) { margin-block-end: 0; }
+.luccet li > p { margin-block-end: .5rem; }
+.luccet hr { border: 0; border-block-start: 1px solid var(--t-line); margin-block: 2rem; }
+.luccet blockquote { padding-inline-start: 1rem; border-inline-start: 3px solid var(--t-line); color: var(--t-muted); }
 /* Text in a highlight is the text colour, whatever it was (muted, a link, which keeps its underline): the pair that is checked is fg on mark. */
-.tern mark, .tern mark a { color: var(--t-fg); }
-.tern mark { background: var(--t-mark); padding-inline: .15em; border-radius: 2px; }
+.luccet mark, .luccet mark a { color: var(--t-fg); }
+.luccet mark { background: var(--t-mark); padding-inline: .15em; border-radius: 2px; }
 
 /* Media keep their aspect ratio when max-width shrinks them. */
-.tern :is(img, video, canvas, picture) { max-inline-size: 100%; height: auto; }
-.tern :is(iframe, embed, object) { max-inline-size: 100%; }
+.luccet :is(img, video, canvas, picture) { max-inline-size: 100%; height: auto; }
+.luccet :is(iframe, embed, object) { max-inline-size: 100%; }
 
 /* Code. Math and code read left to right in a right-to-left note. */
-.tern :is(code, kbd, samp, pre) { font-family: var(--t-mono); font-size: .85em; }
-.tern pre code { font-size: 1em; }
-.tern :not(pre) > code { background: var(--t-soft); padding: .12em .35em; border-radius: 4px; }
-.tern kbd { border: 1px solid var(--t-line-strong); border-block-end-width: 2px; border-radius: 4px; padding: .05em .4em; }
-.t-math, .tern :is(pre, code, kbd, samp) { direction: ltr; unicode-bidi: isolate; }
-.tern pre { text-align: start; background: var(--t-soft); padding: .8rem 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
-.tern pre[data-lines] code { counter-reset: t-line; }
-.tern pre[data-lines][data-start] code { counter-reset: t-line calc(var(--t-start, 1) - 1); } /* --t-start: the emitter's, or the runtime's (CSSOM) */
-.tern pre[data-lines] .t-line::before {
+.luccet :is(code, kbd, samp, pre) { font-family: var(--t-mono); font-size: .85em; }
+.luccet pre code { font-size: 1em; }
+.luccet :not(pre) > code { background: var(--t-soft); padding: .12em .35em; border-radius: 4px; }
+.luccet kbd { border: 1px solid var(--t-line-strong); border-block-end-width: 2px; border-radius: 4px; padding: .05em .4em; }
+.t-math, .luccet :is(pre, code, kbd, samp) { direction: ltr; unicode-bidi: isolate; }
+.luccet pre { text-align: start; background: var(--t-soft); padding: .8rem 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+.luccet pre[data-lines] code { counter-reset: t-line; }
+.luccet pre[data-lines][data-start] code { counter-reset: t-line calc(var(--t-start, 1) - 1); } /* --t-start: the emitter's, or the runtime's (CSSOM) */
+.luccet pre[data-lines] .t-line::before {
   counter-increment: t-line; content: counter(t-line); display: inline-block; min-inline-size: 2.5ch;
   margin-inline-end: 1.5ch; text-align: end; color: var(--t-muted); user-select: none;
 }
-.tern .t-hl { display: inline-block; min-inline-size: 100%; background: var(--t-mark); }
+.luccet .t-hl { display: inline-block; min-inline-size: 100%; background: var(--t-mark); }
 
 /* Tables scroll when wider than the column. */
-.tern table { border-collapse: collapse; display: block; inline-size: max-content; max-inline-size: 100%; overflow-x: auto; font-size: .95em; }
-.tern :is(th, td) { border: 1px solid var(--t-line); padding: .35em .7em; }
-.tern th { background: var(--t-soft); font-family: var(--t-sans); font-size: .9em; }
-.tern caption { caption-side: top; text-align: start; padding-block-end: .4em; }
+.luccet table { border-collapse: collapse; display: block; inline-size: max-content; max-inline-size: 100%; overflow-x: auto; font-size: .95em; }
+.luccet :is(th, td) { border: 1px solid var(--t-line); padding: .35em .7em; }
+.luccet th { background: var(--t-soft); font-family: var(--t-sans); font-size: .9em; }
+.luccet caption { caption-side: top; text-align: start; padding-block-end: .4em; }
 
 /* Named blocks, titles, labels and end marks. */
 .t-title { font-weight: 600; margin-block-end: .4rem; }
-.tern :is(figcaption, caption).t-title { font-weight: normal; color: var(--t-muted); font-size: .95em; }
-.tern figcaption.t-title { margin-block: .4rem 0; }
+.luccet :is(figcaption, caption).t-title { font-weight: normal; color: var(--t-muted); font-size: .95em; }
+.luccet figcaption.t-title { margin-block: .4rem 0; }
 .t-label { font-weight: 700; }
 .t-end { display: block; text-align: end; }
-.t-block > :last-child, .t-cell > :last-child, .tern blockquote > :last-child { margin-block-end: 0; }
-.tern figure > img { display: block; margin-inline: auto; }
+.t-block > :last-child, .t-cell > :last-child, .luccet blockquote > :last-child { margin-block-end: 0; }
+.luccet figure > img { display: block; margin-inline: auto; }
 
 /* Grids: --t-cols from cols= or the cell count; one column on narrow screens. */
 .t-cols { display: grid; grid-template-columns: var(--t-cols, repeat(auto-fit, minmax(12rem, 1fr))); gap: 1rem 1.5rem; }
@@ -93,12 +93,12 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .t-fnref { line-height: 0; font-size: .75em; }
 .t-fnref a, .t-fnback { text-decoration: none; }
 .t-footnotes { border-block-start: 1px solid var(--t-line); margin-block-start: 3rem; padding-block-start: 1rem; font-size: .9em; }
-.tern li.t-task { list-style: none; }
-.tern li.t-task > input, .tern li.t-task > p:first-child > input { margin-inline: -1.4rem .3rem; vertical-align: middle; }
+.luccet li.t-task { list-style: none; }
+.luccet li.t-task > input, .luccet li.t-task > p:first-child > input { margin-inline: -1.4rem .3rem; vertical-align: middle; }
 
 /* Problems stay visible where they are. */
-.tern .t-error { color: var(--t-error); background: var(--t-error-bg); border-inline-start: 3px solid var(--t-error); padding: .3em .6em; white-space: pre-wrap; font-family: var(--t-mono); font-size: .85em; }
-.tern .t-eq.t-error { display: block; }
+.luccet .t-error { color: var(--t-error); background: var(--t-error-bg); border-inline-start: 3px solid var(--t-error); padding: .3em .6em; white-space: pre-wrap; font-family: var(--t-mono); font-size: .85em; }
+.luccet .t-eq.t-error { display: block; }
 
 /* The diagnostics panel: fixed at the end corner, outside main, never printed. */
 .t-diagnostics {
@@ -128,13 +128,13 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
     --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
     --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
   }
-  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
-  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
 }
 
 @media print {
   .t-diagnostics { display: none; }
-  .tern > * { content-visibility: visible !important; } /* the runtime's held blocks (src/runtime.js) */
+  .luccet > * { content-visibility: visible !important; } /* the runtime's held blocks (src/runtime.js) */
   /* Every colour: black on white, the rest the light palette's, even for a reader in dark mode. */
   :root {
     color-scheme: light; --t-size: 11pt;
@@ -144,13 +144,13 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
     --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   }
   body { padding: 0; }
-  .tern { max-width: none; }
+  .luccet { max-width: none; }
   /* Paged typesetting: no stranded lines across a page break, no heading left
      at a page's foot, and figures, equations, quotes and table rows kept whole. */
-  .tern :is(p, li, blockquote) { orphans: 3; widows: 3; }
-  .tern :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
-  .tern :is(figure, figcaption, .t-eq, blockquote, tr) { break-inside: avoid; }
-  .tern pre { white-space: pre-wrap; }
-  .tern pre, .tern table, .t-eq { overflow: visible; }
-  .tern table { display: table; inline-size: auto; }
+  .luccet :is(p, li, blockquote) { orphans: 3; widows: 3; }
+  .luccet :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
+  .luccet :is(figure, figcaption, .t-eq, blockquote, tr) { break-inside: avoid; }
+  .luccet pre { white-space: pre-wrap; }
+  .luccet pre, .luccet table, .t-eq { overflow: visible; }
+  .luccet table { display: table; inline-size: auto; }
 }

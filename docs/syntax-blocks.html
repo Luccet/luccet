@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Luccet</title><link rel="icon" href="favicon-32.png" sizes="32x32"><link rel="icon" href="favicon.svg" type="image/svg+xml"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
 
 :::meta
-description: Every block-level construct of Tern: paragraphs, headings, fences, raw HTML, math, quotes, lists, tables, containers, cells, leaves, footnotes, attribute lines.
+description: Every block-level construct of Luccet: paragraphs, headings, fences, raw HTML, math, quotes, lists, tables, containers, cells, leaves, footnotes, attribute lines.
 :::
 
 ::site-nav
@@ -10,7 +10,7 @@ description: Every block-level construct of Tern: paragraphs, headings, fences, 
 
 ::toc
 
-This page is the complete reference for how Tern reads a note line by line: the eight rules every construct follows, the lexical conventions, the attribute grammar, the line algorithm, and every block construct. Inline constructs (emphasis, links, math spans, references) are on [Syntax: inline](syntax-inline.html#top). What a name becomes, and the HTML Tern promises to produce, are on [Elements and output](elements.html#top).
+This page is the complete reference for how Luccet reads a note line by line: the eight rules every construct follows, the lexical conventions, the attribute grammar, the line algorithm, and every block construct. Inline constructs (emphasis, links, math spans, references) are on [Syntax: inline](syntax-inline.html#top). What a name becomes, and the HTML Luccet promises to produce, are on [Elements and output](elements.html#top).
 
 This page and the engine's conformance tests are the reference for block syntax; every example on it runs on the engine.
 
@@ -53,7 +53,7 @@ Every construct on this page is an instance of eight rules. Learn these and the 
 
 So there are no setext headings: a line of `=` under a paragraph cannot turn the paragraph above into a heading, because that would change a block after the fact.
 
-```tern {.live}
+```luccet {.live}
 Title
 =====
 
@@ -71,7 +71,7 @@ Indentation means nothing, except in two places:
 
 There are no indented code blocks, and container bodies may be indented freely.
 
-```tern {.live}
+```luccet {.live}
 :::aside
     This is not code: indentation is ignored.
 
@@ -81,9 +81,9 @@ There are no indented code blocks, and container bodies may be indented freely.
 
 ### R3: Trailing whitespace means nothing {#r3}
 
-Every line is right-trimmed before Tern looks at it, so editors may trim freely. Two trailing spaces are not a line break; a hard break is a single `\` at the end of the line.
+Every line is right-trimmed before Luccet looks at it, so editors may trim freely. Two trailing spaces are not a line break; a hard break is a single `\` at the end of the line.
 
-```tern {.live}
+```luccet {.live}
 First line\
 second line, after a hard break.
 ```
@@ -92,17 +92,17 @@ Verbatim bodies are the exception: their lines are kept as written (see [Lines a
 
 ### R4: Two alphabets {#r4}
 
-Tern and TeX each have their own marks:
+Luccet and TeX each have their own marks:
 
 | Alphabet | Marks |
 |---|---|
-| Tern | `:` `[ ]` `{ }` `@` `#` `|` `>` `*` `~~` `==` `` ` `` `$` |
+| Luccet | `:` `[ ]` `{ }` `@` `#` `|` `>` `*` `~~` `==` `` ` `` `$` |
 | TeX | `\` `{ }` `^` `_` `&` |
 
-- Math (`$…$`, `` $`…` ``, `$$`, `:::macros`) is opaque to Tern: nothing inside it is Tern syntax.
+- Math (`$…$`, `` $`…` ``, `$$`, `:::macros`) is opaque to Luccet: nothing inside it is Luccet syntax.
 - Outside math, `\` followed by a letter is a literal backslash, so `\alpha` and `C:\Users` are text.
 
-```tern {.live}
+```luccet {.live}
 Inside math $\alpha^2$ is TeX; outside, \alpha and C:\Users are text.
 ```
 
@@ -110,7 +110,7 @@ Inside math $\alpha^2$ is TeX; outside, \alpha and C:\Users are text.
 
 Attributes are always written `{#id .class key=value}`, always in braces, and there is no unbraced form. The same group works in five positions (see [Attributes](#attributes)).
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel .wide}
 
 :::aside{.note-box}
@@ -122,7 +122,7 @@ A [highlighted]{.hl} word and `code`{.lang-js}.
 
 `:::name`, `::name` and `:name[…]` become the element their name denotes, through a level-aware allowlist, the schema, or the custom-element rule. Any other name becomes a `div` or `span` with the name as its class. The full mapping is on [Elements and output](elements.html#names).
 
-```tern {.live}
+```luccet {.live}
 :::aside
 An `aside` element.
 :::
@@ -144,7 +144,7 @@ Every malformed construct stays visible at its own position and gets a diagnosti
 | warning | probably not what you meant |
 | info | a hint |
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::aside[Proof] #pf .big
 The attributes were written without braces.
 :::
@@ -161,7 +161,7 @@ Each construct has one spelling, and this documentation uses it. A few unambiguo
 | Thematic break | `---` | `***`, `___`, `- - -`, `* * *` |
 | Fenced code | ```` ``` ```` | `~~~` |
 
-```tern {.live}
+```luccet {.live}
 ***
 
 ~~~js
@@ -175,21 +175,21 @@ These conventions apply before any construct is recognised.
 
 ### Where the note starts {#note-start}
 
-A note is an HTML file. The `tern.js` script tag splits it in two:
+A note is an HTML file. The `luccet.js` script tag splits it in two:
 
-- **The head** is everything before the tag: the lines before it, and anything before the tag on its own line (in the canonical first line, the doctype, `<html>`, `<meta charset>` and `<title>`). It is ordinary HTML that the browser parses before any script runs, and Tern preserves it (see [Metadata](elements.html#metadata)).
+- **The head** is everything before the tag: the lines before it, and anything before the tag on its own line (in the canonical first line, the doctype, `<html>`, `<meta charset>` and `<title>`). It is ordinary HTML that the browser parses before any script runs, and Luccet preserves it (see [Metadata](elements.html#metadata)).
 - **The note** is everything after the line that holds the tag. It is what this page describes.
 
 ```html
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Linear maps</title><script src="tern.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Linear maps</title><script src="luccet.js"></script>
 
 # Linear maps
 
-The note starts on the line after the `tern.js` tag.
+The note starts on the line after the `luccet.js` tag.
 ```
 
 - Diagnostic positions count lines from the first line of the note: the head's lines do not count. The browser console adds the file line, and the command line and the editor report file lines.
-- Which tag counts as "the `tern.js` line" is defined precisely under [Detection](tools.html#detection). How the file is put together is on [Publishing](publishing.html#the-file).
+- Which tag counts as "the `luccet.js` line" is defined precisely under [Detection](tools.html#detection). How the file is put together is on [Publishing](publishing.html#the-file).
 
 ### Normalisation {#normalisation}
 
@@ -217,7 +217,7 @@ Each line is right-trimmed (its trailing spaces and tabs removed) before it is c
 
 A verbatim body's own closer (a closing fence, a `$$` closer, a raw-body closer) is still tested on the right-trimmed line, and it may be indented.
 
-````tern {.live}
+````luccet {.live}
 ```
   Leading spaces inside a fence are kept.
     So is deeper indentation.
@@ -236,7 +236,7 @@ A whitespace-only line is blank once trimmed, so it ends a paragraph like an emp
 
 Here `1.   a` puts the item's content at column 5. The next line, two spaces and a tab, reaches only column 4 (the next multiple of 4), so it is outside the item.
 
-```tern {.live}
+```luccet {.live}
 1.   a
 
   	b
@@ -244,7 +244,7 @@ Here `1.   a` puts the item's content at column 5. The next line, two spaces and
 
 With a three-space gap the content column is 4, and the same two spaces and a tab reach it, so `b` belongs to the item.
 
-```tern {.live}
+```luccet {.live}
 1.  a
 
   	b
@@ -275,7 +275,7 @@ What follows from the patterns:
 - A `KEY` may hold `:` and `.` after its first character, so `xml:lang` and `data-x.y` are plain keys.
 - Letters and combining marks from any script are allowed, so ids, slugs and references work in German, Greek, Hindi or Japanese.
 
-```tern {.live}
+```luccet {.live}
 {#über .größe}
 ## Überschrift
 
@@ -286,7 +286,7 @@ See @über. The slug of this heading keeps its vowel signs:
 
 A trailing heading group that does not parse stays in the heading text. Here the `2` cannot start an id:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ## Plan {#2024-plan}
 ```
 
@@ -294,13 +294,13 @@ A trailing heading group that does not parse stays in the heading text. Here the
 
 Some marks only count when they are not glued to a word: `:` before an inline element, `@` before a reference, and the `~~` and `==` runs. "A word" means an ASCII letter or digit. Chinese, Japanese and Thai put no spaces between words, so these must still work:
 
-```tern {.live}
+```luccet {.live}
 :ruby[漢:rt[kan]] and これは==重要==です.
 ```
 
 The same marks glued to ASCII letters are text:
 
-```tern {.live expect="inline.glued"}
+```luccet {.live expect="inline.glued"}
 x:rt[kan] and a==b==c stay text.
 ```
 
@@ -311,12 +311,12 @@ Each kind of name has its own case rule:
 | What | Case | Example |
 |---|---|---|
 | a `NAME` (element names, in openers, closers, the schema, the allowlists, the reserved list) | case-sensitive | `:::Aside` is not `aside` |
-| a class name | case-sensitive | `.Tern` is an ordinary class; `.tern` is reserved |
+| a class name | case-sensitive | `.Luccet` is an ordinary class; `.luccet` is reserved |
 | a `KEY` | ASCII case-insensitive, as HTML attribute names are | `{ID=k}` is `{#k}` |
 | a footnote `LABEL` | case-insensitive | `[^ABC]` reaches `[^abc]:` |
 | a raw HTML tag name | case-insensitive | `<DIV>` … `</div>` balance |
 
-```tern {.live}
+```luccet {.live}
 :::Aside
 `Aside` is an unknown name, so this is a `div` with the class `Aside`.
 :::
@@ -327,7 +327,7 @@ Each kind of name has its own case rule:
 
 Footnote labels fold case, and the ids use the definition's label as written:
 
-```tern {.live}
+```luccet {.live}
 A note.[^ABC]
 
 [^abc]: Found despite the case.
@@ -356,13 +356,13 @@ VALUE = '"' [^"]* '"'  |  "'" [^']* "'"  |  [^\s"'=<>`{}]+
 - A value is double-quoted, single-quoted, or unquoted. An unquoted value cannot hold whitespace, quotes, `=`, `<`, `>`, a backtick, `{` or `}`.
 - `IDENT` and `KEY` are defined under [Character classes](#character-classes).
 
-```tern {.live}
+```luccet {.live}
 A [span]{#s .a .b title="Two words" data-x='single' width=640 hidden}.
 ```
 
 A group that breaks the grammar is reported at the first character the grammar rejects:
 
-```tern {.live expect="attr.malformed attr.malformed attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed attr.malformed attr.malformed"}
 [a]{#k!} [b]{a=b=c} [c]{#a.b} [d]{.2col}
 ```
 
@@ -370,7 +370,7 @@ The `!`, the second `=`, the `.` and the `2` are each where the grammar stops.
 
 ### Finding the group {#finding-the-group}
 
-Before a group is parsed, Tern finds its extent:
+Before a group is parsed, Luccet finds its extent:
 
 - **Candidate.** A candidate runs from `{` to the first `}` that is not inside quotes.
 - **Abort.** An unquoted `{` before that `}` means "not an attribute group". This keeps a run like `{{{{` linear to scan.
@@ -380,25 +380,25 @@ Before a group is parsed, Tern finds its extent:
 
 A `}` or `{` inside quotes does not end or abort the candidate:
 
-```tern {.live}
+```luccet {.live}
 A [span]{title="a } b" data-open='{'} with braces in its values.
 ```
 
 Quoted values are literal, and the emitted value escapes what HTML needs:
 
-```tern {.live}
+```luccet {.live}
 A [field]{pattern="\d+" title='say "hi"'}.
 ```
 
 An aborted candidate and an empty group are silent text:
 
-```tern {.live}
+```luccet {.live}
 [x]{.a {b}} and [y]{} stay as written.
 ```
 
 After a reference, `{}` is still consumed, as a terminator with no attributes. It is how you end a reference that is glued to the text after it, as in Japanese:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel}
 
 これは@kernel{}です。
@@ -408,7 +408,7 @@ After a reference, `{}` is still consumed, as a terminator with no attributes. I
 A backtick inside a glued group pairs with a later backtick as a code span, because code spans bind tighter than attribute values. Here the "group" is broken and the code span swallows text. Write `&#96;` in a quoted value instead.
 :::
 
-```tern {.live}
+```luccet {.live}
 [x]{title="a`b"} and `c`
 ```
 
@@ -419,7 +419,7 @@ A backtick inside a glued group pairs with a later backtick as a code span, beca
 
 Weak groups are accepted only where a `{` cannot be mistaken for text: glued after a bracket construct or a reference, and at the end of a structural line. Everywhere else a weak group stays text, silently.
 
-```tern {.live}
+```luccet {.live}
 A [span]{hidden} binds a weak group; `code`{hidden} does not.
 
 {open}
@@ -428,7 +428,7 @@ A weak group alone on a line is just text, and this line continues the paragraph
 
 A single `key=value` makes a group strong, and its bare keys come along:
 
-```tern {.live}
+```luccet {.live}
 {lang=fr translate}
 Bonjour.
 ```
@@ -442,7 +442,7 @@ Bonjour.
 - Classes accumulate in source order. `class=` merges with `.` items, and a quoted `class="a b"` adds two classes.
 - For any other repeated key, the last value wins.
 
-```tern {.live}
+```luccet {.live}
 {#a .b id=c class="d e" k=1 k=2}
 Merged.
 ```
@@ -453,13 +453,13 @@ Merged.
 - In values, `"`, `<` and `&` are escaped; a well-formed character reference such as `&amp;` or `&copy;` is kept as written.
 - A bare key becomes an HTML boolean attribute: `controls`, not `controls=""`.
 
-```tern {.live}
+```luccet {.live}
 A [span]{b=1 .c a=2 #i b=3 title="&copy; & <x>"}.
 ```
 
 ### Reserved keys and names {#reserved}
 
-**Reserved keys** are consumed by Tern and never emitted:
+**Reserved keys** are consumed by Luccet and never emitted:
 
 | Key | Where it acts | What it does |
 |---|---|---|
@@ -474,7 +474,7 @@ A [span]{b=1 .c a=2 #i b=3 title="&copy; & <x>"}.
 - `tag=` on anything but a named element (a span, a link, an image, a code span, a heading, a paragraph through an attribute line) gets [`tag.not-allowed`](diagnostics.html#tag-not-allowed) (warning);
 - `tag=` on a reserved or core name (`:::main{tag=section}`, `:::macros{tag=div}`), `ref=` anywhere but a reference, `raw` anywhere but a container, and `cols=` anywhere but a container, leaf or inline element (or on a core block) get [`attr.malformed`](diagnostics.html#attr-malformed) (warning).
 
-```tern {.live expect="tag.not-allowed tag.not-allowed attr.malformed attr.malformed attr.malformed"}
+```luccet {.live expect="tag.not-allowed tag.not-allowed attr.malformed attr.malformed attr.malformed"}
 A [span]{tag=b}, a [link](https://example.com){ref=title}, an ![image](tide.jpg){cols=2}.
 
 {tag=section raw}
@@ -483,7 +483,7 @@ A paragraph cannot change its element.
 
 `lines`, `hl` and `start` are reserved on fences only; anywhere else they are ordinary attributes:
 
-```tern {.live}
+```luccet {.live}
 :::aside{lines start=3 tag=section}
 `tag` is consumed and picks the element; `lines` and `start` are emitted.
 :::
@@ -492,14 +492,14 @@ A paragraph cannot change its element.
 **Reserved names.** Three things would let a note hijack the output contract, so they are dropped with `name.reserved` (warning):
 
 - the key `data-t` (in any case: `DATA-T` is lower-cased to it), reported at the key's first letter;
-- the class `tern`;
+- the class `luccet`;
 - any class starting with `t-`, reported at the class's `.`.
 
-Class names are case-sensitive, so `.Tern` is an ordinary class.
+Class names are case-sensitive, so `.Luccet` is an ordinary class.
 
-```tern {.live expect="name.reserved name.reserved name.reserved"}
-{.tern .t-box .Tern data-t=x}
-Only `Tern` survives.
+```luccet {.live expect="name.reserved name.reserved name.reserved"}
+{.luccet .t-box .Luccet data-t=x}
+Only `Luccet` survives.
 ```
 
 Diagnostics: [`attr.malformed`](diagnostics.html#attr-malformed), [`name.reserved`](diagnostics.html#name-reserved).
@@ -522,7 +522,7 @@ A group bound to a node is part of that node's source position.
 
 Any group binds, weak ones included:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel}
 
 A [link](#kernel){.btn}, an ![image](tide.jpg){width=200}, a [span]{hidden}, a key :kbd[C]{.big} and a reference @kernel{ref=title}.
@@ -530,7 +530,7 @@ A [link](#kernel){.btn}, an ![image](tide.jpg){width=200}, a [span]{hidden}, a k
 
 A candidate that runs to its `}` and fails is reported, whatever it starts with:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 A [span]{1, 2} is a malformed group here.
 ```
 
@@ -538,13 +538,13 @@ A [span]{1, 2} is a malformed group here.
 
 Only strong groups bind:
 
-```tern {.live}
+```luccet {.live}
 `code`{.x}, $x${#e}, **strong**{.y}, ~~struck~~{.z}, ==marked=={.w} and <https://example.com>{.link}.
 ```
 
 A weak group stays text, and a broken one is reported only when it starts with `#` or `.`:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 `a`{open} `b`{k!} `c`{#k!}
 ```
 
@@ -552,7 +552,7 @@ A weak group stays text, and a broken one is reported only when it starts with `
 
 Any group, glued or after spaces, binds to the block the line opens or closes:
 
-````tern {.live}
+````luccet {.live}
 :::details[More]{open}
 ```js {lines}
 let x = 1;
@@ -569,7 +569,7 @@ What happens to a group that does not parse depends on the construct: a containe
 
 A strong group binds, glued or after spaces. A weak or unparsable group stays heading text, and is reported only when it starts with `#` or `.`:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ## Spaced {#spaced .wide}
 ## Glued{#glued}
 ## Weak {open}
@@ -580,7 +580,7 @@ A strong group binds, glued or after spaces. A weak or unparsable group stays he
 
 One or more strong groups alone on a line form an [attribute line](#attribute-line), which binds to the block on the next line:
 
-```tern {.live}
+```luccet {.live}
 {#intro .lead}
 This paragraph gets the id and the class.
 ```
@@ -589,7 +589,7 @@ This paragraph gets the id and the class.
 
 Everywhere else a `{` is text:
 
-```tern {.live}
+```luccet {.live}
 The set {1, 2}, f{x}, $f${x}, and [x] {.c} with a space.
 
 {x}
@@ -599,7 +599,7 @@ The last line is a paragraph: `{x}` is a weak group, so it is no attribute line.
 
 ## The line algorithm {#line-algorithm}
 
-Tern reads a note one line at a time. It keeps a stack of open containers (quotes, list items, footnote definitions, `:::` containers, cells) and at most one open leaf (a paragraph, a table, a fence, a raw HTML block, display math, a raw body, or a pending attribute line). For each line it takes five steps:
+Luccet reads a note one line at a time. It keeps a stack of open containers (quotes, list items, footnote definitions, `:::` containers, cells) and at most one open leaf (a paragraph, a table, a fence, a raw HTML block, display math, a raw body, or a pending attribute line). For each line it takes five steps:
 
 1. **Prefixes.** Match the open containers' prefixes, outermost first. What is left is the *remainder*.
 2. **Verbatim leaf.** If a verbatim leaf is open, feed it the remainder.
@@ -623,7 +623,7 @@ Only three containers have a line prefix:
 
 The quote prefix needs only the `>`, so `>b` continues an open quote, although it cannot open one (opening needs a space, a tab or the end of the line after `>`):
 
-```tern {.live}
+```luccet {.live}
 > An open quote
 >continues on this line.
 
@@ -639,7 +639,7 @@ The verbatim leaves are a [fence](#fence), a [raw HTML block](#raw-html), [displ
 
 So a `#` line inside a fence inside a quote is code, and a quote line that loses its `>` ends the fence:
 
-````tern {.live expect="block.unclosed-fence"}
+````luccet {.live expect="block.unclosed-fence"}
 > ```
 > # code, not a heading
 after the quote
@@ -653,28 +653,28 @@ A line continues the open paragraph *lazily*, without its prefixes, when all of 
 - the innermost open block is a paragraph;
 - the remainder would be a paragraph line (row 16), or would not start any block.
 
-```tern {.live}
+```luccet {.live}
 > A quote,
 lazily continued.
 ```
 
 Laziness reaches through every failed prefix, so here `b` continues the paragraph of the item inside the quote:
 
-```tern {.live}
+```luccet {.live}
 > - a
 b
 ```
 
 The "interrupts a paragraph" restrictions of the last column below apply only when every prefix matched. A line that failed a prefix and starts any block starts it. So `2. two` after a quoted line leaves the quote and starts a list at 2:
 
-```tern {.live}
+```luccet {.live}
 > para
 2. two
 ```
 
 The same rule keeps list items siblings: the item's prefix fails on the next marker line, and the marker starts a new item even where it could not interrupt a paragraph (an item numbered 2, an empty item).
 
-```tern {.live}
+```luccet {.live}
 1. one
 2. two
 
@@ -685,7 +685,7 @@ The same rule keeps list items siblings: the item's prefix fails on the next mar
 
 Laziness needs an open paragraph. After a heading, a fence or display math, a line that fails the prefix ends the container:
 
-```tern {.live}
+```luccet {.live}
 > # A quoted heading
 not lazy
 ```
@@ -747,7 +747,7 @@ A line that would start a block usually ends an open paragraph without a blank l
 | `<b>bold</b> text` | a phrasing tag is not a raw HTML block |
 | `{x}`, `{1, 2}` | a weak or unparsable group is no attribute line |
 
-```tern {.live}
+```luccet {.live}
 A paragraph
 - a bullet interrupts it.
 
@@ -763,7 +763,7 @@ A closer-shaped or `+++` line interrupts even when it [falls back to text](#fall
 
 After the last line, everything still open is closed, innermost first, each block with its own diagnostic:
 
-````tern {.live expect="block.unclosed block.unclosed-fence"}
+````luccet {.live expect="block.unclosed block.unclosed-fence"}
 :::aside
 ```
 code that never closes
@@ -778,7 +778,7 @@ Some lines are shaped like a block but cannot be one. Two rules decide what they
 - **A closer-shaped or `+++` line that becomes text** (a stray closer, a closer mismatch, an orphan cell separator) still interrupts the open paragraph, and starts a paragraph of its own. Lines after it continue that paragraph as usual.
 - **A line that never matched a row** (`::: note`, a demoted `::word` line) is an ordinary paragraph line. It continues a paragraph like any other, and carries its diagnostic wherever it appears, continuation lines included.
 
-```tern {.live expect="cell.orphan block.spaced-name"}
+```luccet {.live expect="cell.orphan block.spaced-name"}
 A paragraph
 +++
 starts a new paragraph at the orphan separator.
@@ -797,7 +797,7 @@ Blocks nest at most 64 deep. An opener that would make the stack deeper becomes 
 
 Here 65 quote markers are written on one line; the 65th becomes text:
 
-```tern {.live expect="nesting.limit"}
+```luccet {.live expect="nesting.limit"}
 > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > x
 ```
 
@@ -814,13 +814,13 @@ The parse is therefore linear in the size of the note.
 A paragraph is consecutive lines that start nothing else.
 
 :::syntax
-```tern
+```luccet
 Any line that is not another block.
 The next line continues it.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Let $T: V \to W$ be linear.
    Its kernel is a subspace.
 ```
@@ -843,7 +843,7 @@ Let $T: V \to W$ be linear.
 
 Any number of blank lines separates two paragraphs and produces nothing:
 
-```tern {.live}
+```luccet {.live}
 One.
 
 
@@ -853,7 +853,7 @@ Two.
 
 A `\` at the end of a line inside a paragraph is a hard break. At the end of the paragraph there is no next line to break to, so it is a literal backslash:
 
-```tern {.live}
+```luccet {.live}
 Ends with a break\
 and the last backslash is literal\
 ```
@@ -881,7 +881,7 @@ To keep a line from starting a block, escape its first mark with `\`. The backsl
 | a thematic break | `\---` |
 | a fence | ```` \``` ```` |
 
-```tern {.live}
+```luccet {.live}
 \# Not a heading
 \- not a list item
 2019\. was a year.
@@ -897,12 +897,12 @@ All escapes are listed under [Escapes](syntax-inline.html#escapes).
 A heading is one line starting with one to six `#`.
 
 :::syntax
-```tern
+```luccet
 ## Heading text {#id .class key=value}
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 # Linear maps
 ## Kernel and image {#kernel .wide}
 ###### Level six
@@ -919,7 +919,7 @@ A heading is one line starting with one to six `#`.
 
 Without the space, or with seven `#`, the line is a paragraph:
 
-```tern {.live}
+```luccet {.live}
 #hashtag, #1 priority and C# are not headings.
 
 ####### Seven is too many.
@@ -927,7 +927,7 @@ Without the space, or with seven `#`, the line is a paragraph:
 
 A tab after the `#` run counts as a space, and closing runs stay in the text:
 
-```tern {.live}
+```luccet {.live}
 #	A heading after a tab
 ## Title ##
 #
@@ -945,7 +945,7 @@ A trailing **strong** group gives the heading its id, classes and attributes. It
 - `\{` makes the group text, with no diagnostic.
 - An [attribute line](#attribute-line) before the heading works too.
 
-```tern {.live}
+```luccet {.live}
 ## Bound {#bound .wide}
 ## Not at the end {#k} more
 ## Escaped \{#not-an-id}
@@ -956,7 +956,7 @@ A trailing **strong** group gives the heading its id, classes and attributes. It
 
 A broken group at the end of a heading, glued to a span's bracket, is one problem, reported once:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ## See [this]{#k!}
 ```
 
@@ -972,7 +972,7 @@ The slug is built from the heading's plain text: the rendered inline content wit
 4. trim `-` from both ends;
 5. use `section` if nothing is left.
 
-```tern {.live}
+```luccet {.live}
 ## Überblick
 ## 2. Results
 ## 日本語
@@ -989,7 +989,7 @@ The slug is built from the heading's plain text: the rendered inline content wit
 
 **Collisions.** A slug that is already taken gets the first free `-2`, `-3`, …, silently. Ids an author wrote anywhere in the note are registered before any slug, so a slug yields to them:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel
 ## Kernel
 ## Image
@@ -999,18 +999,18 @@ An explicit id wins over the earlier heading's slug.
 :::
 ```
 
-**Tern's own ids.** `tern-style`, `tern-color-scheme`, `tern-source` and `tern-diagnostics` belong to elements tern.js adds to the page, and are taken before any other id. A slug yields to them silently. An id an author writes with one of these names gets [`id.duplicate`](diagnostics.html#id-duplicate) (warning), "belongs to tern itself", and is dropped:
+**Luccet's own ids.** `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics` belong to elements luccet.js adds to the page, and are taken before any other id. A slug yields to them silently. An id an author writes with one of these names gets [`id.duplicate`](diagnostics.html#id-duplicate) (warning), "belongs to luccet itself", and is dropped:
 
-```tern {.live expect="id.duplicate"}
-## Tern style
+```luccet {.live expect="id.duplicate"}
+## Luccet style
 
-{#tern-source}
+{#luccet-source}
 A paragraph that cannot have this id.
 ```
 
 A reference inside a heading counts as its target's id in the slug, since numbers do not exist yet when slugs are made:
 
-```tern {.live}
+```luccet {.live}
 ## About @kernel
 
 :::aside{#kernel}
@@ -1029,12 +1029,12 @@ Slugs share one registry with every other id: see [Ids](elements.html#ids).
 A thematic break is a line of three or more dashes, rendered as `<hr>`.
 
 :::syntax
-```tern
+```luccet
 ---
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Above the rule.
 
 ---
@@ -1049,7 +1049,7 @@ Below the rule.
 - It is tested before list items, so `- - -` and `* * *` are rules, not nested lists.
 - It interrupts a paragraph, and makes no setext heading.
 
-```tern {.live}
+```luccet {.live}
 ***
 ___
 - - -
@@ -1062,7 +1062,7 @@ ___
 
 These are not rules:
 
-```tern {.live}
+```luccet {.live}
 -- is two.
 
 -*- mixes characters.
@@ -1074,7 +1074,7 @@ These are not rules:
 
 **Attributes.** A rule takes no trailing group: with one, the line is a paragraph. Put the attributes on an [attribute line](#attribute-line) before it, or write the leaf `::hr{.thin}`.
 
-```tern {.live}
+```luccet {.live}
 --- {.thin}
 
 {.thin}
@@ -1085,9 +1085,9 @@ These are not rules:
 
 ### Front matter {#front-matter}
 
-Tern has no front matter. A note whose first block is `---`, then `key: value` lines, then `---`, renders as a rule, a paragraph and a rule, and gets [`doc.frontmatter`](diagnostics.html#doc-frontmatter) (info) at the opening `---` line, pointing you to `:::meta`:
+Luccet has no front matter. A note whose first block is `---`, then `key: value` lines, then `---`, renders as a rule, a paragraph and a rule, and gets [`doc.frontmatter`](diagnostics.html#doc-frontmatter) (info) at the opening `---` line, pointing you to `:::meta`:
 
-```tern {.live expect="doc.frontmatter"}
+```luccet {.live expect="doc.frontmatter"}
 
 ---
 title: Linear maps
@@ -1095,7 +1095,7 @@ lang: en
 ---
 ```
 
-- The first block counts wherever it starts, so the usual blank line after the `tern.js` line does not hide it.
+- The first block counts wherever it starts, so the usual blank line after the `luccet.js` line does not hide it.
 - The same lines after another block are just a rule, a paragraph and a rule, with no diagnostic.
 - Prose between two rules is not front matter.
 
@@ -1108,14 +1108,14 @@ Write metadata in a [`:::meta` block](#raw-body) instead (see [Metadata](element
 A fence holds code, shown verbatim.
 
 :::syntax
-````tern
+````luccet
 ```lang[Title]{#id .class lines hl=2 start=10}
 code
 ```
 ````
 :::
 
-````tern {.live}
+````luccet {.live}
 ```python {start=10 lines .wide}
 def take(it, n):
     return [x for _, x in zip(range(n), it)]
@@ -1130,7 +1130,7 @@ def take(it, n):
 - A fence interrupts a paragraph.
 - **In a backtick fence, the info may not contain a backtick.** Such a line is not a fence: it is a paragraph, usually holding a code span.
 
-```tern {.live}
+```luccet {.live}
 ```a`b``` is a code span, not a fence.
 ```
 
@@ -1152,7 +1152,7 @@ After the backticks come three parts, in this order, each optional, with spaces 
 
 Anything else is junk. It gets [`fence.info-junk`](diagnostics.html#fence-info-junk) (warning) at its first character, the fence still opens, and the junk alone is kept, verbatim, in `data-meta` (on the `<figure>` for a titled fence, otherwise on `<pre>`; an [`=html` fence](#html-fence) has neither, so there it is dropped):
 
-````tern {.live expect="fence.info-junk"}
+````luccet {.live expect="fence.info-junk"}
 ```js extra
 let x = 1;
 ```
@@ -1160,7 +1160,7 @@ let x = 1;
 
 The parts must come in order, and once junk starts everything after it is junk, a valid group included:
 
-````tern {.live expect="fence.info-junk fence.info-junk"}
+````luccet {.live expect="fence.info-junk fence.info-junk"}
 ```js extra {.x}
 a group after junk is junk
 ```
@@ -1172,7 +1172,7 @@ a title after the group is junk
 
 A `[` that never closes, or a group that does not parse, is junk too (not `attr.malformed`):
 
-````tern {.live expect="fence.info-junk fence.info-junk"}
+````luccet {.live expect="fence.info-junk fence.info-junk"}
 ```js [Unclosed
 x
 ```
@@ -1184,7 +1184,7 @@ x
 
 In a tilde fence the info may hold backticks, so its title can hold a code span:
 
-````tern {.live}
+````luccet {.live}
 ~~~js[The `]` inside code does not end the title]
 x
 ~~~
@@ -1198,7 +1198,7 @@ x
 - A backtick line with info after it is content, not a closer.
 - A tilde fence closes only with tildes.
 
-`````tern {.live}
+`````luccet {.live}
 ````
 ```js
 inner fence, shown as code
@@ -1212,11 +1212,11 @@ inner fence, shown as code
 
 ### Content and dedent {#fence-content}
 
-- The content is verbatim and HTML-escaped. There are no escapes, and nothing inside is Tern: `:::`, `+++`, `$$`, `#` and blank lines are code. This is intended, since notes document Tern inside fences.
+- The content is verbatim and HTML-escaped. There are no escapes, and nothing inside is Luccet: `:::`, `+++`, `$$`, `#` and blank lines are code. This is intended, since notes document Luccet inside fences.
 - Each content line loses up to the opener's indentation, and keeps the rest. A shallower line loses only what it has.
 - A tab only partly removed by the dedent leaves its remaining columns as spaces.
 
-````tern {.live}
+````luccet {.live}
 :::aside
   ```
     four spaces become two
@@ -1247,7 +1247,7 @@ Three reserved keys control line display. They are consumed (never emitted as at
 - `hl` counts the displayed line numbers, so with `start=10` the first line is 10.
 - `hl` or `start` without `lines` still wraps every line in `span.t-line`; only `lines` adds `data-lines`.
 
-````tern {.live}
+````luccet {.live}
 ```js {lines start=10 hl=11}
 first();
 second(); // line 11, highlighted
@@ -1263,7 +1263,7 @@ A fence with a title becomes a listing: a `figure.t-block.code` with `data-t="co
 - The label and the counter come from the schema entry `code`, when a schema declares one. With the [demo schema](schema.html#demo-schema) the label is "Listing".
 - A titled fence is numbered in document order and can be referenced: `@lst-fib` renders "Listing 1".
 
-````tern {.live schema=demo}
+````luccet {.live schema=demo}
 ```js[A lazy Fibonacci generator]{#lst-fib lines hl=4}
 function* fib() {
   let [a, b] = [0, 1];
@@ -1279,7 +1279,7 @@ See @lst-fib.
 
 Without a schema entry for `code`, a titled fence is still the listing figure, with no label and no number:
 
-````tern {.live}
+````luccet {.live}
 ```js[A plain title]{#lst}
 x
 ```
@@ -1287,7 +1287,7 @@ x
 
 An untitled fence puts author attributes on `<pre>`, and takes no number. An [attribute line](#attribute-line) before a fence goes on `<pre>`, or on the `<figure>` of a titled one:
 
-````tern {.live}
+````luccet {.live}
 {#setup .wide}
 ```sh
 npm install
@@ -1300,7 +1300,7 @@ A fence with no closing line runs to the end of the innermost quote, list item o
 
 It runs through `:::` closers, because a fence may legitimately contain them. A container left open that way reports [`block.unclosed`](diagnostics.html#block-unclosed), with the hint "the fence opened on line N is unclosed":
 
-````tern {.live expect="block.unclosed block.unclosed-fence"}
+````luccet {.live expect="block.unclosed block.unclosed-fence"}
 :::aside
 ```
 code
@@ -1309,7 +1309,7 @@ code
 
 A closing fence below a list item's content column is outside the item. The item's fence is unclosed, and the closing line opens a new fence:
 
-````tern {.live expect="block.unclosed-fence block.unclosed-fence"}
+````luccet {.live expect="block.unclosed-fence block.unclosed-fence"}
 - ```
   code
 ```
@@ -1321,7 +1321,7 @@ Blank lines that end a list item belong to nothing, so a fence left open in the 
 
 **Escape.** ```` \``` ```` at the start of the line:
 
-```tern {.live}
+```luccet {.live}
 \```
 This is a paragraph.
 ```
@@ -1331,20 +1331,20 @@ This is a paragraph.
 A line that starts with certain HTML tags starts a raw HTML block, which is passed to the page as written.
 
 :::syntax
-```tern
+```luccet
 <details>
 <summary>Raw HTML, emitted byte for byte</summary>
 </details>
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 <details>
 <summary>Raw HTML</summary>
 Shown as written.
 </details>
 
-After the block, Tern again.
+After the block, Luccet again.
 ```
 
 **Rules.**
@@ -1353,7 +1353,7 @@ After the block, Tern again.
 - **The kind is fixed on the first line**, and with it the end condition, which belongs to this block alone.
 - **Tag names are case-insensitive** everywhere: on the first line, in end tags, and in depth counting.
 - **An end tag on the opening line counts**, for every kind.
-- **Content** is never parsed as Tern: no headings, no references, no ids. It is emitted verbatim (except an unclosed comment or raw-text block, below).
+- **Content** is never parsed as Luccet: no headings, no references, no ids. It is emitted verbatim (except an unclosed comment or raw-text block, below).
 - A raw HTML block interrupts a paragraph.
 
 ### The four kinds {#raw-html-kinds}
@@ -1371,7 +1371,7 @@ The **parent's end** is the end of the innermost quote, list item or footnote de
 
 A comment runs to the first line containing `-->`. That whole line belongs to the block, text after the `-->` included. Headings, `:::` lines and blank lines inside are part of the comment:
 
-```tern {.live}
+```luccet {.live}
 <!--
 # not a heading
 :::
@@ -1385,9 +1385,9 @@ After.
 
 #### Raw text: script, style, pre, textarea
 
-These elements hold text the browser does not parse as HTML, so the block runs to the matching end tag, whatever is in between: blank lines, `:::` lines, Tern-looking lines.
+These elements hold text the browser does not parse as HTML, so the block runs to the matching end tag, whatever is in between: blank lines, `:::` lines, Luccet-looking lines.
 
-```tern {.live}
+```luccet {.live}
 <pre>
   Indentation kept.
 
@@ -1400,7 +1400,7 @@ These elements hold text the browser does not parse as HTML, so the block runs t
 
 - The end tag may have spaces or tabs before its `>`: `</pre >` ends a `<pre>` block, as it does in HTML.
 
-```tern {.live}
+```luccet {.live}
 <pre>
 The end tag below has a space before its >.
 </pre >
@@ -1420,18 +1420,18 @@ A one-line block is just its line. It covers:
 - a self-closed tag: `<section/>`;
 - an element whose end tag HTML lets you omit: `p`, `li`, `dd`, `dt`, `tr`, `td`, `th`, `thead`, `tbody`, `tfoot`.
 
-```tern {.live}
+```luccet {.live}
 <hr class="fancy">
 <p>
-A Tern paragraph, between two raw lines: *parsed*.
+A Luccet paragraph, between two raw lines: *parsed*.
 <section/>
 ```
 
-So wrapping Tern text in `<p>` … `</p>` lines gives a raw `<p>`, a Tern paragraph, and a stray `</p>`:
+So wrapping Luccet text in `<p>` … `</p>` lines gives a raw `<p>`, a Luccet paragraph, and a stray `</p>`:
 
-```tern {.live expect="html.stray-closer"}
+```luccet {.live expect="html.stray-closer"}
 <p>
-Tern **text**
+Luccet **text**
 </p>
 ```
 
@@ -1444,7 +1444,7 @@ Every other block-level or custom element starts a generic block, which ends on 
 - The boundary matters: `<details-panel>` is not an opening of `details`, and `<divider>` is not an opening of `div`.
 - Names compare case-insensitively: `</DIV>` and `</div >` both count.
 
-```tern {.live}
+```luccet {.live}
 <div>
 <div>
 nested divs are counted
@@ -1457,7 +1457,7 @@ After.
 
 A tag whose attributes wrap is still one block, since `<NAME` may end the line:
 
-```tern {.live}
+```luccet {.live}
 <div
   class="wrap">
 content
@@ -1467,16 +1467,16 @@ After.
 
 The count may return to 0 on the opener line, and every tag on that line counts:
 
-```tern {.live}
+```luccet {.live}
 <div>one line</div>
 <div>closes one</div><div>opens another
 </div>
 After.
 ```
 
-A raw heading tag is a generic block: it gets no id, unlike a Tern heading.
+A raw heading tag is a generic block: it gets no id, unlike a Luccet heading.
 
-```tern {.live}
+```luccet {.live}
 <h2>Raw heading</h2>
 ```
 
@@ -1484,7 +1484,7 @@ A raw heading tag is a generic block: it gets no id, unlike a Tern heading.
 
 **A custom element** is a valid custom-element name: lower-case, starting with a letter `a`–`z`, containing `-`, and not one of the names HTML reserves (such as `font-face` and `annotation-xml`).
 
-```tern {.live}
+```luccet {.live}
 <tide-clock station="leith">
 Counted on its own name.
 </tide-clock>
@@ -1501,7 +1501,7 @@ Depth counting is textual. A `<div` or `</div>` inside a quoted attribute value,
 - A name that is neither block-level nor a valid custom element: `<divider>`, `<My-Widget>` (not lower-case), `<font-face>` (reserved by HTML).
 - The document tags (`<body>`, `<head>`) are not block-level.
 
-```tern {.live}
+```luccet {.live}
 <b>Bold</b> starts a paragraph.
 <3 this and < 5 items.
 <divider>not a block</divider>
@@ -1509,7 +1509,7 @@ Depth counting is textual. A `<div` or `</div>` inside a quoted attribute value,
 
 `iframe`, `video` and `audio` are block-level at the start of a line, and phrasing inside one:
 
-```tern {.live}
+```luccet {.live}
 <video src="tide.mp4" controls></video>
 Text with <video src="tide.mp4"></video> inline.
 ```
@@ -1518,7 +1518,7 @@ Text with <video src="tide.mp4"></video> inline.
 
 **A `:::` opener or closer line cuts a generic block.** A forgotten `</div>` would otherwise swallow the rest of the note. The generic block ends before the `:::` line, gets [`html.unclosed`](diagnostics.html#html-unclosed) (error), and the `:::` line is processed normally, so it still closes its container:
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 :::aside
 <div>
 the close tag is missing
@@ -1532,7 +1532,7 @@ The unclosed generic block is still emitted as raw HTML, so the browser shows it
 
 **An unclosed comment or raw-text block is not emitted as HTML.** In the browser it would turn the rest of the page into a comment, a script or a stylesheet. It gets `html.unclosed` (error) at its first line and is shown as `<pre class="t-error">` holding its escaped source, from the opener to the last line it held:
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 <!--
 never closed
 
@@ -1541,7 +1541,7 @@ never closed
 
 A container left open by such a block reports [`block.unclosed`](diagnostics.html#block-unclosed), with a hint naming the block, as for a fence:
 
-```tern {.live expect="html.unclosed block.unclosed"}
+```luccet {.live expect="html.unclosed block.unclosed"}
 :::aside
 <script>
 const s = 1;
@@ -1550,7 +1550,7 @@ const s = 1;
 
 Inside a quote or a list item, the block ends with its parent, and the error block holds the lines without their prefixes:
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 > <!--
 > a comment in a quote
 after
@@ -1558,24 +1558,24 @@ after
 
 ### The wrapper diagnostic {#raw-html-wrapper}
 
-Writing Markdown inside a `<div>` is a habit from other formats. In Tern the `<div>` block is raw HTML to its end, so the Markdown is shown as written. To make that visible, a generic block (only) gets [`html.wrapper`](diagnostics.html#html-wrapper) (warning) on the first line inside it, after the opener line, that does not begin with `<` (after leading whitespace) and either:
+Writing Markdown inside a `<div>` is a habit from other formats. In Luccet the `<div>` block is raw HTML to its end, so the Markdown is shown as written. To make that visible, a generic block (only) gets [`html.wrapper`](diagnostics.html#html-wrapper) (warning) on the first line inside it, after the opener line, that does not begin with `<` (after leading whitespace) and either:
 
 - follows a blank line inside the block (a whitespace-only line counts as blank); or
-- holds Tern syntax: any of `*`, `` ` ``, `$`, `[` or `:::`, or begins with a heading marker (`#` and a space), a list-item marker, `>` or `|`.
+- holds Luccet syntax: any of `*`, `` ` ``, `$`, `[` or `:::`, or begins with a heading marker (`#` and a space), a list-item marker, `>` or `|`.
 
 It is reported once per block, at the line's first non-space character.
 
-```tern {.live expect="html.wrapper"}
+```luccet {.live expect="html.wrapper"}
 <div class="box">
 Some **bold** text
 </div>
 ```
 
-To put Tern inside an element, write a container: `:::div{.box}` … `:::`.
+To put Luccet inside an element, write a container: `:::div{.box}` … `:::`.
 
 A plain line with none of those marks and no blank line before it is silent, and so is a tag line after a blank:
 
-```tern {.live}
+```luccet {.live}
 <form id="guess">
   <label>Guess <input name="n"></label>
 
@@ -1589,7 +1589,7 @@ Comment and raw-text blocks never get `html.wrapper`.
 
 An [attribute line](#attribute-line) before a raw HTML block does not attach: it stays text, with [`attributes.raw`](diagnostics.html#attributes-raw) (warning). Put the attributes in the tag.
 
-```tern {.live expect="attributes.raw"}
+```luccet {.live expect="attributes.raw"}
 {.box}
 <div>x</div>
 ```
@@ -1598,7 +1598,7 @@ An [attribute line](#attribute-line) before a raw HTML block does not attach: it
 
 **Escape.** `\<` at the start of the line makes it a paragraph, with no diagnostic:
 
-```tern {.live}
+```luccet {.live}
 \<div> is text.
 ```
 
@@ -1607,7 +1607,7 @@ An [attribute line](#attribute-line) before a raw HTML block does not attach: it
 A fence whose info is `=html` emits its body verbatim, with no `<pre>`.
 
 :::syntax
-````tern
+````luccet
 ```=html
 raw HTML, any shape
 ```
@@ -1616,25 +1616,25 @@ raw HTML, any shape
 
 Use it for HTML that starts with phrasing content, has unbalanced or omitted tags, or that you want to mark as raw explicitly:
 
-`````tern {.live}
+`````luccet {.live}
 ```=html
 <span>Phrasing first,</span>
 
 <p>an omitted end tag
 ```
-After the fence, *Tern* again.
+After the fence, *Luccet* again.
 `````
 
 **Rules.**
 
 - It starts and ends exactly as a [fence](#fence-close) does, and is a verbatim leaf.
-- Unbalanced HTML in it ends with the fence: the next paragraph is Tern.
+- Unbalanced HTML in it ends with the fence: the next paragraph is Luccet.
 - Only lower-case `=html` is raw.
 - A title or attributes on it get [`fence.info-junk`](diagnostics.html#fence-info-junk) (warning) and are dropped: the fence has no `<pre>` to keep them on, and the message says so.
 - An [attribute line](#attribute-line) before it stays text, with [`attributes.raw`](diagnostics.html#attributes-raw) (warning), as before a raw block.
 - Unclosed, it runs to the end like any fence, with [`block.unclosed-fence`](diagnostics.html#block-unclosed-fence). It is not a comment or raw-text block, so its body is still emitted verbatim.
 
-````tern {.live expect="fence.info-junk attributes.raw"}
+````luccet {.live expect="fence.info-junk attributes.raw"}
 ```=html {.x}
 <b>the group is junk</b>
 ```
@@ -1647,7 +1647,7 @@ After the fence, *Tern* again.
 
 **Other formats.** Any other info word starting with `=` makes an ordinary code fence, with class `language-FORMAT` (without the `=`). That includes `=HTML`:
 
-````tern {.live}
+````luccet {.live}
 ```=latex
 \section{Shown as code}
 ```
@@ -1662,7 +1662,7 @@ After the fence, *Tern* again.
 Display math is a block of TeX between `$$` lines.
 
 :::syntax
-```tern
+```luccet
 $$
 TeX
 $$ {#eq-id}
@@ -1671,7 +1671,7 @@ $$ TeX on one line $$ {#eq-id}
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 $$
 \dim V = \dim \ker T + \dim \operatorname{im} T.
 $$ {#eq-rn}
@@ -1695,7 +1695,7 @@ The opener is a line beginning with `$$`. The rest of the line decides the form:
 
 In form (c), a non-empty rest, with its leading whitespace stripped, is the first TeX line.
 
-```tern {.live}
+```luccet {.live}
 $$x^2$$
 
 $$ x $$ {#e .big}
@@ -1704,7 +1704,7 @@ $$ \sum_i x_i
 + y $$
 ```
 
-```tern {.live expect="math.inline-display math.inline-display"}
+```luccet {.live expect="math.inline-display math.inline-display"}
 $$ x $$ is not display math when text follows.
 ```
 
@@ -1712,7 +1712,7 @@ On the opener and closer lines `\$` is skipped as a pair, so in `5\$$$` the clos
 
 **Attributes on the opener are an error.** A rest that is exactly a strong group starting with `#` or `.` gets [`math.opener-tail`](diagnostics.html#math-opener-tail) (error), "attributes go after the closing `$$`". It stays in the TeX, where KaTeX shows it as an error, and the equation gets no id:
 
-```tern {.live expect="math.opener-tail"}
+```luccet {.live expect="math.opener-tail"}
 $$ {#eq-wrong}
 x^2
 $$
@@ -1728,7 +1728,7 @@ The closer is the first later line containing an unescaped `$$`. It is tested on
 - After it there may be nothing, or one attribute group, strong or weak, glued or after spaces.
 - Anything else after it gets [`math.closer-tail`](diagnostics.html#math-closer-tail) (warning) at the junk, and is emitted as a paragraph after the equation, which the next lines may continue. A group followed by text is all junk: the equation gets no id.
 
-```tern {.live}
+```luccet {.live}
 $$
 a
   + b $$ {#eq-ab}
@@ -1738,7 +1738,7 @@ x
 $${hidden}
 ```
 
-```tern {.live expect="math.closer-tail"}
+```luccet {.live expect="math.closer-tail"}
 $$
 x
 $$ {#eq-x} and more
@@ -1759,7 +1759,7 @@ TeX forbids blank lines in display math, so a forgotten closer must not swallow 
 
 The block closes as [`math.unclosed`](diagnostics.html#math-unclosed) (error) at the opener, ending where the terminating line starts. The message names that line, and the line is then processed normally. The equation is shown as `<div class="t-eq t-error">` holding its escaped source, opening `$$` included.
 
-```tern {.live expect="math.unclosed math.unclosed"}
+```luccet {.live expect="math.unclosed math.unclosed"}
 $$
 x
 
@@ -1772,7 +1772,7 @@ Above, the blank line ends the first equation, so the intended closer opens a se
 
 Because terminators come first, `## $$` is a heading line, which ends the block instead of closing it:
 
-```tern {.live expect="math.unclosed math.inline-display"}
+```luccet {.live expect="math.unclosed math.inline-display"}
 $$
 x
 ## $$
@@ -1780,7 +1780,7 @@ x
 
 A `:::` line terminates the equation and still closes its container:
 
-```tern {.live expect="math.unclosed"}
+```luccet {.live expect="math.unclosed"}
 :::aside
 $$
 x
@@ -1790,7 +1790,7 @@ After the aside.
 
 Lines shaped like other blocks are not terminators; they are TeX:
 
-```tern {.live}
+```luccet {.live}
 $$
 - item
 > quote
@@ -1808,7 +1808,7 @@ Inside a quote or list item, the error block holds the lines without their prefi
 - The output is `div.t-eq` (classes: `t-eq`, then the author's), holding `span.t-math[data-display]`, then `span.t-eqno` when numbered.
 - An id may come from the closer or from an [attribute line](#attribute-line) before the opener. A class does not number the equation.
 
-```tern {.live}
+```luccet {.live}
 $$
 x
 $$ {#a}
@@ -1827,11 +1827,11 @@ $$
 
 ### Content {#math-content}
 
-- The TeX is verbatim: nothing inside is Tern, so `@eq-a`, `*em*` and `[l](u)` are TeX. It is HTML-escaped and otherwise unchanged.
+- The TeX is verbatim: nothing inside is Luccet, so `@eq-a`, `*em*` and `[l](u)` are TeX. It is HTML-escaped and otherwise unchanged.
 - Inside an indented body, TeX lines lose up to the opener's indentation, as fence content does.
 - Macros defined in a [`:::macros` block](#raw-body) apply to every formula.
 
-```tern {.live}
+```luccet {.live}
 $$
 @eq-a *em* a < b & c
 $$
@@ -1841,7 +1841,7 @@ $$
 
 **Escape.** `\$$` at the start of the line is text: the escaped `$` is not a dollar, and the next `$` is followed by a space, so nothing opens.
 
-```tern {.live}
+```luccet {.live}
 \$$ is two dollar signs.
 ```
 
@@ -1852,13 +1852,13 @@ For a display style inside a line, write `$\displaystyle …$` (see [Inline math
 A blockquote is lines starting with `>`.
 
 :::syntax
-```tern
+```luccet
 > Quoted text,
 > any blocks inside.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 > A quote,
 lazily continued.
 >
@@ -1878,7 +1878,7 @@ lazily continued.
 
 `>5 people`, `>= 3` and `>>` (no space after the first `>`) are paragraphs:
 
-```tern {.live}
+```luccet {.live}
 >5 people, >= 3 of them.
 
 >> not a nested quote
@@ -1886,7 +1886,7 @@ lazily continued.
 
 A blank line ends the quote, so two quotes separated by one stay two:
 
-```tern {.live}
+```luccet {.live}
 > one
 
 > two
@@ -1894,14 +1894,14 @@ A blank line ends the quote, so two quotes separated by one stay two:
 
 A line that would interrupt a paragraph is not lazy, so it ends the quote:
 
-```tern {.live}
+```luccet {.live}
 > quoted
 ---
 ```
 
 Only one space is stripped after `>`. Here `>   b` leaves `b` at the item's content column, so it belongs to the item:
 
-```tern {.live}
+```luccet {.live}
 > - a
 >
 >   b
@@ -1909,7 +1909,7 @@ Only one space is stripped after `>`. Here `>   b` leaves `b` at the item's cont
 
 A closer inside a quote sees only the containers opened inside that quote, so `> :::` inside `:::aside` is a stray closer, not the aside's closer:
 
-```tern {.live expect="block.stray-closer"}
+```luccet {.live expect="block.stray-closer"}
 :::aside
 > :::
 :::
@@ -1922,14 +1922,14 @@ A closer inside a quote sees only the containers opened inside that quote, so `>
 Lists follow the CommonMark rules, restated here.
 
 :::syntax
-```tern
+```luccet
 - a bullet item
 1. an ordered item
 - [ ] a task item
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 - [x] Motions
 - [ ] Operators
   1. inner vs around
@@ -1942,7 +1942,7 @@ Lists follow the CommonMark rules, restated here.
 - An ordered marker is 1 to 9 digits followed by `.` or `)`.
 - A space, a tab or the end of the line must follow the marker.
 
-```tern {.live}
+```luccet {.live}
 1) closing parenthesis
 
 -no space is not an item
@@ -1966,7 +1966,7 @@ An item's content starts at its **content column**: the indentation before the m
 | `  - a` | 4 |
 | `-` alone | 2 |
 
-```tern {.live}
+```luccet {.live}
 10. a
 
     four spaces: inside the item
@@ -1974,7 +1974,7 @@ An item's content starts at its **content column**: the indentation before the m
    three spaces: outside
 ```
 
-```tern {.live}
+```luccet {.live}
 -
   An item may start empty.
 
@@ -1993,7 +1993,7 @@ A line belongs to the item when:
 
 Blank lines held when the item ends belong to nothing, so a fence or raw block left open in the item ends before them.
 
-```tern {.live}
+```luccet {.live}
 - An item
 lazily continued.
 
@@ -2003,7 +2003,7 @@ lazily continued.
 
 Indentation beyond the content column is ignored, as everywhere: there is no indented code.
 
-```tern {.live}
+```luccet {.live}
 - a
       # six spaces in: still a heading
 ```
@@ -2012,7 +2012,7 @@ Indentation beyond the content column is ignored, as everywhere: there is no ind
 
 Items with the same bullet character, or the same ordered delimiter, form one list. A different marker starts a new list:
 
-```tern {.live}
+```luccet {.live}
 - a
 - b
 * c
@@ -2022,7 +2022,7 @@ Items with the same bullet character, or the same ordered delimiter, form one li
 
 An [attribute line](#attribute-line) between items also starts a new list, which takes its attributes:
 
-```tern {.live}
+```luccet {.live}
 - one
 {.second}
 - two
@@ -2032,7 +2032,7 @@ An [attribute line](#attribute-line) between items also starts a new list, which
 
 A list is **loose** if a blank line separates two of its items, or sits directly inside one of them (not inside a nested block). The items' paragraphs then get `<p>`. Otherwise the list is **tight**, and item text is not wrapped.
 
-```tern {.live}
+```luccet {.live}
 - tight
 - tight
 
@@ -2041,7 +2041,7 @@ A list is **loose** if a blank line separates two of its items, or sits directly
 
 A blank line inside a nested item makes only the nested list loose, and a blank line after the last item leaves the list tight:
 
-```tern {.live}
+```luccet {.live}
 - a
   - b
 
@@ -2055,7 +2055,7 @@ After the list.
 
 An ordered list starting at n ≠ 1 gets `start="n"`. Leading zeros are digits: `007.` is 7, and `01.` is 1. Numbers need not increase.
 
-```tern {.live}
+```luccet {.live}
 3. three
 3. four
 
@@ -2073,7 +2073,7 @@ An item that starts with `[ ]`, `[x]` or `[X]` followed by a space or the end of
 - `[x]Done` (no space) and `[-]` are not checkboxes.
 - In a loose list the checkbox goes inside the item's first paragraph.
 
-```tern {.live}
+```luccet {.live}
 - [x] done
 - [X] also done
 - [ ]
@@ -2081,7 +2081,7 @@ An item that starts with `[ ]`, `[x]` or `[X]` followed by a space or the end of
 1. [ ] ordered task
 ```
 
-```tern {.live}
+```luccet {.live}
 - [x] loose
 
 - [ ] list
@@ -2091,7 +2091,7 @@ An item that starts with `[ ]`, `[x]` or `[X]` followed by a space or the end of
 
 Any block may nest inside an item at its content column: paragraphs, lists, fences, quotes, tables, display math, `:::` containers.
 
-````tern {.live}
+````luccet {.live}
 - An item holding blocks:
   ```js
   code();
@@ -2107,7 +2107,7 @@ Any block may nest inside an item at its content column: paragraphs, lists, fenc
 
 A `:::` closer inside an item must be indented to the item's content column. A closer at a lower column ends the item, and the hint says so:
 
-```tern {.live expect="block.unclosed block.stray-closer"}
+```luccet {.live expect="block.unclosed block.stray-closer"}
 - an item
   :::aside
   inside
@@ -2118,7 +2118,7 @@ A `:::` closer inside an item must be indented to the item's content column. A c
 
 Only a non-empty bullet item, or a non-empty ordered item numbered 1 (`01.` included), interrupts a paragraph. So a wrapped line starting with a year stays prose:
 
-```tern {.live}
+```luccet {.live}
 The war ended in
 1945. That is a wrapped line, not a list.
 A line starting
@@ -2127,7 +2127,7 @@ A line starting
 
 After a blank line, the same line is a list, as in CommonMark. Write `2019\.` to keep it prose:
 
-```tern {.live}
+```luccet {.live}
 2019. was a year.
 
 2019\. was a year.
@@ -2140,14 +2140,14 @@ After a blank line, the same line is a list, as in CommonMark. Write `2019\.` to
 A table is rows of cells between pipes, with a delimiter row under the header. Each header cell is a `<th scope="col">`.
 
 :::syntax
-```tern
+```luccet
 | Header | Right |
 |---|--:|
 | cell | 1 |
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 {.wide}
 | Phase | Weeks | Note |
 |---|--:|---|
@@ -2174,14 +2174,14 @@ There are two forms:
 - **(a) With a header.** A line starting with `|` whose next line, in the same container, is a delimiter row. The first line is the header. This is the one line of lookahead in the grammar, and this form interrupts a paragraph. A first line ending in a continuation `\` cannot start it.
 - **(b) Without a header.** A delimiter row at a block start (not inside a paragraph). It starts a headerless table, and its colons set the alignment. A delimiter row is never a header: two delimiter rows at a block start are this form, and the second is misplaced.
 
-```tern {.live}
+```luccet {.live}
 Text above
 | a | b |
 |---|---|
 | 1 | 2 |
 ```
 
-```tern {.live}
+```luccet {.live}
 ## Headerless
 
 |--:|:-:|
@@ -2190,7 +2190,7 @@ Text above
 
 A `|` line without a delimiter row under it is a paragraph, and so is a Markdown table without leading pipes:
 
-```tern {.live expect="table.stray-delimiter"}
+```luccet {.live expect="table.stray-delimiter"}
 | just a line starting with a pipe
 
 a | b
@@ -2206,7 +2206,7 @@ a | b
 - The joined lines form one *logical row*, so a cell can span lines and the continuation can finish the row with more cells. A wrapped row is always explicit, never guessed.
 - The join happens only when the next line is in the same container and is not a closer or a `+++` line. Otherwise the row gets [`table.row-unterminated`](diagnostics.html#table-row-unterminated) (warning), and the `\` is literal.
 
-```tern {.live}
+```luccet {.live}
 | Step | Detail | Status |
 |---|---|---|
 | one | starts here \
@@ -2214,7 +2214,7 @@ a | b
 and ends here | done |
 ```
 
-```tern {.live expect="table.row-unterminated"}
+```luccet {.live expect="table.row-unterminated"}
 | a |
 |---|
 | ends with a backslash \
@@ -2230,7 +2230,7 @@ The blank line ends the table.
 - The leading `|` opens the row. A trailing `|` closes the last cell and adds no empty one.
 - Cells are trimmed and parsed as [inline content](syntax-inline.html#algorithm).
 
-```tern {.live}
+```luccet {.live}
 | Code | Math | Escaped |
 |---|---|---|
 | `a|b` | $|x|$ | a \| b |
@@ -2241,7 +2241,7 @@ The blank line ends the table.
 
 Emphasis and named inline elements are not atoms: the row is split first, so a `*` cannot pair across a pipe, and a `|` inside `:kbd[…]` must be escaped:
 
-```tern {.live}
+```luccet {.live}
 | a | b |
 |---|---|
 | *x | y* |
@@ -2261,7 +2261,7 @@ A lone backtick pairs with a later backtick in the same row, and the code span s
 - Colons in the delimiter row put `style="text-align:…"` on every `th` and `td` of the column, empty cells included.
 - A header-only table has no `<tbody>`.
 
-```tern {.live expect="table.extra-cell"}
+```luccet {.live expect="table.extra-cell"}
 | a | b | c |
 |:--|--:|
 | 1 |
@@ -2273,7 +2273,7 @@ A lone backtick pairs with a later backtick in the same row, and the code span s
 - Attributes come from an [attribute line](#attribute-line) before the table. A `{…}` line after a table ends the table, and goes to the block after it, if any: never to the table.
 - A caption and a number come from wrapping the table in `:::table[Caption]{#id}`, which merges with it into `<table><caption>`. See [Table captions](elements.html#table-caption).
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 {.wide}
 | a | b |
 |---|---|
@@ -2297,7 +2297,7 @@ The second table above uses the [demo schema](schema.html#demo-schema), which de
 - [`table.misplaced-separator`](diagnostics.html#table-misplaced-separator) (warning): a delimiter row inside the body. It renders as a text row.
 - [`table.extra-cell`](diagnostics.html#table-extra-cell) (warning): a row with more cells than the header.
 
-```tern {.live expect="table.stray-delimiter table.misplaced-separator"}
+```luccet {.live expect="table.stray-delimiter table.misplaced-separator"}
 | a | b |\
 |---|---|
 
@@ -2314,7 +2314,7 @@ The second table above uses the [demo schema](schema.html#demo-schema), which de
 A container is a named block that holds other blocks, from an opener line to a closer line.
 
 :::syntax
-```tern
+```luccet
 :::name[Title]{#id .class key=value}
 Any blocks.
 :::
@@ -2323,7 +2323,7 @@ Any blocks.
 
 With no schema entry for its name, a container is a `div` carrying the name as a class:
 
-```tern {.live}
+```luccet {.live}
 :::idea[Key idea]{#k}
 Containers hold *any* blocks.
 :::
@@ -2331,7 +2331,7 @@ Containers hold *any* blocks.
 
 With the [demo schema](schema.html#demo-schema), which declares `theorem` as a numbered `section`, the same spelling gets an element, a label and a number:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm-rn .big}
 If $V$ is finite-dimensional then …
 :::
@@ -2354,7 +2354,7 @@ opener = ":"{3,} NAME ws* ( "[" title "]" )? ws* ATTRS? ws* EOL
 - **Interrupts a paragraph:** yes. A line starting `:::word` always opens a block; prose never starts that way.
 - An [attribute line](#attribute-line) before the opener merges into it.
 
-```tern {.live}
+```luccet {.live}
 ::::aside [Spaced parts]   {.x}
 Four colons open it, four close it.
 ::::
@@ -2373,7 +2373,7 @@ The title is inline content on one line:
 - `\]` escapes a closing bracket;
 - code and math spans are atoms, so `[See $f[x]$]` works.
 
-```tern {.live}
+```luccet {.live}
 :::aside[See $f[x]$, [nested], `]` and \]]
 Body.
 :::
@@ -2381,7 +2381,7 @@ Body.
 
 An empty title `[]` emits no title element, as if there were no brackets. A labelled name still gets its label:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::note[]
 The demo schema labels `note` "Note".
 :::
@@ -2393,7 +2393,7 @@ The demo schema labels `note` "Note".
 - It may be indented freely: leading whitespace is ignored when a line is classified, for openers and closers too.
 - `:::macros`, `:::meta`, and any container with `{raw}`, have a verbatim body instead (see [Raw-body containers](#raw-body)).
 
-```tern {.live}
+```luccet {.live}
   :::aside
       Indentation means nothing here.
     :::
@@ -2405,12 +2405,12 @@ Some names are reserved (see [Reserved names](elements.html#reserved)):
 
 - **`script`, `style` and `html`** get a verbatim body, which is shown as `<pre class="t-error">` and never run; their id and classes go on that `<pre>`. They get [`name.reserved`](diagnostics.html#name-reserved) (warning), with a hint naming the HTML spelling: `<script>` … `</script>`, or a ```` ```=html ```` fence.
 - **`end`**: `:::end` acts as a bare closer, with `name.reserved`.
-- **Other reserved names** (`main`, `body`, `tern`, any `t-*` name …) fall back to a `div` without the name as a class, with `name.reserved`. They keep `data-t`.
+- **Other reserved names** (`main`, `body`, `luccet`, any `t-*` name …) fall back to a `div` without the name as a class, with `name.reserved`. They keep `data-t`.
 - `tag=` cannot rescue a reserved or core name: on `:::main` or `:::script` it gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped.
 
-Names are case-sensitive, so `:::Script` is not reserved: it is an ordinary `div.Script` whose body is Tern.
+Names are case-sensitive, so `:::Script` is not reserved: it is an ordinary `div.Script` whose body is Luccet.
 
-```tern {.live expect="name.reserved name.reserved"}
+```luccet {.live expect="name.reserved name.reserved"}
 :::script{.shown}
 alert("never run");
 :::
@@ -2436,19 +2436,19 @@ The opener never silently loses text. Junk on an opener line is shown as escaped
 | `:::end` | acts as a bare closer | `name.reserved` (warning) |
 | a 65th nested opener | paragraph text | `nesting.limit` (error) |
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::aside[T] #rn .big
 The block opened; the junk is above.
 :::
 ```
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::aside Danger
 A title without brackets is junk.
 :::
 ```
 
-```tern {.live expect="block.opener-junk block.opener-junk"}
+```luccet {.live expect="block.opener-junk block.opener-junk"}
 :::aside[Unclosed
 x
 :::
@@ -2460,7 +2460,7 @@ y
 
 Only what follows the opener's grammar is junk; the title and group before it are kept. When the opener already has a title, the hint no longer suggests brackets: it says to remove the text, or to move it into the title or the body. Junk that starts with `#` or `.` still gets the "attributes go in braces" hint.
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::aside[Kept]{.kept} *not* <b>parsed</b>
 x
 :::
@@ -2468,13 +2468,13 @@ x
 
 A spaced or nameless opener opens nothing. The line is a paragraph line, the next line continues it, and the closer meant for it is then stray:
 
-```tern {.live expect="block.spaced-name block.stray-closer"}
+```luccet {.live expect="block.spaced-name block.stray-closer"}
 ::: aside
 Body.
 :::
 ```
 
-```tern {.live expect="block.bad-opener block.bad-opener block.bad-opener"}
+```luccet {.live expect="block.bad-opener block.bad-opener block.bad-opener"}
 :::{.x}
 
 :::123
@@ -2491,7 +2491,7 @@ Body.
 A closer ends a container.
 
 :::syntax
-```tern
+```luccet
 :::
 :::/name
 ```
@@ -2502,7 +2502,7 @@ A closer ends a container.
 - If its colon count differs from the opener's, it gets [`block.closer-count`](diagnostics.html#block-closer-count) (info): colon counts do not choose the block, and the hint names the closer to write instead. It still closes the innermost container.
 - With nothing open, it gets [`block.stray-closer`](diagnostics.html#block-stray-closer) (warning), and the line is paragraph text.
 
-```tern {.live expect="block.closer-count"}
+```luccet {.live expect="block.closer-count"}
 ::::outer
 :::inner
 x
@@ -2518,14 +2518,14 @@ The `::::` on line 4 closes `inner`, not `outer`; the info suggests `:::/outer`.
 - If no container with that name is open, it gets [`block.closer-mismatch`](diagnostics.html#block-closer-mismatch) (error), naming what is open, and the line is paragraph text. The containers stay open for the next closer.
 - Names are case-sensitive: `:::Box` … `:::/box` is a mismatch.
 
-```tern {.live expect="block.unclosed"}
+```luccet {.live expect="block.unclosed"}
 :::section
 :::aside
 The aside is never closed.
 :::/section
 ```
 
-```tern {.live expect="block.closer-mismatch"}
+```luccet {.live expect="block.closer-mismatch"}
 :::aside
 x
 :::/other
@@ -2538,14 +2538,14 @@ Named closers are how you make long or nested structures robust: with `:::/secti
 
 **End of the parent or of the note.** Every container still open gets `block.unclosed` (error) at its opener: "`:::aside` opened on line 1 is still open at line 2", with the hint "add `:::` or `:::/aside`". If the container is inside a list item and the next line is a closer at a lower column, the hint adds "indent the closer to the item's content column" (see [Lists](#list-nesting)).
 
-```tern {.live expect="block.unclosed"}
+```luccet {.live expect="block.unclosed"}
 :::aside
 The closer is missing.
 ```
 
 **`:::end`** is read as a bare closer, with [`name.reserved`](diagnostics.html#name-reserved) (warning): write `:::` or `:::/name`.
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::aside
 x
 :::end
@@ -2560,7 +2560,7 @@ A closer interrupts a paragraph, and a closer-shaped line that falls back to tex
 A `+++` line splits a container's body into cells, laid out as a grid.
 
 :::syntax
-```tern
+```luccet
 :::row{cols="2 1"}
 First cell.
 +++ {.muted}
@@ -2569,7 +2569,7 @@ Second cell.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 :::row{cols="2 1"}
 Left, twice as wide.
 +++ {.muted}
@@ -2584,7 +2584,7 @@ Right.
 - **The last cell.** A trailing `+++` makes an empty last cell.
 - Each segment becomes `div.t-cell`. The container's title stays its first child, before the cells.
 
-```tern {.live}
+```luccet {.live}
 :::row
 +++ {.first}
 A leading separator opens the first cell.
@@ -2605,7 +2605,7 @@ A leading separator opens the first cell.
 - Without `+++`, each direct child of a `cols` element is a grid item.
 - `cols=0` or a negative number gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is ignored.
 
-```tern {.live}
+```luccet {.live}
 :::row{cols="1 1.5 12rem" style="gap:1rem"}
 A
 +++
@@ -2621,7 +2621,7 @@ each child is a grid item.
 :::
 ```
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 :::row{cols=0}
 A
 +++
@@ -2636,7 +2636,7 @@ B
 
 An orphan still interrupts the open paragraph, and starts a paragraph of its own.
 
-```tern {.live expect="cell.orphan cell.orphan"}
+```luccet {.live expect="cell.orphan cell.orphan"}
 +++
 
 :::aside
@@ -2649,7 +2649,7 @@ A separator belongs to the innermost open container; the outer one gets no cells
 
 `+++ text` and `++` are ordinary text, with no diagnostic:
 
-```tern {.live}
+```luccet {.live}
 :::aside
 +++ text is not a separator, and neither is
 ++
@@ -2665,12 +2665,12 @@ A separator belongs to the innermost open container; the outer one gets no cells
 A leaf is a named element on one line, with optional inline content.
 
 :::syntax
-```tern
+```luccet
 ::name[inline content]{#id .class key=value}
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 ::video{src=media/tide.mp4 controls width=640}
 ::tide-clock{station=leith units=m}
 ::fig[Caption *x*]{#f}
@@ -2678,7 +2678,7 @@ A leaf is a named element on one line, with optional inline content.
 
 With the [demo schema](schema.html#demo-schema), `::toc` is a `nav` filled with the note's level-2 and level-3 headings:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ::toc
 
 ## One
@@ -2698,7 +2698,7 @@ leaf = "::" NAME ws* ( "[" content "]" )? ws* ATTRS? ws* EOL
 - Content and group are optional, with spaces allowed between the parts.
 - **Interrupts a paragraph** only when the whole line matches.
 
-```tern {.live}
+```luccet {.live}
 ::audio  [Your browser cannot play this.]  {src=tide.ogg controls}
 ::p[A paragraph element]{.lead}
 ::note[a [b] `]` $f]$ \] :kbd[k]]
@@ -2713,13 +2713,13 @@ Any other tail makes the line a paragraph line:
 - `:: toc` (a space after `::`) is a paragraph with [`block.spaced-name`](diagnostics.html#block-spaced-name) (warning);
 - a trailing group that does not parse makes the line a paragraph with [`attr.malformed`](diagnostics.html#attr-malformed) (warning) only, not `leaf.demoted`. It is reported once, also when the group is glued to the content's `]`.
 
-```tern {.live expect="leaf.demoted leaf.demoted"}
+```luccet {.live expect="leaf.demoted leaf.demoted"}
 ::before and ::after are pseudo-elements.
 
 ::note[cut off before its bracket
 ```
 
-```tern {.live expect="block.spaced-name attr.malformed attr.malformed"}
+```luccet {.live expect="block.spaced-name attr.malformed attr.malformed"}
 ::
 
 :: toc
@@ -2731,7 +2731,7 @@ Any other tail makes the line a paragraph line:
 
 A whole-line leaf interrupts a paragraph; a demoted one continues it:
 
-```tern {.live expect="leaf.demoted"}
+```luccet {.live expect="leaf.demoted"}
 A paragraph
 ::note[a whole-line leaf interrupts it]
 
@@ -2753,7 +2753,7 @@ Named inline elements follow the same rule. The demo schema declares no labelled
 
 A void element (`hr`, `img`) holds no content. Content on a void leaf gets [`leaf.void-content`](diagnostics.html#leaf-void-content) (warning), and is emitted after the element, in a paragraph:
 
-```tern {.live expect="leaf.void-content"}
+```luccet {.live expect="leaf.void-content"}
 ::hr[x]
 ```
 
@@ -2768,7 +2768,7 @@ A void element (`hr`, `img`) holds no content. Content on a void leaf gets [`lea
 A footnote definition gives the text of a footnote, which may hold blocks. References to it are inline: see [Footnote references](syntax-inline.html#footnote-reference).
 
 :::syntax
-```tern
+```luccet
 Text with a note.[^label]
 
 [^label]: The note,
@@ -2776,7 +2776,7 @@ Text with a note.[^label]
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Linear maps.[^subspace]
 
 [^subspace]: Closed under addition and scaling: if $Tu = Tv = 0$
@@ -2793,7 +2793,7 @@ Definitions are collected, in the order of their first reference, into `<section
 - Labels match case-insensitively, so `[^a]:` and `[^A]:` are the same label.
 - The ids use the definition's label as written: `fn-LABEL` on the `<li>`.
 
-```tern {.live expect="footnote.undefined footnote.undefined"}
+```luccet {.live expect="footnote.undefined footnote.undefined"}
 Text[^a]
 
 [^a]:no space after the colon, so this is a paragraph.
@@ -2808,7 +2808,7 @@ Text[^a]
 - It ends like a list item: at an unindented line that is not lazy.
 - `[^label]:` may end its line; the content then starts on the indented line below. An empty definition gives an empty item, with its back link.
 
-```tern {.live}
+```luccet {.live}
 Text.[^a][^b]
 
 [^a]:
@@ -2823,7 +2823,7 @@ Back in the text.
 
 After a blank line, a line indented only 1 column is outside the definition:
 
-```tern {.live}
+```luccet {.live}
 Text.[^a]
 
 [^a]: Note.
@@ -2833,7 +2833,7 @@ Text.[^a]
 
 A tab reaches column 4, which is enough:
 
-```tern {.live}
+```luccet {.live}
 Text.[^a]
 
 [^a]: Note.
@@ -2843,7 +2843,7 @@ Text.[^a]
 
 Definitions hold any blocks, and may start inside containers and quotes; they are still collected at the end:
 
-````tern {.live}
+````luccet {.live}
 :::aside
 Text.[^a]
 
@@ -2857,7 +2857,7 @@ Text.[^a]
 
 **Numbering.** Definitions are numbered by first reference, not by where they are defined.
 
-```tern {.live}
+```luccet {.live}
 B[^b] then A[^a].
 
 [^a]: Alpha.
@@ -2870,7 +2870,7 @@ B[^b] then A[^a].
 - [`footnote.duplicate`](diagnostics.html#footnote-duplicate) (warning): the first definition wins; each later one is dropped and gets the diagnostic.
 - [`footnote.nested`](diagnostics.html#footnote-nested) (warning): a reference inside a definition stays literal.
 
-```tern {.live expect="footnote.unused footnote.duplicate footnote.nested"}
+```luccet {.live expect="footnote.unused footnote.duplicate footnote.nested"}
 Text[^a]
 
 [^a]: First, citing [^b].
@@ -2882,7 +2882,7 @@ Text[^a]
 
 **Escape.** `\[^x]:` at the start of the line. It draws no LaTeX hint.
 
-```tern {.live}
+```luccet {.live}
 \[^x]: is text.
 ```
 
@@ -2891,20 +2891,20 @@ Text[^a]
 An attribute line gives attributes to the block that follows it.
 
 :::syntax
-```tern
+```luccet
 {#id .class key=value}
 The block it applies to.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 {.byline}
 Lecture 7 · O. Carrera
 ```
 
 **The line.** One or more **strong** groups, which merge, with spaces allowed around and between them. Row 15; it interrupts a paragraph.
 
-```tern {.live}
+```luccet {.live}
 A paragraph
 {#second .lead} {lang=fr}
 Une autre.
@@ -2920,7 +2920,7 @@ Une autre.
 | a container or a leaf | the element, merged: the line's classes come before the opener's; for the id and other keys, the opener's own attributes win |
 | an image-only paragraph | the implicit figure; an `#id` here makes the figure even when the image has none |
 
-```tern {.live}
+```luccet {.live}
 {#line-id .from-line k=line}
 :::aside{#own-id .own k=opener}
 The opener's id and key win; classes accumulate.
@@ -2930,7 +2930,7 @@ The opener's id and key win; classes accumulate.
 ---
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 {#fig-osprey .wide}
 ![An osprey](osprey.jpg)
 ```
@@ -2941,7 +2941,7 @@ The image above becomes a numbered figure: see [Figures](elements.html#figures).
 
 **Merging.** Consecutive attribute lines merge, by the [merging rules](#merging-and-emission).
 
-```tern {.live}
+```luccet {.live}
 {.a}
 {#b .c}
 Two lines, one paragraph.
@@ -2951,7 +2951,7 @@ Two lines, one paragraph.
 
 If a blank line, a closer, a `+++` line or the end of the note comes next, nothing follows to take the attributes. The line is emitted as paragraph text, with [`attributes.orphan`](diagnostics.html#attributes-orphan) (warning). Consecutive orphan lines form one paragraph, with one diagnostic.
 
-```tern {.live expect="attributes.orphan attributes.orphan"}
+```luccet {.live expect="attributes.orphan attributes.orphan"}
 {.a}
 {.b}
 
@@ -2968,7 +2968,7 @@ An attribute line before a footnote definition is an orphan too: a definition ta
 
 Before a raw HTML block or an `=html` fence, the line is emitted as text, with [`attributes.raw`](diagnostics.html#attributes-raw) (warning): put the attributes in the tag. A line starting with a phrasing tag is a paragraph, so an attribute line before it attaches normally.
 
-```tern {.live expect="attributes.raw"}
+```luccet {.live expect="attributes.raw"}
 {.box}
 <div>raw</div>
 
@@ -2980,7 +2980,7 @@ Before a raw HTML block or an `=html` fence, the line is emitted as text, with [
 
 `{x}` and `{1, 2}` are ordinary paragraph lines, with no diagnostic. A line whose groups are followed by anything but another strong group is a paragraph line too. Either way, a line starting `{#` or `{.` gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning), as a heading's group does, at the first character that breaks the line.
 
-```tern {.live expect="attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed"}
 {x}
 {1, 2}
 
@@ -2996,10 +2996,10 @@ next line
 
 ## Raw-body containers {#raw-body}
 
-Three kinds of container have a **verbatim body**: one text node, kept byte for byte, in which nothing is Tern. (The reserved `:::script`, `:::style` and `:::html` have one too, shown as an error block: see [Reserved names](#container-reserved).)
+Three kinds of container have a **verbatim body**: one text node, kept byte for byte, in which nothing is Luccet. (The reserved `:::script`, `:::style` and `:::html` have one too, shown as an error block: see [Reserved names](#container-reserved).)
 
 :::syntax
-```tern
+```luccet
 :::macros
 \gdef\R{\mathbb{R}}
 :::
@@ -3016,7 +3016,7 @@ Text for a behaviour to read.
 
 **Ending.** A raw body ends only at a bare closer (`:::`, any colon count) or at `:::/` plus its own name (`:::/macros`, `:::/mermaid`), indented or not, with trailing whitespace ignored. Any other closer line inside it is content, and so is an opener line, a blank line, a heading, `:::end`: nothing else is structural inside it.
 
-```tern {.live}
+```luccet {.live}
 :::macros
 \gdef\R{\mathbb{R}}
 
@@ -3033,7 +3033,7 @@ Above, `:::aside` and `:::/aside` are content of the macros block, and the bare 
 - Inside a quote or list item, it receives each line after the prefixes are stripped, and closes as unclosed when a prefix fails.
 - An opener inside a raw body does not nest, so the first closer ends the raw body and the next one is stray.
 
-```tern {.live expect="block.stray-closer"}
+```luccet {.live expect="block.stray-closer"}
 :::mermaid{raw}
 :::inner
 x
@@ -3049,7 +3049,7 @@ x
 - It may sit inside other containers.
 - A body KaTeX cannot parse gets [`math.error`](diagnostics.html#math-error) at runtime.
 
-```tern {.live}
+```luccet {.live}
 :::macros{#defs .shared}
 \gdef\R{\mathbb{R}}
 :::
@@ -3061,7 +3061,7 @@ x
 - Its body is verbatim wherever it appears, but it is honoured only at the top level. Elsewhere it gets [`meta.nested`](diagnostics.html#meta-nested) (warning) and is ignored.
 - Nothing is emitted in the body. So an id, a class or a key on `:::meta` (on its opener, or from an attribute line) applies to nothing: each gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped, and the id is not registered.
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: Linear maps
 lang: en
@@ -3070,7 +3070,7 @@ lang: en
 The metadata block renders nothing here.
 ```
 
-```tern {.live expect="attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed"}
 :::meta{#info .wide}
 title: Linear maps
 :::
@@ -3080,12 +3080,12 @@ The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 
 ### `:::use` {#use}
 
-- The body lists the add-ons the note loads — scripts and stylesheets, as the tern.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, on [Vocabulary and behaviour](schema.html#addons).
+- The body lists the add-ons the note loads — scripts and stylesheets, as the luccet.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, on [Vocabulary and behaviour](schema.html#addons).
 - It must lead the note: at the top level, before any content, after `:::meta` at most. The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (warning) and is ignored: its add-ons could not have been loaded in time.
 - Nothing is emitted, and its body is verbatim. As on `:::meta`, an id, a class or a key on `:::use` gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped.
-- The entries are in the tree as `root.data.tern.use`, `[{url, position}]`, in order.
+- The entries are in the tree as `root.data.luccet.use`, `[{url, position}]`, in order.
 
-```tern {.live}
+```luccet {.live}
 :::use
 addons/katex.js
 themes/nord.css addons/code.js?base=vendor/highlight
@@ -3094,7 +3094,7 @@ themes/nord.css addons/code.js?base=vendor/highlight
 The add-ons load; the block renders nothing here.
 ```
 
-```tern {.live expect="use.late"}
+```luccet {.live expect="use.late"}
 Some text first.
 
 :::use
@@ -3106,7 +3106,7 @@ addons/katex.js
 
 `{raw}` on a container makes its body one verbatim text node, emitted escaped inside the element, for a behaviour (a diagram renderer, a chart) to read. The `raw` key itself is never emitted; the title slot, the id, classes and other keys are kept.
 
-```tern {.live}
+```luccet {.live}
 :::mermaid[Flow]{raw #flow .diagram}
 graph TD
   A --> B & C

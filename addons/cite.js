@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-// cite.js, Tern's citations add-on (docs/addons.html#cite). A
+// cite.js, Luccet's citations add-on (docs/addons.html#cite). A
 // `:::bibliography` container holds the sources, BibTeX or CSL-JSON, in the
 // note; `@key` cites one and reads "[1]" (or "(Knuth, 1984)" with
 // style=author-year); the block lists the cited sources, formatted in one
 // plain style, numbered in the list's order. No new syntax: a citation is a
 // reference, so the engine's rules for `@id`, `ref=` and dangling references
-// apply, and `tern check` and `tern build` see the same list as the browser.
+// apply, and `luccet check` and `luccet build` see the same list as the browser.
 //
-//   <script src="tern.js" data-use="addons/cite.js"></script>
+//   <script src="luccet.js" data-use="addons/cite.js"></script>
 //
 //   :::bibliography
 //   @article{knuth84,
@@ -31,10 +31,10 @@
 // every source, not only the cited ones. The heading is the title written in
 // the brackets, else "References" in the note's label language.
 //
-// A shared bibliography: a head script before tern.js sets window.TERN.bib to
+// A shared bibliography: a head script before luccet.js sets window.LUCCET.bib to
 // the same text (BibTeX or CSL-JSON) or to an array of CSL items; the note's
 // first `:::bibliography` lists from it too (an empty body: from it alone).
-// tern.js reads the head in the browser and the command line runs it under
+// luccet.js reads the head in the browser and the command line runs it under
 // node, so both see it.
 //
 // Diagnostics, at the entry's line: cite.syntax (warning) for an entry that
@@ -44,7 +44,7 @@
 // names no source is the engine's ref.dangling.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   // ---------------------------------------------------------------- vocabulary
@@ -62,12 +62,12 @@
   });
   T.style(
     [
-      '.tern .bibliography > .bib-list { list-style: none; margin: 0; padding: 0; }',
-      '.tern .bib { margin: .4rem 0; padding-inline-start: 2.4em; text-indent: -2.4em; }',
-      '.tern .bib.author-year { padding-inline-start: 1.6em; text-indent: -1.6em; }',
-      '.tern .bib > .t-label { font-weight: normal; }',
-      '.tern a.cite { text-decoration: none; }',
-      '.tern a.cite:hover { text-decoration: underline; }',
+      '.luccet .bibliography > .bib-list { list-style: none; margin: 0; padding: 0; }',
+      '.luccet .bib { margin: .4rem 0; padding-inline-start: 2.4em; text-indent: -2.4em; }',
+      '.luccet .bib.author-year { padding-inline-start: 1.6em; text-indent: -1.6em; }',
+      '.luccet .bib > .t-label { font-weight: normal; }',
+      '.luccet a.cite { text-decoration: none; }',
+      '.luccet a.cite:hover { text-decoration: underline; }',
     ].join('\n'),
   );
 
@@ -481,7 +481,7 @@
   const IDENT = /^[\p{L}_][\p{L}\p{M}\p{N}_-]*$/u; // what `@` reaches (docs/syntax-inline.html#ref-extent)
   const isTitle = (n) => !!n && n.type === 'paragraph' && !!n.data && n.data.directiveLabel === true;
 
-  // Walks the tree (tern.visit is absent under node).
+  // Walks the tree (luccet.visit is absent under node).
   function walk(node, fn) {
     if (!node || typeof node !== 'object') return;
     fn(node);
@@ -489,8 +489,8 @@
     if (Array.isArray(kids)) for (const k of kids) walk(k, fn);
   }
 
-  // Reads a bibliography's sources: the body, then window.TERN.bib. Returns
-  // {entries, problems}, lines being the body's (1-based) or 0 for TERN.bib.
+  // Reads a bibliography's sources: the body, then window.LUCCET.bib. Returns
+  // {entries, problems}, lines being the body's (1-based) or 0 for LUCCET.bib.
   function read(text, fromPage) {
     const out = { entries: [], problems: [] };
     const take = (src, offset) => {
@@ -542,9 +542,9 @@
         else if (n.type === 'ref' && typeof n.id === 'string' && !seen.has(n.id)) seen.add(n.id), cited.push(n.id);
       });
       if (!blocks.length) return;
-      // The page's sources (window.TERN.bib) go with the first block alone,
+      // The page's sources (window.LUCCET.bib) go with the first block alone,
       // so two blocks never list the same entry.
-      let page = typeof window !== 'undefined' && window.TERN && typeof window.TERN === 'object' ? window.TERN.bib : undefined;
+      let page = typeof window !== 'undefined' && window.LUCCET && typeof window.LUCCET === 'object' ? window.LUCCET.bib : undefined;
       for (const b of blocks) {
         const a = b.attributes || (b.attributes = {});
         const style = a.style === 'author-year' ? 'author-year' : 'numeric';
@@ -572,8 +572,8 @@
           return { start: { line: l, column: 1, offset: o }, end: { line: l, column: len + 1, offset: o + len } };
         };
         const at = (line) => span(line) || b;
-        for (const p of problems) ctx.report('cite.syntax', at(p.line), `the source${p.line ? '' : ' in window.TERN.bib'} cannot be read: ${p.message}; it is left out`, 'write the entry as BibTeX (@type{key, field = {value}, …}) or CSL-JSON', 'warning');
-        if (!entries.length && !problems.length) ctx.report('cite.empty', b, 'the bibliography has no source', 'put BibTeX or CSL-JSON entries in the block, or set window.TERN.bib in a head script', 'info');
+        for (const p of problems) ctx.report('cite.syntax', at(p.line), `the source${p.line ? '' : ' in window.LUCCET.bib'} cannot be read: ${p.message}; it is left out`, 'write the entry as BibTeX (@type{key, field = {value}, …}) or CSL-JSON', 'warning');
+        if (!entries.length && !problems.length) ctx.report('cite.empty', b, 'the bibliography has no source', 'put BibTeX or CSL-JSON entries in the block, or set window.LUCCET.bib in a head script', 'info');
         const byKey = new Map();
         for (const e of entries) {
           if (byKey.has(e.key)) ctx.report('cite.duplicate', at(e.line), `the key "${e.key}" is given twice; the second entry is left out`, 'give each source its own key', 'warning');
@@ -632,10 +632,10 @@
       walk(ast, (n) => {
         if (n.type !== 'ref' || !entries.has(n.id)) return;
         const e = entries.get(n.id);
-        const t = e.data && e.data.tern;
+        const t = e.data && e.data.luccet;
         const number = t && t.number != null ? String(t.number) : '';
         const { style, source: s } = e.data.cite;
-        const sel = n.data && n.data.tern ? n.data.tern.ref : undefined;
+        const sel = n.data && n.data.luccet ? n.data.luccet.ref : undefined;
         const who = shortNames(s.authors.length ? s.authors : s.editors) || s.title || n.id;
         const yr = s.year || 'n.d.';
         let text;

@@ -1,12 +1,12 @@
-<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>
 
 <script>
   window.__runs = (window.__runs || 0) + 1;
   window.__applied = window.__applied || 0;
   window.__renders = window.__renders || 0;
-  tern.define('probe', () => window.__applied++);
-  tern.on('render', () => window.__renders++);
-  tern.style('.probe { color: rgb(1, 2, 3); }');
+  luccet.define('probe', () => window.__applied++);
+  luccet.on('render', () => window.__renders++);
+  luccet.style('.probe { color: rgb(1, 2, 3); }');
 </script>
 
 # Smoke: rendered again

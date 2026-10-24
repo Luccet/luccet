@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
-// glossary.js, Tern's glossary add-on (docs/addons.html#glossary). A
+// glossary.js, Luccet's glossary add-on (docs/addons.html#glossary). A
 // `::glossary` leaf lists the terms the notes of a folder define, read from
-// glossary.json, which `tern index` writes beside notes.json: each term,
+// glossary.json, which `luccet index` writes beside notes.json: each term,
 // linked to where it is defined, with its definition rendered as on its own
 // page (its links lead back there; its formulas are typeset by the page's
 // math add-on). `:term[…]` marks a use of a term and links it to the
 // glossary page's entry. A term is defined by `:dfn[…]`, HTML's element for
 // the defining instance of a word, whose paragraph is the definition, or by
-// a titled `:::definition` block (tern.glossary, docs/api.html#glossary).
+// a titled `:::definition` block (luccet.glossary, docs/api.html#glossary).
 //
-//   <script src="tern.js" data-use="addons/glossary.js"></script>
+//   <script src="luccet.js" data-use="addons/glossary.js"></script>
 //
 //   A :dfn[truism] is a claim so obviously true that it goes without saying.
 //
@@ -28,15 +28,15 @@
 // glossary page a `:term` links to, as a link in the note would be written
 // (`glossary.html` by default; give a root-relative path for notes in
 // several folders). Options go on the leaf, on the add-on (`?page=…`) or in
-// window.TERN = {use: {glossary: {…}}}; the leaf's win. The link is in the
-// page `tern check` and `tern build` see, so a missing glossary page is
+// window.LUCCET = {use: {glossary: {…}}}; the leaf's win. The link is in the
+// page `luccet check` and `luccet build` see, so a missing glossary page is
 // link.missing at the use; the entry's `#` is added when the page shows, since the
 // entries exist only once the list is built. Under node the add-on declares
 // `glossary` and `term`, links the uses and adds its styles; the list is
-// built when tern.js runs.
+// built when luccet.js runs.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   const str = (key, params, fallback) => (T.string ? T.string(key, params, fallback) : fallback);
@@ -46,19 +46,19 @@
   T.inline('term', { tag: 'span' });
   T.style(
     [
-      '.tern .t-glossary { margin-block: 0 1rem; }',
-      '.tern .t-glossary-list { margin: 0; }',
-      '.tern .t-glossary-list > dt { font-weight: 600; margin-block-start: .8rem; }',
-      '.tern .t-glossary-list > dd { margin: .2rem 0 0 1.2rem; }',
-      '.tern .t-glossary-list > dd > :last-child { margin-block-end: 0; }',
-      '.tern .t-glossary-source { color: var(--t-muted); font-size: .85em; font-family: var(--t-sans); margin-block-start: .2rem; }',
-      '.tern .term > a { text-decoration-style: dotted; }',
+      '.luccet .t-glossary { margin-block: 0 1rem; }',
+      '.luccet .t-glossary-list { margin: 0; }',
+      '.luccet .t-glossary-list > dt { font-weight: 600; margin-block-start: .8rem; }',
+      '.luccet .t-glossary-list > dd { margin: .2rem 0 0 1.2rem; }',
+      '.luccet .t-glossary-list > dd > :last-child { margin-block-end: 0; }',
+      '.luccet .t-glossary-source { color: var(--t-muted); font-size: .85em; font-family: var(--t-sans); margin-block-start: .2rem; }',
+      '.luccet .term > a { text-decoration-style: dotted; }',
       '.t-glossary-status { color: var(--t-muted); font-size: .85em; }',
     ].join('\n'),
   );
 
   // A use links to the glossary page: the link node is in the tree, so
-  // `tern check` sees the page and `tern build` writes the link.
+  // `luccet check` sees the page and `luccet build` writes the link.
   T.transform('glossary-term', (ast) => {
     const page = String(options().page || 'glossary.html');
     T.visit(ast, 'textDirective', (n) => {
@@ -93,7 +93,7 @@
 
   // The file is fetched from http(s), or the page's own scheme when it is
   // opened from a file. A note's URL resolves against the file and must
-  // stay on its origin: tern index writes paths, so a crafted file cannot
+  // stay on its origin: luccet index writes paths, so a crafted file cannot
   // send a reader to javascript:, data: or another site.
   const SCHEMES = new Set(['http:', 'https:', location.protocol]);
   const fetchable = (u) => SCHEMES.has(u.protocol);
@@ -103,7 +103,7 @@
       u = new URL(url, base);
     } catch {}
     if (u && fetchable(u) && u.origin === new URL(base).origin) return u.href;
-    console.warn(`Tern glossary.js: ${url} in the glossary is not a page of this site; its terms are left out`);
+    console.warn(`Luccet glossary.js: ${url} in the glossary is not a page of this site; its terms are left out`);
     return null;
   }
 
@@ -138,14 +138,14 @@
       url = new URL(o.from, location.href);
     } catch {}
     let data = null;
-    if (!url || !fetchable(url)) console.warn(`Tern glossary.js: from=${o.from} is not an http(s) file`);
+    if (!url || !fetchable(url)) console.warn(`Luccet glossary.js: from=${o.from} is not an http(s) file`);
     else {
       try {
         const res = await fetch(url.href, { credentials: 'same-origin' });
         if (!res.ok) throw new Error(`${res.status}`);
         data = await res.json();
       } catch (e) {
-        console.warn(`Tern glossary.js: the glossary ${url.href} could not be loaded: ${(e && e.message) || e}`);
+        console.warn(`Luccet glossary.js: the glossary ${url.href} could not be loaded: ${(e && e.message) || e}`);
       }
     }
     if (!data || !Array.isArray(data.terms)) return status(str('glossaryFailed', { from: o.from }, 'The glossary could not be loaded ({from}).'));
@@ -153,8 +153,8 @@
     // fields and the definitions' trees change only with the number, in a
     // major release; a file with no format is from before 1.0.
     if (data.format !== T.glossary.format) {
-      console.warn(`Tern glossary.js: ${url.href} was written by tern ${data.tern} in a format this tern (${T.version}) does not read: run tern index again`);
-      return status(str('glossaryStale', { version: String(data.tern) }, 'The glossary was written by tern {version}; run tern index again.'));
+      console.warn(`Luccet glossary.js: ${url.href} was written by luccet ${data.luccet} in a format this luccet (${T.version}) does not read: run luccet index again`);
+      return status(str('glossaryStale', { version: String(data.luccet) }, 'The glossary was written by luccet {version}; run luccet index again.'));
     }
     const titles = new Map((Array.isArray(data.notes) ? data.notes : []).filter((n) => n && typeof n.url === 'string').map((n) => [n.url, n.title]));
     let list = data.terms.filter((t) => t && typeof t.term === 'string' && typeof t.url === 'string' && typeof t.key === 'string');
@@ -190,7 +190,7 @@
     if (host.closest('.docs-live-out')) return; // an example's result on the docs stays inert
     build(host).catch((e) => {
       const why = (e && e.message) || String(e);
-      console.warn(`Tern glossary.js: the glossary could not be built: ${why}`);
+      console.warn(`Luccet glossary.js: the glossary could not be built: ${why}`);
       host.replaceChildren(el('p', { class: 't-glossary-status', text: str('glossaryFailed', { from: why }, 'The glossary could not be loaded ({from}).') }));
     });
   });

@@ -1,9 +1,9 @@
 <!doctype html><meta charset="utf-8">
 <script>
-  // This note's vocabulary (window.TERN.schema): the three callouts get their
+  // This note's vocabulary (window.LUCCET.schema): the three callouts get their
   // labels from it. :kbd needs no entry (kbd is an HTML element), and :::row
   // needs none either: a name HTML does not know becomes div.row.
-  window.TERN = {schema: {
+  window.LUCCET = {schema: {
     block: {
       note: {tag: 'aside', label: 'Note'},
       tip: {tag: 'aside', label: 'Tip'},
@@ -11,7 +11,7 @@
     },
   }};
 </script>
-<script src="../tern.js" data-use="../addons/katex.js"></script>
+<script src="../luccet.js" data-use="../addons/katex.js"></script>
 
 :::meta
 title: Neovim cheat sheet
@@ -25,7 +25,7 @@ This example is a cheat sheet. It shows keys with `:kbd[…]`, highlight and str
 a three-column grid of tables (`:::row{cols=3}` with `+++` between the cells), callouts,
 code spans that hold pipes and backticks, and a nested task list. The page is wider than
 a note's default, through the `--t-width` variable in the styles at the end. Part of
-[Tern's documentation](../index.html).
+[Luccet's documentation](../index.html).
 :::
 
 Keys are shown as :kbd[Ctrl]+:kbd[w]. ==Highlighted== entries are new in 0.11;

@@ -1,8 +1,20 @@
 # Changelog
 
-Every release of Tern, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `tern index` writes, after a deprecation announced one minor release ahead. Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
+Every release of Luccet, called Tern until 2.0, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may change how an existing note renders, what an add-on receives, what the command line takes and prints, or the files `luccet index` writes, after a deprecation announced one minor release ahead. Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `tern.version`; the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 1.1.1 (unreleased)
+## 2.0.0 (unreleased)
+
+- **Tern is now Luccet.** The name collided with ternjs, a JavaScript analyzer with an editor plugin of the same name, so it changed while nothing depended on it yet. Everything that carried the name carries the new one, and nothing else changes in how a note renders: the HTML and the diagnostics the conformance corpus records are the same. The project lives at [github.com/Luccet/luccet](https://github.com/Luccet/luccet) and [luccet.dev](https://luccet.dev). The old GitHub and jsDelivr URLs redirect, so a note that loads `gh/OzkrAC/tern@v1.1.1/tern.js` keeps rendering with that version.
+
+  **Migrating a note:**
+  - **The first line.** `tern.js` becomes `luccet.js`: `<script src="luccet.js"></script>`, or `https://cdn.jsdelivr.net/gh/Luccet/luccet@2/luccet.js`.
+  - **Scripts and add-ons.** A head script's `window.TERN` becomes `window.LUCCET`; an add-on's `tern.block(…)`, `tern.on(…)` and the rest of the API become `luccet.…`, and the theme switcher's event `tern:theme` becomes `luccet:theme`.
+  - **The tree.** The engine's namespace on each node, `data.tern` (ids, diagnostics, labels), is `data.luccet`, for a transform that reads it and in `luccet parse` output.
+  - **Index files.** `notes.json`, `search.json` and `glossary.json` name the version that wrote them as `luccet` instead of `tern`. Their format numbers are unchanged, so files a 1.x `tern index` wrote are still read; run `luccet index` again so they name their writer.
+  - **CSS.** A stylesheet that targets the rendered note's root, `main.tern`, targets `main.luccet`. The `t-` classes, `data-t` and the `--t-*` custom properties are unchanged, so themes need nothing.
+  - **The tools.** The command is `luccet` (`luccet check`, `luccet build`, `luccet lsp` …), its environment variables `LUCCET_*`. In Neovim the plugin is `luccet.nvim`, the filetype `luccet` and the commands `:Luccet…`. The agent skill is `luccet-notes`.
+
+## 1.1.1 (2026-10-23)
 
 - Under `safe`, the `popover`, `commandfor`, `command`, `interestfor` and `interesttarget` attributes are dropped: with them, untrusted content could open or drive the host page's dialogs and popovers. A `srcset` is decoded before it is split into candidates, as the browser reads it, so an entity-encoded comma can no longer hide a `data:` candidate behind a safe one.
 - The tools read a note's local head scripts and add-ons inside its project only: the folder of the `tern.js` its tag names, or the repository the note is in, or its own folder. A root-relative URL resolves against that root, where it was looked for under every folder up to `/`, and a path that leaves the root is `addon.failed` instead of read. A note could have `tern check` or the language server read any file you can and run it as code, and a syntax error in that file quoted its first line.

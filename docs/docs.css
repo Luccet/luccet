@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /* docs.css: the documentation's styles (docs/README.md), with docs.js.
-   Colours come from tern.css's --t-* variables, so light and dark follow it;
+   Colours come from luccet.css's --t-* variables, so light and dark follow it;
    the few of its own are below, each checked for WCAG AA contrast on the
    backgrounds it sits on (4.8:1 or more). Styles for the page's own markup
    leave an example's result alone (:not(.docs-live-out *)): the result shows
@@ -26,96 +26,96 @@
 }
 
 /* A page's links sit a touch closer to the body's weight. */
-.tern a:not(.docs-live-out *) { text-decoration-color: color-mix(in srgb, var(--t-link) 45%, transparent); }
-.tern a:not(.docs-live-out *):hover { text-decoration-color: currentColor; }
+.luccet a:not(.docs-live-out *) { text-decoration-color: color-mix(in srgb, var(--t-link) 45%, transparent); }
+.luccet a:not(.docs-live-out *):hover { text-decoration-color: currentColor; }
 
 /* ---- the site navigation: a bar with a Menu button on narrow screens, a
    sidebar on wide ones. The current page is bold, marked with a bar and
    aria-current, not by colour alone. */
-.tern .site-nav:not(.docs-live-out *) { font-family: var(--t-sans); font-size: .9rem; line-height: 1.4; margin-block: -1.5rem 2rem; }
+.luccet .site-nav:not(.docs-live-out *) { font-family: var(--t-sans); font-size: .9rem; line-height: 1.4; margin-block: -1.5rem 2rem; }
 .docs-nav-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .25rem; border-block-end: 1px solid var(--t-line); }
-.tern .docs-nav-home { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
-.tern .docs-nav-home:hover { color: var(--t-link); }
-/* The mark: docs.js picks tern.png or tern-white.png for the theme. */
-.tern .docs-nav-logo { display: block; inline-size: 1.6em; block-size: 1.6em; }
+.luccet .docs-nav-home { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
+.luccet .docs-nav-home:hover { color: var(--t-link); }
+/* The mark: docs.js picks luccet.png or luccet-white.png for the theme. */
+.luccet .docs-nav-logo { display: block; inline-size: 1.6em; block-size: 1.6em; }
 /* The mark before the home page's title: docs.js moves it into the heading. */
-.tern .docs-title { display: flex; align-items: center; gap: .4em; }
-.tern .docs-logo { display: block; inline-size: 1.15em; block-size: 1.15em; flex: none; }
+.luccet .docs-title { display: flex; align-items: center; gap: .4em; }
+.luccet .docs-logo { display: block; inline-size: 1.15em; block-size: 1.15em; flex: none; }
 .docs-nav-toggle {
   font: inherit; color: var(--t-fg); background: var(--t-soft); border: 1px solid var(--t-line); border-radius: var(--docs-r-sm);
   padding: .35rem .8rem; cursor: pointer;
 }
 .docs-nav-toggle:focus-visible, .docs-live summary:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }
-.tern .docs-nav-list, .tern .docs-nav-list ul { list-style: none; margin: 0; padding: 0; }
-.tern .docs-nav-list { display: none; padding-block: .5rem; }
-.tern .docs-nav-open .docs-nav-list { display: block; }
+.luccet .docs-nav-list, .luccet .docs-nav-list ul { list-style: none; margin: 0; padding: 0; }
+.luccet .docs-nav-list { display: none; padding-block: .5rem; }
+.luccet .docs-nav-open .docs-nav-list { display: block; }
 .docs-nav-list a {
   display: block; padding: .32rem .7rem; border-radius: var(--docs-r-sm);
   border-inline-start: 2px solid transparent; color: var(--t-fg); text-decoration: none;
 }
 .docs-nav-list a:hover { background: var(--t-soft); color: var(--t-link); }
-.tern .docs-nav-list a[aria-current="page"] {
+.luccet .docs-nav-list a[aria-current="page"] {
   font-weight: 700; border-inline-start-color: var(--t-link);
   border-start-start-radius: 0; border-end-start-radius: 0;
   background: color-mix(in srgb, var(--t-link) 10%, transparent); color: var(--t-link);
 }
-.tern .docs-nav-list ul a { padding-inline-start: 1.4rem; }
+.luccet .docs-nav-list ul a { padding-inline-start: 1.4rem; }
 /* The heading after the navigation starts the page. */
-.tern > .site-nav + :is(h1, h2, .logo), .tern > .site-nav + .logo + h1 { margin-block-start: .5rem; }
+.luccet > .site-nav + :is(h1, h2, .logo), .luccet > .site-nav + .logo + h1 { margin-block-start: .5rem; }
 .docs-nav-heading { display: block; padding: .9rem .7rem .3rem; color: var(--t-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 
 @media (min-width: 64rem) {
-  body:has(> main.tern > .site-nav) { padding-inline-start: calc(var(--docs-nav) + 2.5rem); }
-  .tern .site-nav:not(.docs-live-out *) {
+  body:has(> main.luccet > .site-nav) { padding-inline-start: calc(var(--docs-nav) + 2.5rem); }
+  .luccet .site-nav:not(.docs-live-out *) {
     position: fixed; inset-block: 0; inset-inline-start: 0; inline-size: var(--docs-nav); box-sizing: border-box;
     margin: 0; padding: 1.6rem 1rem 2rem; overflow-y: auto; border-inline-end: 1px solid var(--t-line);
     background: color-mix(in srgb, var(--t-soft) 45%, var(--t-bg));
   }
   .docs-nav-bar { border: 0; padding-inline: .7rem; margin-block-end: .25rem; }
   .docs-nav-toggle { display: none; }
-  .tern .docs-nav-list { display: block; }
-  .tern > .site-nav + :is(h1, h2, .logo), .tern > .site-nav + .logo + h1 { margin-block-start: 0; }
+  .luccet .docs-nav-list { display: block; }
+  .luccet > .site-nav + :is(h1, h2, .logo), .luccet > .site-nav + .logo + h1 { margin-block-start: 0; }
 }
 
 /* ---- the page's contents: a quiet card, links without underlines until
    hovered, nested levels on a guide line. */
-.tern nav.toc:not(.docs-live-out *) {
+.luccet nav.toc:not(.docs-live-out *) {
   font-family: var(--t-sans); font-size: .9rem; line-height: 1.5;
   border: 1px solid var(--t-line); border-radius: var(--docs-r); box-shadow: var(--docs-shadow);
   background: color-mix(in srgb, var(--t-soft) 40%, var(--t-bg));
   padding: 1rem 1.25rem; margin-block-end: 2.5rem;
 }
-.tern nav.toc:not(.docs-live-out *)::before { content: "Contents"; display: block; font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--t-muted); margin-block-end: .5rem; }
-.tern nav.toc:not(.docs-live-out *) ol { list-style: none; margin: 0; padding-inline-start: 0; }
-.tern nav.toc:not(.docs-live-out *) ol ol { padding-inline-start: 1rem; margin-block: .1rem; border-inline-start: 1px solid var(--t-line); }
-.tern nav.toc:not(.docs-live-out *) li { margin: .05rem 0; }
-.tern nav.toc:not(.docs-live-out *) a { color: var(--t-fg); text-decoration: none; display: block; padding: .12rem .4rem; border-radius: 4px; }
-.tern nav.toc:not(.docs-live-out *) a:hover { color: var(--t-link); background: var(--t-soft); }
-.tern nav.toc:not(.docs-live-out *) > ol > li > a { font-weight: 600; }
+.luccet nav.toc:not(.docs-live-out *)::before { content: "Contents"; display: block; font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--t-muted); margin-block-end: .5rem; }
+.luccet nav.toc:not(.docs-live-out *) ol { list-style: none; margin: 0; padding-inline-start: 0; }
+.luccet nav.toc:not(.docs-live-out *) ol ol { padding-inline-start: 1rem; margin-block: .1rem; border-inline-start: 1px solid var(--t-line); }
+.luccet nav.toc:not(.docs-live-out *) li { margin: .05rem 0; }
+.luccet nav.toc:not(.docs-live-out *) a { color: var(--t-fg); text-decoration: none; display: block; padding: .12rem .4rem; border-radius: 4px; }
+.luccet nav.toc:not(.docs-live-out *) a:hover { color: var(--t-link); background: var(--t-soft); }
+.luccet nav.toc:not(.docs-live-out *) > ol > li > a { font-weight: 600; }
 
 /* ---- callouts: a text label (Note, Tip, Warning, Important) in the title,
    a coloured rule and tint behind it. */
-.tern .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) {
+.luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) {
   --docs-c: var(--docs-note);
   border-inline-start: 4px solid var(--docs-c); border-radius: var(--docs-r-sm);
   background: color-mix(in srgb, var(--docs-c) 7%, var(--t-bg)); padding: .75rem 1.1rem;
 }
-.tern .t-block.tip:not(.docs-live-out *) { --docs-c: var(--docs-tip); }
-.tern .t-block.warning:not(.docs-live-out *) { --docs-c: var(--docs-warning); }
-.tern .t-block.important:not(.docs-live-out *) { --docs-c: var(--docs-important); }
-.tern .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title { font-family: var(--t-sans); font-size: .9em; font-weight: 600; margin-block-end: .3rem; }
-.tern .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title > .t-label { color: var(--docs-c); text-transform: uppercase; letter-spacing: .04em; font-size: .92em; }
-.tern .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > :last-child { margin-block-end: 0; }
+.luccet .t-block.tip:not(.docs-live-out *) { --docs-c: var(--docs-tip); }
+.luccet .t-block.warning:not(.docs-live-out *) { --docs-c: var(--docs-warning); }
+.luccet .t-block.important:not(.docs-live-out *) { --docs-c: var(--docs-important); }
+.luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title { font-family: var(--t-sans); font-size: .9em; font-weight: 600; margin-block-end: .3rem; }
+.luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title > .t-label { color: var(--docs-c); text-transform: uppercase; letter-spacing: .04em; font-size: .92em; }
+.luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > :last-child { margin-block-end: 0; }
 
 /* ---- the syntax box: a construct's spelling */
-.tern .t-block.syntax:not(.docs-live-out *) { border: 1px solid var(--t-line); border-radius: var(--docs-r); padding: .85rem 1.1rem; background: color-mix(in srgb, var(--t-soft) 40%, var(--t-bg)); }
-.tern .t-block.syntax:not(.docs-live-out *) > .t-title { font-family: var(--t-sans); font-size: .95em; }
-.tern .t-block.syntax:not(.docs-live-out *) > .t-title > .t-label { color: var(--t-muted); text-transform: uppercase; letter-spacing: .07em; font-size: .72em; font-weight: 700; margin-inline-end: .3em; }
-.tern .t-block.syntax:not(.docs-live-out *) pre { margin-block-end: .5rem; background: var(--t-soft); }
-.tern .t-block.syntax:not(.docs-live-out *) > :last-child { margin-block-end: 0; }
+.luccet .t-block.syntax:not(.docs-live-out *) { border: 1px solid var(--t-line); border-radius: var(--docs-r); padding: .85rem 1.1rem; background: color-mix(in srgb, var(--t-soft) 40%, var(--t-bg)); }
+.luccet .t-block.syntax:not(.docs-live-out *) > .t-title { font-family: var(--t-sans); font-size: .95em; }
+.luccet .t-block.syntax:not(.docs-live-out *) > .t-title > .t-label { color: var(--t-muted); text-transform: uppercase; letter-spacing: .07em; font-size: .72em; font-weight: 700; margin-inline-end: .3em; }
+.luccet .t-block.syntax:not(.docs-live-out *) pre { margin-block-end: .5rem; background: var(--t-soft); }
+.luccet .t-block.syntax:not(.docs-live-out *) > :last-child { margin-block-end: 0; }
 
 /* ---- keys */
-.tern kbd:not(.docs-live-out *) { background: var(--t-soft); font-size: .8em; white-space: nowrap; }
+.luccet kbd:not(.docs-live-out *) { background: var(--t-soft); font-size: .8em; white-space: nowrap; }
 
 /* ---- live examples: source, result, diagnostics (when any), HTML.
    Each part carries a small tracked label; the parts are divided by hairlines.
@@ -130,19 +130,19 @@
 .docs-live-part + .docs-live-part, .docs-live-problem { border-block-start: 1px solid var(--t-line); }
 .docs-live-label { font: 700 .68rem/1.4 var(--t-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--t-muted); margin-block-end: .45rem; }
 .docs-live-source { background: color-mix(in srgb, var(--t-soft) 55%, var(--t-bg)); }
-.tern .docs-live-source :is(pre, figure) { margin: 0; padding: 0; background: none; border-radius: 0; }
+.luccet .docs-live-source :is(pre, figure) { margin: 0; padding: 0; background: none; border-radius: 0; }
 .docs-live-out { overflow-x: auto; }
 .docs-live-out > :first-child { margin-block-start: 0; }
 .docs-live-out > :last-child { margin-block-end: 0; }
 .docs-live-out > h1:first-child { font-size: 1.6rem; }
 /* An example's math before docs.js typesets it (or when KaTeX is missing):
-   tern.css's .t-math look, under the class that hides it from the runtime. */
+   luccet.css's .t-math look, under the class that hides it from the runtime. */
 .docs-math { direction: ltr; unicode-bidi: isolate; }
 .docs-math[data-display] { display: block; }
 .t-eq > .docs-math { flex: 1; text-align: center; min-inline-size: 0; }
 .docs-macros[hidden] { display: none !important; }
 .docs-live-diagnostics { background: color-mix(in srgb, var(--t-soft) 55%, var(--t-bg)); }
-.tern .docs-diags { list-style: none; margin: 0; padding: 0; font-size: .9em; line-height: 1.45; }
+.luccet .docs-diags { list-style: none; margin: 0; padding: 0; font-size: .9em; line-height: 1.45; }
 .docs-diags code { font-size: .85em; }
 .docs-diag + .docs-diag { margin-block-start: .4rem; }
 .docs-sev { font: 700 .72em/1 var(--t-sans); text-transform: uppercase; letter-spacing: .04em; padding: .15em .4em; border: 1px solid currentColor; border-radius: 3px; vertical-align: .1em; }
@@ -151,16 +151,16 @@
 .docs-diag-info .docs-sev { color: var(--docs-note); }
 .docs-pos { font-family: var(--t-mono); font-size: .85em; color: var(--t-muted); }
 .docs-hint { display: block; color: var(--t-muted); padding-inline-start: 1.25rem; }
-.tern .docs-live-markup { margin: 0; }
+.luccet .docs-live-markup { margin: 0; }
 .docs-live-markup > summary { margin: 0; cursor: pointer; inline-size: max-content; }
 .docs-live-markup:not([open]) { padding-block-end: .7rem; }
 .docs-live-markup[open] > summary { margin-block-end: .4rem; }
-.tern .docs-live-html { margin: 0; font-size: .8em; background: none; padding: 0; }
+.luccet .docs-live-html { margin: 0; font-size: .8em; background: none; padding: 0; }
 .docs-live-problem { margin: 0; padding: .6rem 1.1rem; font: .9rem/1.4 var(--t-sans); color: var(--t-error); background: var(--t-error-bg); }
-.tern .docs-live-script { font-size: .8em; }
+.luccet .docs-live-script { font-size: .8em; }
 .docs-live-note { font-family: var(--t-sans); color: var(--t-muted); }
 
-/* ---- highlighting (docs.js): Tern in fences, HTML in examples */
+/* ---- highlighting (docs.js): Luccet in fences, HTML in examples */
 .tk-mark { color: var(--tk-mark); }
 .tk-name { color: var(--tk-name); }
 .tk-attr { color: var(--tk-attr); }
@@ -176,8 +176,8 @@
 
 /* ---- print: no navigation; an example prints its source and result. */
 @media print {
-  body:has(> main.tern > .site-nav) { padding-inline-start: 0; }
-  .tern .site-nav, .docs-live-markup, .docs-nav-toggle { display: none !important; }
+  body:has(> main.luccet > .site-nav) { padding-inline-start: 0; }
+  .luccet .site-nav, .docs-live-markup, .docs-nav-toggle { display: none !important; }
   .docs-live { break-inside: avoid; box-shadow: none; content-visibility: visible; }
   .docs-live-result { display: block !important; }
   .docs-live-out { overflow: visible; }

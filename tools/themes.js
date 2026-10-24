@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
 // Builds the committed themes/*.css (docs/schema.html#themes): colour themes
-// after well-known palettes, as stylesheet add-ons that set tern.css's colour
+// after well-known palettes, as stylesheet add-ons that set luccet.css's colour
 // properties. A family with a light and a dark variant gives three files:
 // NAME.css follows the reader's system setting, NAME-light.css and
 // NAME-dark.css hold one palette for every reader. A family with one variant
-// gives NAME.css. Every file prints as tern.css prints, black on white.
+// gives NAME.css. Every file prints as luccet.css prints, black on white.
 //
 // Text colours must reach the family's contrast (4.5:1, WCAG AA; 7:1 for
 // high-contrast) against what they are drawn on; code colours too, on the
 // code background, and 3:1 on a highlighted line (4.5:1 for high-contrast);
 // a control's border (line-strong) 3:1 against the page. Text in a highlight
-// is the text colour (tern.css), so the highlight is checked against fg.
+// is the text colour (luccet.css), so the highlight is checked against fg.
 // Each file also answers prefers-contrast: more (muted text in the text
 // colour, rules in the strong line) and forced-colors (the system palette).
 // A palette colour that falls short is mixed toward black or white until it
@@ -320,7 +320,7 @@ function resolve(v, min) {
   return { colours: out, raised, light };
 }
 
-// tern.css's print palette: its light colours under its print overrides, so
+// luccet.css's print palette: its light colours under its print overrides, so
 // that a theme prints as the base does.
 function printPalette() {
   const file = path.join(ROOT, 'src', 'css.js');
@@ -333,7 +333,7 @@ function printPalette() {
   return Object.fromEntries(COLOURS.map((k) => [k, print[k] || light[k]]));
 }
 
-// tern.css's forced-colors block, as it is: a theme under forced colours is
+// luccet.css's forced-colors block, as it is: a theme under forced colours is
 // the system's palette, like the base.
 function forcedColors() {
   const file = path.join(ROOT, 'src', 'css.js');
@@ -374,8 +374,8 @@ function sheet(family, file, mode, variants) {
     .map(([which, r]) => r.raised.join(', ') + (mode === 'auto' ? ` (${which})` : ''));
   const head = [
     '/* SPDX-License-Identifier: MIT */',
-    `/* ${family.title} for Tern, after ${family.after}${family.url ? ` (${family.url})` : ''}.`,
-    `   ${MODE[mode]} Use: <script src="tern.js" data-use="themes/${file}"></script>`,
+    `/* ${family.title} for Luccet, after ${family.after}${family.url ? ` (${family.url})` : ''}.`,
+    `   ${MODE[mode]} Use: <script src="luccet.js" data-use="themes/${file}"></script>`,
   ];
   if (raised.length) head.push(`   Raised to ${min}:1 contrast: ${raised.join('; ')}.`);
   head.push('   Built by tools/themes.js; edit that, not this file. */');
@@ -386,7 +386,7 @@ function sheet(family, file, mode, variants) {
   } else body.push(rootBlock(mode, variants[mode].colours));
   body.push(`@media print {\n${rootBlock('light', printPalette(), '  ')}\n}`);
   // More contrast: muted text in the text colour, rules in the strong line;
-  // the dark variant's under its own query. Forced colours: tern.css's block.
+  // the dark variant's under its own query. Forced colours: luccet.css's block.
   const more = (c) => `:root { --t-muted: ${c.fg}; --t-line: ${c['line-strong']}; }`;
   if (mode === 'auto') body.push(`@media (prefers-contrast: more) {\n  ${more(variants.light.colours)}\n  @media (prefers-color-scheme: dark) { ${more(variants.dark.colours)} }\n}`);
   else body.push(`@media (prefers-contrast: more) {\n  ${more(variants[mode].colours)}\n}`);

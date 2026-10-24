@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
-// search.js, Tern's search add-on (docs/addons.html#search). A `::search` leaf
+// search.js, Luccet's search add-on (docs/addons.html#search). A `::search` leaf
 // becomes a search box over a set of notes. Indexed in the browser, the
 // notes are fetched, parsed by the engine with the page's own vocabulary,
 // and split into entries — every heading's section and every named block
 // with an id (an exercise, a theorem …) — so a hit links straight to its
 // place. With `index=`, the same index is read from the search.json that
-// `tern index` wrote (docs/tools.html#index): one file, no note fetched.
-// The pipeline is the engine's `tern.search` (docs/api.html#search), which
-// `tern search` runs on files; this file fetches and draws.
+// `luccet index` wrote (docs/tools.html#index): one file, no note fetched.
+// The pipeline is the engine's `luccet.search` (docs/api.html#search), which
+// `luccet search` runs on files; this file fetches and draws.
 //
-//   <script src="tern.js" data-use="addons/search.js"></script>
+//   <script src="luccet.js" data-use="addons/search.js"></script>
 //
 //   ::search                        the notes this page links to
 //   ::search{from=index.html}       the notes that page links to
@@ -17,11 +17,11 @@
 //   ::search{index=search.json}     the notes that index holds
 //
 // `limit` caps the results (20; 0 lists none), `placeholder` sets the box's. The same
-// options go on the add-on (`?from=index.html`) or in window.TERN = {use:
+// options go on the add-on (`?from=index.html`) or in window.LUCCET = {use:
 // {search: {…}}}; an attribute on the leaf wins. `?q=` in the page's URL
 // fills the box, and typing keeps it up to date. An index that cannot be
-// loaded, or is of another format than this tern.js reads (its words are
-// the tokeniser's; tern.search.format), is reported in the console and the
+// loaded, or is of another format than this luccet.js reads (its words are
+// the tokeniser's; luccet.search.format), is reported in the console and the
 // notes are indexed here instead, from `notes`, `from` or the page's links.
 //
 // Matching is lexical: words are stemmed lightly and a query word matches
@@ -31,27 +31,27 @@
 // search page too, so their blocks parse as they do on their own pages.
 //
 // Only the notes listed or linked are fetched — nothing else is read — and
-// nothing leaves the browser. Under node (tern check, tern build, the
+// nothing leaves the browser. Under node (luccet check, luccet build, the
 // language server) the add-on only declares `search` and adds its styles.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   T.leaf('search', { tag: 'search', attrs: { role: 'search' } });
   T.style(
     [
-      '.tern .t-search { margin-block: 0 1rem; font-family: var(--t-sans); }',
+      '.luccet .t-search { margin-block: 0 1rem; font-family: var(--t-sans); }',
       '.t-search-box { font: inherit; inline-size: 100%; box-sizing: border-box; padding: .5rem .75rem; color: var(--t-fg); background: var(--t-bg); border: 1px solid var(--t-line-strong); border-radius: 6px; }',
       '.t-search-box:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }',
       '.t-search-status { color: var(--t-muted); font-size: .85em; margin-block: .4rem 0; }',
-      '.tern .t-search-results { list-style: none; margin: .75rem 0 0; padding: 0; }',
+      '.luccet .t-search-results { list-style: none; margin: .75rem 0 0; padding: 0; }',
       '.t-search-results > li { padding: .55rem 0; border-block-start: 1px solid var(--t-line); }',
       '.t-search-results a { text-decoration: none; }',
       '.t-search-results a:hover .t-search-title { text-decoration: underline; }',
       '.t-search-label { font-weight: 600; color: var(--t-link); }',
       '.t-search-page { color: var(--t-muted); font-size: .85em; margin-inline-start: .5em; }',
-      '.tern .t-search-snippet { margin: .2rem 0 0; font-family: var(--t-font); font-size: .9em; color: var(--t-fg); }',
+      '.luccet .t-search-snippet { margin: .2rem 0 0; font-family: var(--t-font); font-size: .9em; color: var(--t-fg); }',
       '.t-search-snippet mark { background: var(--t-mark); color: inherit; padding: 0 .1em; border-radius: 2px; }',
     ].join('\n'),
   );
@@ -61,7 +61,7 @@
 
   const S = T.search;
   const defaults = Object.assign({}, T.config && T.config.use && T.config.use.search);
-  // The box's words: window.TERN.strings[key] over these (tern.string).
+  // The box's words: window.LUCCET.strings[key] over these (luccet.string).
   const str = (key, params, fallback) => T.string(key, params, fallback);
 
   // ---------------------------------------------------------------- the notes
@@ -74,7 +74,7 @@
 
   // A URL the add-on fetches or links to is http(s), or the page's own
   // scheme when it is opened from a file. An entry of an index resolves
-  // against the index file and must stay on its origin: tern index writes
+  // against the index file and must stay on its origin: luccet index writes
   // paths, so a crafted file cannot send a reader to javascript:, data: or
   // another site. Each URL refused is said once in the console.
   const SCHEMES = new Set(['http:', 'https:', location.protocol]);
@@ -86,7 +86,7 @@
       u = new URL(url, base);
     } catch {}
     if (u && fetchable(u) && u.origin === new URL(base).origin) return u.href;
-    if (!refused.has(url)) refused.add(url), console.warn(`Tern search.js: ${url} in the index is not a page of this site; left out`);
+    if (!refused.has(url)) refused.add(url), console.warn(`Luccet search.js: ${url} in the index is not a page of this site; left out`);
     return null;
   }
 
@@ -111,20 +111,20 @@
     } else if (o.from) {
       const base = new URL(o.from, location.href);
       if (!fetchable(base)) {
-        console.warn(`Tern search.js: from=${o.from} is not an http(s) page; no note indexed`);
+        console.warn(`Luccet search.js: from=${o.from} is not an http(s) page; no note indexed`);
         return [];
       }
       const got = await load(base.href);
       if (got) for (const url of got.links) add(url, base.href);
     } else {
-      const main = el.closest('.tern') || document;
+      const main = el.closest('.luccet') || document;
       for (const a of main.querySelectorAll('a[href]')) if (!el.contains(a)) add(a.getAttribute('href'), location.href);
     }
     return [...seen];
   }
 
   // A note fetched and parsed: {url, title, links, records} or null.
-  const TAG = /<script\b[^>]*\bsrc\s*=\s*(?:"[^"]*tern\.js(?:[?#][^"]*)?"|'[^']*tern\.js(?:[?#][^']*)?'|[^\s"'>]*tern\.js[^\s"'>]*)[^>]*>/i;
+  const TAG = /<script\b[^>]*\bsrc\s*=\s*(?:"[^"]*luccet\.js(?:[?#][^"]*)?"|'[^']*luccet\.js(?:[?#][^']*)?'|[^\s"'>]*luccet\.js[^\s"'>]*)[^>]*>/i;
   async function load(url) {
     let text;
     try {
@@ -132,12 +132,12 @@
       if (!res.ok) throw new Error(`${res.status}`);
       text = await res.text();
     } catch (e) {
-      console.warn(`Tern search.js: ${url} could not be fetched: ${(e && e.message) || e}`);
+      console.warn(`Luccet search.js: ${url} could not be fetched: ${(e && e.message) || e}`);
       return null;
     }
     const m = TAG.exec(text);
     if (!m) {
-      console.warn(`Tern search.js: ${url} is not a note (no tern.js tag)`);
+      console.warn(`Luccet search.js: ${url} is not a note (no luccet.js tag)`);
       return null;
     }
     const nl = text.indexOf('\n', m.index + m[0].length);
@@ -148,7 +148,7 @@
       ast = T.parse(note, { head }).ast;
       T.transform(ast, { head });
     } catch (e) {
-      console.warn(`Tern search.js: ${url} could not be parsed: ${(e && e.message) || e}`);
+      console.warn(`Luccet search.js: ${url} could not be parsed: ${(e && e.message) || e}`);
       return null;
     }
     const d = S.describe(head, ast);
@@ -156,7 +156,7 @@
     return { url, title, links: d.links, records: S.records(ast, { url, title }) };
   }
 
-  // A search.json `tern index` wrote, read: {notes, entries, terms, lengths,
+  // A search.json `luccet index` wrote, read: {notes, entries, terms, lengths,
   // avg}, or null when it cannot be used, with the reason in the console.
   async function loadIndex(url) {
     let data;
@@ -165,17 +165,17 @@
       if (!res.ok) throw new Error(`${res.status}`);
       data = await res.json();
     } catch (e) {
-      console.warn(`Tern search.js: the index ${url} could not be loaded (${(e && e.message) || e}); indexing the notes here`);
+      console.warn(`Luccet search.js: the index ${url} could not be loaded (${(e && e.message) || e}); indexing the notes here`);
       return null;
     }
     if (!data || !Array.isArray(data.entries) || !data.terms || typeof data.terms !== 'object' || !Array.isArray(data.lengths)) {
-      console.warn(`Tern search.js: ${url} is not a search index written by tern index; indexing the notes here`);
+      console.warn(`Luccet search.js: ${url} is not a search index written by luccet index; indexing the notes here`);
       return null;
     }
     // The file's format decides, not the version that wrote it (a file
     // with no format is from before 1.0).
     if (data.format !== T.search.format) {
-      console.warn(`Tern search.js: ${url} was written by tern ${data.tern} in a format this tern (${T.version}) does not read: run tern index again; indexing the notes here`);
+      console.warn(`Luccet search.js: ${url} was written by luccet ${data.luccet} in a format this luccet (${T.version}) does not read: run luccet index again; indexing the notes here`);
       return null;
     }
     return data;
@@ -227,7 +227,7 @@
     let ready;
     const indexURL = o.index ? new URL(o.index, location.href) : null;
     let data = null;
-    if (indexURL && !fetchable(indexURL)) console.warn(`Tern search.js: index=${o.index} is not an http(s) file; indexing the notes here`);
+    if (indexURL && !fetchable(indexURL)) console.warn(`Luccet search.js: index=${o.index} is not an http(s) file; indexing the notes here`);
     else if (indexURL) data = await loadIndex(indexURL.href);
     let titleOf;
     if (data) {
@@ -311,7 +311,7 @@
     if (host.closest('.docs-live-out')) return; // an example's result on the docs stays inert
     build(host).catch((e) => {
       const why = (e && e.message) || String(e);
-      console.warn(`Tern search.js: the search box could not be set up: ${why}`);
+      console.warn(`Luccet search.js: the search box could not be set up: ${why}`);
       const status = host.querySelector('.t-search-status') || host.appendChild(el('p', { class: 't-search-status', role: 'status' }));
       status.textContent = str('searchFailed', { why }, 'The search could not be set up ({why}).');
     });

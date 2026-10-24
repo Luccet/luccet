@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// tern build --diagrams: the note's mermaid fences drawn ahead, into the page
+// luccet build --diagrams: the note's mermaid fences drawn ahead, into the page
 // cli/build.js writes, as the browser would draw them. The note itself is
 // opened in a headless Chromium through Playwright, if it can be required
 // (it is not a dependency), with Mermaid handed to the page: from the
@@ -20,13 +20,13 @@ const { pathToFileURL } = require('url');
 
 const escAttr = (s) => String(s).replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c]);
 
-const MERMAID_STYLE_ID = 'tern-mermaid-style';
+const MERMAID_STYLE_ID = 'luccet-mermaid-style';
 // What the add-on's styles do, for a page read with scripts off, and the
 // rules that pick a copy before the add-on does: the light copy in a light
 // scheme, the dark in a dark one, the print copy in print.
 const MERMAID_STYLE = [
   '.t-mermaid { font-family: var(--t-sans); font-size: 16px; line-height: 1.5; }',
-  '.tern .t-mermaid { margin-block: 0 1rem; }',
+  '.luccet .t-mermaid { margin-block: 0 1rem; }',
   '.t-mermaid > svg { display: block; margin-inline: auto; max-inline-size: 100%; height: auto; }',
   '.t-mermaid > .t-mermaid-print, .t-mermaid > .t-mermaid-alt { display: none; }',
   '@media (prefers-color-scheme: dark) { .t-mermaid > .t-mermaid-light { display: none; } }',
@@ -110,7 +110,7 @@ const KEYS = ['bg', 'fg', 'muted', 'line', 'line-strong', 'soft', 'link', 'mark'
 // (the screen copy and its palette key, the print copy), failed (the
 // add-on's error after the fence), or pending.
 const STATE = `(() => {
-  const main = document.querySelector('main.tern');
+  const main = document.querySelector('main.luccet');
   const out = [];
   if (!main) return out;
   for (const el of main.querySelectorAll('.t-mermaid, pre')) {
@@ -129,7 +129,7 @@ const STATE = `(() => {
   return out;
 })()`;
 const SIGNATURE = `(() => {
-  const cs = getComputedStyle(document.querySelector('main.tern') || document.documentElement);
+  const cs = getComputedStyle(document.querySelector('main.luccet') || document.documentElement);
   return ${JSON.stringify(KEYS)}.map((k) => cs.getPropertyValue('--t-' + k).trim()).join('|') + '|' + cs.getPropertyValue('--t-sans').trim();
 })()`;
 
@@ -168,11 +168,11 @@ async function read(pw, file, mermaid, { timeout }) {
     page.on('console', (m) => (m.type() === 'warning' || m.type() === 'error') && console.push(m.text()));
     await page.goto(pathToFileURL(path.resolve(file)).href, { waitUntil: 'load', timeout });
     try {
-      await page.waitForFunction(() => window.tern && window.tern.ready, null, { timeout });
+      await page.waitForFunction(() => window.luccet && window.luccet.ready, null, { timeout });
     } catch {
-      throw new Error("tern.js did not run in the browser: is the tag's src right from the note's folder?");
+      throw new Error("luccet.js did not run in the browser: is the tag's src right from the note's folder?");
     }
-    await page.evaluate(() => window.tern.ready);
+    await page.evaluate(() => window.luccet.ready);
     const settled = (s) => s.every((x) => !x.pending);
     const light = await settle(page, settled, timeout);
     const sigLight = await page.evaluate(SIGNATURE);
@@ -272,7 +272,7 @@ async function drawInto(r, file, { timeout = 60000 } = {}) {
   });
   if (!result.drawn) {
     const loaded = read_.console.find((t) => /Mermaid did not load/.test(t));
-    if (loaded) warnings.push(`${loaded.replace(/^Tern mermaid\.js: /, '')}; diagrams are left to the page`);
+    if (loaded) warnings.push(`${loaded.replace(/^Luccet mermaid\.js: /, '')}; diagrams are left to the page`);
     strip();
   }
   return result;

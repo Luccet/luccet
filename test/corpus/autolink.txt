@@ -8,7 +8,7 @@ spec: syntax-inline#autolinks
 
 CommonMark's angle autolink; `&` is escaped in both the `href` and the text.
 
-````tern
+````luccet
 <https://a.b/c?d=1&e=2>
 ````
 
@@ -22,7 +22,7 @@ spec: syntax-inline#autolinks
 
 An angle e-mail autolink gets `mailto:`.
 
-````tern
+````luccet
 <me@x.org>
 ````
 
@@ -36,7 +36,7 @@ spec: syntax-inline#autolinks
 
 Any scheme works in the angle form, `mailto:` included.
 
-````tern
+````luccet
 <ftp://x.org/f> and <mailto:me@x.org>
 ````
 
@@ -50,7 +50,7 @@ spec: syntax-inline#autolinks syntax-inline#algorithm
 
 A space ends any chance of an angle autolink, and `<` is not in the bare form's start set: all text.
 
-````tern
+````luccet
 <https://a b>
 ````
 
@@ -64,7 +64,7 @@ spec: syntax-inline#autolinks syntax-inline#algorithm
 
 An angle autolink is an atom: the stars inside are not emphasis.
 
-````tern
+````luccet
 <https://x.org/*a*>
 ````
 
@@ -78,7 +78,7 @@ spec: syntax-inline#autolinks syntax-blocks#positions
 
 A strong group glued after an autolink attaches to it.
 
-````tern
+````luccet
 <https://x.org>{.ext}
 ````
 
@@ -92,7 +92,7 @@ spec: syntax-inline#autolinks
 
 The bare form: the final `.` is trimmed.
 
-````tern
+````luccet
 See https://x.com/_a_/docs.
 ````
 
@@ -106,7 +106,7 @@ spec: syntax-inline#autolinks
 
 A bare URL may start after `(` or `[`; the unbalanced `)` is trimmed and the `]` stops it.
 
-````tern
+````luccet
 (https://a.b) and [https://a.b]
 ````
 
@@ -120,7 +120,7 @@ spec: syntax-inline#autolinks
 
 A bare URL may start after `"` or `'`; `"` stops it and a trailing `'` is trimmed.
 
-````tern
+````luccet
 "https://a.b" and 'https://a.b'
 ````
 
@@ -134,7 +134,7 @@ spec: syntax-inline#autolinks syntax-inline#emphasis
 
 A bare URL may start after `*`, and a trailing `*` is trimmed, so the emphasis closes around it.
 
-````tern
+````luccet
 *https://a.b*
 ````
 
@@ -148,7 +148,7 @@ spec: syntax-inline#autolinks syntax-inline#ambiguity
 
 After a letter, a digit or any character outside the start set, `https://` is text.
 
-````tern
+````luccet
 xhttps://a.b, 1https://a.b and a/https://a.b
 ````
 
@@ -162,7 +162,7 @@ spec: syntax-inline#autolinks
 
 `<` and `>` stop a bare URL.
 
-````tern
+````luccet
 https://a.b/c<d
 
 https://a.b/c>d
@@ -179,7 +179,7 @@ spec: syntax-inline#autolinks syntax-blocks#positions
 
 `[` and `{` stop a bare URL; the weak `{f}` glued after it stays text.
 
-````tern
+````luccet
 https://a.b/c[d] https://a.b/e{f}
 ````
 
@@ -193,7 +193,7 @@ spec: syntax-inline#autolinks
 
 `|`, `"` and a backtick stop a bare URL.
 
-````tern
+````luccet
 x https://a.b/c|d https://a.b/e"f" https://a.b/g`h`
 ````
 
@@ -207,7 +207,7 @@ spec: syntax-inline#autolinks
 
 Trailing `:`, `;` and `?` are trimmed too.
 
-````tern
+````luccet
 Try https://x.org/a: or https://x.org/b; maybe https://x.org/c?
 ````
 
@@ -221,7 +221,7 @@ spec: syntax-inline#autolinks
 
 Trimming repeats until stable (as in GFM): `).` loses the `.` and then the unbalanced `)`, and `**` loses both stars.
 
-````tern
+````luccet
 (see https://x.org).
 
 **https://x.org**
@@ -238,7 +238,7 @@ spec: syntax-inline#autolinks
 
 Balanced parentheses stay in the URL; only an unbalanced final `)` is trimmed.
 
-````tern
+````luccet
 https://en.wikipedia.org/wiki/Foo_(bar)
 
 (https://en.wikipedia.org/wiki/Foo_(bar))
@@ -255,7 +255,7 @@ spec: syntax-inline#autolinks syntax-inline#algorithm
 
 A bare URL is an atom: `*` and `~~` inside it are not delimiters.
 
-````tern
+````luccet
 https://x.org/a*b*c and https://x.org/~~d~~e
 ````
 
@@ -269,7 +269,7 @@ spec: syntax-inline#autolinks syntax-inline#algorithm syntax-inline#inline-eleme
 
 The URL consumes `:kbd` and stops at `[`, so no element opens and `[x]` is text.
 
-````tern
+````luccet
 https://x.org/:kbd[x]
 ````
 
@@ -283,7 +283,7 @@ spec: syntax-inline#autolinks syntax-blocks#positions
 
 `{` stops a bare URL, and a strong group glued there attaches to the link.
 
-````tern
+````luccet
 https://x.org{.ext}
 ````
 
@@ -297,7 +297,7 @@ spec: syntax-inline#autolinks syntax-blocks#tables
 
 A bare URL never consumes `|`, so the row keeps its cells.
 
-````tern
+````luccet
 | URL | Note |
 |---|---|
 |https://a.b|note|
@@ -313,7 +313,7 @@ spec: syntax-inline#autolinks syntax-inline#ambiguity syntax-inline#escape
 
 `https\://` is the literal spelling.
 
-````tern
+````luccet
 https\://x.org
 ````
 
@@ -327,7 +327,7 @@ spec: syntax-inline#autolinks syntax-inline#ambiguity
 
 Inside code or math a URL is not a link.
 
-````tern
+````luccet
 `https://x.org` and $https://x.org$
 ````
 
@@ -341,7 +341,7 @@ spec: syntax-inline#autolinks syntax-inline#soft-break
 
 `&` in a bare URL is escaped in both the `href` and the text.
 
-````tern
+````luccet
 https://a.b/?x=1&y=2
 ````
 
@@ -355,7 +355,7 @@ spec: syntax-inline#autolinks syntax-inline#strike-highlight
 
 `~` and `=` are in the bare-URL trim set, so the URL gives back a closing `==` or `~~` and a highlighted or struck-through URL is a link inside `<mark>` or `<del>`.
 
-````tern
+````luccet
 ==https://x.org==
 
 ~~https://x.org~~
@@ -372,7 +372,7 @@ spec: syntax-inline#autolinks syntax-inline#escape
 
 `\` is in the bare-URL trim set, so a URL at the end of a line does not swallow a hard break's `\`.
 
-````tern
+````luccet
 See https://x.org\
 next line
 ````
@@ -388,7 +388,7 @@ spec: syntax-inline#autolinks syntax-inline#raw-inline-html
 
 `>` is in the bare-URL start set, so a URL right after an inline raw tag links; `<` stops it before the end tag.
 
-````tern
+````luccet
 <b>https://x.org</b>
 ````
 
@@ -402,7 +402,7 @@ spec: syntax-inline#autolinks
 
 The scheme is matched case-insensitively; the URL is used as written.
 
-````tern
+````luccet
 HTTPS://x.org and Http://y.org
 ````
 
@@ -416,7 +416,7 @@ spec: syntax-inline#autolinks syntax-inline#ambiguity
 
 A scheme with nothing after it is not a link: `http://` alone, or followed only by characters that trimming removes, is text.
 
-````tern
+````luccet
 Type http:// or https://. first.
 ````
 

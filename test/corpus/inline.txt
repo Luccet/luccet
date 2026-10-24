@@ -10,7 +10,7 @@ spec: syntax-inline#inline-element syntax-inline#ambiguity
 
 A colon after a digit never opens an inline element, and `30` is not a NAME, so `10:30[x]` is plain text with no diagnostic.
 
-````tern
+````luccet
 Meet at 10:30[x] sharp.
 ````
 
@@ -24,7 +24,7 @@ spec: syntax-inline#inline-element syntax-inline#ambiguity diagnostics#inline-gl
 
 `press:kbd[S]` has the shape of an element but its `:` follows an ASCII letter: it stays text, with `inline.glued` (I) at the `:`.
 
-````tern
+````luccet
 Then press:kbd[S] to save.
 ````
 
@@ -42,7 +42,7 @@ spec: syntax-inline#inline-element syntax-blocks#character-classes
 
 The glued test is ASCII only, so `漢:rt[kan]` opens an `rt` inside `ruby` although `:` follows a Han character.
 
-````tern
+````luccet
 The kanji :ruby[漢:rt[kan]] is read kan.
 ````
 
@@ -56,7 +56,7 @@ spec: syntax-inline#reference syntax-inline#ambiguity
 
 An `@` after an ASCII letter is not a reference, so an e-mail address is text and nothing dangles.
 
-````tern
+````luccet
 Write to me@x.org today.
 ````
 
@@ -70,7 +70,7 @@ spec: syntax-inline#reference
 
 The IDENT would be `kernel-`; the trailing `-` is given back to the text.
 
-````tern
+````luccet
 ## Kernel {#kernel}
 
 The @kernel- and image-based views.
@@ -87,7 +87,7 @@ spec: syntax-inline#reference elements#references syntax-blocks#merging-and-emis
 
 A reference renders the target's text: the label for a counted block, `(n)` for an equation; `{ref=…}` selects label, number, title or full, and the reserved key is not emitted.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 Body.
 :::
@@ -109,7 +109,7 @@ spec: syntax-inline#strike-highlight syntax-inline#ambiguity syntax-blocks#chara
 
 `==` glued to ASCII letters on the outside cannot open or close, and a spaced `==` is not flanking: all of this is text.
 
-````tern
+````luccet
 If a==b and c==d then x == y.
 ````
 
@@ -123,7 +123,7 @@ spec: syntax-inline#emphasis syntax-inline#ambiguity syntax-inline#residual-emph
 
 Stars surrounded by spaces are text; `2*3*4` follows CommonMark and emphasises the `3`.
 
-````tern
+````luccet
 2 * 3 * 4 is text, but 2*3*4 is emphasis.
 ````
 
@@ -137,7 +137,7 @@ spec: syntax-inline#emphasis syntax-inline#ambiguity
 
 `_` and `__` are never delimiters.
 
-````tern
+````luccet
 snake_case, x_1, _private_ and __init__ stay as written.
 ````
 
@@ -151,7 +151,7 @@ spec: syntax-inline#autolinks syntax-inline#span syntax-blocks#positions
 
 A bare URL never consumes `]`, so the bracket still closes a span and the group attaches to it.
 
-````tern
+````luccet
 [https://x.org]{.u}
 ````
 
@@ -165,7 +165,7 @@ spec: syntax-inline#autolinks
 
 Trailing `,` `.` `!` and an unbalanced final `)` are left out of a bare URL.
 
-````tern
+````luccet
 See https://x.org/a, https://x.org/b. Or https://x.org/c! (https://x.org/d)
 ````
 
@@ -179,7 +179,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-inline#ambiguity
 
 Every escape the documentation lists is that character, literally.
 
-````tern
+````luccet
 \* \$ \: \@ \[ \] \{ \} \| \# \< \` \\ \= \~ \! \^ \> \- \+ \.
 ````
 
@@ -193,7 +193,7 @@ spec: syntax-inline#escape syntax-blocks#r4 syntax-inline#escapes
 
 Outside math, `\` before a letter is a literal backslash.
 
-````tern
+````luccet
 \alpha and C:\Users
 ````
 
@@ -207,7 +207,7 @@ spec: syntax-inline#latex-linebreak syntax-inline#ambiguity
 
 `\\` at the end of a line is an escaped backslash followed by a soft break, not a hard break, with `latex.linebreak` (I) at the first backslash of the `\\`.
 
-````tern
+````luccet
 first\\
 second
 ````
@@ -227,7 +227,7 @@ spec: syntax-inline#algorithm syntax-inline#code-span
 
 A code span is an atom, so the `*` inside it is not a closer; the emphasis runs from the first `*` to the last.
 
-````tern
+````luccet
 *a `b*` c*
 ````
 
@@ -241,7 +241,7 @@ spec: syntax-inline#algorithm syntax-inline#code-span syntax-inline#links
 
 Backtick runs come before bracket closers: the code span swallows the `]`, so there is no link and the `[` is text.
 
-````tern
+````luccet
 [not a `link](/u`)
 ````
 
@@ -255,7 +255,7 @@ spec: syntax-inline#algorithm syntax-inline#links
 
 An atom protects `]` from bracket matching: the code span's `]` does not close the link text.
 
-````tern
+````luccet
 [a `]` b](u)
 ````
 
@@ -269,7 +269,7 @@ spec: syntax-inline#algorithm syntax-blocks#container
 
 Title-bracket matching skips atoms, so a `]` in a code span does not end a container title.
 
-````tern
+````luccet
 :::box[a `]` b]
 x
 :::
@@ -285,7 +285,7 @@ spec: syntax-inline#algorithm syntax-inline#autolinks syntax-inline#reference
 
 A bare URL is an atom: the `@kernel` inside it is not a reference (and does not dangle).
 
-````tern
+````luccet
 https://x.org/?@kernel
 ````
 
@@ -299,7 +299,7 @@ spec: syntax-inline#algorithm syntax-inline#entities
 
 Entities are atoms: `&#42;` is not a delimiter and `&#91;` is not a bracket, and both pass through as written.
 
-````tern
+````luccet
 &#42;not em&#42; and &#91;not a link&#93;(u)
 ````
 
@@ -313,7 +313,7 @@ spec: syntax-inline#algorithm syntax-inline#escapes
 
 Math is an atom: the `*` inside it is TeX, and the emphasis wraps the whole span.
 
-````tern
+````luccet
 *$a*b$*
 ````
 
@@ -327,7 +327,7 @@ spec: syntax-inline#code-span syntax-inline#ambiguity
 
 The three spellings of code spans: content is escaped, a longer run encloses a shorter one, and one space each side is stripped.
 
-````tern
+````luccet
 `a < b`
 
 ``a`b``
@@ -347,7 +347,7 @@ spec: syntax-inline#code-span syntax-inline#ambiguity
 
 With no later run of exactly the same length, the backticks are literal.
 
-````tern
+````luccet
 x ``a` y
 ````
 
@@ -361,7 +361,7 @@ spec: syntax-inline#code-span
 
 A single backtick closes only at a run of exactly one, so the inner run of two is content.
 
-````tern
+````luccet
 `a``b`
 ````
 
@@ -375,7 +375,7 @@ spec: syntax-inline#code-span
 
 A code span may cross a soft break; the newline becomes a space.
 
-````tern
+````luccet
 `a
 b`
 ````
@@ -390,7 +390,7 @@ spec: syntax-inline#code-span
 
 Exactly one leading and one trailing space are stripped, and only when both are present.
 
-````tern
+````luccet
 ` a ` and `  b  ` and ` c`
 ````
 
@@ -414,7 +414,7 @@ spec: syntax-inline#code-span
 
 Content that is all spaces is not stripped.
 
-````tern
+````luccet
 `  `
 ````
 
@@ -428,7 +428,7 @@ spec: syntax-inline#code-span syntax-inline#escapes syntax-inline#entities
 
 Inside a code span there are no escapes and no entities; the content is escaped text.
 
-````tern
+````luccet
 `\*` and `&amp;`
 ````
 
@@ -442,7 +442,7 @@ spec: syntax-inline#code-span syntax-blocks#positions
 
 A strong group glued to a code span's closing run attaches to the `<code>`.
 
-````tern
+````luccet
 `x`{.lang-js}
 ````
 
@@ -456,7 +456,7 @@ spec: syntax-inline#code-span syntax-blocks#positions
 
 After a code span only strong groups attach; a weak group stays text, silently.
 
-````tern
+````luccet
 `x`{hidden}
 ````
 
@@ -470,7 +470,7 @@ spec: syntax-inline#code-span syntax-blocks#positions diagnostics#attr-malformed
 
 A glued candidate starting with `.` that does not parse stays text, with `attr.malformed` (W) at the first bad column (the `"` where an item should start).
 
-````tern
+````luccet
 `x`{.a "b"}
 ````
 
@@ -488,7 +488,7 @@ spec: syntax-inline#residual-lone-backtick syntax-inline#ambiguity syntax-inline
 
 The residual: the lone backtick in `:kbd[`]` pairs with the next single backtick, the code span swallows the `]`, and the element is left unclosed.
 
-````tern
+````luccet
 Press :kbd[`] then type `x`.
 ````
 
@@ -506,7 +506,7 @@ spec: syntax-inline#residual-lone-backtick syntax-inline#ambiguity syntax-inline
 
 The fix for the residual: `` \` `` is a literal backtick, so the element closes and the later code span is intact.
 
-````tern
+````luccet
 Press :kbd[\`] then type `x`.
 ````
 
@@ -520,7 +520,7 @@ spec: syntax-inline#span elements#output-contract syntax-blocks#merging-and-emis
 
 `]` immediately followed by a group that parses makes a bare span, with no `data-t`; a weak group is accepted.
 
-````tern
+````luccet
 [the term]{.term #k} and [answer]{hidden}
 ````
 
@@ -534,7 +534,7 @@ spec: syntax-inline#span syntax-inline#ambiguity syntax-blocks#positions
 
 Brackets with no `(` or glued group after them are text; a group after a space is not glued.
 
-````tern
+````luccet
 [1, 2], f[x], [not a link] f(x) and [x] {.c}
 ````
 
@@ -548,7 +548,7 @@ spec: syntax-inline#span syntax-blocks#positions diagnostics#attr-malformed
 
 A glued group that does not parse leaves both brackets and the group as text, with `attr.malformed` (W) at the first bad column.
 
-````tern
+````luccet
 [x]{.a "b"}
 ````
 
@@ -566,7 +566,7 @@ spec: syntax-inline#span syntax-blocks#positions
 
 After a bracket any group is a candidate, so `{1, 2}` glued to `]` is a malformed group (a KEY cannot start with a digit), not silent text as it would be elsewhere.
 
-````tern
+````luccet
 [x]{1, 2}
 ````
 
@@ -584,7 +584,7 @@ spec: syntax-inline#span syntax-blocks#finding-the-group
 
 `{}` is not a group, so `[x]{}` is text, and silent: an empty group after a bracket is not a failed candidate.
 
-````tern
+````luccet
 [x]{}
 ````
 
@@ -601,7 +601,7 @@ spec: syntax-inline#span
 
 Span content is ordinary inline content.
 
-````tern
+````luccet
 [*a* `b`]{.c}
 ````
 
@@ -615,7 +615,7 @@ spec: syntax-inline#span syntax-inline#algorithm
 
 Spans nest through the bracket stack.
 
-````tern
+````luccet
 [a [b]{.y}]{.x}
 ````
 
@@ -629,7 +629,7 @@ spec: syntax-inline#span syntax-inline#links syntax-inline#algorithm
 
 A span may contain a link: link deactivation ("no links in links") only stops the earlier `[` from becoming a link, so it still closes as a span.
 
-````tern
+````luccet
 [see [x](u) now]{.n}
 ````
 
@@ -643,7 +643,7 @@ spec: syntax-inline#span syntax-inline#links
 
 A span inside link text: only links deactivate earlier openers, so the link still forms around it.
 
-````tern
+````luccet
 [[a]{.c}](u)
 ````
 
@@ -657,7 +657,7 @@ spec: syntax-inline#entities syntax-inline#ambiguity
 
 Well-formed named and numeric references pass through as written; any other `&` is escaped.
 
-````tern
+````luccet
 AT&T, &nbsp;, &#x2203; and &#8704;
 ````
 
@@ -671,7 +671,7 @@ spec: syntax-inline#entities
 
 Without the `;`, or with no digits, a reference is not well formed and its `&` is escaped.
 
-````tern
+````luccet
 &copy 2026 and &#x;
 ````
 
@@ -685,7 +685,7 @@ spec: syntax-inline#entities
 
 A named reference that HTML does not define is not well formed: its `&` is escaped.
 
-````tern
+````luccet
 &foo; and &bogus; but &amp;
 ````
 
@@ -699,7 +699,7 @@ spec: syntax-inline#entities syntax-inline#escape syntax-inline#ambiguity
 
 `\&` is the literal spelling: the escaped `&` cannot start an entity, so `&amp;` shows as written.
 
-````tern
+````luccet
 \&amp;
 ````
 
@@ -713,7 +713,7 @@ spec: syntax-inline#soft-break
 
 `<`, `>`, `&` and `"` in text are escaped.
 
-````tern
+````luccet
 a < b & c > d "e"
 ````
 
@@ -727,7 +727,7 @@ spec: syntax-inline#soft-break syntax-blocks#paragraph
 
 A newline inside inline content is emitted as a newline.
 
-````tern
+````luccet
 one
 two
 ````
@@ -743,7 +743,7 @@ spec: syntax-inline#ambiguity
 
 `#` inside a line is text: `C#`, `#tag`, `#1`.
 
-````tern
+````luccet
 Use C# and #tags; see #1.
 ````
 
@@ -757,7 +757,7 @@ spec: syntax-inline#ambiguity syntax-inline#strike-highlight
 
 A lone `~` or `^` is never syntax (there is no sub- or superscript spelling), and `%` is never syntax.
 
-````tern
+````luccet
 x^2, a ~ b, ~x~, ^y^ and 100% stay text.
 ````
 
@@ -771,7 +771,7 @@ spec: syntax-inline#ambiguity syntax-inline#escape syntax-inline#span
 
 `\{` is the literal spelling of an inline `{`: the escaped brace is not a group, so the brackets are text.
 
-````tern
+````luccet
 [x]\{.c}
 ````
 
@@ -785,7 +785,7 @@ spec: syntax-inline#residual-emphasis syntax-inline#emphasis syntax-inline#escap
 
 The two documented fixes for `2*3*4`: escaped stars, or math.
 
-````tern
+````luccet
 2\*3\*4 or $2 \cdot 3 \cdot 4$
 ````
 
@@ -799,7 +799,7 @@ spec: syntax-inline#residual-inline-html syntax-inline#ambiguity
 
 `x <b and c> y` matches CommonMark's tag grammar, so it is a raw `<b>` tag (never closed: `html.inline-unclosed`); `\<` is the fix.
 
-````tern
+````luccet
 x <b and c> y
 
 x \<b and c> y

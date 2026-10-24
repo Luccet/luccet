@@ -8,7 +8,7 @@ spec: syntax-blocks#macros
 
 A macros block is emitted as a hidden `div.t-macros` holding its TeX.
 
-````tern
+````luccet
 :::macros
 \gdef\R{\mathbb{R}}
 :::
@@ -22,9 +22,9 @@ A macros block is emitted as a hidden `div.t-macros` holding its TeX.
 
 spec: syntax-blocks#raw-body syntax-blocks#container syntax-blocks#merging-and-emission syntax-blocks#r7
 
-`:::macros` and the reserved `:::script`, `:::style` and `:::html` produce an element (`div.t-macros`, `pre.t-error`), which carries the author's id, classes and keys as any element does, after tern's own class; `hidden` stays tern's. So `@m` reaches it.
+`:::macros` and the reserved `:::script`, `:::style` and `:::html` produce an element (`div.t-macros`, `pre.t-error`), which carries the author's id, classes and keys as any element does, after luccet's own class; `hidden` stays luccet's. So `@m` reaches it.
 
-````tern
+````luccet
 :::macros{#m .defs data-set=algebra}
 \newcommand{\R}{\mathbb{R}}
 :::
@@ -50,9 +50,9 @@ See @m and @s.
 
 spec: syntax-blocks#macros syntax-blocks#lines
 
-Nothing inside a macros body is Tern: a blank line, a `#` line and an opener line are content, and the body is escaped on output.
+Nothing inside a macros body is Luccet: a blank line, a `#` line and an opener line are content, and the body is escaped on output.
 
-````tern
+````luccet
 :::macros
 \gdef\less{<}
 
@@ -74,7 +74,7 @@ spec: syntax-blocks#macros syntax-blocks#closer
 
 `:::/macros` is exactly a closer, so it ends the body.
 
-````tern
+````luccet
 :::macros
 \gdef\R{x}
 :::/macros
@@ -93,7 +93,7 @@ spec: syntax-blocks#macros syntax-blocks#closer
 
 Without an exact closer the body runs to the end of the note, swallowing the heading and paragraph after it; the opener gets `block.unclosed`.
 
-````tern
+````luccet
 :::macros
 \gdef\R{x}
 
@@ -118,7 +118,7 @@ spec: syntax-blocks#macros
 
 A macros block may sit inside another container (only `:::meta` is restricted to the top level); its closer closes it, not the outer box.
 
-````tern
+````luccet
 :::box
 :::macros
 \gdef\R{x}
@@ -140,7 +140,7 @@ spec: syntax-blocks#macros syntax-blocks#line-algorithm
 
 Inside a list item the verbatim body receives each line after the item's prefix is stripped, so a closer indented to the content column ends it.
 
-````tern
+````luccet
 - :::macros
   \gdef\R{x}
   :::
@@ -158,7 +158,7 @@ spec: syntax-blocks#macros syntax-blocks#line-algorithm
 
 When the enclosing quote's prefix fails (a blank line), the raw body closes as unclosed together with the quote.
 
-````tern
+````luccet
 > :::macros
 > \gdef\R{x}
 
@@ -183,7 +183,7 @@ options: escaped
 
 Trailing whitespace never matters (editors may trim freely), so `:::` followed by a space and a tab is still exactly a closer.
 
-````tern
+````luccet
 :::macros
 \\gdef\\R{x}
 :::\u0020\t
@@ -202,7 +202,7 @@ spec: syntax-blocks#raw-body syntax-blocks#r2
 
 An indented closer ends the raw body: leading whitespace does not stop `  :::` from being exactly a closer, as container bodies may be indented freely.
 
-````tern
+````luccet
 :::macros
 \gdef\R{x}
   :::
@@ -218,7 +218,7 @@ spec: syntax-blocks#raw-body syntax-blocks#closer
 
 A raw body ends only at a bare closer or at `:::/` plus its own name. Any other closer line is content, even one naming a container that is open outside: `:::/box` stays in the macros body, and the two bare closers then close the macros block and the box.
 
-````tern
+````luccet
 :::box
 :::macros
 \gdef\R{x}
@@ -243,7 +243,7 @@ spec: syntax-blocks#raw-attribute syntax-blocks#merging-and-emission
 
 `{raw}` on any container makes its body one verbatim text node, emitted escaped inside the element; the `raw` key itself is never emitted.
 
-````tern
+````luccet
 :::mermaid{raw}
 graph TD
   A --> B
@@ -261,7 +261,7 @@ spec: syntax-blocks#raw-attribute elements#output-contract
 
 A raw container keeps its title slot before the verbatim body.
 
-````tern
+````luccet
 :::mermaid[Flow]{raw}
 graph TD
 :::
@@ -278,7 +278,7 @@ spec: syntax-blocks#raw-attribute
 
 Tags and `&` in a raw body are text, escaped on output.
 
-````tern
+````luccet
 :::chart{raw}
 <b>x</b> & y
 :::
@@ -294,7 +294,7 @@ spec: syntax-blocks#raw-attribute syntax-blocks#closer
 
 An opener line inside a raw body is content, so the first exact closer ends the raw body and the next closer is stray.
 
-````tern
+````luccet
 :::chart{raw}
 :::note
 *a*
@@ -318,7 +318,7 @@ spec: syntax-blocks#raw-attribute syntax-blocks#merging-and-emission
 
 Only `raw` is consumed; the id, classes and other keys of the same group are emitted as usual.
 
-````tern
+````luccet
 :::chart{raw #c .wide k=v}
 a
 :::
@@ -334,7 +334,7 @@ spec: syntax-blocks#raw-attribute syntax-blocks#lines
 
 The verbatim body keeps blank lines and indentation byte for byte; in the AST it is the container's `value`.
 
-````tern
+````luccet
 :::chart{raw}
 graph TD
 

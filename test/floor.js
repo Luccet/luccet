@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // The browser floor (docs/publishing.html#browsers): Chrome 88, Firefox 78,
 // Safari 14. A browser below it is shown the note's source with a message,
-// which needs tern.js to *parse* there: syntax newer than the floor fails the
+// which needs luccet.js to *parse* there: syntax newer than the floor fails the
 // whole file before supported() can run, and an API the floor lacks fails
 // the first note that reaches it. The add-ons load in the same browsers.
-// This lint looks for both in the built tern.js and in addons/*.js; the
+// This lint looks for both in the built luccet.js and in addons/*.js; the
 // regex flags `d` and `v` are not looked for, as a regex over source cannot
 // tell a flag from a division.
 //
@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const FILES = ['tern.js', ...fs.readdirSync(path.join(ROOT, 'addons')).filter((f) => f.endsWith('.js')).sort().map((f) => `addons/${f}`)];
+const FILES = ['luccet.js', ...fs.readdirSync(path.join(ROOT, 'addons')).filter((f) => f.endsWith('.js')).sort().map((f) => `addons/${f}`)];
 
 // [pattern, what, the first version of a floor browser that has it]
 const RULES = [
@@ -47,4 +47,4 @@ if (problems.length) {
   console.log(`\n✗ floor: ${problems.length} use(s) of syntax or an API above Chrome 88, Firefox 78, Safari 14`);
   process.exit(1);
 }
-console.log(`✓ floor: tern.js and ${FILES.length - 1} add-ons use nothing above Chrome 88, Firefox 78, Safari 14`);
+console.log(`✓ floor: luccet.js and ${FILES.length - 1} add-ons use nothing above Chrome 88, Firefox 78, Safari 14`);

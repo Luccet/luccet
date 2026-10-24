@@ -1,8 +1,8 @@
 # The `:::use` block
 
-The leading `:::use` block lists the add-ons a note loads, as the tern.js
+The leading `:::use` block lists the add-ons a note loads, as the luccet.js
 tag's data-use does: one or more per line, each a URL with optional
-`?options`, kept as written, into `root.data.tern.use` as `[{url, position}]`
+`?options`, kept as written, into `root.data.luccet.use` as `[{url, position}]`
 in order. The runtime and the tools read the same block from the text before
 parsing (src/use.js), to load the add-ons in time; the parser reads it for the
 tree. It emits nothing and its body is verbatim. It must lead the note: at the
@@ -18,7 +18,7 @@ spec: syntax-blocks#use
 
 Entries, one or more per line, each kept as written, options and all; the block emits nothing.
 
-````tern
+````luccet
 :::use
 addons/katex.js
 themes/nord.css addons/code.js?base=vendor/highlight
@@ -28,7 +28,7 @@ Text.
 ````
 
 ````json ast
-{"data":{"tern":{"use":[{"url":"addons/katex.js"},{"url":"themes/nord.css"},{"url":"addons/code.js?base=vendor/highlight"}]}}}
+{"data":{"luccet":{"use":[{"url":"addons/katex.js"},{"url":"themes/nord.css"},{"url":"addons/code.js?base=vendor/highlight"}]}}}
 ````
 
 ````html
@@ -41,7 +41,7 @@ spec: syntax-blocks#use syntax-blocks#meta
 
 `:::meta` may come first; the block is still leading.
 
-````tern
+````luccet
 :::meta
 title: T
 :::
@@ -54,7 +54,7 @@ Text.
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"T"},"use":[{"url":"a.js"}]}}}
+{"data":{"luccet":{"meta":{"title":"T"},"use":[{"url":"a.js"}]}}}
 ````
 
 ````html
@@ -67,7 +67,7 @@ spec: syntax-blocks#use diagnostics#use-late
 
 After content the block is `use.late` and ignored.
 
-````tern
+````luccet
 Text.
 
 :::use
@@ -89,7 +89,7 @@ spec: syntax-blocks#use diagnostics#use-late
 
 Inside a container it is not at the top level: `use.late`, ignored.
 
-````tern
+````luccet
 :::div
 :::use
 n.js
@@ -111,14 +111,14 @@ spec: syntax-blocks#use diagnostics#attr-malformed
 
 An id or class on the opener applies to nothing: `attr.malformed`, dropped; the entries are still read.
 
-````tern
+````luccet
 :::use{#x .c}
 a.js
 :::
 ````
 
 ````json ast
-{"data":{"tern":{"use":[{"url":"a.js"}]}}}
+{"data":{"luccet":{"use":[{"url":"a.js"}]}}}
 ````
 
 ````html
@@ -135,13 +135,13 @@ spec: syntax-blocks#use diagnostics#block-unclosed
 
 Unclosed at the end of the note: `block.unclosed`; the lines so far are its entries.
 
-````tern
+````luccet
 :::use
 a.js
 ````
 
 ````json ast
-{"data":{"tern":{"use":[{"url":"a.js"}]}}}
+{"data":{"luccet":{"use":[{"url":"a.js"}]}}}
 ````
 
 ````html
@@ -158,12 +158,12 @@ options: escaped
 
 Windows line endings: the block is read all the same, by the parser and by the scan of the text that loads the add-ons before parsing (src/use.js).
 
-````tern
+````luccet
 :::use\r\na.js\r\n:::\r\n\r\nText.
 ````
 
 ````json ast
-{"data":{"tern":{"use":[{"url":"a.js"}]}}}
+{"data":{"luccet":{"use":[{"url":"a.js"}]}}}
 ````
 
 ````html

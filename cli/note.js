@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // What every command needs from a note file: whether a file is a note, where
-// the note starts, the add-ons its tern.js line loads, the engine run on it,
+// the note starts, the add-ons its luccet.js line loads, the engine run on it,
 // and positions in the file rather than in the note; and where the notes
 // under a folder are. Node only.
 'use strict';
@@ -8,43 +8,43 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const tern = require('../tern.js');
+const luccet = require('../luccet.js');
 const sandbox = require('./sandbox');
 const { scanUse } = require('../src/use');
 
-// The line that makes an HTML file a note: it holds a <script> that tern.js
+// The line that makes an HTML file a note: it holds a <script> that luccet.js
 // would start from. Published for editors (docs/tools.html#detection) with
 // fixtures in test/fixtures/detect.json; editors match it per line,
 // case-insensitively. Group 1 is the tag. A line counts when:
-//   - a <script> tag on it has a src whose file name is tern.js (any path,
-//     any quotes, a query or fragment allowed; not mytern.js, tern.json);
+//   - a <script> tag on it has a src whose file name is luccet.js (any path,
+//     any quotes, a query or fragment allowed; not mytern.js, luccet.json);
 //   - the tag is not inside a comment opened earlier on the line;
-//   - it has no async, defer or type=module (tern.js would not capture the
-//     note) and no data-built (a page written by `tern build` is not a note).
+//   - it has no async, defer or type=module (luccet.js would not capture the
+//     note) and no data-built (a page written by `luccet build` is not a note).
 // The tag must be on one line and hold no < or >; a comment that spans
 // lines is not seen. Each attempt stops at the next < or >, so a line costs
 // linear time.
 const DETECT =
-  /^(?:[^<]|<(?!!--)|<!--(?:[^-]|-(?!->))*-->)*?(<script(?=[\s>/])(?![^<>]*\s(?:async|defer|data-built)(?=[\s=>/]|$))(?![^<>]*\stype\s*=\s*["']?module(?=["'\s>/]|$))[^<>]*?\ssrc\s*=\s*(["']?)(?:[^"'\s<>]*\/)?tern\.js(?:[?#][^"'\s<>]*)?\2(?=[\s>/])[^<>]*>)/i;
+  /^(?:[^<]|<(?!!--)|<!--(?:[^-]|-(?!->))*-->)*?(<script(?=[\s>/])(?![^<>]*\s(?:async|defer|data-built)(?=[\s=>/]|$))(?![^<>]*\stype\s*=\s*["']?module(?=["'\s>/]|$))[^<>]*?\ssrc\s*=\s*(["']?)(?:[^"'\s<>]*\/)?luccet\.js(?:[?#][^"'\s<>]*)?\2(?=[\s>/])[^<>]*>)/i;
 
-// DETECT on one line: {index, tag} for the tern.js tag, or null.
+// DETECT on one line: {index, tag} for the luccet.js tag, or null.
 function detect(line) {
   const m = DETECT.exec(line);
   return m ? { index: m[0].length - m[1].length, tag: m[1] } : null;
 }
 
-// Why a file is not a note, when it nearly is: a tern.js tag DETECT refuses.
+// Why a file is not a note, when it nearly is: a luccet.js tag DETECT refuses.
 function notNote(text) {
-  const m = /<script\b[^<>]*\ssrc\s*=\s*["']?(?:[^"'\s<>]*\/)?tern\.js(?:[?#][^"'\s<>]*)?(?=["'\s>/])[^<>]*>/i.exec(String(text));
-  if (!m) return 'no line loads tern.js';
-  if (/\sdata-built\b/i.test(m[0])) return 'it is a page written by tern build; check its source note';
+  const m = /<script\b[^<>]*\ssrc\s*=\s*["']?(?:[^"'\s<>]*\/)?luccet\.js(?:[?#][^"'\s<>]*)?(?=["'\s>/])[^<>]*>/i.exec(String(text));
+  if (!m) return 'no line loads luccet.js';
+  if (/\sdata-built\b/i.test(m[0])) return 'it is a page written by luccet build; check its source note';
   const how = /\s(async|defer)(?=[\s=>/]|$)/i.exec(m[0]) || /\stype\s*=\s*["']?(module)/i.exec(m[0]);
-  if (how) return `it loads tern.js with ${how[1].toLowerCase()}, so tern.js does not render it; use a plain <script src>`;
-  return 'its tern.js tag is commented out or not on one line';
+  if (how) return `it loads luccet.js with ${how[1].toLowerCase()}, so luccet.js does not render it; use a plain <script src>`;
+  return 'its luccet.js tag is commented out or not on one line';
 }
 
 // Splits a file into the preserved head and the note. Returns null when no
-// line loads tern.js. `line` is the number of file lines before the note, so
+// line loads luccet.js. `line` is the number of file lines before the note, so
 // note line n is file line n + line.
 function split(text) {
   text = String(text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
@@ -81,7 +81,7 @@ function attributes(tag) {
 }
 
 // The project a note's local head scripts and add-ons must stay in: the
-// folder of the tern.js its tag names, when that is a relative path (the
+// folder of the luccet.js its tag names, when that is a relative path (the
 // site root a static host would serve it from); else the repository the note
 // is in; else the note's own folder. A root-relative URL (/lib/x.js) resolves
 // against it, and a path that leaves it is not read: a note cannot make the
@@ -99,10 +99,10 @@ function locate(dir, url, root) {
   return rel.startsWith('..') || path.isAbsolute(rel) ? null : file;
 }
 
-// The head's classic scripts before the tern.js tag, in document order:
+// The head's classic scripts before the luccet.js tag, in document order:
 // {src, body, line, column}. Comments are skipped; a module, a data block,
-// and an async or defer script (which runs after tern.js has read
-// window.TERN) are left out.
+// and an async or defer script (which runs after luccet.js has read
+// window.LUCCET) are left out.
 const JS_TYPE = /^(?:(?:text|application)\/(?:x-)?(?:java|ecma)script|text\/(?:jscript|livescript|javascript1\.[0-5]))?$/i;
 function headScripts(head) {
   head = String(head || '');
@@ -141,7 +141,7 @@ const failMessage = (kind, kept) => {
 function readText(file) {
   const buf = fs.readFileSync(file);
   if (buf.length >= 2 && ((buf[0] === 0xff && buf[1] === 0xfe) || (buf[0] === 0xfe && buf[1] === 0xff))) {
-    return { text: buf.toString('utf8'), warning: `${file} is UTF-16 (it starts with a byte order mark); Tern reads UTF-8, so it is not read as a note` };
+    return { text: buf.toString('utf8'), warning: `${file} is UTF-16 (it starts with a byte order mark); Luccet reads UTF-8, so it is not read as a note` };
   }
   try {
     return { text: new TextDecoder('utf-8', { fatal: true }).decode(buf), warning: null };
@@ -156,11 +156,11 @@ function readText(file) {
 // cannot read files): the head's classic scripts and the script add-ons of
 // data-use, each {url, code} in document order, and the problems that are the
 // host's to see — a remote script or add-on (not run under node), a local one
-// that cannot be read. `dataUse/Lang/Katex` build the add-ons' tern.config;
+// that cannot be read. `dataUse/Lang/Katex` build the add-ons' luccet.config;
 // `hasCode` is false when there is nothing to run (the analysis stays here).
 // A `seq` orders every script, add-on and problem as it appears, so the
 // problems the host finds here and those the sandbox finds there merge back
-// into document order; `vocabSeq` is where a window.TERN problem belongs,
+// into document order; `vocabSeq` is where a window.LUCCET problem belongs,
 // after the head scripts and before the add-ons.
 function collect(tag, dir, head, note) {
   const scripts = [];
@@ -179,7 +179,7 @@ function collect(tag, dir, head, note) {
       continue;
     }
     if (isRemote(s.src)) {
-      problems.push({ ...at, severity: 'info', url, message: `the head script ${url} is not run under node, so vocabulary it declares in window.TERN.schema is unknown here` });
+      problems.push({ ...at, severity: 'info', url, message: `the head script ${url} is not run under node, so vocabulary it declares in window.LUCCET.schema is unknown here` });
       continue;
     }
     const file = locate(dir, s.src.replace(/[?#].*$/, ''), root);
@@ -199,7 +199,7 @@ function collect(tag, dir, head, note) {
     const url = entry.replace(/[?#].*$/, '');
     if (/\.css$/i.test(url)) continue; // a stylesheet; anything else is a script
     if (isRemote(url)) {
-      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check`, seq: seq++ });
+      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to luccet check`, seq: seq++ });
       continue;
     }
     const file = locate(dir, url, root);
@@ -222,7 +222,7 @@ function collect(tag, dir, head, note) {
     const url = e.url.replace(/[?#].*$/, '');
     if (/\.css$/i.test(url)) continue;
     if (isRemote(url)) {
-      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to tern check`, seq: seq++, position: span });
+      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to luccet check`, seq: seq++, position: span });
       continue;
     }
     const file = locate(dir, url, root);
@@ -278,15 +278,15 @@ const toFile = (pos, line) => ({
 // with no code is parsed here, where no untrusted code runs.
 // `opts.noScripts` skips the code (an empty vocabulary); `opts.hostParse`
 // false keeps the whole analysis in the sandbox (the tests compare the two);
-// `opts.transform` false stops after parsing (tern parse). Diagnostics carry
+// `opts.transform` false stops after parsing (luccet parse). Diagnostics carry
 // `filePosition` beside the note's `position`, in document order; the problems
 // loading vocabulary come first, with only a filePosition (command-line codes,
 // beside the browser's addon.failed: the browser runs this code itself):
 //   - an add-on that is missing or throws, a transform of one that throws, or
 //     the sandbox refusing to run the code: `addon.failed`, an error;
-//   - a remote add-on: `addon.remote`, an info at the tern.js line;
+//   - a remote add-on: `addon.remote`, an info at the luccet.js line;
 //   - a head script: `head.script`, an info or a warning at its <script>.
-// `.demo` is window.ternDocs.demo, a documentation add-on's schema, or null.
+// `.demo` is window.luccetDocs.demo, a documentation add-on's schema, or null.
 // `.vocab` is the vocabulary the analysis used, {stamp, schema, lang, ran,
 // hostParse}: `stamp` tells the head and the code apart from another's, `ran`
 // is false when the sandbox did not run the code, and `hostParse` is true
@@ -329,7 +329,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
   let schema = { block: {}, leaf: {}, inline: {} };
   let lang = c.dataLang || undefined;
   let demo = null;
-  let ternDocs = null;
+  let luccetDocs = null;
   let all;
   let problems = c.problems;
   let ran = true;
@@ -339,13 +339,13 @@ function finish({ parts, c, transform, stamp, opts }, r) {
   // or with the last one when it is given and the code has not changed.
   const here = () => {
     const options = { schema, head: parts.head, lang };
-    const parsed = tern.parse(parts.note, options);
+    const parsed = luccet.parse(parts.note, options);
     if (!transform) {
       all = parsed.diagnostics;
       return parsed.ast;
     }
-    tern.transform(parsed.ast, options);
-    all = parsed.diagnostics.concat(parsed.ast.data.tern.diagnostics);
+    luccet.transform(parsed.ast, options);
+    all = parsed.diagnostics.concat(parsed.ast.data.luccet.diagnostics);
     return parsed.ast;
   };
 
@@ -368,16 +368,16 @@ function finish({ parts, c, transform, stamp, opts }, r) {
     // filePosition set on them below stays off the tree's own.
     schema = r.schema;
     lang = r.lang == null ? undefined : r.lang;
-    ternDocs = r.ternDocs || null;
-    demo = ternDocs && ternDocs.demo ? ternDocs.demo : null;
+    luccetDocs = r.luccetDocs || null;
+    demo = luccetDocs && luccetDocs.demo ? luccetDocs.demo : null;
     ast = here();
     all = all.map((d) => ({ ...d }));
     problems = problems.concat(r.problems);
   } else {
     schema = r.schema;
     lang = r.lang == null ? undefined : r.lang;
-    ternDocs = r.ternDocs || null;
-    demo = ternDocs && ternDocs.demo ? ternDocs.demo : null;
+    luccetDocs = r.luccetDocs || null;
+    demo = luccetDocs && luccetDocs.demo ? luccetDocs.demo : null;
     ast = r.ast;
     all = r.diagnostics;
     problems = problems.concat(r.problems);
@@ -402,7 +402,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
   };
   const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: where(p) }));
   const vocab = { stamp, schema, lang: lang === undefined ? null : lang, ran, hostParse: !!(r && r.hostParse) };
-  return { ...parts, schema, opts: options, ast, demo, ternDocs, use: c.use, files: c.files, vocab, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
+  return { ...parts, schema, opts: options, ast, demo, luccetDocs, use: c.use, files: c.files, vocab, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
 }
 
 // The .html files under dir, sorted, skipping dot-directories and
@@ -432,4 +432,4 @@ function repository(dir) {
   }
 }
 
-module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, analyseAsync, readText, htmlFiles, repository, tern, shutdown: sandbox.shutdown, clean: sandbox.clean };
+module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, analyseAsync, readText, htmlFiles, repository, luccet, shutdown: sandbox.shutdown, clean: sandbox.clean };

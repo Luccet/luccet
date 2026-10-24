@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: MIT
-// lightbox.js, Tern's lightbox add-on (docs/addons.html#lightbox). An image in
+// lightbox.js, Luccet's lightbox add-on (docs/addons.html#lightbox). An image in
 // a figure opens full size in a dialog, on a click or on Enter, with the
 // figure's caption; Escape, the close button or a click beside the image
 // closes it, and focus returns to the image.
 //
-//   <script src="tern.js" data-use="addons/lightbox.js"></script>
-//   <script src="tern.js" data-use="addons/lightbox.js?images=all"></script>
+//   <script src="luccet.js" data-use="addons/lightbox.js"></script>
+//   <script src="luccet.js" data-use="addons/lightbox.js?images=all"></script>
 //
-// `images=all` (on the add-on, or window.TERN = {use: {lightbox: {images:
+// `images=all` (on the add-on, or window.LUCCET = {use: {lightbox: {images:
 // 'all'}}}) takes every image of the note, not only a figure's. An image
 // inside a link is left to its link, and {data-lightbox=false} on a figure
 // or an image leaves it alone. The image becomes a control: focusable, a
-// button to a screen reader, named "View full size" with the caption. The words come from window.TERN.strings
+// button to a screen reader, named "View full size" with the caption. The words come from window.LUCCET.strings
 // (viewFullSize, close; docs/api.html#strings). The dialog needs <dialog>
 // (Chrome 37, Firefox 98, Safari 15.4): where it is missing, images stay as
 // they are. Under node the add-on declares nothing and does nothing.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
   const str = (key, params, fallback) => (T.string ? T.string(key, params, fallback) : fallback);
 
   T.style(
     [
-      '.tern .t-zoomable { cursor: zoom-in; }',
-      '.tern .t-zoomable:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }',
+      '.luccet .t-zoomable { cursor: zoom-in; }',
+      '.luccet .t-zoomable:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }',
       '.t-lightbox { inline-size: 100vw; block-size: 100vh; max-inline-size: none; max-block-size: none; margin: 0; padding: 0; border: 0; background: rgb(0 0 0 / .88); color: #fff; }',
       '.t-lightbox::backdrop { background: rgb(0 0 0 / .5); }',
       '.t-lightbox-figure { display: flex; flex-direction: column; align-items: center; justify-content: center; inline-size: 100%; block-size: 100%; margin: 0; cursor: zoom-out; }',

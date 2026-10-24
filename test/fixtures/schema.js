@@ -4,8 +4,8 @@
 // vocabulary that examples with labels, counters and `::toc` assume, since
 // the core declares none. It is exactly the documentation's demo schema
 // (docs/schema.html#demo-schema; test/docs.js checks). The shape is the
-// registry `tern.schema` holds: plain data keyed by level and name, exactly
-// what `tern.block/leaf/inline(name, spec)` write.
+// registry `luccet.schema` holds: plain data keyed by level and name, exactly
+// what `luccet.block/leaf/inline(name, spec)` write.
 'use strict';
 
 const theoremLike = (label) => ({ tag: 'section', counter: 'theorem', label, ref: '{label} {n}' });
