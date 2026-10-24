@@ -1085,7 +1085,7 @@ These are not rules:
 
 ### Front matter {#front-matter}
 
-Luccet has no front matter. A note whose first block is `---`, then `key: value` lines, then `---`, renders as a rule, a paragraph and a rule, and gets [`doc.frontmatter`](diagnostics.html#doc-frontmatter) (info) at the opening `---` line, pointing you to `:::meta`:
+Luccet has no front matter. A note whose first block is `---`, then `key: value` lines, then `---`, renders as a rule, a paragraph and a rule, and gets [`doc.frontmatter`](diagnostics.html#doc-frontmatter) (warning) at the opening `---` line, pointing you to `:::meta`:
 
 ```luccet {.live expect="doc.frontmatter"}
 
@@ -1690,7 +1690,7 @@ The opener is a line beginning with `$$`. The rest of the line decides the form:
 | Form | The rest of the line | Result |
 |---|---|---|
 | (a) one line | contains an unescaped `$$` followed only by spaces and an optional attribute group | a complete equation on this line |
-| (b) not math | contains an unescaped `$$` followed by other text | a paragraph; each `$$` gets [`math.inline-display`](diagnostics.html#math-inline-display) (info) |
+| (b) not math | contains an unescaped `$$` followed by other text | a paragraph; each `$$` gets [`math.inline-display`](diagnostics.html#math-inline-display) (warning) |
 | (c) multi-line | anything else | the equation continues on the next lines |
 
 In form (c), a non-empty rest, with its leading whitespace stripped, is the first TeX line.
@@ -2708,7 +2708,7 @@ leaf = "::" NAME ws* ( "[" content "]" )? ws* ATTRS? ws* EOL
 
 Any other tail makes the line a paragraph line:
 
-- a line starting `::NAME` that does not fill the line gets [`leaf.demoted`](diagnostics.html#leaf-demoted) (info), and continues a paragraph like any text line;
+- a line starting `::NAME` that does not fill the line gets [`leaf.demoted`](diagnostics.html#leaf-demoted) (warning), and continues a paragraph like any text line;
 - `::` alone is a paragraph, with no diagnostic;
 - `:: toc` (a space after `::`) is a paragraph with [`block.spaced-name`](diagnostics.html#block-spaced-name) (warning);
 - a trailing group that does not parse makes the line a paragraph with [`attr.malformed`](diagnostics.html#attr-malformed) (warning) only, not `leaf.demoted`. It is reported once, also when the group is glued to the content's `]`.
@@ -2867,7 +2867,7 @@ B[^b] then A[^a].
 **Diagnostics.**
 
 - [`footnote.unused`](diagnostics.html#footnote-unused) (info): no reference. The definition is still emitted, after the referenced ones, with no back link.
-- [`footnote.duplicate`](diagnostics.html#footnote-duplicate) (warning): the first definition wins; each later one is dropped and gets the diagnostic.
+- [`footnote.duplicate`](diagnostics.html#footnote-duplicate) (error): the first definition wins; each later one is dropped and gets the diagnostic.
 - [`footnote.nested`](diagnostics.html#footnote-nested) (warning): a reference inside a definition stays literal.
 
 ```luccet {.live expect="footnote.unused footnote.duplicate footnote.nested"}
@@ -3058,7 +3058,7 @@ x
 ### `:::meta` {#meta}
 
 - The body is `key: value` lines: the note's metadata (title, language, author …).
-- Its body is verbatim wherever it appears, but it is honoured only at the top level. Elsewhere it gets [`meta.nested`](diagnostics.html#meta-nested) (warning) and is ignored.
+- Its body is verbatim wherever it appears, but it is honoured only at the top level. Elsewhere it gets [`meta.nested`](diagnostics.html#meta-nested) (error) and is ignored.
 - Nothing is emitted in the body. So an id, a class or a key on `:::meta` (on its opener, or from an attribute line) applies to nothing: each gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped, and the id is not registered.
 
 ```luccet {.live}
@@ -3081,7 +3081,7 @@ The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 ### `:::use` {#use}
 
 - The body lists the add-ons the note loads — scripts and stylesheets, as the luccet.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, on [Vocabulary and behaviour](schema.html#addons).
-- It must lead the note: at the top level, before any content, after `:::meta` at most. The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (warning) and is ignored: its add-ons could not have been loaded in time.
+- It must lead the note: at the top level, before any content, after `:::meta` at most. The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (error) and is ignored: its add-ons could not have been loaded in time.
 - Nothing is emitted, and its body is verbatim. As on `:::meta`, an id, a class or a key on `:::use` gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped.
 - The entries are in the tree as `root.data.luccet.use`, `[{url, position}]`, in order.
 

@@ -23,6 +23,9 @@
 //   - docs.js: its demo schema equals test/fixtures/schema.js, and its site
 //     navigation lists every example page. A page the navigation lists that
 //     does not exist yet is pending (listed, not failed; --strict fails it).
+//   - Severities: each code's effect in src/diag.js is a known one, and the
+//     severity it gives is what docs/diagnostics.html (summary table, section,
+//     count) and the skill's headings say.
 //
 // Each problem prints as `file:line: message`; exit 1 on any.
 //
@@ -222,6 +225,40 @@ function checkDocsJs(found) {
   }
 }
 
+// ---------------------------------------------------------------- severities
+
+// Each parser and transform code declares its effect in src/diag.js, and its
+// severity follows from it. docs/diagnostics.html states it three times (the
+// summary table, the section's first word, the count under #severity) and the
+// skill once (its heading): all must say what the engine says.
+function checkSeverities() {
+  const { EFFECT, SEVERITY_OF, SEVERITY } = require('../src/diag');
+  const page = path.join(ROOT, 'docs', 'diagnostics.html');
+  const skill = path.join(ROOT, 'skills', 'luccet-notes', 'references', 'diagnostics.md');
+  const text = fs.readFileSync(page, 'utf8');
+  const skillText = fs.existsSync(skill) ? fs.readFileSync(skill, 'utf8') : null;
+  const lineAt = (s, i) => s.slice(0, i).split('\n').length;
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const [code, effect] of Object.entries(EFFECT)) {
+    if (!SEVERITY_OF[effect]) problem(path.join(ROOT, 'src', 'diag.js'), 1, `${code}: the effect ${JSON.stringify(effect)} is not one of ${Object.keys(SEVERITY_OF).join(', ')}`);
+    const sev = SEVERITY[code];
+    const row = new RegExp(`^\\| \\[\`${esc(code)}\`\\]\\([^)]*\\) \\| (\\w+)[^|]* \\|`, 'm').exec(text); // "info, with `strict` only"
+    if (!row) problem(page, 1, `${code} has no row in the summary table`);
+    else if (row[1] !== sev) problem(page, lineAt(text, row.index), `${code} is ${row[1]} in the summary table; the engine says ${sev} (${effect})`);
+    const head = new RegExp(`^### \`${esc(code)}\`[^\\n]*\\n\\n\\*\\*(\\w+)[.,]`, 'm').exec(text);
+    if (!head) problem(page, 1, `${code} has no section that starts with its severity`);
+    else if (head[1].toLowerCase() !== sev) problem(page, lineAt(text, head.index), `${code}'s section says ${head[1]}; the engine says ${sev} (${effect})`);
+    if (skillText === null) continue;
+    const h = new RegExp(`^### \`${esc(code)}\` · (\\w+)`, 'm').exec(skillText);
+    if (h && h[1] !== sev) problem(skill, lineAt(skillText, h.index), `${code} is ${h[1]} in the skill's heading; the engine says ${sev} (${effect})`);
+  }
+  const n = (s) => Object.values(SEVERITY).filter((x) => x === s).length;
+  const count = /Of the (\d+) parser and transform codes, (\d+) are errors, (\d+) are warnings and (\d+) are infos/.exec(text);
+  const want = [Object.keys(SEVERITY).length, n('error'), n('warning'), n('info')];
+  if (!count) problem(page, 1, 'the count of codes by severity under #severity is missing');
+  else if (count.slice(1).map(Number).join() !== want.join()) problem(page, lineAt(text, count.index), `the count reads ${count.slice(1).join('/')} (codes/errors/warnings/infos); the engine has ${want.join('/')}`);
+}
+
 // ---------------------------------------------------------------- main
 
 const t0 = Date.now();
@@ -237,6 +274,7 @@ for (const f of found) {
   }
 }
 checkDocsJs(found);
+if (!named.length) checkSeverities();
 const cases = checkCorpus(checked);
 
 if (!QUIET) {

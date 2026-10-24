@@ -131,8 +131,8 @@ $$ E = mc^2 $$, as Einstein wrote.
 ````
 
 ````diagnostics
-1:1 info math.inline-display
-1:13 info math.inline-display
+1:1 warning math.inline-display
+1:13 warning math.inline-display
 ````
 
 ## math/opener-rest-first-line
@@ -815,7 +815,7 @@ x = 1</div>
 
 ````diagnostics
 1:1 error math.unclosed
-3:4 info math.inline-display
+3:4 warning math.inline-display
 ````
 
 ## math/no-lazy-continuation

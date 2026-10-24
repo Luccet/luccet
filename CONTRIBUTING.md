@@ -18,7 +18,7 @@ npm run smoke                 # the browser tests (the print test also needs mut
 - [`docs/README.md`](docs/README.md): how the documentation is written, its pages, the live examples and the checks `test/docs.js` runs on every page.
 - [`test/corpus/README.md`](test/corpus/README.md): the conformance corpus, its file format, the lint, and what to do when the documentation is silent.
 - [`skills/README.md`](skills/README.md): the agent skill that teaches coding assistants to write and check notes.
-- The documentation itself, at [ozkr.ac/luccet](https://luccet.dev/): the syntax, the elements, the schema, the tools, publishing and the API.
+- The documentation itself, at [luccet.dev](https://luccet.dev/): the syntax, the elements, the schema, the tools, publishing and the API.
 
 ## A change
 

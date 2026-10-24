@@ -32,7 +32,7 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`luccet.block`, `luccet.leaf`, `luccet.inline`](#registry) | engine | declare a name | works |
 | [`luccet.transforms`](#luccet-transforms) | engine | the transform order | works |
 | [`luccet.css`](#luccet-css) | engine | the base stylesheet, as a string | works |
-| [`luccet.version`](#luccet-version) | engine | `'1.1.1'` | works |
+| [`luccet.version`](#luccet-version) | engine | `'2.0.0'` | works |
 | [`luccet.define`, `luccet.undefine`](#define) | runtime | DOM behaviours | registers; nothing runs |
 | [`luccet.on(event, fn)`](#on) | runtime | `render`, `math`, `ready`, `diagnostic` | registers; nothing fires |
 | [`luccet.render(root, source)`](#render) | runtime | renders into an element | resolves to `[]` |
@@ -75,7 +75,7 @@ npm install github:Luccet/luccet#vX.Y.Z
 const luccet = require('luccet');          // from the package, or
 const luccet = require('./luccet.js');             // from a checkout: the same file
 
-luccet.version;                    // → '1.1.1'
+luccet.version;                    // → '2.0.0'
 luccet.toHTML('Hello *world*.');   // → '<p>Hello <em>world</em>.</p>\n'
 ```
 
@@ -678,7 +678,7 @@ luccet.css.slice(0, 26);   // → ':root {\n  color-scheme: li'
 
 #### `luccet.version` {#luccet-version}
 
-The version of this luccet.js, as a string: `'1.1.1'`. A script can check it to tell whether `window.luccet` is Luccet's object, as luccet.js itself does before taking over.
+The version of this luccet.js, as a string: `'2.0.0'`. A script can check it to tell whether `window.luccet` is Luccet's object, as luccet.js itself does before taking over.
 
 ## The runtime {#runtime}
 

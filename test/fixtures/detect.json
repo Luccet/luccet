@@ -112,8 +112,8 @@
   ],
   "noMatch": [
     {
-      "why": "a file named mytern.js",
-      "line": "<script src=\"mytern.js\"></script>"
+      "why": "a file named myluccet.js",
+      "line": "<script src=\"myluccet.js\"></script>"
     },
     {
       "why": "a file named luccet.json",

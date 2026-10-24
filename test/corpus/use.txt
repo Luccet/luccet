@@ -80,7 +80,7 @@ late.js
 ````
 
 ````diagnostics
-3:1 warning use.late
+3:1 error use.late
 ````
 
 ## use/nested
@@ -102,7 +102,7 @@ n.js
 ````
 
 ````diagnostics
-2:1 warning use.late
+2:1 error use.late
 ````
 
 ## use/attributes

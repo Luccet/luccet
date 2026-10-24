@@ -16,7 +16,7 @@ const { emit } = require('./emit');
 const { css } = require('./css');
 const runtime = require('./runtime');
 
-const version = '1.1.1';
+const version = '2.0.0';
 
 // The schema a call uses: opts.schema when given (the corpus passes one),
 // else the registry that luccet.block/leaf/inline write.

@@ -179,7 +179,7 @@ author: me
 ````
 
 ````diagnostics
-1:1 info doc.frontmatter
+1:1 warning doc.frontmatter
 ````
 
 ## lexical/trailing-spaces-not-hard-break
@@ -338,7 +338,7 @@ Tab stops decide membership, not positions: in a diagnostic a tab is one column 
 ````
 
 ````json diagnostics
-[{"code":"inline.glued","severity":"info","position":{"start":{"line":1,"column":7,"offset":6}}}]
+[{"code":"inline.glued","severity":"warning","position":{"start":{"line":1,"column":7,"offset":6}}}]
 ````
 
 ## lexical/position-utf16-astral
@@ -357,7 +357,7 @@ Columns count UTF-16 code units, so a character outside the BMP takes two column
 ````
 
 ````json diagnostics
-[{"code":"inline.glued","severity":"info","position":{"start":{"line":1,"column":9,"offset":8}}}]
+[{"code":"inline.glued","severity":"warning","position":{"start":{"line":1,"column":9,"offset":8}}}]
 ````
 
 ## lexical/ident-unicode

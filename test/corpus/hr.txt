@@ -255,7 +255,7 @@ lang: en</p>
 ````
 
 ````diagnostics
-1:1 info doc.frontmatter ":::meta"
+1:1 warning doc.frontmatter ":::meta"
 ````
 
 ## hr/frontmatter-not-first-block
@@ -317,5 +317,5 @@ title: x
 ````
 
 ````diagnostics
-2:1 info doc.frontmatter
+2:1 warning doc.frontmatter
 ````

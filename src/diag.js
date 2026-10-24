@@ -1,72 +1,87 @@
 // SPDX-License-Identifier: MIT
-// The diagnostic codes with their severities, and report(), behind the
-// parser's ctx.report. Severity follows the consequence: an error means
-// content lost or meaning changed, a warning probably not what the author
-// meant, an info a hint.
+// The diagnostic codes, each with its effect on what the author wrote, and
+// report(), behind the parser's ctx.report. The severity follows from the
+// effect (docs/diagnostics.html#severity):
+//   lost     something the author wrote (text, a line or a block of the note,
+//            a footnote's definition) does not reach the page: an error;
+//   changed  it reaches the page with another structure or meaning (the rest
+//            of the note inside a block, a construct cut short): an error;
+//   kept     it reaches the page as written, as text or with an attribute or
+//            an option not applied, which is probably not what was meant: a
+//            warning;
+//   hint     the page is what the author meant: an info.
 'use strict';
 
-const E = 'error';
-const W = 'warning';
-const I = 'info';
+const LOST = 'lost';
+const CHANGED = 'changed';
+const KEPT = 'kept';
+const HINT = 'hint';
+const SEVERITY_OF = { lost: 'error', changed: 'error', kept: 'warning', hint: 'info' };
 
-// Every code the parser and the transforms report (transform.js reads this
-// table too). The runtime and the command line have codes of their own.
-const SEVERITY = {
-  'block.unclosed': E,
-  'block.closer-mismatch': E,
-  'block.stray-closer': W,
-  'block.closer-count': I,
-  'block.opener-junk': E,
-  'block.bad-opener': W,
-  'block.spaced-name': W,
-  'block.unclosed-fence': E,
-  'fence.info-junk': W,
-  'html.unclosed': E,
-  'html.stray-closer': I,
-  'html.wrapper': W,
-  'html.inline-unclosed': W,
-  'html.inline-escaped': I,
-  'math.unclosed': E,
-  'math.opener-tail': E,
-  'math.closer-tail': W,
-  'math.inline-display': I,
-  'math.unclosed-inline': I,
-  'math.bracket': I,
-  'math.suspect-price': W,
-  'attr.malformed': W,
-  'attributes.orphan': W,
-  'attributes.raw': W,
-  'table.stray-delimiter': W,
-  'table.row-unterminated': W,
-  'table.misplaced-separator': W,
-  'table.extra-cell': W,
-  'cell.orphan': W,
-  'leaf.demoted': I,
-  'leaf.void-content': W,
-  'inline.unclosed': W,
-  'inline.glued': I,
-  'footnote.undefined': W,
-  'footnote.duplicate': W,
-  'footnote.nested': W,
-  'footnote.unused': I,
-  'latex.delimiters': I,
-  'latex.linebreak': I,
-  'nesting.limit': E,
-  'doc.frontmatter': I,
-  'meta.conflict': W,
-  'meta.duplicate': W,
-  'meta.malformed': W,
-  'meta.nested': W,
-  'name.reserved': W,
-  'tag.not-allowed': W,
-  'table.body': W,
-  'id.invalid': W,
-  'id.duplicate': W,
-  'ref.dangling': W,
-  'ref.unreferenceable': W,
-  'use.late': W,
-  'name.unknown': I,
+// Every code the parser and the transforms report (transform.js reads the
+// severities too). The runtime and the command line have codes of their own.
+const EFFECT = {
+  'block.unclosed': CHANGED,
+  'block.closer-mismatch': CHANGED,
+  'block.stray-closer': KEPT,
+  'block.closer-count': HINT,
+  'block.opener-junk': CHANGED,
+  'block.bad-opener': KEPT,
+  'block.spaced-name': KEPT,
+  'block.unclosed-fence': CHANGED,
+  'fence.info-junk': KEPT,
+  'html.unclosed': CHANGED,
+  'html.stray-closer': HINT,
+  'html.wrapper': KEPT,
+  // Verbatim, so kept; a formatting tag such as <b> also carries on into the
+  // paragraphs after it in the browser, which an HTML hazard check would split
+  // out as an error.
+  'html.inline-unclosed': KEPT,
+  'html.inline-escaped': HINT,
+  'math.unclosed': CHANGED,
+  'math.opener-tail': CHANGED,
+  'math.closer-tail': KEPT,
+  'math.inline-display': KEPT,
+  'math.unclosed-inline': KEPT,
+  'math.bracket': KEPT,
+  'math.suspect-price': KEPT,
+  'attr.malformed': KEPT,
+  'attributes.orphan': KEPT,
+  'attributes.raw': KEPT,
+  'table.stray-delimiter': KEPT,
+  'table.row-unterminated': KEPT,
+  'table.misplaced-separator': KEPT,
+  'table.extra-cell': KEPT,
+  'cell.orphan': KEPT,
+  'leaf.demoted': KEPT,
+  'leaf.void-content': KEPT,
+  'inline.unclosed': KEPT,
+  'inline.glued': KEPT,
+  'footnote.undefined': KEPT,
+  'footnote.duplicate': LOST,
+  'footnote.nested': KEPT,
+  'footnote.unused': HINT,
+  'latex.delimiters': KEPT,
+  'latex.linebreak': KEPT,
+  'nesting.limit': CHANGED,
+  'doc.frontmatter': KEPT,
+  'meta.conflict': KEPT, // the head's value, which is the author's too
+  'meta.duplicate': KEPT, // the first value, as an id.duplicate keeps the first id
+  'meta.malformed': LOST,
+  'meta.nested': LOST,
+  'name.reserved': KEPT,
+  'tag.not-allowed': KEPT,
+  'table.body': KEPT,
+  'id.invalid': KEPT,
+  'id.duplicate': KEPT,
+  'ref.dangling': KEPT,
+  'ref.unreferenceable': KEPT,
+  'use.late': LOST,
+  'name.unknown': HINT,
 };
+
+const SEVERITY = {};
+for (const code of Object.keys(EFFECT)) SEVERITY[code] = SEVERITY_OF[EFFECT[code]];
 
 // Appends one diagnostic. `start` and `end` are offsets into the normalised
 // source (end exclusive; defaults to start). An unknown code is a bug in the
@@ -90,4 +105,4 @@ function sortDiagnostics(list) {
   );
 }
 
-module.exports = { SEVERITY, report, sortDiagnostics };
+module.exports = { EFFECT, SEVERITY_OF, SEVERITY, report, sortDiagnostics };

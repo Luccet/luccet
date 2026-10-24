@@ -212,7 +212,7 @@ spec: syntax-inline#latex-delimiters diagnostics#latex-delimiters
 ````
 
 ````diagnostics
-1:1 info latex.delimiters
+1:1 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-bracket
@@ -230,7 +230,7 @@ spec: syntax-inline#latex-delimiters
 ````
 
 ````diagnostics
-1:1 info latex.delimiters
+1:1 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-escapes-silent
@@ -265,7 +265,7 @@ spec: syntax-inline#latex-delimiters
 ````
 
 ````diagnostics
-1:1 info latex.delimiters
+1:1 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-mid-line
@@ -283,7 +283,7 @@ see \(x\) here
 ````
 
 ````diagnostics
-1:5 info latex.delimiters
+1:5 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-in-heading
@@ -301,7 +301,7 @@ spec: syntax-inline#latex-delimiters syntax-blocks#heading
 ````
 
 ````diagnostics
-1:12 info latex.delimiters
+1:12 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-continuation-line
@@ -321,7 +321,7 @@ Consider
 ````
 
 ````diagnostics
-2:3 info latex.delimiters
+2:3 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-in-display-math-silent

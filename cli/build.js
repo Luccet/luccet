@@ -55,9 +55,24 @@ function requireKatex(dir) {
   return null;
 }
 
-// Where the page loads KaTeX's CSS from: the tag's data-katex base, else the
-// CDN at the installed version, with SRI computed from the package's own
-// copy (jsDelivr serves the npm tarball's bytes).
+// The folder the note gives the KaTeX add-on, `?base=` on addons/katex.js in
+// the tag's data-use or the :::use block, as the add-on reads it; '' when it
+// names none. (window.LUCCET.use.katex.base, set by a script, is not seen.)
+function katexBase(entries) {
+  for (const entry of entries) {
+    const q = entry.indexOf('?');
+    if (q < 0) continue;
+    const file = entry.slice(0, q);
+    if (file.slice(file.lastIndexOf('/') + 1).replace(/(?:\.min)?\.m?js$/i, '') !== 'katex') continue;
+    const base = (new URLSearchParams(entry.slice(q + 1).replace(/#.*$/, '')).get('base') || '').trim();
+    if (base) return base;
+  }
+  return '';
+}
+
+// Where the page loads KaTeX's CSS from: the add-on's base, else the CDN at
+// the installed version, with SRI computed from the package's own copy
+// (jsDelivr serves the npm tarball's bytes).
 function katexSheet(k, base) {
   if (base) return { href: `${base.replace(/\/+$/, '')}/katex.min.css`, integrity: null };
   const file = path.join(path.dirname(k.main), 'katex.min.css');
@@ -262,19 +277,19 @@ function build(text, file, opts = {}) {
 
   // Math, pre-rendered when asked for and the package is there. KaTeX
   // (--math=katex) makes HTML+MathML; Temml (--math=mathml) makes native
-  // MathML and turns luccet.js's KaTeX off for the page. data-katex="none"
-  // skips KaTeX pre-rendering (nothing is rendered at all).
-  const katexBase = (attrs['data-katex'] || '').trim();
+  // MathML and turns luccet.js's KaTeX off for the page. KaTeX's stylesheet
+  // comes from the folder the note gives the add-on, as the page's would.
+  // data-katex on the tag, read before 2.0, is named so it can be moved.
+  if (attrs['data-katex'] !== undefined) warnings.push('data-katex on the luccet.js tag is not read since 2.0: name KaTeX\'s folder with ?base= on addons/katex.js');
   let pre = null;
   let sheet = null;
   let mathml = false;
-  if (opts.math === 'katex' && katexBase === 'none') warnings.push('data-katex="none": math is not rendered, so it is not pre-rendered either');
-  else if (opts.math === 'katex') {
+  if (opts.math === 'katex') {
     const k = requireKatex(dir);
     if (!k) warnings.push('the katex package cannot be required (npm install katex); formulas are left to luccet.js');
     else {
       pre = prerender(a.ast, k.katex);
-      sheet = katexSheet(k, katexBase);
+      sheet = katexSheet(k, katexBase([...(attrs['data-use'] || '').split(/\s+/), ...(a.use || []).map((e) => e.url)].filter(Boolean)));
     }
   } else if (opts.math === 'mathml') {
     const t = requireTemml(dir);

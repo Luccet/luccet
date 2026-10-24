@@ -46,9 +46,9 @@ The first 54 codes come from the parser and the transforms, so `luccet.check`, `
 | [`math.unclosed`](#math-unclosed) | error | A display-math block has no closing `$$`. |
 | [`math.opener-tail`](#math-opener-tail) | error | Attributes on the opening `$$` line. |
 | [`math.closer-tail`](#math-closer-tail) | warning | Text after the closing `$$`. |
-| [`math.inline-display`](#math-inline-display) | info | `$$` in the middle of a line is text. |
-| [`math.unclosed-inline`](#math-unclosed-inline) | info | A `$` followed by TeX never closes. |
-| [`math.bracket`](#math-bracket) | info | An interval in French notation is not math. |
+| [`math.inline-display`](#math-inline-display) | warning | `$$` in the middle of a line is text. |
+| [`math.unclosed-inline`](#math-unclosed-inline) | warning | A `$` followed by TeX never closes. |
+| [`math.bracket`](#math-bracket) | warning | An interval in French notation is not math. |
 | [`math.suspect-price`](#math-suspect-price) | warning | A formula starts with a digit and holds words. |
 | [`attr.malformed`](#attr-malformed) | warning | An attribute group does not parse, or a reserved key has a bad value. |
 | [`attributes.orphan`](#attributes-orphan) | warning | An attribute line has no block to attach to. |
@@ -58,23 +58,23 @@ The first 54 codes come from the parser and the transforms, so `luccet.check`, `
 | [`table.misplaced-separator`](#table-misplaced-separator) | warning | A second delimiter row inside a table. |
 | [`table.extra-cell`](#table-extra-cell) | warning | A row has more cells than the header. |
 | [`cell.orphan`](#cell-orphan) | warning | A `+++` line outside a container's own level. |
-| [`leaf.demoted`](#leaf-demoted) | info | A line starts like a leaf but is not one. |
+| [`leaf.demoted`](#leaf-demoted) | warning | A line starts like a leaf but is not one. |
 | [`leaf.void-content`](#leaf-void-content) | warning | A void element was given content. |
 | [`inline.unclosed`](#inline-unclosed) | warning | A named inline element is never closed. |
-| [`inline.glued`](#inline-glued) | info | A named inline element is glued to a word. |
+| [`inline.glued`](#inline-glued) | warning | A named inline element is glued to a word. |
 | [`footnote.undefined`](#footnote-undefined) | warning | A footnote reference has no definition. |
-| [`footnote.duplicate`](#footnote-duplicate) | warning | A footnote label is defined twice. |
+| [`footnote.duplicate`](#footnote-duplicate) | error | A footnote label is defined twice. |
 | [`footnote.nested`](#footnote-nested) | warning | A footnote reference inside a footnote definition. |
 | [`footnote.unused`](#footnote-unused) | info | A footnote definition is never referenced. |
-| [`latex.delimiters`](#latex-delimiters) | info | LaTeX's math delimiters are not math here. |
-| [`latex.linebreak`](#latex-linebreak) | info | `\\` at the end of a line is not a line break. |
+| [`latex.delimiters`](#latex-delimiters) | warning | LaTeX's math delimiters are not math here. |
+| [`latex.linebreak`](#latex-linebreak) | warning | `\\` at the end of a line is not a line break. |
 | [`nesting.limit`](#nesting-limit) | error | Blocks nest more than 64 deep. |
-| [`doc.frontmatter`](#doc-frontmatter) | info | YAML front matter is not supported. |
+| [`doc.frontmatter`](#doc-frontmatter) | warning | YAML front matter is not supported. |
 | [`meta.conflict`](#meta-conflict) | warning | The head and `:::meta` set the same key to different values. |
 | [`meta.duplicate`](#meta-duplicate) | warning | A metadata key is set twice. |
-| [`meta.malformed`](#meta-malformed) | warning | A `:::meta` line is not `key: value`. |
-| [`meta.nested`](#meta-nested) | warning | `:::meta` is not at the top level. |
-| [`use.late`](#use-late) | warning | `:::use` is not at the top of the note. |
+| [`meta.malformed`](#meta-malformed) | error | A `:::meta` line is not `key: value`. |
+| [`meta.nested`](#meta-nested) | error | `:::meta` is not at the top level. |
+| [`use.late`](#use-late) | error | `:::use` is not at the top of the note. |
 | [`name.reserved`](#name-reserved) | warning | A reserved name, key or class. |
 | [`tag.not-allowed`](#tag-not-allowed) | warning | `tag=`, or a schema's `tag`, names an element the level cannot be. |
 | [`table.body`](#table-body) | warning | A `:::table` whose body is not exactly one pipe table. |
@@ -124,15 +124,15 @@ Tools and tests match on `code`. The message and the hint are written for people
 
 ### Severity {#severity}
 
-Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
+Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)): each code declares what happens to what you wrote, its *effect*, and the severity follows from it.
 
-| Severity | Means | For example |
-|---|---|---|
-| `error` | Content was lost, or its meaning changed. | [`block.unclosed`](#block-unclosed): everything after the missing closer went into the block. |
-| `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
-| `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
+| Severity | Effect | Means | For example |
+|---|---|---|---|
+| `error` | lost, changed | Something you wrote does not reach the page, or reaches it with another structure or meaning. | [`block.unclosed`](#block-unclosed): everything after the missing closer went into the block. [`footnote.duplicate`](#footnote-duplicate): the second definition is dropped. |
+| `warning` | kept | Everything you wrote reaches the page, as text or with an attribute not applied, which is probably not what you meant. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
+| `info` | hint | The page is what you meant. | [`footnote.unused`](#footnote-unused): a definition nothing refers to is still shown, after the others. |
 
-Of the 54 parser and transform codes, 8 are errors, 33 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling`, `math.error` and `diagram.error` are warnings.
+The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 54 parser and transform codes, 12 are errors, 37 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling`, `math.error` and `diagram.error` are warnings.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -1151,7 +1151,7 @@ The engine reports `math.closer-tail` (warning) at 3:4:
 
 ### `math.inline-display` {#math-inline-display}
 
-**Info.** `$$` in the middle of a line is text.
+**Warning.** `$$` in the middle of a line is text.
 
 - **Trigger.** Two adjacent dollars inside inline content, once per `$$` run. Display math goes on its own lines. This includes a line that starts with `$$` and has text after a second `$$`: the whole line is then a paragraph.
 - **Position.** The `$$`.
@@ -1162,7 +1162,7 @@ The engine reports `math.closer-tail` (warning) at 3:4:
 The energy $$E = mc^2$$ is famous.
 ```
 
-The engine reports `math.inline-display` (info) at 1:12 and 1:22:
+The engine reports `math.inline-display` (warning) at 1:12 and 1:22:
 
 - **Message:** `` `$$` inside a line is text: display math goes on its own lines ``
 - **Hint:** `` for an inline display style write `$\displaystyle …$` ``
@@ -1181,7 +1181,7 @@ $$
 
 ### `math.unclosed-inline` {#math-unclosed-inline}
 
-**Info.** A `$` followed by TeX never closes.
+**Warning.** A `$` followed by TeX never closes.
 
 - **Trigger.** An opening `$` followed by a backslash, with no closer. The candidate closer is the next unescaped `$`, and it is the only candidate: when the rules reject it, this fires too. Prices, a `$` followed by a digit, make no noise.
 - **Position.** The `$`.
@@ -1191,7 +1191,7 @@ $$
 The $\alpha never closes.
 ```
 
-The engine reports `math.unclosed-inline` (info) at 1:5:
+The engine reports `math.unclosed-inline` (warning) at 1:5:
 
 - **Message:** ``this `$` is followed by TeX, but nothing closes it``
 - **Hint:** ``close the formula with `$`, or write `\$` for a dollar sign``
@@ -1218,7 +1218,7 @@ Costs $5 and $10.
 
 ### `math.bracket` {#math-bracket}
 
-**Info.** An interval in French notation is not math.
+**Warning.** An interval in French notation is not math.
 
 - **Trigger.** The bracket clause rejected a span only because a `]` follows the opening `$` or a `[` comes before the closing `$`. These are intervals like `]0,1[`. Cases with `(` or `)` are prices and stay silent.
 - **Position.** The opening `$`.
@@ -1229,7 +1229,7 @@ Costs $5 and $10.
 The interval $]0,1[$ is open.
 ```
 
-The engine reports `math.bracket` (info) at 1:14:
+The engine reports `math.bracket` (warning) at 1:14:
 
 - **Message:** ``a `]` after the opening `$` or a `[` before the closing one keeps this from being math``
 - **Hint:** `` for an interval write verbatim math: $`]0,1[` ``
@@ -1700,7 +1700,7 @@ These concern [leaves](syntax-blocks.html#leaf), `::name[…]{…}`, and [named 
 
 ### `leaf.demoted` {#leaf-demoted}
 
-**Info.** A line starts like a leaf but is not one.
+**Warning.** A line starts like a leaf but is not one.
 
 - **Trigger.** A line starts with `::NAME`, but the rest is not what a leaf accepts: there is text after it, or an unclosed `[`. A leaf must fill its line. Not for `::` alone (silent), `:: name` ([`block.spaced-name`](#block-spaced-name)) or a group that does not parse ([`attr.malformed`](#attr-malformed)).
 - **Position.** The `::` and the name.
@@ -1711,7 +1711,7 @@ These concern [leaves](syntax-blocks.html#leaf), `::name[…]{…}`, and [named 
 ::before and ::after are pseudo-elements.
 ```
 
-The engine reports `leaf.demoted` (info) at 1:1:
+The engine reports `leaf.demoted` (warning) at 1:1:
 
 - **Message:** `` `::before` is a leaf only when it fills the line; this is text ``
 - **Hint:** `` write `::before[…]` for a one-line element, or `:::before` … `:::` ``
@@ -1729,7 +1729,7 @@ A leaf broken over two lines, by hand or by an auto-wrap:
 controls}
 ```
 
-The engine reports `leaf.demoted` (info) at 1:1:
+The engine reports `leaf.demoted` (warning) at 1:1:
 
 - **Message:** `` `::video` is a leaf only when it fills the line; this is text ``
 - **Hint:** `` write `::video[…]` for a one-line element, or `:::video` … `:::` ``
@@ -1803,7 +1803,7 @@ Press :kbd[\`] then type `x`.
 
 ### `inline.glued` {#inline-glued}
 
-**Info.** A named inline element is glued to a word.
+**Warning.** A named inline element is glued to a word.
 
 - **Trigger.** `:NAME[` where the `:` follows an ASCII letter or digit. After `_`, `:` or `/` the text is silent, as in times and URLs. The test is ASCII on purpose, so in Chinese, Japanese or Thai text an element right after a word still works.
 - **Position.** The `:`.
@@ -1813,7 +1813,7 @@ Press :kbd[\`] then type `x`.
 Then press:kbd[S] to save.
 ```
 
-The engine reports `inline.glued` (info) at 1:11:
+The engine reports `inline.glued` (warning) at 1:11:
 
 - **Message:** `":kbd[" follows a letter or digit, so it is text`
 - **Hint:** `put a space before ":kbd["`
@@ -1867,7 +1867,7 @@ A claim.[^src]
 
 ### `footnote.duplicate` {#footnote-duplicate}
 
-**Warning.** A footnote label is defined twice.
+**Error.** A footnote label is defined twice.
 
 - **Trigger.** A second definition with the same label. Labels compare case-insensitively, so `[^a]:` and `[^A]:` are the same.
 - **Position.** Each later definition's `[^label]:`. The first gets none.
@@ -1880,7 +1880,7 @@ A claim.[^a]
 [^A]: Second.
 ```
 
-The engine reports `footnote.duplicate` (warning) at 4:1:
+The engine reports `footnote.duplicate` (error) at 4:1:
 
 - **Message:** `[^A] is already defined on line 3; this definition is dropped`
 - **Hint:** `merge the two definitions, or give one another label`
@@ -1962,7 +1962,7 @@ These are hints for habits from LaTeX. See [escapes](syntax-inline.html#escape) 
 
 ### `latex.delimiters` {#latex-delimiters}
 
-**Info.** LaTeX's math delimiters are not math here.
+**Warning.** LaTeX's math delimiters are not math here.
 
 - **Trigger.** Once per note, the first of these:
   - `\(` followed later in the same inline content by `\)`, with something between them besides whitespace and escape pairs;
@@ -1977,7 +1977,7 @@ These are hints for habits from LaTeX. See [escapes](syntax-inline.html#escape) 
 Let \(x^2\) be small.
 ```
 
-The engine reports `latex.delimiters` (info) at 1:5:
+The engine reports `latex.delimiters` (warning) at 1:5:
 
 - **Message:** `LaTeX's delimiters are not math in luccet; the backslash is an escape`
 - **Hint:** `` math is `$…$` and `$$` ``
@@ -2014,7 +2014,7 @@ Escapes are silent:
 
 ### `latex.linebreak` {#latex-linebreak}
 
-**Info.** `\\` at the end of a line is not a line break.
+**Warning.** `\\` at the end of a line is not a line break.
 
 - **Trigger.** A paragraph line ends with `\\` and the paragraph continues on the next line, so a line break was lost. Never at the end of a table row, where `\\` is a literal backslash.
 - **Position.** The first of the two backslashes.
@@ -2025,7 +2025,7 @@ Roses are red,\\
 violets are blue.
 ```
 
-The engine reports `latex.linebreak` (info) at 1:15:
+The engine reports `latex.linebreak` (warning) at 1:15:
 
 - **Message:** `` `\\` at the end of a line is a backslash followed by a soft break, not a line break ``
 - **Hint:** `` a line break is a single trailing `\` ``
@@ -2070,7 +2070,7 @@ The engine reports `nesting.limit` (error) at 1:129:
 
 ### `doc.frontmatter` {#doc-frontmatter}
 
-**Info.** YAML front matter is not supported.
+**Warning.** YAML front matter is not supported.
 
 - **Trigger.** The note's first block, after any blank lines, is `---`, then `key: value` lines, then `---`.
 - **Position.** The opening `---`.
@@ -2085,7 +2085,7 @@ lang: en
 # Linear maps
 ```
 
-The engine reports `doc.frontmatter` (info) at 1:1:
+The engine reports `doc.frontmatter` (warning) at 1:1:
 
 - **Message:** `front matter is not supported: this is a rule, a paragraph and a rule`
 - **Hint:** ``write metadata in a `:::meta` block``
@@ -2177,7 +2177,7 @@ title: One
 
 ### `meta.malformed` {#meta-malformed}
 
-**Warning.** A `:::meta` line is not `key: value`.
+**Error.** A `:::meta` line is not `key: value`.
 
 - **Trigger.** A non-blank line in a top-level `:::meta` block that is not a key, a colon, a space and a value. A key starts with a letter and holds letters, digits, `_`, `.`, `:` and `-`, and does not end in `:`, so `og:title: …` is fine. An indented line is malformed. Blank lines are ignored.
 - **Position.** The line.
@@ -2191,7 +2191,7 @@ date:2026-10-07
 :::
 ```
 
-The engine reports `meta.malformed` (warning) at 2:1, 3:1 and 4:1:
+The engine reports `meta.malformed` (error) at 2:1, 3:1 and 4:1:
 
 - **Message:** `` a `:::meta` line is `key: value` ``
 - **Hint:** ``write `key: value`, unindented, the key starting with a letter``
@@ -2210,7 +2210,7 @@ date: 2026-10-07
 
 ### `meta.nested` {#meta-nested}
 
-**Warning.** `:::meta` is not at the top level.
+**Error.** `:::meta` is not at the top level.
 
 - **Trigger.** A `:::meta` block inside a container, a quote, a list item or a footnote definition.
 - **Position.** The opener.
@@ -2224,7 +2224,7 @@ title: Linear maps
 :::
 ```
 
-The engine reports `meta.nested` (warning) at 2:1:
+The engine reports `meta.nested` (error) at 2:1:
 
 - **Message:** `` `:::meta` counts only at the top level; this one is ignored ``
 - **Hint:** `move it to the top of the note`
@@ -2249,7 +2249,7 @@ These concern how a name becomes an element: [names](elements.html#names), [allo
 
 ### `use.late` {#use-late}
 
-**Warning.** `:::use` is not at the top of the note.
+**Error.** `:::use` is not at the top of the note.
 
 - **Trigger.** A `:::use` block after any content, or inside a container, a quote, a list item or a footnote definition. Only `:::meta`, blank lines and other `:::use` blocks may come before it.
 - **Position.** The opener.
@@ -2263,7 +2263,7 @@ addons/katex.js
 :::
 ```
 
-The engine reports `use.late` (warning) at 3:1:
+The engine reports `use.late` (error) at 3:1:
 
 - **Message:** `` `:::use` counts only at the top of the note, before any content; this one is ignored ``
 - **Hint:** `` move it to the top of the note, after `:::meta` at most ``

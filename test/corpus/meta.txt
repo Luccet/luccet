@@ -134,7 +134,7 @@ title: Maps
 ````
 
 ````diagnostics
-3:1 warning meta.malformed
+3:1 error meta.malformed
 ````
 
 ## meta/not-first
@@ -302,9 +302,9 @@ lang: en
 ````
 
 ````diagnostics
-2:1 warning meta.malformed
-3:1 warning meta.malformed
-4:1 warning meta.malformed
+2:1 error meta.malformed
+3:1 error meta.malformed
+4:1 error meta.malformed
 ````
 
 ## meta/blank-and-indented-lines
@@ -330,7 +330,7 @@ author: O. Carrera
 ````
 
 ````diagnostics
-4:1 warning meta.malformed
+4:1 error meta.malformed
 ````
 
 ## meta/value-right-trimmed
@@ -372,7 +372,7 @@ note: ok
 ````
 
 ````diagnostics
-2:1 warning meta.malformed
+2:1 error meta.malformed
 ````
 
 ## meta/several-blocks-merge
@@ -471,7 +471,7 @@ Body.
 ````
 
 ````diagnostics
-2:1 warning meta.nested
+2:1 error meta.nested
 ````
 
 ## meta/title-fallback
@@ -511,7 +511,7 @@ title: Linear maps
 ````
 
 ````diagnostics
-1:1 info doc.frontmatter
+1:1 warning doc.frontmatter
 ````
 
 ## meta/head-not-in-body
@@ -539,5 +539,5 @@ title Maps
 ````
 
 ````diagnostics
-4:1 warning meta.malformed
+4:1 error meta.malformed
 ````

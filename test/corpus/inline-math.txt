@@ -249,7 +249,7 @@ the interval $]0,1[$ is open
 ````
 
 ````diagnostics
-1:14 info math.bracket "$`]0,1[`"
+1:14 warning math.bracket "$`]0,1[`"
 ````
 
 ## inline-math/opener-followed-by-space
@@ -295,7 +295,7 @@ $]x$
 ````
 
 ````diagnostics
-1:1 info math.bracket
+1:1 warning math.bracket
 ````
 
 ## inline-math/opener-before-brace
@@ -411,7 +411,7 @@ $[0,1[$
 ````
 
 ````diagnostics
-1:1 info math.bracket
+1:1 warning math.bracket
 ````
 
 ## inline-math/closer-after-brace
@@ -457,7 +457,7 @@ a $x$$ b
 ````
 
 ````diagnostics
-1:5 info math.inline-display
+1:5 warning math.inline-display
 ````
 
 ## inline-math/adjacent-dollars-no-opener
@@ -475,7 +475,7 @@ a $$x$ b
 ````
 
 ````diagnostics
-1:3 info math.inline-display
+1:3 warning math.inline-display
 ````
 
 ## inline-math/first-dollar-decides
@@ -983,7 +983,7 @@ $\alpha never closes
 ````
 
 ````diagnostics
-1:1 info math.unclosed-inline
+1:1 warning math.unclosed-inline
 ````
 
 ## inline-math/unclosed-inline-rejected-candidate
@@ -1001,7 +1001,7 @@ $\alpha + 1 $ more
 ````
 
 ````diagnostics
-1:1 info math.unclosed-inline
+1:1 warning math.unclosed-inline
 ````
 
 ## inline-math/unclosed-inline-only-backslash
@@ -1075,8 +1075,8 @@ see $$E=mc^2$$ here
 ````
 
 ````diagnostics
-1:5 info math.inline-display
-1:13 info math.inline-display
+1:5 warning math.inline-display
+1:13 warning math.inline-display
 ````
 
 ## inline-math/inline-display-then-math
@@ -1094,7 +1094,7 @@ a $$ b $x$
 ````
 
 ````diagnostics
-1:3 info math.inline-display
+1:3 warning math.inline-display
 ````
 
 ## inline-math/verbatim-form

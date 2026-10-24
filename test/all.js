@@ -12,6 +12,7 @@ const STEPS = [
   ['version', ['../tools/version.js', '--check']],
   ['package', ['package.js']],
   ['floor', ['floor.js']],
+  ['domain', ['domain.js']],
   ['themes', ['themes.js']],
   ['add-ons', ['addons.js']],
   ['corpus lint', ['run.js', '--lint']],

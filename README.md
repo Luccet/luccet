@@ -48,10 +48,10 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/gh/Luccet/luccet@v1.1.1/luccet.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Luccet/luccet@v2.0.0/luccet.js"></script>
 ```
 
-- **To follow releases,** use `@1.1` (the newest 1.1.x), `@1` (the newest 1.x: a major keeps every note rendering the same) or `@latest` (the newest release).
+- **To follow releases,** use `@2.0` (the newest 2.0.x), `@2` (the newest 2.x: a major keeps every note rendering the same) or `@latest` (the newest release).
 - **Not `luccet.min.js`.** jsDelivr minifies any file on request, so `luccet.min.js` exists beside `luccet.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `luccet.js`. Where bytes matter, each [GitHub Release](https://github.com/Luccet/luccet/releases) carries a minified build under that name: `https://github.com/Luccet/luccet/releases/download/vX.Y.Z/luccet.js`, or copy it to your site.
 
 **Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://luccet.dev/docs/schema.html#themes).

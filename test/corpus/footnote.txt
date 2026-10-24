@@ -400,7 +400,7 @@ Text.[^used]
 
 spec: syntax-blocks#footnote-definition elements#ids
 
-A second definition of the same label is warned about at that definition, and the first one wins. The losing definition is dropped: its content is not emitted, it generates no `fn-` id, and `footnote.duplicate` is reported on the second definition only, with no `id.duplicate`.
+A second definition of the same label is an error at that definition, and the first one wins. The losing definition is dropped: its content is not emitted, it generates no `fn-` id, and `footnote.duplicate` is reported on the second definition only, with no `id.duplicate`.
 
 ````luccet
 Text.[^a]
@@ -417,7 +417,7 @@ Text.[^a]
 ````
 
 ````diagnostics
-4:1 warning footnote.duplicate
+4:1 error footnote.duplicate
 ````
 
 ## footnote/nested
@@ -735,7 +735,7 @@ Text.[^a]
 ````
 
 ````diagnostics
-4:1 warning footnote.duplicate
+4:1 error footnote.duplicate
 ````
 
 ## footnote/label-and-id-namespaces

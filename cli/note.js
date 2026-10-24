@@ -17,7 +17,7 @@ const { scanUse } = require('../src/use');
 // fixtures in test/fixtures/detect.json; editors match it per line,
 // case-insensitively. Group 1 is the tag. A line counts when:
 //   - a <script> tag on it has a src whose file name is luccet.js (any path,
-//     any quotes, a query or fragment allowed; not mytern.js, luccet.json);
+//     any quotes, a query or fragment allowed; not myluccet.js, luccet.json);
 //   - the tag is not inside a comment opened earlier on the line;
 //   - it has no async, defer or type=module (luccet.js would not capture the
 //     note) and no data-built (a page written by `luccet build` is not a note).
@@ -64,7 +64,7 @@ function split(text) {
 }
 
 // The tag's attributes: data-use (space-separated add-ons, query strings
-// dropped), data-css, data-katex … Values are decoded as HTML decodes them
+// dropped), data-css, data-lang … Values are decoded as HTML decodes them
 // (the character references a tag line plausibly holds).
 const REFS = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' };
 const decodeRefs = (s) =>
@@ -247,7 +247,6 @@ function collect(tag, dir, head, note) {
     use,
     dataUse,
     dataLang: attrs['data-lang'] !== undefined ? attrs['data-lang'].trim() : undefined,
-    dataKatex: attrs['data-katex'],
     hasCode: scripts.length > 0 || addons.length > 0,
   };
 }
@@ -318,9 +317,9 @@ function prepare(text, file, opts) {
   const transform = opts.transform !== false;
   const stamp = crypto
     .createHash('sha1')
-    .update(JSON.stringify([parts.head, c.dataUse ?? null, c.dataLang ?? null, c.dataKatex ?? null, c.scripts.map((s) => s.code), c.addons.map((a) => a.code)]))
+    .update(JSON.stringify([parts.head, c.dataUse ?? null, c.dataLang ?? null, c.scripts.map((s) => s.code), c.addons.map((a) => a.code)]))
     .digest('hex');
-  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataKatex: c.dataKatex, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform, hostParse: opts.hostParse !== false };
+  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform, hostParse: opts.hostParse !== false };
   return { parts, c, transform, stamp, req, opts };
 }
 

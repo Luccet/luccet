@@ -17,4 +17,4 @@ Luccet is maintained by one person. A report is acknowledged within a week; a co
 
 ## Supported versions
 
-The latest release receives fixes, as a patch release that changes nothing else; older releases do not. The tags `v0.4.1` and `v0.4.2` were cut without a version bump and are kept only because jsDelivr caches them; pin the newest release instead, the one at the top of `CHANGELOG.md`.
+The latest release receives fixes, as a patch release that changes nothing else; older releases do not. A security fix is a patch even when it changes what a note renders under `safe` or what the tools agree to read: the old behaviour broke a boundary this policy promises, which is the case [the version promise](https://luccet.dev/#status) allows a patch. The tags `v0.4.1` and `v0.4.2` were cut without a version bump and are kept only because jsDelivr caches them; pin the newest release instead, the one at the top of `CHANGELOG.md`.

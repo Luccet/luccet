@@ -419,7 +419,7 @@ a:b[c]
 ````
 
 ````diagnostics
-1:2 info inline.glued "put a space before"
+1:2 warning inline.glued "put a space before"
 ````
 
 ## inline-element/colon-exclusions

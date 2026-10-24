@@ -33,7 +33,7 @@ Then press:kbd[S] to save.
 ````
 
 ````diagnostics
-1:11 info inline.glued
+1:11 warning inline.glued
 ````
 
 ## inline/cjk-element
@@ -218,7 +218,7 @@ second</p>
 ````
 
 ````diagnostics
-1:6 info latex.linebreak
+1:6 warning latex.linebreak
 ````
 
 ## inline/precedence-code-before-emphasis

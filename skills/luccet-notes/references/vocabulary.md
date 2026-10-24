@@ -100,7 +100,7 @@ An add-on is a script or a stylesheet listed, space-separated, in `data-use` on 
 <!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="themes/gruvbox.css addons/code.js"></script>
 ```
 
-or, one or more per line, in a `:::use` block, the readable form for several. It must lead the note: top level, before any content, with only `:::meta` and blank lines before it; one anywhere else is `use.late` (warning) and ignored. Both forms merge, the tag's entries first. The block emits nothing.
+or, one or more per line, in a `:::use` block, the readable form for several. It must lead the note: top level, before any content, with only `:::meta` and blank lines before it; one anywhere else is `use.late` (error) and ignored. Both forms merge, the tag's entries first. The block emits nothing.
 
 ```html
 <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>

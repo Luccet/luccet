@@ -31,8 +31,8 @@
 // is from when that way started a child per note).
 //
 //   analyse(req)        run a note's code and analyse it, blocking; req is
-//                       {note, head, dataUse, dataLang, dataKatex, scripts,
-//                       addons, transform, hostParse}, the result {schema,
+//                       {note, head, dataUse, dataLang, scripts, addons,
+//                       transform, hostParse}, the result {schema,
 //                       lang, demo, ast, diagnostics, problems, failures}, or
 //                       with hostParse, when the code allows it, {hostParse:
 //                       true, schema, lang, demo, problems} for the host to
@@ -108,9 +108,8 @@ function driverSetup() {
   var BROWSER = 'document customElements HTMLElement Element Node Event CustomEvent EventTarget CSS CSSStyleSheet navigator location history localStorage sessionStorage matchMedia getComputedStyle requestAnimationFrame cancelAnimationFrame requestIdleCallback setTimeout clearTimeout setInterval clearInterval queueMicrotask MutationObserver IntersectionObserver ResizeObserver fetch addEventListener removeEventListener dispatchEvent'.split(' ');
 
   // luccet.config as the runtime builds it (src/runtime.js readConfig): `use`
-  // from data-use's query strings, `katex` from window.LUCCET.katex and
-  // data-katex, `lang`.
-  function shimConfig(given, dataUse, dataKatex, lang) {
+  // from window.LUCCET.use and data-use's query strings, and `lang`.
+  function shimConfig(given, dataUse, lang) {
     var g = given && typeof given === 'object' ? given : {};
     var use = Object.assign(Object.create(null), g.use && typeof g.use === 'object' ? g.use : null);
     (dataUse || '').split(/\s+/).filter(Boolean).forEach(function (entry) {
@@ -138,9 +137,7 @@ function driverSetup() {
       });
       use[name] = Object.assign(Object.create(null), use[name], params);
     });
-    var katex = typeof g.katex === 'string' ? { base: g.katex } : Object.assign({}, g.katex);
-    if (dataKatex !== undefined) katex.base = String(dataKatex).trim();
-    return { use: use, katex: katex, lang: lang };
+    return { use: use, lang: lang };
   }
 
   G.__luccetDriver = function (req) {
@@ -228,7 +225,7 @@ function driverSetup() {
       render: function () { return Promise.resolve([]); },
       ready: new Promise(function () {}),
       diagnostics: [],
-      config: shimConfig(given, req.dataUse, req.dataKatex, lang),
+      config: shimConfig(given, req.dataUse, lang),
       version: E.version,
       parse: E.parse,
       emit: E.emit,

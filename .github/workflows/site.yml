@@ -1,7 +1,7 @@
 # The site between releases. Run by hand from the Actions tab (on main): it
 # publishes the pages of main (index.html, docs/, examples/) with the engine
 # of the newest release (luccet.js, luccet.css, addons/, themes/ from the newest
-# v* tag), so a documentation fix reaches ozkr.ac/luccet without a tag, and
+# v* tag), so a documentation fix reaches luccet.dev without a tag, and
 # what the site serves to notes that load its luccet.js stays a release. The
 # docs and samples suites run against that engine first: a page that needs
 # what the release does not have is refused here, not published.

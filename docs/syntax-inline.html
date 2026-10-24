@@ -260,7 +260,7 @@ An escaped `~` or `=` breaks its run, and what is left are runs of one, which ar
 
 ### LaTeX's delimiters: `latex.delimiters` {#latex-delimiters}
 
-LaTeX writes inline math as `\(…\)` and display math as `\[…\]`. In Luccet these are escapes: `\(` is `(`, and the content is not math. Math is `$…$` and `$$`. To help when you paste LaTeX, the first one in a note gets [`latex.delimiters`](diagnostics.html#latex-delimiters) (info), at its backslash. It fires once per note, for the first of:
+LaTeX writes inline math as `\(…\)` and display math as `\[…\]`. In Luccet these are escapes: `\(` is `(`, and the content is not math. Math is `$…$` and `$$`. To help when you paste LaTeX, the first one in a note gets [`latex.delimiters`](diagnostics.html#latex-delimiters) (warning), at its backslash. It fires once per note, for the first of:
 - `\(` followed later in the same inline content (a paragraph, heading, cell or title) by `\)`, with something between them other than whitespace and escape pairs;
 - `\[` followed later in the same inline content by `\]`, with one of TeX's marks between them (`\` before a letter, `{`, `}`, `^`, `_` or `&`), not counting escape pairs;
 - `\begin{` at the start of a line.
@@ -356,7 +356,7 @@ A heading is one line, so its trailing backslash is literal:
 
 ### A doubled backslash: `latex.linebreak` {#latex-linebreak}
 
-LaTeX breaks a line with `\\`. In Luccet, `\\` is an escaped backslash: at the end of a line it is a literal `\` followed by a soft break, and the line break is lost. That case gets [`latex.linebreak`](diagnostics.html#latex-linebreak) (info) at the first backslash: "a line break is a single trailing `\`".
+LaTeX breaks a line with `\\`. In Luccet, `\\` is an escaped backslash: at the end of a line it is a literal `\` followed by a soft break, and the line break is lost. That case gets [`latex.linebreak`](diagnostics.html#latex-linebreak) (warning) at the first backslash: "a line break is a single trailing `\`".
 
 ```luccet {.live expect="latex.linebreak"}
 first\\
@@ -651,7 +651,7 @@ $a*b$ and $c*d$
 
 Prices produce no noise: an opener that nothing closes is silent, unless it is followed by a backslash. Three hints cover the cases that are probably mistakes.
 
-**`math.bracket`**{#math-bracket} (info, at the opener): the bracket clause rejected the span *only* because of a `]` after the opener or a `[` before the closer. These are French intervals. Parentheses, which are prices, and braces stay silent. See [`math.bracket`](diagnostics.html#math-bracket).
+**`math.bracket`**{#math-bracket} (warning, at the opener): the bracket clause rejected the span *only* because of a `]` after the opener or a `[` before the closer. These are French intervals. Parentheses, which are prices, and braces stay silent. See [`math.bracket`](diagnostics.html#math-bracket).
 
 ```luccet {.live expect="math.bracket"}
 $[0,1[$
@@ -663,7 +663,7 @@ It does not fire when there is another reason too, such as a space before the ca
 $]0,1[ $ and $]0,1[
 ```
 
-**`math.unclosed-inline`**{#math-unclosed-inline} (info, at the opener): the opener is followed by `\`, and nothing closes it, either because there is no candidate or because the candidate fails. A dollar followed by a backslash is almost certainly TeX. See [`math.unclosed-inline`](diagnostics.html#math-unclosed-inline).
+**`math.unclosed-inline`**{#math-unclosed-inline} (warning, at the opener): the opener is followed by `\`, and nothing closes it, either because there is no candidate or because the candidate fails. A dollar followed by a backslash is almost certainly TeX. See [`math.unclosed-inline`](diagnostics.html#math-unclosed-inline).
 
 ```luccet {.live expect="math.unclosed-inline"}
 $\alpha never closes
@@ -762,7 +762,7 @@ An escaped dollar before a backtick is a literal dollar, followed by an ordinary
 
 ## `$$` in the middle of a line {#inline-display}
 
-Two or more adjacent dollars inside inline content never open anything. They are text, with [`math.inline-display`](diagnostics.html#math-inline-display) (info) at the first dollar, once per run: "display math goes on its own lines; for an inline display style write `$\displaystyle …$`".
+Two or more adjacent dollars inside inline content never open anything. They are text, with [`math.inline-display`](diagnostics.html#math-inline-display) (warning) at the first dollar, once per run: "display math goes on its own lines; for an inline display style write `$\displaystyle …$`".
 
 ```luccet {.live expect="math.inline-display math.inline-display"}
 see $$E=mc^2$$ here
@@ -1335,7 +1335,7 @@ Super :wbr[]califragilistic, and :wbr[x] word.
 
 ### Diagnostics {#element-diagnostics}
 
-**`inline.glued`** (info, at the `:`). A `:NAME[` right after an ASCII letter or digit is text. It looks like a missing space, as in `press:kbd[S]`, so it gets a hint: "put a space before `:kbd[`". After `_`, `:` or `/` the text is silent. See [`inline.glued`](diagnostics.html#inline-glued).
+**`inline.glued`** (warning, at the `:`). A `:NAME[` right after an ASCII letter or digit is text. It looks like a missing space, as in `press:kbd[S]`, so it gets a hint: "put a space before `:kbd[`". After `_`, `:` or `/` the text is silent. See [`inline.glued`](diagnostics.html#inline-glued).
 
 ```luccet {.live expect="inline.glued inline.glued"}
 Then press:kbd[S] to save; a:b[c] too.

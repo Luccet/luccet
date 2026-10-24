@@ -76,7 +76,7 @@ then press:kbd[S] here</p>
 ````
 
 ````json diagnostics
-[{"code":"inline.glued","severity":"info","position":{"start":{"line":2,"column":15,"offset":25}}}]
+[{"code":"inline.glued","severity":"warning","position":{"start":{"line":2,"column":15,"offset":25}}}]
 ````
 
 ## para/ordered-non-1-does-not-interrupt

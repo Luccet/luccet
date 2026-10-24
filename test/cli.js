@@ -105,7 +105,7 @@ test('detect.json: every case holds, for the published pattern and for detect()'
     ok(d && d.tag === c.tag && c.line.slice(d.index, d.index + d.tag.length) === c.tag, `detect(): ${c.why}`);
   }
   for (const c of fixture.noMatch) ok(!re.test(c.line) && !detect(c.line), `${c.why}: matched ${c.line}`);
-  const covered = ['quotes', 'query', 'defer', 'async', 'upper case', 'mytern.js', 'luccet.json', 'commented-out', 'middle of the line'];
+  const covered = ['quotes', 'query', 'defer', 'async', 'upper case', 'myluccet.js', 'luccet.json', 'commented-out', 'middle of the line'];
   const whys = [...fixture.match, ...fixture.noMatch].map((c) => c.why).join('\n');
   for (const w of covered) ok(whys.includes(w), `a case about ${w}`);
 });
@@ -435,7 +435,7 @@ test('index: in a git repository, tracked files only; the date is the last commi
 
 test('check --fail-on and --quiet', () => {
   write('c/warn.html', `${FIRST}<script src="luccet.js"></script>\nSee @nowhere.\n`);
-  write('c/info.html', `${FIRST}<script src="luccet.js"></script>\nA \\(x\\) here.\n`);
+  write('c/info.html', `${FIRST}<script src="luccet.js"></script>\nText.\n\n[^a]: Never cited.\n`); // footnote.unused, an info
   exits(run(['check', 'c/warn.html']), 0, 'a warning, default --fail-on=error');
   exits(run(['check', 'c/warn.html', '--fail-on=warning']), 1, 'a warning, --fail-on=warning');
   exits(run(['check', 'c/info.html', '--fail-on=warning']), 0, 'an info, --fail-on=warning');
@@ -612,7 +612,8 @@ test('check, build: a leading :::use block lists add-ons like data-use; a missin
   ok(/<link rel="stylesheet" href="theme\.css">/.test(b.out) && !/data-t="use"/.test(b.out) && /<span class="t-label">Box<\/span>/.test(b.out), 'the stylesheet, no :::use in the body, the add-on applied');
   write('u/late.html', `${FIRST}<script src="luccet.js"></script>\nText.\n\n:::use\nbox.js\n:::\n`);
   const l = run(['check', 'u/late.html']);
-  ok(/^u\/late\.html:4:1: warning use\.late: /m.test(l.out), `stdout: ${l.out}`);
+  exits(l, 1, 'check: use.late is an error, so the note fails');
+  ok(/^u\/late\.html:4:1: error use\.late: /m.test(l.out), `stdout: ${l.out}`);
   // luccet mv rewrites a :::use entry as it does data-use's, query string kept.
   write('u/m.html', `${FIRST}<script src="luccet.js"></script>\n:::use\nbox.js?x=1\n:::\n`);
   const mv = run(['mv', 'u/box.js', 'u/lib/box.js']);
@@ -1416,8 +1417,17 @@ test('build --katex: formulas pre-rendered to HTML and MathML, with data-tex and
   const bad = run(['build', 'k/bad.html', '--katex'], { env });
   ok(/k\/bad\.html:2:15: warning math\.error: KaTeX cannot typeset this formula/.test(bad.err), `stderr: ${bad.err}`);
   ok(/<script data-built src="luccet\.js">/.test(bad.out) && /data-pos="1:15">\\left\( x<\/span>/.test(bad.out), 'the bad formula left as TeX (rendered only if the note loads a math add-on)');
-  write('k/none.html', `${FIRST}<script src="luccet.js" data-katex="none"></script>\nNo $x$.\n`);
-  ok(/data-katex="none"/.test(run(['build', 'k/none.html', '--katex'], { env }).err), 'data-katex="none" is not pre-rendered');
+  // The stylesheet comes from the folder the note gives the add-on (?base=, in
+  // data-use or :::use), as the page's would; data-katex is not read since 2.0.
+  write('k/base.html', `${FIRST}<script src="luccet.js" data-use="addons/katex.js?base=vendor/katex/"></script>\nA $x$.\n`);
+  const based = run(['build', 'k/base.html', '--katex'], { env });
+  ok(/<link rel="stylesheet" href="vendor\/katex\/katex\.min\.css">/.test(pageParts(based.out).head), `?base= in data-use: ${pageParts(based.out).head}`);
+  write('k/use.html', `${FIRST}<script src="luccet.js"></script>\n:::use\naddons/katex.min.js?base=lib/k&strict=false\n:::\n\nA $x$.\n`);
+  ok(/<link rel="stylesheet" href="lib\/k\/katex\.min\.css">/.test(run(['build', 'k/use.html', '--katex'], { env }).out), '?base= in :::use, on katex.min.js among other options');
+  write('k/old.html', `${FIRST}<script src="luccet.js" data-katex="vendor/katex"></script>\nA $x$.\n`);
+  const old = run(['build', 'k/old.html', '--katex'], { env });
+  ok(/data-katex on the luccet\.js tag is not read since 2\.0: name KaTeX's folder with \?base= on addons\/katex\.js/.test(old.err), `data-katex warned about: ${old.err}`);
+  ok(/1 formula, 1 pre-rendered/.test(old.err) && /href="https:\/\/cdn\.jsdelivr\.net\/npm\/katex@/.test(old.out), 'data-katex ignored: pre-rendered, the stylesheet from jsDelivr');
 });
 
 // `build --diagrams` draws the mermaid fences in a headless Chromium: tested

@@ -386,7 +386,7 @@
   //     copy handler copies it as $tex$;
   //   - one KaTeX rejects keeps its TeX with t-error, as the runtime shows
   //     it, and is a math.error in the example's Diagnostics, never the page's;
-  //   - without KaTeX (data-katex="none", offline, quirks), the TeX stays.
+  //   - without KaTeX (no math add-on, offline, quirks), the TeX stays.
   function isolateMath(root) {
     const macros = [...root.querySelectorAll('.t-macros')];
     const formulas = [...root.querySelectorAll('.t-math')];

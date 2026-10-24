@@ -38,7 +38,7 @@ The package is not on the npm registry, and `npx luccet` looks there for a packa
 
 ```sh
 $ luccet --version
-1.1.1
+2.0.0
 $ luccet bogus
 luccet: unknown command "bogus"
 usage: luccet COMMAND …
@@ -668,9 +668,9 @@ luccet build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as HTML
   notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so luccet.js will: KaTeX parse error: Expected '\right', got 'EOF' at end of input: \left( x
   luccet build: wrote the page; 2 formulas, 1 pre-rendered
   ```
-- **`data-katex="none"`** on the tag turns KaTeX pre-rendering off, so nothing is pre-rendered, with a warning.
+- **`data-katex`** on the tag is not read since 2.0: the build says so with a warning. Name KaTeX's folder with `?base=` on the add-on instead.
 - **The output.** Each pre-rendered `span.t-math` gets `data-tex` (its TeX, for copying) and KaTeX's HTML and MathML. Formulas in a `::toc` entry are pre-rendered too.
-- **The stylesheet.** The page links `katex.min.css` from jsDelivr at the installed package's version, with a Subresource Integrity hash computed from the package's own copy (for KaTeX 0.19.0, the same hash the [`katex.js` add-on](addons.html#katex) pins). With a `data-katex` base, it links `BASE/katex.min.css` instead, with no hash.
+- **The stylesheet.** The page links `katex.min.css` from jsDelivr at the installed package's version, with a Subresource Integrity hash computed from the package's own copy (for KaTeX 0.19.0, the same hash the [`katex.js` add-on](addons.html#katex) pins). When the note gives the add-on a folder, `addons/katex.js?base=BASE` in `data-use` or `:::use`, it links `BASE/katex.min.css` instead, with no hash, as the add-on would.
 - **Runtime fallback.** The built tag is always just `data-built`. A formula left as TeX renders at view time only if `data-use` lists a math add-on; a page whose formulas were all pre-rendered loads no KaTeX library, even if it lists the add-on — the add-on finds them typeset and fetches nothing, not even for `:::macros`.
 
 :::warning
@@ -906,7 +906,7 @@ $ echo $?
 
 ```json
 {
-  "luccet": "1.1.1",
+  "luccet": "2.0.0",
   "notes": [
     {
       "url": "BookOfProof/chapter5.html",
@@ -1156,7 +1156,7 @@ $$ {#eq}
       }
     }
   },
-  "serverInfo": { "name": "luccet", "version": "1.1.1" }
+  "serverInfo": { "name": "luccet", "version": "2.0.0" }
 }
 ```
 
@@ -1915,7 +1915,7 @@ The match ignores case. Every tag it accepts is one `luccet.js` starts from. The
 
 | Line | Why |
 |---|---|
-| `<script src="mytern.js"></script>`, `<script src="luccet.min.js"></script>`, `<script src="luccet.json"></script>` | the file name is not exactly `luccet.js` |
+| `<script src="myluccet.js"></script>`, `<script src="luccet.min.js"></script>`, `<script src="luccet.json"></script>` | the file name is not exactly `luccet.js` |
 | `<!-- <script src="luccet.js"></script> -->` | inside a comment |
 | `<script defer src="luccet.js"></script>`, `<script src="luccet.js" async></script>` | `defer` or `async` |
 | `<script type="module" src="luccet.js"></script>` | a module |
@@ -1942,7 +1942,7 @@ The match ignores case. Every tag it accepts is one `luccet.js` starts from. The
     …
   ],
   "noMatch": [
-    { "why": "a file named mytern.js", "line": "<script src=\"mytern.js\"></script>" },
+    { "why": "a file named myluccet.js", "line": "<script src=\"myluccet.js\"></script>" },
     …
   ]
 }

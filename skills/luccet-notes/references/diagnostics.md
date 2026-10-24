@@ -252,7 +252,7 @@ E = mc^2
 $$ where m is the mass.
 ```
 
-### `math.inline-display` · info
+### `math.inline-display` · warning
 
 `$$` inside a line, reported once per `$$`. It is text: display math goes on its own lines.
 **Fix:** inline math takes one dollar (`$\displaystyle …$` for display style), or put the formula between `$$` lines.
@@ -261,7 +261,7 @@ $$ where m is the mass.
 The energy $$E = mc^2$$ is famous.
 ```
 
-### `math.unclosed-inline` · info
+### `math.unclosed-inline` · warning
 
 A `$` followed by a backslash never closes, or its only candidate closer is rejected (say, a `$` right after `{`). It stays text. A `$` before a digit, a price, is silent.
 **Fix:** close the formula with `$`, or write `\$` for a dollar sign.
@@ -270,7 +270,7 @@ A `$` followed by a backslash never closes, or its only candidate closer is reje
 The $\alpha never closes.
 ```
 
-### `math.bracket` · info
+### `math.bracket` · warning
 
 A span between dollars is not math because a `]` follows the opening `$` or a `[` precedes the closing one: an interval such as `]0,1[`.
 **Fix:** verbatim math, which is always math: `` $`]0,1[` `` (the hint spells it with your interval).
@@ -407,7 +407,7 @@ Right.
 
 ## Leaves and inline elements
 
-### `leaf.demoted` · info
+### `leaf.demoted` · warning
 
 A line starts with `::name` but is not a leaf: text follows it, or a `[` is unclosed. A leaf broken over two lines, by hand or by an auto-wrap, gives this.
 **Fix:** keep the whole leaf on one line (`::video{src=tide.mp4 controls}`), or use a block for longer content. When the line is prose, escape the colons: `\::before`.
@@ -435,7 +435,7 @@ A leaf or inline element that is a void element (`hr`, `img`, `embed`, `wbr` …
 Press :kbd[Ctrl and S.
 ```
 
-### `inline.glued` · info
+### `inline.glued` · warning
 
 `:name[` right after an ASCII letter or digit, as in `press:kbd[S]`; it stays text. After `_`, `:`, `/` or a non-ASCII letter it is silent.
 **Fix:** put a space before the colon.
@@ -455,7 +455,7 @@ A `[^label]` with no definition; it stays text. A definition needs a space after
 A claim.[^src]
 ```
 
-### `footnote.duplicate` · warning
+### `footnote.duplicate` · error
 
 A label defined twice (`[^a]:` and `[^A]:` count as the same). The first wins; the later one is dropped.
 **Fix:** merge the definitions, or give one another label and reference it.
@@ -492,7 +492,7 @@ Text.
 
 ## LaTeX habits
 
-### `latex.delimiters` · info
+### `latex.delimiters` · warning
 
 Once per note: `\(…\)`, `\[…\]` around TeX, or `\begin{` at the start of a line. A backslash before punctuation is an escape, so `\(` renders `(`; `\begin{…}` stays text.
 **Fix:** inline math is `$…$`; display math and environments such as `aligned` go between `$$` lines. A theorem environment is a block, `:::theorem` … `:::`.
@@ -501,7 +501,7 @@ Once per note: `\(…\)`, `\[…\]` around TeX, or `\begin{` at the start of a l
 Let \(x^2\) be small.
 ```
 
-### `latex.linebreak` · info
+### `latex.linebreak` · warning
 
 A paragraph line ends with `\\` and the paragraph continues: a literal backslash and a soft break, not a line break. Not reported in table rows.
 **Fix:** a line break is a single trailing `\`.
@@ -523,7 +523,7 @@ An opener that would nest blocks more than 64 deep (blocks, list items, quotes a
 The note's HTML is longer than the emitter's budget (64 million characters, or `maxOutput` where the emitter is called) and was cut short there. Reported by the browser and `luccet build`, never by `luccet check`, which does not emit. A reference copies at most 200 characters of its target and a toc entry as much of a heading, so a normal note never reaches it: it takes something huge repeated.
 **Fix:** shorten what repeats.
 
-### `doc.frontmatter` · info
+### `doc.frontmatter` · warning
 
 The note starts with YAML front matter: `---`, `key: value` lines, `---`. Luccet reads a rule, a paragraph and a rule.
 **Fix:** move the lines into a `:::meta` block.
@@ -560,7 +560,7 @@ title: Two
 :::
 ```
 
-### `meta.malformed` · warning
+### `meta.malformed` · error
 
 A line in `:::meta` that is not `key: value`: no colon, no space after it, an indented line, a key not starting with a letter. The line is ignored. Keys may hold `.`, `:` and `-`: `og:title: …` is fine.
 **Fix:** one `key: value` per line, unindented.
@@ -572,7 +572,7 @@ title Linear maps
 :::
 ```
 
-### `meta.nested` · warning
+### `meta.nested` · error
 
 A `:::meta` block inside a block, quote, list item or footnote definition; it is ignored.
 **Fix:** move it to the top level, usually the top of the note.
@@ -589,7 +589,7 @@ title: Linear maps
 
 How a name becomes an element; the vocabulary is in [vocabulary.md](vocabulary.md).
 
-### `use.late` · warning
+### `use.late` · error
 
 A `:::use` block after any content, or inside a block, quote, list item or footnote definition; it is ignored and its add-ons are not loaded. Only `:::meta`, blank lines and other `:::use` blocks may come before it.
 **Fix:** move it to the top of the note, after `:::meta` at most.
@@ -808,6 +808,6 @@ Errors never stay. Warnings should not either: when the text is meant as written
 | `name.unknown` | the name is meant as a plain `div` or `span` with that class. |
 | `addon.remote`, `head.script` (info) | always: the page is fine; the check just lacks that vocabulary. |
 
-`doc.frontmatter` is an info, but front matter is never what was meant: move it to `:::meta`. Tell the user about any warning or info you leave, and why.
+Front matter is never what was meant (`doc.frontmatter`): move it to `:::meta`. Tell the user about any warning or info you leave, and why.
 
 **What no tool reports.** Some habits render as literal text with no diagnostic, so a clean check does not catch them: `_em_` and `__strong__`, `#heading` without a space, reference-style links, `> [!NOTE]` alerts, `\ref` and `\eqref`, `</body></html>` at the end, an unknown block name without `strict`, a vocabulary name the note does not declare. [../SKILL.md](../SKILL.md) lists them; get them right while writing.

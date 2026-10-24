@@ -1044,7 +1044,7 @@ CommonMark 0.31.2 example 13, "Backslash escapes".
 spec: syntax-inline#escape syntax-inline#escapes
 
 CommonMark 0.31.2 example 14, "Backslash escapes".
-Same as CommonMark: the `\[` on lines 3 and 8 have no matching `\]`, so no `latex.delimiters` hint.
+Same as CommonMark: the `\[` on lines 3 and 8 have no matching `\]`, so no `latex.delimiters` warning.
 
 ````luccet
 \*not emphasized*

@@ -193,7 +193,7 @@ A line starting `::NAME` that is not a whole-line leaf is a paragraph, with an i
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## leaf/trailing-text-demoted
@@ -211,7 +211,7 @@ Text after the content breaks the whole-line match, so the line is demoted.
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## leaf/unclosed-bracket-demoted
@@ -229,7 +229,7 @@ Content cut off before its `]` (as auto-wrap does) demotes the line.
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## leaf/bare-double-colon
@@ -342,7 +342,7 @@ Some text
 ````
 
 ````diagnostics
-2:1 info leaf.demoted
+2:1 warning leaf.demoted
 ````
 
 ## leaf/escaped

@@ -1262,8 +1262,8 @@ From leaf-syntax-and-fixed-delimiters: any line starting `::word` became an empt
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
-3:1 info leaf.demoted
+1:1 warning leaf.demoted
+3:1 warning leaf.demoted
 ````
 
 ## audit/bare-double-colon-line
@@ -1366,8 +1366,8 @@ line two</p>
 ````
 
 ````diagnostics
-1:5 info latex.delimiters
-5:10 info latex.linebreak
+1:5 warning latex.delimiters
+5:10 warning latex.linebreak
 ````
 
 ## audit/literal-escapes
@@ -1700,7 +1700,7 @@ wraps</span></p>
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## audit/figure-and-table-captions

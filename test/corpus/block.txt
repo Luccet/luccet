@@ -257,7 +257,7 @@ Some prose about CSS:
 ````
 
 ````diagnostics
-2:1 info leaf.demoted
+2:1 warning leaf.demoted
 ````
 
 ## block/interrupt-display-math

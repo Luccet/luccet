@@ -390,7 +390,7 @@ Right.
 
 - `::NAME[content]{group}` alone on a line, filling it. The content is inline, on one line, with the title rules; content and group are optional, spaces allowed between.
 - Media and void elements are leaf names, so they need no raw HTML: `::video{src=a.mp4 controls}`, `::img{src=a.png alt="…"}`, `::iframe{src=… title="…"}`, `::hr{.thin}`, `::p[…]{.lead}`. Content on a void element (`::hr[x]`) is emitted after it in a paragraph, with `leaf.void-content`.
-- A `::name` line with text after the leaf is a paragraph line (`leaf.demoted`, info); `:: name` is `block.spaced-name`; a broken trailing group makes the line a paragraph, with `attr.malformed`. `::` alone is text.
+- A `::name` line with text after the leaf is a paragraph line (`leaf.demoted`, warning); `:: name` is `block.spaced-name`; a broken trailing group makes the line a paragraph, with `attr.malformed`. `::` alone is text.
 - An attribute line before a leaf merges into it. `::toc` is filled with the headings only when the vocabulary declares it ([vocabulary.md](vocabulary.md)); otherwise it is an empty `div.toc`.
 
 ```luccet expect="leaf.demoted"
