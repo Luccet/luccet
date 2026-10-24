@@ -1,4 +1,4 @@
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/luccet-white.png"><img src="docs/luccet.png" alt="" width="128" height="128"></picture></p>
+<p align="center"><img src="docs/luccet.png" alt="" width="128" height="128"></p>
 
 # Luccet
 

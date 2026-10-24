@@ -7,8 +7,7 @@
 //   - site-nav: draws the site navigation, with the mark before the home
 //     link; `::logo` puts the same mark, small, before the text of the
 //     heading that follows it (the home page's title). The mark is
-//     luccet.png on a light theme and luccet-white.png on a dark one, chosen by
-//     the text colour and followed when the theme changes;
+//     luccet.png on every theme;
 //   - code: turns each live example (a `luccet` fence with the class `live`)
 //     into source, result, diagnostics and generated HTML, computed here by
 //     the engine, and highlights every `luccet` fence. A result is isolated
@@ -159,37 +158,9 @@
 
   // ---------------------------------------------------------------- the mark
 
-  // The mark is an <img>, not a CSS mask: a browser fetches a mask image
-  // with CORS rules and will not paint one for a note opened from disk. It
-  // is luccet.png where the text is dark and luccet-white.png where it is light,
-  // which is how a theme, including one that follows the system, says it is
-  // dark; rechecked when the system scheme changes, after a render (a theme
-  // may arrive late) and when a theme switcher says so.
-  const logos = new Set();
-  function darkTheme() {
-    const c = getComputedStyle(document.querySelector('main.luccet') || document.body).color.match(/[\d.]+/g) || [];
-    const [r = 0, g = 0, b = 0] = c.map(Number);
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 128; // light text, so a dark theme
-  }
-  function paint(img, dark = darkTheme()) {
-    const want = img.getAttribute(dark ? 'data-dark' : 'data-light');
-    if (img.getAttribute('src') !== want) img.setAttribute('src', want);
-  }
-  function repaint() {
-    const dark = logos.size ? darkTheme() : false; // one style read for every mark
-    for (const m of logos) m.isConnected ? paint(m, dark) : logos.delete(m);
-  }
-  function logoImage(at, cls) {
-    const img = el('img', { class: cls, alt: '', width: '256', height: '256', 'data-light': link('docs/luccet.png', at), 'data-dark': link('docs/luccet-white.png', at) });
-    logos.add(img); // painted by the 'render' repaint, once the note's DOM is in
-    return img;
-  }
-  if (typeof matchMedia === 'function') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
-  window.addEventListener('load', repaint);
-  window.addEventListener('luccet:theme', repaint);
-  T.on('render', (root, info) => {
-    if (!(info && info.safe)) repaint();
-  });
+  // The mark is luccet.png, a gold emblem on a navy disc that reads on a
+  // light theme and a dark one alike, so every theme gets the same file.
+  const logoImage = (at, cls) => el('img', { class: cls, alt: '', width: '256', height: '256', src: link('docs/luccet.png', at) });
 
   // The mark goes into the heading that follows the leaf, before its text;
   // the leaf is then empty and hidden. With no heading after it, the leaf

@@ -40,7 +40,7 @@ description: Every block-level construct of Luccet: paragraphs, headings, fences
 - **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/katex.js` and `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/…`). Examples load `../luccet.js` and declare their own vocabulary (below).
 - **The page's own markup.**
   - `::site-nav` is the site navigation, drawn by docs.js, with the mark before the home link.
-  - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/luccet.png`, or `docs/luccet-white.png` where the theme's text is light, and swaps them when the theme changes; the README uses the same two files in a `<picture>`.
+  - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/luccet.png`, a gold emblem on a navy disc, on light and dark themes alike; the README shows the same file. The pages' favicon is `docs/favicon.ico` (16, 32 and 48 px), with `docs/apple-touch-icon.png` for a phone's home screen.
   - `::toc` is the page's contents, levels 2 and 3.
   - The title in the head is "Page · Luccet".
 - **docs.js vocabulary.** It declares what the pages use:

@@ -973,7 +973,7 @@ const DOC_TESTS = (() => {
       const codes = [[], ['math.error 1:28'], ['math.error 1:1', 'math.error 5:26']];
       if (JSON.stringify(r.codes) !== JSON.stringify(codes)) problems.push(`the examples' diagnostics ${JSON.stringify(r.codes)}, expected ${JSON.stringify(codes)}`);
       if (r.errorLink !== '../../docs/diagnostics.html#math-error' || r.label !== 'Diagnostics (2)') problems.push(`math.error in the example: ${r.errorLink}, ${r.label}`);
-      if (r.logo !== '../../docs/luccet.png') problems.push(`the site nav's mark is ${r.logo}, expected ../../docs/luccet.png (a light theme)`);
+      if (r.logo !== '../../docs/luccet.png') problems.push(`the site nav's mark is ${r.logo}, expected ../../docs/luccet.png`);
       if (problems.length) throw new Error(problems.join(' | '));
     },
   });

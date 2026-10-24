@@ -13,6 +13,7 @@ Every release of Luccet, called Tern until 2.0, newest first. Versions follow [s
   - **Index files.** `notes.json`, `search.json` and `glossary.json` name the version that wrote them as `luccet` instead of `tern`. Their format numbers are unchanged, so files a 1.x `tern index` wrote are still read; run `luccet index` again so they name their writer.
   - **CSS.** A stylesheet that targets the rendered note's root, `main.tern`, targets `main.luccet`. The `t-` classes, `data-t` and the `--t-*` custom properties are unchanged, so themes need nothing.
   - **The tools.** The command is `luccet` (`luccet check`, `luccet build`, `luccet lsp` …), its environment variables `LUCCET_*`. In Neovim the plugin is `luccet.nvim`, the filetype `luccet` and the commands `:Luccet…`. The agent skill is `luccet-notes`.
+- Luccet has a new logo, `docs/luccet.png`: a gold emblem on a navy disc. It reads on light and dark themes alike, so the README and the documentation show the one file and `docs/luccet-white.png` is gone. The documentation's favicon is `docs/favicon.ico`, with `docs/apple-touch-icon.png` for a phone's home screen.
 
 ## 1.1.1 (2026-10-23)
 

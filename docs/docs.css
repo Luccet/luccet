@@ -36,7 +36,7 @@
 .docs-nav-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .25rem; border-block-end: 1px solid var(--t-line); }
 .luccet .docs-nav-home { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
 .luccet .docs-nav-home:hover { color: var(--t-link); }
-/* The mark: docs.js picks luccet.png or luccet-white.png for the theme. */
+/* The mark: docs.js draws luccet.png, the same on every theme. */
 .luccet .docs-nav-logo { display: block; inline-size: 1.6em; block-size: 1.6em; }
 /* The mark before the home page's title: docs.js moves it into the heading. */
 .luccet .docs-title { display: flex; align-items: center; gap: .4em; }
