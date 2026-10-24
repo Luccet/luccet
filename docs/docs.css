@@ -1,77 +1,129 @@
 /* SPDX-License-Identifier: MIT */
 /* docs.css: the documentation's styles (docs/README.md), with docs.js.
-   Colours come from luccet.css's --t-* variables, so light and dark follow it;
-   the few of its own are below, each checked for WCAG AA contrast on the
-   backgrounds it sits on (4.8:1 or more). Styles for the page's own markup
-   leave an example's result alone (:not(.docs-live-out *)): the result shows
-   the note as it renders without this add-on. */
+   The palette is the logo's: ivory paper, navy ink and a navy navigation like
+   its disc, gold for rules, labels and the current page like its rings; on a
+   dark scheme, a navy night with gold links. It is set as luccet.css's --t-*
+   variables, so the page and an example's result share it. Every colour that
+   is text is checked for WCAG AA contrast on the backgrounds it sits on
+   (4.8:1 or more); the gold rules are ornament. The type is Cinzel for the
+   name, the page's title and small labels, Cormorant Garamond for headings and
+   Source Serif 4 for the text, from fonts/ (OFL.txt); where a browser will not
+   load them (some do not for a page opened from disk) the system's serif
+   stands in. The examples (examples/*.html) load it too, without docs.js, and
+   style their own blocks with these variables. Styles for the page's own
+   markup leave an example's result alone (:not(.docs-live-out *)): the result
+   shows the note as it renders without this add-on. */
+
+@font-face { font-family: "Cinzel"; src: url(fonts/cinzel-600.woff2) format("woff2"); font-weight: 600 700; font-display: swap; }
+@font-face { font-family: "Cormorant Garamond"; src: url(fonts/cormorant-garamond-600.woff2) format("woff2"); font-weight: 600 700; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url(fonts/source-serif-4-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url(fonts/source-serif-4-400-italic.woff2) format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url(fonts/source-serif-4-600.woff2) format("woff2"); font-weight: 600 700; font-display: swap; }
 
 :root {
   --t-width: 42rem;
-  --docs-nav: 15.5rem;
+  --t-bg: #fbf8f1; --t-fg: #18233c; --t-muted: #5a6072; --t-line: #e4d9c2; --t-line-strong: #8b7f68; --t-soft: #f3ecdc;
+  --t-link: #1c4b92; --t-mark: #f9e6a0;
+  --t-font: "Source Serif 4", Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
+  --t-sans: var(--t-font);
+  --docs-display: Cinzel, "Trajan Pro", "Cormorant Garamond", "Palatino Linotype", Palatino, serif;
+  --docs-heading: "Cormorant Garamond", "EB Garamond", Garamond, "Palatino Linotype", Palatino, serif;
+  --docs-head: #0d2a5c;      /* headings */
+  --docs-gold: #c99a2e;      /* rules and marks, never text */
+  --docs-gold-ink: #87590a;  /* gold as text: the small labels */
+  --docs-nav-bg: #0b2048; --docs-nav-glow: #15377a; --docs-nav-fg: #ece6d6; --docs-nav-muted: #aab4cc; --docs-nav-gold: #f0c35e;
+  --docs-nav: 16rem;
   --docs-r: 10px;            /* a panel's radius */
   --docs-r-sm: 6px;
-  --docs-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 1px 1px rgb(0 0 0 / .03);
-  --docs-note: #0b62c4; --docs-tip: #17692e; --docs-warning: #8a5300; --docs-important: #6b3fb8;
-  --tk-mark: #9a3412; --tk-name: #6f42c1; --tk-attr: #0b6e6e; --tk-math: #0550ae; --tk-code: #116329;
-  --tk-ref: #0b62c4; --tk-key: #953800; --tk-value: #0a3069;
+  --docs-shadow: 0 1px 2px rgb(60 40 0 / .06), 0 1px 1px rgb(60 40 0 / .04);
+  --docs-note: #1c4b92; --docs-tip: #2a6a35; --docs-warning: #8a5300; --docs-important: #8b2335;
+  --tk-mark: #8a5004; --tk-name: #1c4b92; --tk-attr: #0b6e6e; --tk-math: #6b3fb8; --tk-code: #116329;
+  --tk-ref: #1c4b92; --tk-key: #953800; --tk-value: #0a3069;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --docs-shadow: 0 1px 2px rgb(0 0 0 / .3);
-    --docs-note: #6cb0ff; --docs-tip: #56d364; --docs-warning: #e3b341; --docs-important: #c4a5f5;
-    --tk-mark: #ffa657; --tk-name: #d2a8ff; --tk-attr: #7ee0d0; --tk-math: #a5d6ff; --tk-code: #7ee787;
-    --tk-ref: #6cb0ff; --tk-key: #ffa657; --tk-value: #a5d6ff;
+    --t-bg: #0b1428; --t-fg: #e8e2d2; --t-muted: #a3abbf; --t-line: #243150; --t-line-strong: #7d88a4; --t-soft: #121d38;
+    --t-link: #f0c35e; --t-mark: #5b4813;
+    --docs-head: #f3ecda; --docs-gold: #e0b64f; --docs-gold-ink: #e8bf5c;
+    --docs-nav-bg: #07102a; --docs-nav-glow: #0f1f48;
+    --docs-shadow: 0 1px 2px rgb(0 0 0 / .35);
+    --docs-note: #8fb4ee; --docs-tip: #7cc98a; --docs-warning: #e8bf5c; --docs-important: #f29aa7;
+    --tk-mark: #f0c35e; --tk-name: #9fc0ff; --tk-attr: #7ee0d0; --tk-math: #d2a8ff; --tk-code: #7ee787;
+    --tk-ref: #8fb4ee; --tk-key: #ffa657; --tk-value: #a5d6ff;
   }
 }
 
-/* A page's links sit a touch closer to the body's weight. */
-.luccet a:not(.docs-live-out *) { text-decoration-color: color-mix(in srgb, var(--t-link) 45%, transparent); }
+/* A page's links carry a gold underline, the text's colour when hovered. */
+.luccet a:not(.docs-live-out *) { text-decoration-color: color-mix(in srgb, var(--docs-gold) 75%, transparent); }
 .luccet a:not(.docs-live-out *):hover { text-decoration-color: currentColor; }
+::selection { background: color-mix(in srgb, var(--docs-gold) 35%, transparent); }
 
-/* ---- the site navigation: a bar with a Menu button on narrow screens, a
-   sidebar on wide ones. The current page is bold, marked with a bar and
-   aria-current, not by colour alone. */
-.luccet .site-nav:not(.docs-live-out *) { font-family: var(--t-sans); font-size: .9rem; line-height: 1.4; margin-block: -1.5rem 2rem; }
-.docs-nav-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .25rem; border-block-end: 1px solid var(--t-line); }
-.luccet .docs-nav-home { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; font-size: 1.2rem; letter-spacing: -.01em; color: var(--t-fg); text-decoration: none; }
-.luccet .docs-nav-home:hover { color: var(--t-link); }
+/* ---- headings: the title in Cinzel over a short gold rule, the sections in
+   Cormorant Garamond (set larger, for its small lower case), h2 on a gold
+   hairline. */
+.luccet :is(h1, h2, h3, h4, h5, h6):not(.docs-live-out *) { font-family: var(--docs-heading); font-weight: 600; color: var(--docs-head); line-height: 1.2; font-variant-numeric: lining-nums; }
+.luccet h1:not(.docs-live-out *) {
+  font-family: var(--docs-display); font-size: 2.1rem; letter-spacing: .03em; padding-block-end: .6rem;
+  background: linear-gradient(var(--docs-gold), var(--docs-gold)) no-repeat 0 100% / 3.5rem 2px;
+}
+.luccet h2:not(.docs-live-out *) { font-size: 1.75rem; border-block-end-color: var(--docs-gold); }
+.luccet h3:not(.docs-live-out *) { font-size: 1.4rem; }
+.luccet :is(h4, h5, h6):not(.docs-live-out *) { font-size: 1.15rem; }
+.luccet blockquote:not(.docs-live-out *) { border-inline-start-color: color-mix(in srgb, var(--docs-gold) 60%, transparent); }
+.luccet hr:not(.docs-live-out *) { border-block-start-color: color-mix(in srgb, var(--docs-gold) 50%, transparent); }
+
+/* ---- the site navigation, navy like the logo's disc: a bar with a Menu
+   button on narrow screens, a sidebar on wide ones, the name in gold Cinzel.
+   The current page is bold, marked with a gold bar and aria-current, not by
+   colour alone. */
+.luccet .site-nav:not(.docs-live-out *) {
+  font-family: var(--t-sans); font-size: .92rem; line-height: 1.4; margin-block: -1.5rem 2rem;
+  padding: .35rem .6rem; border-radius: var(--docs-r); color: var(--docs-nav-fg);
+  background: radial-gradient(120% 90% at 20% 0%, var(--docs-nav-glow), transparent 70%), var(--docs-nav-bg);
+}
+.docs-nav-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .25rem; }
+.luccet .docs-nav-home {
+  display: inline-flex; align-items: center; gap: .55rem; text-decoration: none;
+  font: 600 1.3rem/1.2 var(--docs-display); letter-spacing: .06em; color: var(--docs-nav-gold);
+}
+.luccet .docs-nav-home:hover { color: var(--docs-nav-fg); }
 /* The mark: docs.js draws luccet.png, the same on every theme. */
 .luccet .docs-nav-logo { display: block; inline-size: 1.6em; block-size: 1.6em; }
 /* The mark before the home page's title: docs.js moves it into the heading. */
 .luccet .docs-title { display: flex; align-items: center; gap: .4em; }
 .luccet .docs-logo { display: block; inline-size: 1.15em; block-size: 1.15em; flex: none; }
 .docs-nav-toggle {
-  font: inherit; color: var(--t-fg); background: var(--t-soft); border: 1px solid var(--t-line); border-radius: var(--docs-r-sm);
-  padding: .35rem .8rem; cursor: pointer;
+  font: inherit; color: var(--docs-nav-fg); background: transparent; border-radius: var(--docs-r-sm);
+  border: 1px solid color-mix(in srgb, var(--docs-nav-gold) 45%, transparent); padding: .35rem .8rem; cursor: pointer;
 }
-.docs-nav-toggle:focus-visible, .docs-live summary:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }
+.docs-live summary:focus-visible { outline: 2px solid var(--t-link); outline-offset: 2px; }
+.docs-nav-toggle:focus-visible, .site-nav a:focus-visible { outline: 2px solid var(--docs-nav-gold); outline-offset: 2px; }
 .luccet .docs-nav-list, .luccet .docs-nav-list ul { list-style: none; margin: 0; padding: 0; }
 .luccet .docs-nav-list { display: none; padding-block: .5rem; }
 .luccet .docs-nav-open .docs-nav-list { display: block; }
 .docs-nav-list a {
   display: block; padding: .32rem .7rem; border-radius: var(--docs-r-sm);
-  border-inline-start: 2px solid transparent; color: var(--t-fg); text-decoration: none;
+  border-inline-start: 2px solid transparent; color: var(--docs-nav-fg); text-decoration: none;
 }
-.docs-nav-list a:hover { background: var(--t-soft); color: var(--t-link); }
+.docs-nav-list a:hover { background: rgb(255 255 255 / .07); color: var(--docs-nav-gold); }
 .luccet .docs-nav-list a[aria-current="page"] {
-  font-weight: 700; border-inline-start-color: var(--t-link);
+  font-weight: 700; border-inline-start-color: var(--docs-nav-gold);
   border-start-start-radius: 0; border-end-start-radius: 0;
-  background: color-mix(in srgb, var(--t-link) 10%, transparent); color: var(--t-link);
+  background: color-mix(in srgb, var(--docs-nav-gold) 14%, transparent); color: var(--docs-nav-gold);
 }
 .luccet .docs-nav-list ul a { padding-inline-start: 1.4rem; }
 /* The heading after the navigation starts the page. */
 .luccet > .site-nav + :is(h1, h2, .logo), .luccet > .site-nav + .logo + h1 { margin-block-start: .5rem; }
-.docs-nav-heading { display: block; padding: .9rem .7rem .3rem; color: var(--t-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.docs-nav-heading { display: block; padding: 1rem .7rem .35rem; color: var(--docs-nav-muted); font: 600 .74rem/1.4 var(--docs-display); text-transform: uppercase; letter-spacing: .12em; }
 
 @media (min-width: 64rem) {
   body:has(> main.luccet > .site-nav) { padding-inline-start: calc(var(--docs-nav) + 2.5rem); }
   .luccet .site-nav:not(.docs-live-out *) {
     position: fixed; inset-block: 0; inset-inline-start: 0; inline-size: var(--docs-nav); box-sizing: border-box;
-    margin: 0; padding: 1.6rem 1rem 2rem; overflow-y: auto; border-inline-end: 1px solid var(--t-line);
-    background: color-mix(in srgb, var(--t-soft) 45%, var(--t-bg));
+    margin: 0; padding: 1.6rem 1rem 2rem; overflow-y: auto; border-radius: 0;
+    border-inline-end: 1px solid color-mix(in srgb, var(--docs-nav-gold) 35%, transparent);
   }
-  .docs-nav-bar { border: 0; padding-inline: .7rem; margin-block-end: .25rem; }
+  .docs-nav-bar { padding-inline: .7rem; margin-block-end: .5rem; }
   .docs-nav-toggle { display: none; }
   .luccet .docs-nav-list { display: block; }
   .luccet > .site-nav + :is(h1, h2, .logo), .luccet > .site-nav + .logo + h1 { margin-block-start: 0; }
@@ -85,7 +137,8 @@
   background: color-mix(in srgb, var(--t-soft) 40%, var(--t-bg));
   padding: 1rem 1.25rem; margin-block-end: 2.5rem;
 }
-.luccet nav.toc:not(.docs-live-out *)::before { content: "Contents"; display: block; font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--t-muted); margin-block-end: .5rem; }
+.luccet nav.toc:not(.docs-live-out *) { border-block-start: 2px solid var(--docs-gold); }
+.luccet nav.toc:not(.docs-live-out *)::before { content: "Contents"; display: block; font: 600 .78rem/1.4 var(--docs-display); text-transform: uppercase; letter-spacing: .12em; color: var(--docs-gold-ink); margin-block-end: .5rem; }
 .luccet nav.toc:not(.docs-live-out *) ol { list-style: none; margin: 0; padding-inline-start: 0; }
 .luccet nav.toc:not(.docs-live-out *) ol ol { padding-inline-start: 1rem; margin-block: .1rem; border-inline-start: 1px solid var(--t-line); }
 .luccet nav.toc:not(.docs-live-out *) li { margin: .05rem 0; }
@@ -98,19 +151,19 @@
 .luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) {
   --docs-c: var(--docs-note);
   border-inline-start: 4px solid var(--docs-c); border-radius: var(--docs-r-sm);
-  background: color-mix(in srgb, var(--docs-c) 7%, var(--t-bg)); padding: .75rem 1.1rem;
+  background: color-mix(in srgb, var(--docs-c) 5%, color-mix(in srgb, var(--t-soft) 60%, var(--t-bg))); padding: .75rem 1.1rem;
 }
 .luccet .t-block.tip:not(.docs-live-out *) { --docs-c: var(--docs-tip); }
 .luccet .t-block.warning:not(.docs-live-out *) { --docs-c: var(--docs-warning); }
 .luccet .t-block.important:not(.docs-live-out *) { --docs-c: var(--docs-important); }
 .luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title { font-family: var(--t-sans); font-size: .9em; font-weight: 600; margin-block-end: .3rem; }
-.luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title > .t-label { color: var(--docs-c); text-transform: uppercase; letter-spacing: .04em; font-size: .92em; }
+.luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > .t-title > .t-label { color: var(--docs-c); font-family: var(--docs-display); font-weight: 600; text-transform: uppercase; letter-spacing: .1em; font-size: .88em; }
 .luccet .t-block:is(.note, .tip, .warning, .important):not(.docs-live-out *) > :last-child { margin-block-end: 0; }
 
 /* ---- the syntax box: a construct's spelling */
 .luccet .t-block.syntax:not(.docs-live-out *) { border: 1px solid var(--t-line); border-radius: var(--docs-r); padding: .85rem 1.1rem; background: color-mix(in srgb, var(--t-soft) 40%, var(--t-bg)); }
 .luccet .t-block.syntax:not(.docs-live-out *) > .t-title { font-family: var(--t-sans); font-size: .95em; }
-.luccet .t-block.syntax:not(.docs-live-out *) > .t-title > .t-label { color: var(--t-muted); text-transform: uppercase; letter-spacing: .07em; font-size: .72em; font-weight: 700; margin-inline-end: .3em; }
+.luccet .t-block.syntax:not(.docs-live-out *) > .t-title > .t-label { color: var(--docs-gold-ink); font-family: var(--docs-display); text-transform: uppercase; letter-spacing: .12em; font-size: .76em; font-weight: 600; margin-inline-end: .4em; }
 .luccet .t-block.syntax:not(.docs-live-out *) pre { margin-block-end: .5rem; background: var(--t-soft); }
 .luccet .t-block.syntax:not(.docs-live-out *) > :last-child { margin-block-end: 0; }
 
@@ -128,7 +181,7 @@
 .docs-live { content-visibility: auto; contain-intrinsic-size: auto 22rem; }
 .docs-live-part { padding: .7rem 1.1rem .85rem; min-inline-size: 0; }
 .docs-live-part + .docs-live-part, .docs-live-problem { border-block-start: 1px solid var(--t-line); }
-.docs-live-label { font: 700 .68rem/1.4 var(--t-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--t-muted); margin-block-end: .45rem; }
+.docs-live-label { font: 600 .72rem/1.4 var(--docs-display); letter-spacing: .12em; text-transform: uppercase; color: var(--docs-gold-ink); margin-block-end: .45rem; }
 .docs-live-source { background: color-mix(in srgb, var(--t-soft) 55%, var(--t-bg)); }
 .luccet .docs-live-source :is(pre, figure) { margin: 0; padding: 0; background: none; border-radius: 0; }
 .docs-live-out { overflow-x: auto; }

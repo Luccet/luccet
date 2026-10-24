@@ -37,12 +37,13 @@ description: Every block-level construct of Luccet: paragraphs, headings, fences
 ::toc
 ```
 
-- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/katex.js` and `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/…`). Examples load `../luccet.js` and declare their own vocabulary (below).
+- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/katex.js` and `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/…`). Examples load `../luccet.js` and `../docs/docs.css`, for the site's look (not docs.js: an example is a note as a reader would write it), and declare their own vocabulary and styles (below).
 - **The page's own markup.**
   - `::site-nav` is the site navigation, drawn by docs.js, with the mark before the home link.
   - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/luccet.png`, a gold emblem on a navy disc, on light and dark themes alike; the README shows the same file. The pages' favicon is `docs/favicon.ico` (16, 32 and 48 px), with `docs/apple-touch-icon.png` for a phone's home screen.
   - `::toc` is the page's contents, levels 2 and 3.
   - The title in the head is "Page · Luccet".
+- **The look.** docs.css takes the logo's palette and sets it as luccet.css's variables: ivory paper, navy ink and a navy navigation, gold for the rules, the small labels and the current page; on a dark scheme, a navy night with gold links. The name, the page titles and the small labels are in Cinzel, the headings in Cormorant Garamond, the text in Source Serif 4, all three from `docs/fonts/` under the SIL Open Font License (`docs/fonts/OFL.txt`). A colour that is text has 4.8:1 contrast or more on what it sits on; check a new one before adding it.
 - **docs.js vocabulary.** It declares what the pages use:
   - `toc`;
   - `site-nav` and `logo`;

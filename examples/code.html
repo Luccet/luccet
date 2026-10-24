@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8">
+<!doctype html><meta charset="utf-8"><link rel="icon" href="../docs/favicon.ico"><link rel="apple-touch-icon" href="../docs/apple-touch-icon.png">
 <script>
   // This note's vocabulary (window.LUCCET.schema): `code` is the entry for
   // titled fences, so they are numbered listings and @lst-fib reads
@@ -10,7 +10,7 @@
     },
   }};
 </script>
-<script src="../luccet.js" data-use="../addons/katex.js"></script>
+<script src="../luccet.js" data-use="../addons/katex.js ../docs/docs.css"></script>
 
 :::meta
 title: Notes on iterators
@@ -23,7 +23,8 @@ lang: en
 This example is about code. It shows a numbered listing with a title, line numbers and a
 highlighted line; a fence that starts its numbering at 10; code spans that hold pipes,
 backticks and tags; escapes; an HTML comment; a raw HTML form and table; and a note script
-that adds a copy button to every code block. Part of [Luccet's documentation](../index.html).
+that adds a copy button to every code block. Part of [Luccet's documentation](../index.html),
+whose look it wears through `../docs/docs.css`.
 :::
 
 ```js[A lazy Fibonacci generator]{#lst-fib lines hl=4}
@@ -72,9 +73,11 @@ itself: \\. Some_file_name.txt and 2 * 3 * 4 need nothing.
 </table>
 
 <style>
-  [data-t="note"] { background: var(--t-soft); border-inline-start: 4px solid var(--t-link); padding: .7rem 1rem; border-radius: 4px; font-size: .92em; }
+  [data-t="note"] { font-size: .92em; }
   pre[data-lines] .t-line.t-hl { background: var(--t-mark); }
-  .copy { float: inline-end; margin: .4rem; font: .8rem var(--t-sans); }
+  .copy, #guess button { font: .8rem var(--t-sans); color: var(--t-fg); background: var(--t-bg); border: 1px solid color-mix(in srgb, var(--docs-gold) 70%, transparent); border-radius: 4px; padding: .15rem .55rem; cursor: pointer; }
+  .copy { float: inline-end; margin: .4rem; }
+  #guess input { font: inherit; inline-size: 4rem; }
   #guess output { font-weight: 700; }
   .grid td, .grid th { border: 1px solid var(--t-line); padding: .2rem .5rem; }
 </style>
