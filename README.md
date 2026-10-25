@@ -20,6 +20,8 @@ If $V$ is finite-dimensional then $\dim V = \dim \ker T + \dim \operatorname{im}
 By @thm-rn, an injective map between spaces of equal dimension is surjective.
 ```
 
+It renders as plain HTML, in the browser's own type and colours, light or dark. For a look, list a [theme](https://github.com/Luccet/themes): `<script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css"></script>`.
+
 
 ## Documentation
 

@@ -1687,7 +1687,7 @@ Put a `<style>` block in the note, usually at the end, or link a stylesheet in t
 
 ### Theme variables {#variables}
 
-The base stylesheet reads its colours, fonts and sizes from custom properties. Set them on `:root` to restyle the whole note:
+A note looks like plain HTML, in the browser's own type and colours, light or dark by the reader's setting: the base stylesheet only makes Luccet's constructs work. Style it as any page, with rules for its elements, or give it a look with a theme (below). Themes, add-ons and the base's own parts (the diagnostics panel, line numbers, errors) share these custom properties; set them on `:root`:
 
 | Property | Sets |
 |---|---|
@@ -1696,8 +1696,8 @@ The base stylesheet reads its colours, fonts and sizes from custom properties. S
 | `--t-link`, `--t-mark` | links and highlights |
 | `--t-error`, `--t-error-bg`, `--t-warn` | error colours |
 | `--t-code-keyword`, `--t-code-string` … | code colours, for the [code add-on](addons.html#code) |
-| `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts |
-| `--t-width`, `--t-size`, `--t-leading` | column width, font size, line height |
+| `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts, in a theme |
+| `--t-width`, `--t-size`, `--t-leading` | column width, font size, line height, in a theme |
 
 ```html
 <style>
@@ -1706,17 +1706,17 @@ The base stylesheet reads its colours, fonts and sizes from custom properties. S
 </style>
 ```
 
-The base stylesheet follows the reader's light or dark preference. Set your dark colours inside `prefers-color-scheme: dark`, as above.
+Set your dark colours inside `prefers-color-scheme: dark`, as above.
 
 ### Themes {#themes}
 
-For a ready-made palette, list one of [Luccet's themes](https://github.com/Luccet/themes) as an add-on: Solarized, Gruvbox, Nord, Dracula, One, GitHub, Catppuccin, Tokyo Night, Rosé Pine, Monokai, Everforest, Kanagawa, Sepia and High contrast.
+For a look, list one of [Luccet's themes](https://github.com/Luccet/themes) as an add-on. `classic.css` is the reading column, the type and the palette Luccet drew before 2.0; a colour theme after it changes the palette: Solarized, Gruvbox, Nord, Dracula, One, GitHub, Catppuccin, Tokyo Night, Rosé Pine, Monokai, Everforest, Kanagawa, Sepia and High contrast.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css"></script>
 ```
 
-`gruvbox.css` follows the reader's light or dark preference; `gruvbox-light.css` and `gruvbox-dark.css` keep one palette for everyone. A theme sets only colours, and your own CSS still wins over it.
+`gruvbox.css` follows the reader's light or dark preference; `gruvbox-light.css` and `gruvbox-dark.css` keep one palette for everyone. On its own, without `classic.css`, a colour theme colours a plain note. Your own CSS still wins over a theme.
 
 An add-on adds CSS with `luccet.style(css)`, or with the `css` field of a schema entry.
 
@@ -1725,7 +1725,7 @@ An add-on adds CSS with `luccet.style(css)`, or with the `css` field of a schema
 Luccet's code add-on colours fences by their language, with highlight.js, in the theme's colours:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js"></script>
 ```
 
 A fence then only needs its language, as ```` ```python ````. The [Add-ons](addons.html#code) page has the languages, the colours and how to use it offline.

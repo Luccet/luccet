@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // luccet.css's colours, read from src/css.js, and WCAG 2's contrast: for
-// test/palette.js (the base's palettes are readable) and test/addons.js (an
-// add-on that prints as the base prints). The themes, which set the same
+// test/palette.js (the colours the functional layer sets itself are readable
+// on the browser's own canvas) and test/addons.js (an add-on that prints as
+// the base prints). A value is a hex colour or one of the system's (Canvas,
+// CanvasText …), which the browser resolves. The themes, which set the same
 // properties, are built and checked in github.com/Luccet/themes.
 'use strict';
 
@@ -27,16 +29,18 @@ const contrast = (a, b) => {
 
 const css = () => require('../../src/css').css;
 // The --t-* properties and color-scheme a block sets, without the --t-.
-const props = (block) => Object.fromEntries([...block.matchAll(/(?<![\w-])(--t-[a-z-]+|color-scheme):\s*([^;]+);/g)].map((m) => [m[1].replace(/^--t-/, ''), m[2].trim()]));
+const props = (block) => Object.fromEntries([...block.matchAll(/(?<![\w-])(--t-[a-z-]+|color-scheme):\s*([^;]+);/g)].map((m) => [m[1].replace(/^--t-/, ''), m[2].replace(/\s*!important\s*$/, '').trim()]));
 const blockAt = (s, from) => props(s.slice(from, s.indexOf('}', from)));
 
-// The light and dark palettes, as luccet.css sets them.
+// The light and dark defaults, as luccet.css sets them (dark: what its dark
+// block changes, over the light).
 function palettes() {
   const s = css();
-  return { light: blockAt(s, s.indexOf(':root {')), dark: blockAt(s, s.indexOf(':root {', s.indexOf('@media (prefers-color-scheme: dark)'))) };
+  const light = blockAt(s, s.indexOf(':root {'));
+  return { light, dark: { ...light, ...blockAt(s, s.indexOf(':root {', s.indexOf('@media (prefers-color-scheme: dark)'))) } };
 }
 
-// What luccet.css prints: its light colours under its print overrides.
+// What luccet.css prints: its light colours under its print block.
 function printPalette() {
   const s = css();
   const light = blockAt(s, s.indexOf(':root {'));

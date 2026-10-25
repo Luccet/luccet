@@ -411,7 +411,7 @@ print("hello")
 
 ## Themes
 
-A theme is a CSS add-on from Luccet's themes repository, [Luccet/themes](https://github.com/Luccet/themes): list it in `data-use` by its jsDelivr URL, or as a copy next to the note. It sets colours only (the `--t-*` colour properties, the code colours and `color-scheme`); fonts, sizes and the column width stay luccet.css's.
+A note looks like plain HTML, in the browser's own type and colours (light or dark); luccet.css only makes Luccet's constructs work. The look is a CSS add-on from Luccet's themes repository, [Luccet/themes](https://github.com/Luccet/themes), listed in `data-use` by its jsDelivr URL or as a copy next to the note: **`classic.css`** (the reading column, the type and the palette Luccet drew before 2.0), and **colour themes**, which listed after `classic.css` change its palette, or alone colour a plain note (background, text, links, highlights):
 
 | Theme | Files | Modes |
 |---|---|---|
@@ -431,8 +431,8 @@ A theme is a CSS add-on from Luccet's themes repository, [Luccet/themes](https:/
 | Tokyo Night | `tokyo-night.css`, `tokyo-night-light.css`, `tokyo-night-dark.css` | light and dark |
 
 - **`NAME.css`** follows the reader's system light/dark setting; **`NAME-light.css`** and **`NAME-dark.css`** give every reader one palette. A one-mode theme is one file, the same for everyone.
-- **Load one:** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"` (`@1` follows the themes' fixes; pin `@v1.0.0` to be sure), or a copy next to the note, `data-use="themes/nord.css"`. Use one theme: one listed later overrides it at equal specificity.
-- **Contrast.** Every text colour meets 4.5:1 (7:1 in High contrast); a theme prints black on white like luccet.css.
+- **Load them:** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"` (`@1` follows the themes' fixes; pin `@v1.0.0` to be sure), or copies next to the note, `data-use="themes/classic.css themes/nord.css"`. Use one colour theme: one listed later overrides it at equal specificity.
+- **Contrast.** Every text colour meets 4.5:1 (7:1 in High contrast). Print (dark on light) and forced colours are luccet.css's, whatever the theme.
 - **Your CSS still wins** over a theme: set one property to change one colour. To make a new theme, copy a file and change its values; to add one to the collection, add its palette to the themes repository's `build.js`.
 
 ## Styling
@@ -455,7 +455,7 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 | `.t-error` | content shown as an error |
 | `.t-diagnostics` | the diagnostics panel, after `main` |
 
-**Custom properties**, on `:root`, read by luccet.css and by every theme:
+**Custom properties**, on `:root`: the contract between luccet.css (its own parts: the panel, line numbers, errors), the add-ons and a theme. Their defaults are the system's colours (`Canvas`, `CanvasText`, `LinkText` …), or luccet.css's own for errors, code and highlighted lines; the fonts and measures are a theme's:
 
 | Property | Sets |
 |---|---|
@@ -465,7 +465,7 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 | `--t-error`, `--t-error-bg`, `--t-warn` | errors and warnings |
 | `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | code colours for `code.js` |
 | `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts |
-| `--t-width`, `--t-size`, `--t-leading` | column width (`40rem`), base size (`18px`, `11pt` in print), line height |
+| `--t-width`, `--t-size`, `--t-leading` | column width, base size, line height: a theme's (`classic.css`: `40rem`, `18px`, `1.6`); luccet.css sets none |
 
 ```html
 <style>
@@ -478,9 +478,9 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 
 **Where your CSS goes.** Luccet's sheets form one group in the head: luccet.css, then each `data-use` entry in order (a CSS add-on, or what a script add-on adds with `luccet.style` — a math add-on's stylesheet among them), then other `luccet.style` sheets (schema `css` from `window.LUCCET.schema`, note scripts). Your head `<style>` or `<link rel="stylesheet">` comes after the group, and a `<style>` block in the note after that, so both win over luccet.css, themes and add-ons at equal specificity. For one note, a `<style>` in the head (before the luccet.js line) or at the end of the note is enough; for many, a CSS add-on.
 
-**Dark mode.** luccet.css sets the dark colours inside `@media (prefers-color-scheme: dark)`. A colour you set outside that query holds in both modes, so setting only some colours can put light text on your light background: set the whole palette, or set it per mode. For one palette for every reader, set every colour at the top level and `color-scheme: light` (or `dark`) on `:root`, or use a `-light`/`-dark` theme.
+**Dark mode.** luccet.css sets `color-scheme: light dark`, so a plain note follows the reader's system in the browser's own colours; a theme sets its dark colours inside `@media (prefers-color-scheme: dark)`. A colour you set outside that query holds in both modes, so setting only some colours can put light text on your light background: set the whole palette, or set it per mode.
 
-**Print.** luccet.css prints black on white with the light palette, `--t-size: 11pt`, no column limit, wrapped code, no panel; luccet.js opens every `details.t-block` and typesets pending math first. Change it with `@media print` rules. A property you set at the top level also wins over the print values, so give it a print value too.
+**Print.** luccet.css prints dark on light whatever the theme (every colour property `!important` in print), with wrapped code, nothing scrolling and no panel; luccet.js opens every `details.t-block` and typesets pending math first. The layout in print is a theme's (`classic.css`: no column limit, `11pt`, nothing split across pages). Change it with `@media print` rules; a colour property needs `!important` there.
 
 ## Behaviours
 

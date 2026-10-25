@@ -105,14 +105,19 @@ test("mermaid.js: the table is the pinned version's (tools/mermaid.js --check)",
   return 'checked against the cached package';
 });
 
-test("mermaid.js: its print palette is luccet.css's", () => {
+test("mermaid.js: its print palette is luccet.css's (its own colours as they are, the system's as browsers print them)", () => {
   const src = fs.readFileSync(path.join(DIR, 'mermaid.js'), 'utf8');
   const PRINT = new Function(`return ${/const PRINT = (\{[\s\S]*?\});/.exec(src)[1]}`)();
   const long = (h) => (h.length === 4 ? '#' + [...h.slice(1)].map((c) => c + c).join('') : h);
   const want = require('./lib/palette').printPalette();
   const keys = new Set([...Object.keys(PRINT), ...Object.keys(want)]);
-  const off = [...keys].filter((k) => PRINT[k] !== long(want[k] || ''));
-  if (off.length) throw new Error(off.map((k) => `--t-${k}: ${PRINT[k]}, luccet.css prints ${want[k]}`).join('; '));
+  const off = [];
+  for (const k of keys) {
+    if (!/^#[0-9a-f]{6}$/.test(PRINT[k] || '')) off.push(`--t-${k}: ${PRINT[k]} is not #rrggbb`);
+    else if (/^#/.test(want[k] || '') && PRINT[k] !== long(want[k])) off.push(`--t-${k}: ${PRINT[k]}, luccet.css prints ${want[k]}`);
+  }
+  if (PRINT.bg !== '#ffffff' || PRINT.fg !== '#000000') off.push(`Canvas and CanvasText print white and black, not ${PRINT.bg} and ${PRINT.fg}`);
+  if (off.length) throw new Error(off.join('; '));
 });
 
 // ---------------------------------------------------------------- cite.js

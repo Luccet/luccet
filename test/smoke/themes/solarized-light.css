@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: MIT */
 /* Solarized for Luccet, after Ethan Schoonover's Solarized (https://ethanschoonover.com/solarized/).
-   Light for every reader. Use: <script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/solarized-light.css"></script>
+   Light for every reader. Use after classic.css, for its column and type:
+   <script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/solarized-light.css"></script>
+   Alone, it colours a plain note: its background and text, links and highlights.
    Raised to 4.5:1 contrast: fg, muted, line-strong, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted.
    Built by build.js in github.com/Luccet/themes; edit that, not this file. */
 :root {
@@ -11,24 +13,10 @@
   --t-code-function: #1e6ca4; --t-code-type: #826300; --t-code-variable: #5d61a9; --t-code-meta: #b34213; --t-code-inserted: #606e00;
   --t-code-deleted: #c22c29;
 }
-@media print {
-  :root {
-    color-scheme: light;
-    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-line-strong: #767676;
-    --t-soft: #f3f4f1; --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea;
-    --t-warn: #8a5300; --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae;
-    --t-code-function: #6639ba; --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329;
-    --t-code-deleted: #82071e;
-  }
-}
 @media (prefers-contrast: more) {
   :root { --t-muted: #566c73; --t-line: #8b8f88; }
 }
-@media (forced-colors: active) {
-  :root {
-    --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
-    --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
-  }
-  .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
-  .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
-}
+html { background: var(--t-bg); color: var(--t-fg); }
+.luccet a { color: var(--t-link); }
+.luccet mark, .luccet mark a { color: var(--t-fg); }
+.luccet mark { background: var(--t-mark); }

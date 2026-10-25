@@ -65,7 +65,8 @@
   delete opts.base;
   for (const k of Object.keys(opts)) if (opts[k] === 'true' || opts[k] === 'false') opts[k] = opts[k] === 'true';
 
-  // luccet.css's print palette (src/css.js, @media print).
+  // luccet.css's print palette (src/css.js, @media print): its own colours as
+  // they are, the system's (Canvas, CanvasText …) as browsers print them.
   const PRINT = {
     bg: '#ffffff', fg: '#000000', muted: '#555555', line: '#d9dde3', 'line-strong': '#767676', soft: '#f3f4f1',
     link: '#0b62c4', mark: '#fff2a8', error: '#b3261e', 'error-bg': '#fdecea', warn: '#8a5300',
@@ -126,14 +127,36 @@
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   };
 
-  // The palette in effect at el, and its sans-serif font.
+  // The palette in effect at el, and its sans-serif font. A colour can be one
+  // of the system's (Canvas, CanvasText …, luccet.css's defaults), which
+  // means one thing in light and another in dark: each is resolved by a probe
+  // that takes el's colour scheme, outside the note, and read back as the
+  // browser computes it. The palette's key (keyOf) is what it is made of, the
+  // properties as written and the scheme, not the colours they resolve to: a
+  // drawing made for the system's colours in one browser (luccet build
+  // --diagrams draws in Chromium) fits another, whose system greys differ by
+  // a shade.
   function palette(el) {
     const cs = getComputedStyle(el);
     const p = { font: cs.getPropertyValue('--t-sans').trim() || 'sans-serif' };
-    for (const k of KEYS) p[k] = hex(cs.getPropertyValue(`--t-${k}`).trim() || PRINT[k]);
+    const written = [];
+    const probe = document.createElement('span');
+    probe.hidden = true;
+    probe.style.colorScheme = cs.colorScheme || 'normal';
+    document.documentElement.appendChild(probe);
+    for (const k of KEYS) {
+      const value = cs.getPropertyValue(`--t-${k}`).trim();
+      written.push(value);
+      probe.style.color = PRINT[k];
+      probe.style.color = value;
+      p[k] = hex(getComputedStyle(probe).color);
+    }
+    probe.remove();
+    p.key = `${written.join()}${p.font}|${luminance(p.bg) < 0.18 ? 'dark' : 'light'}`;
     return p;
   }
-  const keyOf = (p) => KEYS.map((k) => p[k]).join() + p.font;
+  // The print palette is written as its colours, and light.
+  const keyOf = (p) => p.key || `${KEYS.map((k) => p[k]).join()}${p.font}|light`;
 
   // #rrggbb as [hue, saturation, lightness], in degrees and percents, and
   // [h, s, l] as hsl().

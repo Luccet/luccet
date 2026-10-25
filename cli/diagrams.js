@@ -102,8 +102,9 @@ function findMermaid(dir, entry) {
 
 // ---------------------------------------------------------------- in the page
 
-// The colour properties the add-on's palette reads (its PRINT keys): their
-// raw values tell whether the dark scheme changes the palette at all.
+// The colour properties the add-on's palette reads (its PRINT keys): the
+// colours they resolve to tell whether the dark scheme changes the palette at
+// all (a system colour, luccet.css's default, is written the same in both).
 const KEYS = ['bg', 'fg', 'muted', 'line', 'line-strong', 'soft', 'link', 'mark', 'error', 'error-bg', 'warn', 'code-comment', 'code-keyword', 'code-string', 'code-number', 'code-function', 'code-type', 'code-variable', 'code-meta', 'code-inserted', 'code-deleted'];
 
 // Every mermaid fence of the page in document order, as it stands: drawn
@@ -130,7 +131,16 @@ const STATE = `(() => {
 })()`;
 const SIGNATURE = `(() => {
   const cs = getComputedStyle(document.querySelector('main.luccet') || document.documentElement);
-  return ${JSON.stringify(KEYS)}.map((k) => cs.getPropertyValue('--t-' + k).trim()).join('|') + '|' + cs.getPropertyValue('--t-sans').trim();
+  const probe = document.createElement('span');
+  probe.hidden = true;
+  probe.style.colorScheme = cs.colorScheme || 'normal';
+  document.documentElement.appendChild(probe);
+  const colours = ${JSON.stringify(KEYS)}.map((k) => {
+    probe.style.color = cs.getPropertyValue('--t-' + k).trim();
+    return getComputedStyle(probe).color;
+  });
+  probe.remove();
+  return colours.join('|') + '|' + cs.getPropertyValue('--t-sans').trim();
 })()`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

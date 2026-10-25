@@ -1480,7 +1480,7 @@ test('build --diagrams: mermaid fences drawn ahead with light, dark and print co
   wellFormed(html);
   ok(/<style id="luccet-mermaid-style">\n\.t-mermaid \{/.test(p.head), 'the diagrams stylesheet in the head');
   // The fence's id and data-pos on the wrapper, the fence hidden inside; a listing keeps its figure.
-  ok(/<div class="t-mermaid" id="flow" data-pos="4:1"><svg[^>]*class="t-mermaid-screen t-mermaid-light"[^>]*data-palette="#[0-9a-f]{6},/.test(p.main), `the first wrapper: ${p.main.slice(0, 300)}`);
+  ok(/<div class="t-mermaid" id="flow" data-pos="4:1"><svg[^>]*class="t-mermaid-screen t-mermaid-light"[^>]*data-palette="Canvas,CanvasText,[^"]*\|light"/.test(p.main), `the first wrapper, its palette as written (the system's colours) and its scheme: ${p.main.slice(0, 300)}`);
   ok(/<figure id="lst" class="t-block code" data-t="code" data-pos="9:1"><div class="t-mermaid"><svg/.test(p.main), 'the listing wrapped inside its figure');
   const copies = [...p.main.matchAll(/<svg\b[^>]*class="(t-mermaid-[a-z -]+)"/g)].map((m) => m[1]);
   eq(copies, ['t-mermaid-screen t-mermaid-light', 't-mermaid-screen t-mermaid-dark', 't-mermaid-print', 't-mermaid-screen t-mermaid-light', 't-mermaid-screen t-mermaid-dark', 't-mermaid-print'], 'a light, a dark and a print copy per diagram (luccet.css follows the system)');

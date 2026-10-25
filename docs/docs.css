@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: MIT */
 /* docs.css: the documentation's styles (docs/README.md), with docs.js.
-   The palette is the logo's: ivory paper, navy ink and a navy navigation like
+   luccet.css is functional only, so the look starts here: the reading
+   column, the type and the spacing (as the classic theme has them), then the
+   palette, which is the logo's: ivory paper, navy ink and a navy navigation like
    its disc, gold for rules, labels and the current page like its rings; on a
    dark scheme, a navy night with gold links. It is set as luccet.css's --t-*
    variables, so the page and an example's result share it. Every colour that
@@ -26,6 +28,8 @@
   --t-link: #1c4b92; --t-mark: #f9e6a0;
   --t-font: "Source Serif 4", Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
   --t-sans: var(--t-font);
+  --t-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --t-size: 1.125rem; --t-leading: 1.6; /* 18px at the browser's default size, so a reader's own size setting holds */
   --docs-display: Cinzel, "Trajan Pro", "Cormorant Garamond", "Palatino Linotype", Palatino, serif;
   --docs-heading: "Cormorant Garamond", "EB Garamond", Garamond, "Palatino Linotype", Palatino, serif;
   --docs-head: #0d2a5c;      /* headings */
@@ -51,6 +55,72 @@
     --tk-mark: #f0c35e; --tk-name: #9fc0ff; --tk-attr: #7ee0d0; --tk-math: #d2a8ff; --tk-code: #7ee787;
     --tk-ref: #8fb4ee; --tk-key: #ffa657; --tk-value: #a5d6ff;
   }
+}
+
+/* ---- the look the pages build on. luccet.css is functional only (a note
+   looks like plain HTML); this is the reading column, the type and the
+   spacing, as the classic theme of github.com/Luccet/themes has them, in
+   this palette. It applies to an example's result too, as luccet.css's look
+   did before 2.0. */
+html { background: var(--t-bg); color: var(--t-fg); font: var(--t-size)/var(--t-leading) var(--t-font); -webkit-text-size-adjust: 100%; }
+body { margin: 0; padding: 2.5rem 1rem 6rem; }
+.luccet { max-width: var(--t-width); margin-inline: auto; hanging-punctuation: first last; }
+.luccet > :first-child { margin-block-start: 0; }
+.luccet :is(h1, h2, h3, h4, h5, h6) { font-family: var(--t-sans); line-height: 1.25; margin-block: 2em .6em; text-wrap: balance; }
+/* Body text wraps for an even rag and no stranded last word; headings balance. */
+.luccet :is(p, li, dd, blockquote, figcaption, caption, .t-title) { text-wrap: pretty; }
+.luccet h1 { font-size: 1.9rem; }
+.luccet h2 { font-size: 1.4rem; padding-block-end: .25em; border-block-end: 1px solid var(--t-line); }
+.luccet h3 { font-size: 1.15rem; }
+.luccet :is(h4, h5, h6) { font-size: 1rem; }
+.luccet :is(p, ul, ol, dl, pre, table, blockquote, figure, details), .t-block, .t-eq { margin-block: 0 1rem; margin-inline: 0; }
+.luccet a { color: var(--t-link); text-decoration-thickness: .06em; text-underline-offset: .15em; }
+.luccet :is(ul, ol) { padding-inline-start: 1.6rem; }
+.luccet li > :is(ul, ol) { margin-block-end: 0; }
+.luccet li > p { margin-block-end: .5rem; }
+.luccet hr { border: 0; border-block-start: 1px solid var(--t-line); margin-block: 2rem; }
+.luccet blockquote { padding-inline-start: 1rem; border-inline-start: 3px solid var(--t-line); color: var(--t-muted); }
+/* Text in a highlight is the text colour, whatever it was (muted, a link, which keeps its underline): the pair that is checked is fg on mark. */
+.luccet mark, .luccet mark a { color: var(--t-fg); }
+.luccet mark { background: var(--t-mark); padding-inline: .15em; border-radius: 2px; }
+
+/* Code. */
+.luccet :is(code, kbd, samp, pre) { font-family: var(--t-mono); font-size: .85em; }
+.luccet pre code { font-size: 1em; }
+.luccet :not(pre) > code { background: var(--t-soft); padding: .12em .35em; border-radius: 4px; }
+.luccet kbd { border: 1px solid var(--t-line-strong); border-block-end-width: 2px; border-radius: 4px; padding: .05em .4em; }
+.luccet pre { background: var(--t-soft); padding: .8rem 1rem; border-radius: 6px; line-height: 1.45; }
+.luccet pre[data-lines] .t-line::before { color: var(--t-muted); }
+
+/* Tables. */
+.luccet table { border-collapse: collapse; font-size: .95em; }
+.luccet :is(th, td) { border: 1px solid var(--t-line); padding: .35em .7em; }
+.luccet th { background: var(--t-soft); font-family: var(--t-sans); font-size: .9em; }
+.luccet caption { caption-side: top; text-align: start; padding-block-end: .4em; }
+
+/* Named blocks, titles and labels. */
+.t-title { font-weight: 600; margin-block-end: .4rem; }
+.luccet :is(figcaption, caption).t-title { font-weight: normal; color: var(--t-muted); font-size: .95em; }
+.luccet figcaption.t-title { margin-block: .4rem 0; }
+.t-block > :last-child, .t-cell > :last-child, .luccet blockquote > :last-child { margin-block-end: 0; }
+.luccet figure > img { display: block; margin-inline: auto; }
+.t-eqno { color: var(--t-muted); font-family: var(--t-font); }
+
+/* Footnotes and problems. */
+.t-fnref { line-height: 0; font-size: .75em; }
+.t-fnref a, .t-fnback { text-decoration: none; }
+.t-footnotes { border-block-start: 1px solid var(--t-line); margin-block-start: 3rem; padding-block-start: 1rem; font-size: .9em; }
+.luccet .t-error { font-size: .85em; }
+
+/* Print: the page's own width, and paged typesetting: no stranded lines across a page break, no heading
+   left at a page's foot, figures, equations, quotes and table rows kept whole. (Colours: luccet.css's.) */
+@media print {
+  :root { --t-size: 11pt; }
+  body { padding: 0; }
+  .luccet { max-width: none; }
+  .luccet :is(p, li, blockquote) { orphans: 3; widows: 3; }
+  .luccet :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
+  .luccet :is(figure, figcaption, .t-eq, blockquote, tr) { break-inside: avoid; }
 }
 
 /* A page's links carry a gold underline, the text's colour when hovered. */

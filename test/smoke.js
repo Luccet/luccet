@@ -1383,7 +1383,7 @@ const TESTS = [
           flow: flow && flow.matches('.t-mermaid') && !!flow.querySelector(':scope > svg') && flow.querySelector(':scope > pre').hidden,
           pos: flow && flow.hasAttribute('data-pos'),
           fill: rect && getComputedStyle(rect).fill,
-          soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim(),
+          soft: (() => { const s = document.createElement('span'); s.style.color = 'var(--t-soft)'; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; })(), // resolved, as the add-on resolves it: luccet.css's default is the system's ButtonFace
           listing: listing && !!listing.querySelector(':scope > .t-mermaid > svg') && !!listing.querySelector(':scope > figcaption'),
           broken: broken && broken.previousElementSibling && broken.previousElementSibling.matches('pre:not([hidden])') && /Parse error/.test(broken.textContent),
           js: !!document.querySelector('main.luccet > pre > code.language-js'),
@@ -1411,7 +1411,7 @@ const TESTS = [
       });
       const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
       if (!r.flow || !r.pos) throw new Error(`#flow: drawn ${r.flow}, data-pos ${r.pos}`);
-      if (r.fill !== rgb(r.soft)) throw new Error(`a flowchart node is filled ${r.fill}, --t-soft is ${r.soft}`);
+      if (r.fill !== r.soft) throw new Error(`a flowchart node is filled ${r.fill}, --t-soft resolves to ${r.soft}`);
       if (!r.listing) throw new Error('the listing lost its diagram or its caption');
       if (!r.broken) throw new Error('the broken diagram is not shown as source with its error');
       if (!r.js) throw new Error('the js fence was touched');
@@ -1437,7 +1437,7 @@ const TESTS = [
           fill: node && getComputedStyle(node).fill,
           maxWidth: shown[0] && shown[0].style.maxWidth,
           kinds: shown.map((s) => s.classList[s.classList.length - 1]),
-          soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim(),
+          soft: (() => { const s = document.createElement('span'); s.style.color = 'var(--t-soft)'; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; })(), // resolved, as the add-on resolves it: luccet.css's default is the system's ButtonFace
           csp: window.__csp,
           nonces: [...document.querySelectorAll('script[src*="mermaid@"]')].map((e) => e.nonce),
         };
@@ -1447,7 +1447,7 @@ const TESTS = [
       if (screen.csp.length) throw new Error(`CSP violations: ${screen.csp.slice(0, 3).join('; ')}`);
       if (JSON.stringify(screen.nonces) !== JSON.stringify(['luccet-smoke-nonce'])) throw new Error(`Mermaid's script nonces ${JSON.stringify(screen.nonces)}`);
       if (screen.kinds.join() !== 't-mermaid-screen,t-mermaid-screen') throw new Error(`on screen: ${screen.kinds.join()}`);
-      if (screen.fill !== rgb(screen.soft)) throw new Error(`a node is filled ${screen.fill}, nord's --t-soft is ${screen.soft} (the SVG's <style> did not apply?)`);
+      if (screen.fill !== screen.soft) throw new Error(`a node is filled ${screen.fill}, nord's --t-soft is ${screen.soft} (the SVG's <style> did not apply?)`);
       if (!/px$/.test(screen.maxWidth || '')) throw new Error(`the SVG's max-width is "${screen.maxWidth}" (its style attribute was not set again)`);
       await page.emulateMedia({ media: 'print' });
       const print = await page.evaluate(look);
@@ -1466,8 +1466,8 @@ const TESTS = [
       const light = await page.evaluate(fill);
       await page.emulateMedia({ colorScheme: 'dark' });
       await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill !== was && document.querySelector('#flow > svg.t-mermaid-print'), light, { timeout: 20000 });
-      const dark = await page.evaluate(() => ({ fill: getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill, soft: getComputedStyle(document.documentElement).getPropertyValue('--t-soft').trim() }));
-      if (dark.soft !== '#1f2329' || dark.fill !== 'rgb(31, 35, 41)') throw new Error(`after the switch a node is filled ${dark.fill}, --t-soft is ${dark.soft}`);
+      const dark = await page.evaluate(() => ({ fill: getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill, soft: (() => { const s = document.createElement('span'); s.style.color = 'var(--t-soft)'; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; })() }));
+      if (dark.fill !== dark.soft || dark.fill === light) throw new Error(`after the switch a node is filled ${dark.fill} (it was ${light}), --t-soft resolves to ${dark.soft}`);
       await page.emulateMedia({ colorScheme: 'light' });
       await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === was, light, { timeout: 20000 });
       // Once the redraws the switches queued are done, render the note again.
@@ -1557,7 +1557,7 @@ const TESTS = [
           display: cs && cs.display,
           columns: cs && cs.gridTemplateColumns,
           script: window.__noteScript === true,
-          base: getComputedStyle(document.querySelector('main.luccet')).maxWidth,
+          base: getComputedStyle(document.querySelector('main.luccet')).overflowWrap, // a rule of luccet.css's own
           nonceGone: !document.querySelector('script[data-nonce]'),
         };
       });
@@ -1569,7 +1569,7 @@ const TESTS = [
       const tracks = String(r.columns || '').split(/\s+/).map(parseFloat);
       if (r.display !== 'grid' || tracks.length !== 2 || !(Math.abs(tracks[0] / tracks[1] - 2) < 0.02)) problems.push(`grid: display ${r.display}, grid-template-columns ${JSON.stringify(r.columns)}, expected two tracks at 2:1`);
       if (!r.script) problems.push('the note script did not run (nonce)');
-      if (r.base === 'none') problems.push("luccet's base stylesheet is not applied (nonce)");
+      if (r.base !== 'break-word') problems.push("luccet's base stylesheet is not applied (nonce)");
       if (problems.length) throw new Error(problems.join(' | '));
     },
   },
@@ -2150,16 +2150,16 @@ const TESTS = [
           source: !!document.querySelector('script[type="text/luccet"]#luccet-source'),
           title: document.title,
           lang: document.documentElement.lang,
-          width: getComputedStyle(document.querySelector('main.luccet')).maxWidth,
+          wrap: getComputedStyle(document.querySelector('main.luccet')).overflowWrap, // a rule of luccet.css's own
           border: box && getComputedStyle(box).borderTopStyle,
           panel: !!document.querySelector('.t-diagnostics'),
         };
       });
       const want = { luccet: 'undefined', h1: 'Smoke: a built page', label: 'Box 1', ref: 'Box 1', math: 2, source: true, title: 'Smoke: a built page', lang: 'en', border: 'solid', panel: false };
       const got = { ...r };
-      delete got.width;
+      delete got.wrap;
       if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`page ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
-      if (r.width === 'none') throw new Error('luccet.css is not applied (main.luccet has no max-width)');
+      if (r.wrap !== 'break-word') throw new Error('luccet.css is not applied (main.luccet does not wrap long words)');
     },
   },
   {

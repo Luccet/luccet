@@ -1289,40 +1289,43 @@ The title belongs in brackets.
 
 ### Custom properties {#custom-properties}
 
-The base stylesheet, `luccet.css`, reads its colours, fonts and measures from custom properties on `:root`.
+The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, in the browser's own type and colours, light or dark, and `luccet.css` adds only what Luccet's constructs need (line numbers, grids, an equation's number, scrolling where content would overflow, errors and the diagnostics panel). The look is a [theme's](#themes). The custom properties on `:root` are the contract between them: `luccet.css` draws its own parts with them, the code and Mermaid add-ons read them, and a theme sets them. Their defaults are the system's colours, or `luccet.css`'s own where the system has none.
 
 :::table[Custom properties]{#tbl-properties}
 | Property | Light | Dark | Used for |
 |---|---|---|---|
-| `--t-bg` | `#fdfdfb` | `#16181c` | the page background |
-| `--t-fg` | `#1f2328` | `#dcdfe4` | the text |
-| `--t-muted` | `#636c76` | `#8b949e` | quotes, captions, equation numbers, line numbers |
-| `--t-line` | `#d9dde3` | `#30363d` | rules, table borders, the `h2` underline |
-| `--t-line-strong` | `#767676` | `#8b949e` | a control's border, 3:1 against the page: `kbd`, the diagnostics panel, a search box |
-| `--t-soft` | `#f3f4f1` | `#1f2329` | code backgrounds, table headers |
-| `--t-link` | `#0b62c4` | `#6cb0ff` | links |
-| `--t-mark` | `#fff2a8` | `#5c4d00` | `==highlight==` and highlighted code lines; text in a highlight is `--t-fg`, whatever it was |
+| `--t-bg` | `Canvas` | | the page as the browser draws it: the diagnostics panel, Mermaid; a theme's page |
+| `--t-fg` | `CanvasText` | | the text |
+| `--t-muted` | `CanvasText` | | line numbers; quotes, captions and equation numbers in a theme (the system's `GrayText` is too faint for text in some browsers) |
+| `--t-line` | `GrayText` | | rules and borders in a theme |
+| `--t-line-strong` | `GrayText` | | a control's border, 3:1 against the page: the diagnostics panel; `kbd` and a search box in a theme |
+| `--t-soft` | `ButtonFace` | | Mermaid's shapes; code backgrounds and table headers in a theme |
+| `--t-link` | `LinkText` | | links in a theme |
+| `--t-mark` | `#fff2a8` | `#5c4d00` | highlighted code lines; `==highlight==` in a theme, where text in it is `--t-fg` (a plain note's highlight is the browser's) |
 | `--t-error` | `#b3261e` | `#ffb4ab` | `.t-error` text and border, the panel |
 | `--t-error-bg` | `#fdecea` | `#3b1714` | `.t-error` background |
 | `--t-warn` | `#8a5300` | `#e3b341` | warnings in the panel |
-| `--t-font` | Charter, Georgia, serif … | | the body text |
-| `--t-sans` | `system-ui` … | | headings, table headers, the panel |
-| `--t-mono` | `ui-monospace` … | | code |
-| `--t-width` | `40rem` | | the width of the text column |
-| `--t-size` | `1.125rem` | | the base font size: 18px at the browser's default, so a reader's own size setting holds; `11pt` in print |
-| `--t-leading` | `1.6` | | the line height |
+| `--t-sans` | `system-ui, sans-serif` | | the panel; headings and table headers in a theme |
+| `--t-mono` | `monospace` | | `.t-error`; code in a theme |
+| `--t-font`, `--t-width`, `--t-size`, `--t-leading` | | | a theme's body font, text column, base size and line height; `luccet.css` sets none of them, the [classic theme](#themes) sets all four |
 | `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | GitHub's | GitHub's | code colours, for the [code add-on](addons.html#code-colours) |
 | `--t-cols` | | | a grid's columns, set by Luccet on each grid |
 :::
 
 ### Overriding them {#overriding}
 
-Set the properties in your own CSS. A style in the head, before the luccet.js line, is enough:
+A note is an HTML page, so CSS styles it as any page: write rules for its elements, `body`, `h1`, `a`, `pre`. With a theme, set its properties instead. A style in the head, before the luccet.js line, is enough:
+
+```html
+<!doctype html><meta charset="utf-8"><style>
+body { max-inline-size: 42rem; margin-inline: auto; font: 1.1rem/1.6 Georgia, serif; }
+</style><script src="luccet.js"></script>
+```
 
 ```html
 <!doctype html><meta charset="utf-8"><style>
 :root { --t-width: 48rem; --t-font: "Iowan Old Style", Georgia, serif; --t-link: #8a3ffc; }
-</style><script src="luccet.js"></script>
+</style><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css"></script>
 ```
 
 **The cascade.** Luccet's stylesheets form one group in the head, placed before the head's first stylesheet of your own, in this order:
@@ -1354,8 +1357,8 @@ luccet.style(css)   // adds a <style> to the head; returns it
 
 ### Dark mode {#dark-mode}
 
-- **The palette** follows the reader's system setting: `luccet.css` sets the dark values of the colour properties inside `@media (prefers-color-scheme: dark)`.
-- **The browser's own parts.** luccet.js adds `<meta name="color-scheme" content="light dark">` unless the head has one, so form controls and scrollbars match.
+- **A plain note follows the reader's system setting**: `luccet.css` sets `color-scheme: light dark`, so the browser draws the page light or dark, and the colour properties default to the system's colours, which follow. Its own colours (errors, code, highlighted lines) have dark values inside `@media (prefers-color-scheme: dark)`.
+- **The browser's own parts.** luccet.js adds `<meta name="color-scheme" content="light dark">` unless the head has one, so form controls and scrollbars match from the first paint.
 - **Restyling dark mode only:** set your values inside the same media query:
 
   ```css
@@ -1365,39 +1368,41 @@ luccet.style(css)   // adds a <style> to the head; returns it
   ```
 
 - **A property set outside a media query holds in both modes**, since your CSS comes later. Set some colours that way and not the others, and the others still switch: light text can end up on your light background. Set the whole palette, or set it per mode.
-- **One palette for every reader:** set every colour property at the top level, and `color-scheme: light` (or `dark`) on `:root`. A `color-scheme` key in `:::meta`, or a `<meta name="color-scheme">` in the head, sets only the browser's own parts: `luccet.css` still follows the system setting.
+- **One palette for every reader:** set `color-scheme: light` (or `dark`) on `:root`, and every colour property at the top level. A `color-scheme` key in `:::meta`, or a `<meta name="color-scheme">` in the head, sets only the browser's own parts.
 
 ### Themes {#themes}
 
-Colour themes after well-known editor palettes live in their own repository, [Luccet/themes](https://github.com/Luccet/themes): Catppuccin, Dracula, Everforest, GitHub, Gruvbox, High contrast, Kanagawa, Monokai, Nord, One, Rosé Pine, Sepia, Solarized and Tokyo Night. A theme is a stylesheet [add-on](#addons): list it in `data-use`, from jsDelivr or as a copy next to the note.
+The look is a theme's, and Luccet's live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). A theme is a stylesheet [add-on](#addons): list it in `data-use`, from jsDelivr or as a copy next to the note.
+
+- **`classic.css`** is the reading column, the type and the palette `luccet.css` drew before 2.0, light or dark.
+- **Colour themes** after well-known editor palettes: Catppuccin, Dracula, Everforest, GitHub, Gruvbox, High contrast, Kanagawa, Monokai, Nord, One, Rosé Pine, Sepia, Solarized and Tokyo Night. Listed after `classic.css`, one changes its palette and keeps the rest; on its own, it colours a plain note: its background and text, links and highlights.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
 ```
 
 The repository's README lists every theme and its files. Pin a release of the themes (`@v1.0.0`) to be sure; `@1` follows the fixes of a major.
 
-- **A theme with both modes has three files.** `NAME.css` follows the reader's system setting, as luccet.css does. `NAME-light.css` and `NAME-dark.css` give every reader one palette. A theme with one mode is one file, the same for every reader.
-- **Colours only.** A theme sets the colour properties and `color-scheme`, the [code colours](addons.html#code-colours) included, after the original theme's syntax colours. Fonts, sizes and the column width stay luccet.css's ([Custom properties](#custom-properties)).
+- **A colour theme with both modes has three files.** `NAME.css` follows the reader's system setting. `NAME-light.css` and `NAME-dark.css` give every reader one palette. A theme with one mode is one file, the same for every reader.
 - **Your CSS still wins.** A theme cascades after luccet.css and before your own styles ([Overriding them](#overriding)): set a property yourself to change one colour of a theme.
-- **Readable, and printed as the base.** Every theme reaches the contrast luccet.css's own palettes do: 4.5:1 for every text colour (WCAG AA), 7:1 in High contrast, a control's border 3:1. It answers `prefers-contrast: more` and forced colours as luccet.css does, and prints as it does, black on white ([Print](#print)). The themes repository builds each file from its palette and checks all of this.
-- **Your own theme.** A theme is a stylesheet that sets the colour properties on `:root`, and again under `@media (prefers-color-scheme: dark)` for a dark mode: copy one of the themes and change its values. To add one to the collection, add its palette to the themes repository's `build.js`.
+- **Readable.** Every theme reaches 4.5:1 for every text colour (WCAG AA), 7:1 in High contrast, a control's border 3:1, and answers `prefers-contrast: more`; the themes repository checks each one. Print and forced colours are `luccet.css`'s ([Print](#print)), whatever the theme.
+- **Your own theme.** A theme is a stylesheet that sets the colour properties on `:root`, and again under `@media (prefers-color-scheme: dark)` for a dark mode, and styles the page with them: copy one of the themes and change its values.
+
 ### Print {#print}
 
 `luccet.css` has a print stylesheet:
-- the text is black on white, every other colour is the light palette's even for a reader in dark mode, `color-scheme` is `light`, and `--t-size` is `11pt`;
-- the text column has no maximum width, and the body no padding;
+- the page prints dark on light: `color-scheme` is `light` and every colour property takes its light value (the system's light colours, `luccet.css`'s own for errors, code and highlights), `!important`, so a dark theme or a reader in dark mode still prints on white, and no theme has to repeat this;
 - code wraps, and tables, code and equations no longer scroll;
 - the diagnostics panel is hidden;
 - a math add-on's formulas stay in their sentences in the PDF's text.
 
-Before printing, luccet.js opens every `details.t-block` (closing them again afterwards), and a [math add-on](addons.html#katex) typesets every formula still waiting.
+The rest is a theme's: `classic.css` drops its column limit and padding in print, sets `--t-size` to `11pt`, and keeps paragraphs, headings, figures and equations whole across page breaks. Before printing, luccet.js opens every `details.t-block` (closing them again afterwards), and a [math add-on](addons.html#katex) typesets every formula still waiting.
 
-To change print, write `@media print` rules. A property you set at the top level of your CSS also wins over the print values: give it a print value too.
+To change print, write `@media print` rules. To print a colour property your own way, set it `!important` there:
 
 ```css
 @media print {
-  :root { --t-size: 10pt; --t-link: #000; }
+  :root { --t-link: #000 !important; }
   .callout-toggle { display: none; }
 }
 ```
