@@ -97,7 +97,7 @@ The toc is a `nav` listing both headings, the theorem a `section` labelled "Theo
 An add-on is a script or a stylesheet listed, space-separated, in `data-use` on the luccet.js tag:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="themes/gruvbox.css addons/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js"></script>
 ```
 
 or, one or more per line, in a `:::use` block, the readable form for several. It must lead the note: top level, before any content, with only `:::meta` and blank lines before it; one anywhere else is `use.late` (error) and ignored. Both forms merge, the tag's entries first. The block emits nothing.
@@ -106,7 +106,7 @@ or, one or more per line, in a `:::use` block, the readable form for several. It
 <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::use
-themes/gruvbox.css
+https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css
 addons/code.js
 :::
 ```
@@ -119,15 +119,15 @@ addons/code.js
 | a remote script (`https://…`) | loaded by the browser | not loaded: `addon.remote` (info); the names it declares are unknown to the check |
 | a remote stylesheet | loaded by the browser | nothing reported |
 
-- **Paths** are URLs relative to the note, like any `src`: from `notes/a.html` write `data-use="../themes/nord.css"`, as its luccet.js line has `src="../luccet.js"`. Under the command line a root-relative path (`/lib/x.js`) resolves from the note's folder or the nearest ancestor that has it.
+- **Paths** are URLs relative to the note, like any `src`: from `notes/a.html` write `data-use="../addons/code.js"`, as its luccet.js line has `src="../luccet.js"`. Under the command line a root-relative path (`/lib/x.js`) resolves from the note's folder or the nearest ancestor that has it.
 - **Order.** Scripts download in parallel and run in the order listed; a later add-on sees and can change an earlier one's entries. Stylesheets cascade in the order listed: a theme listed after another CSS add-on wins at equal specificity.
 - **Options** go in the query string and arrive in `luccet.config.use.NAME`, where NAME is the file name without its folder, `.min` and extension: `data-use="lib/callout.min.js?collapse=all"` gives `luccet.config.use.callout.collapse === 'all'`. Write `&` as `&amp;` in strict HTML; both work. In a `:::use` entry, write `&` as it is. Defaults can sit in `window.LUCCET = {use: {callout: {…}}}`; the query wins key by key.
 - **Failure never blanks the note.** A script that fails to load renders the note without it; one that throws renders it with what it registered before the error. Both are `addon.failed`.
 - **A remote add-on that declares names** makes `luccet check` blind to them: under strict names those names show as `name.unknown`, and `luccet build` warns that the page uses them without their entries. Prefer a local copy when the vocabulary matters to the check. `addon.remote` alone does not fail the check.
-- **`luccet new FILE --use="../themes/nord.css ../addons/code.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
+- **`luccet new FILE --use="../addons/code.js ../addons/katex.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
 
 ```html expect="addon.remote"
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/addons/code.js https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/themes/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/addons/code.js https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
 
 # Remote add-ons
 ```
@@ -374,7 +374,7 @@ Luccet ships two script add-ons in `addons/`, next to `luccet.js`. Neither decla
 <script>
 window.LUCCET = {schema: {block: {figure: {tag: 'figure', counter: 'figure', label: 'Figure'}}}};
 </script>
-<script src="luccet.js" data-use="themes/gruvbox.css addons/code.js addons/mermaid.js"></script>
+<script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js addons/mermaid.js"></script>
 
 :::figure[From source to page]{#fig-pipeline}
 ```mermaid
@@ -411,7 +411,7 @@ print("hello")
 
 ## Themes
 
-A theme is a CSS add-on from the `themes/` folder next to `luccet.js`: list it in `data-use`. It sets colours only (the `--t-*` colour properties, the code colours and `color-scheme`); fonts, sizes and the column width stay luccet.css's.
+A theme is a CSS add-on from Luccet's themes repository, [Luccet/themes](https://github.com/Luccet/themes): list it in `data-use` by its jsDelivr URL, or as a copy next to the note. It sets colours only (the `--t-*` colour properties, the code colours and `color-scheme`); fonts, sizes and the column width stay luccet.css's.
 
 | Theme | Files | Modes |
 |---|---|---|
@@ -431,9 +431,9 @@ A theme is a CSS add-on from the `themes/` folder next to `luccet.js`: list it i
 | Tokyo Night | `tokyo-night.css`, `tokyo-night-light.css`, `tokyo-night-dark.css` | light and dark |
 
 - **`NAME.css`** follows the reader's system light/dark setting; **`NAME-light.css`** and **`NAME-dark.css`** give every reader one palette. A one-mode theme is one file, the same for everyone.
-- **Load one:** `data-use="themes/nord.css"` (relative to the note), or from jsDelivr `https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/themes/nord.css` with the note's TAG. Use one theme: one listed later overrides it at equal specificity.
+- **Load one:** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"` (`@1` follows the themes' fixes; pin `@v1.0.0` to be sure), or a copy next to the note, `data-use="themes/nord.css"`. Use one theme: one listed later overrides it at equal specificity.
 - **Contrast.** Every text colour meets 4.5:1 (7:1 in High contrast); a theme prints black on white like luccet.css.
-- **Your CSS still wins** over a theme: set one property to change one colour. To make a new theme, copy a file and change its values.
+- **Your CSS still wins** over a theme: set one property to change one colour. To make a new theme, copy a file and change its values; to add one to the collection, add its palette to the themes repository's `build.js`.
 
 ## Styling
 
@@ -593,7 +593,7 @@ conjecture: {tag: 'section', counter: 'theorem', label: 'Conjecture', ref: '{lab
 
 **Translate the labels.** Make each `label` a map with the new language and set `lang` once (`:::meta` or `<html lang>`).
 
-**Add a theme and code colours.** `data-use="themes/github.css addons/code.js"` with paths relative to the note; check that the files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
+**Add a theme and code colours.** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/github.css addons/code.js"`: the theme from jsDelivr (or a copy next to the note), the add-on by its path relative to the note; check that local files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
 
 **A note opened without a network.** Copy highlight.js, Mermaid and KaTeX (or Temml) next to the note and point each add-on's `?base=` at them; otherwise code stays plain, diagrams stay source and math stays TeX.
 

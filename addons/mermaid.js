@@ -496,7 +496,8 @@
   }
 
   // Redraw what a palette change leaves stale: the reader's light or dark
-  // preference, or a theme switched in (the switcher add-on's luccet:theme).
+  // preference, or a theme a page script switches in and announces with a
+  // luccet:theme event on window (docs/addons.html#mermaid-colours).
   const repaint = () => {
     for (const wrap of document.querySelectorAll('.t-mermaid:not(.t-mermaid-box)')) if (sources.has(wrap) && keyOf(palette(wrap)) !== drawnFor.get(wrap) && !pick(wrap)) show(wrap);
   };

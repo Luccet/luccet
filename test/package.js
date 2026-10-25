@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // The npm package, luccet: what `npm pack` would ship (the engine, its
 // declarations, the command line and what it requires, the add-ons, the
-// themes, the skill; not the documentation, the examples or the tests), the
+// skill; not the themes, which are github.com/Luccet/themes, the
+// documentation, the examples or the tests), the
 // exports map resolving what the documentation requires, the declarations'
 // surface matching the engine's, and the manifest's fields.
 //
@@ -39,7 +40,7 @@ test('the manifest: a public scoped package with the engine, its types, the bin 
   if (pkg.version !== luccet.version) p.push(`package.json ${pkg.version}, luccet.version ${luccet.version}`);
   const root = pkg.exports && pkg.exports['.'];
   if (!root || root.types !== './luccet.d.ts' || root.default !== './luccet.js') p.push(`exports["."] ${JSON.stringify(root)}`);
-  for (const sub of ['./luccet.css', './cli/*', './src/*', './addons/*', './themes/*', './test/fixtures/detect.json', './package.json']) if (!pkg.exports || !pkg.exports[sub]) p.push(`no export for ${sub}`);
+  for (const sub of ['./luccet.css', './cli/*', './src/*', './addons/*', './test/fixtures/detect.json', './package.json']) if (!pkg.exports || !pkg.exports[sub]) p.push(`no export for ${sub}`);
 });
 
 test('what npm pack ships: the engine and the command line, not the documentation or the tests', (p) => {
@@ -47,7 +48,7 @@ test('what npm pack ships: the engine and the command line, not the documentatio
   if (r.status !== 0) return p.push(`npm pack --dry-run exited ${r.status}: ${r.stderr.trim().split('\n')[0]}`);
   const files = JSON.parse(r.stdout)[0].files.map((f) => f.path);
   const has = (f) => files.includes(f);
-  for (const f of ['luccet.js', 'luccet.css', 'luccet.d.ts', 'luccet-cli.js', 'package.json', 'README.md', 'LICENSE', 'CHANGELOG.md', 'cli/commands.js', 'cli/language.js', 'cli/lsp.js', 'cli/sandbox.js', 'src/schema.js', 'src/use.js', 'addons/katex.js', 'themes/nord.css', 'skills/luccet-notes/SKILL.md', 'test/fixtures/detect.json', 'tools/npm.js', 'tools/katex.js']) {
+  for (const f of ['luccet.js', 'luccet.css', 'luccet.d.ts', 'luccet-cli.js', 'package.json', 'README.md', 'LICENSE', 'CHANGELOG.md', 'cli/commands.js', 'cli/language.js', 'cli/lsp.js', 'cli/sandbox.js', 'src/schema.js', 'src/use.js', 'addons/katex.js', 'skills/luccet-notes/SKILL.md', 'test/fixtures/detect.json', 'tools/npm.js', 'tools/katex.js']) {
     if (!has(f)) p.push(`${f} is not in the package`);
   }
   const stray = files.filter((f) => /^(docs|examples|test)\//.test(f) && f !== 'test/fixtures/detect.json');

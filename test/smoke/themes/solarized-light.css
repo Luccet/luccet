@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: MIT */
-/* Monokai for Luccet, after Wimer Hazenberg's Monokai (https://monokai.nl).
-   Dark for every reader. Use: <script src="luccet.js" data-use="themes/monokai.css"></script>
-   Raised to 4.5:1 contrast: muted, line-strong, error, code comment, code keyword, code number, code meta, code deleted.
-   Built by tools/themes.js; edit that, not this file. */
+/* Solarized for Luccet, after Ethan Schoonover's Solarized (https://ethanschoonover.com/solarized/).
+   Light for every reader. Use: <script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/solarized-light.css"></script>
+   Raised to 4.5:1 contrast: fg, muted, line-strong, link, error, warn, code comment, code keyword, code string, code number, code function, code type, code variable, code meta, code inserted, code deleted.
+   Built by build.js in github.com/Luccet/themes; edit that, not this file. */
 :root {
-  color-scheme: dark;
-  --t-bg: #272822; --t-fg: #f8f8f2; --t-muted: #a9a79b; --t-line: #49483e; --t-line-strong: #75746c;
-  --t-soft: #3e3d32; --t-link: #66d9ef; --t-mark: #635c12; --t-error: #fb679c; --t-error-bg: #4d2830;
-  --t-warn: #fd971f; --t-code-comment: #afada2; --t-code-keyword: #fc8ab3; --t-code-string: #e6db74; --t-code-number: #be9aff;
-  --t-code-function: #a6e22e; --t-code-type: #66d9ef; --t-code-variable: #fd971f; --t-code-meta: #fc8ab3; --t-code-inserted: #a6e22e;
-  --t-code-deleted: #fc8ab3;
+  color-scheme: light;
+  --t-bg: #fdf6e3; --t-fg: #566c73; --t-muted: #576a71; --t-line: #bcc1b8; --t-line-strong: #8b8f88;
+  --t-soft: #eee8d5; --t-link: #1e6ca4; --t-mark: #ffe79c; --t-error: #c22c29; --t-error-bg: #fae2d1;
+  --t-warn: #c34815; --t-code-comment: #616a6a; --t-code-keyword: #606e00; --t-code-string: #1e746d; --t-code-number: #ba3072;
+  --t-code-function: #1e6ca4; --t-code-type: #826300; --t-code-variable: #5d61a9; --t-code-meta: #b34213; --t-code-inserted: #606e00;
+  --t-code-deleted: #c22c29;
 }
 @media print {
   :root {
@@ -22,7 +22,7 @@
   }
 }
 @media (prefers-contrast: more) {
-  :root { --t-muted: #f8f8f2; --t-line: #75746c; }
+  :root { --t-muted: #566c73; --t-line: #8b8f88; }
 }
 @media (forced-colors: active) {
   :root {

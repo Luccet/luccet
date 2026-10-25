@@ -1,6 +1,6 @@
 # The site between releases. Run by hand from the Actions tab (on main): it
 # publishes the pages of main (index.html, docs/, examples/) with the engine
-# of the newest release (luccet.js, luccet.css, addons/, themes/ from the newest
+# of the newest release (luccet.js, luccet.css and addons/ from the newest
 # v* tag), so a documentation fix reaches luccet.dev without a tag, and
 # what the site serves to notes that load its luccet.js stays a release. The
 # docs and samples suites run against that engine first: a page that needs
@@ -42,8 +42,8 @@ jobs:
         run: |
           tag="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
           test -n "$tag" || { echo "no v* tag: nothing released yet"; exit 1; }
-          rm -rf addons themes
-          git checkout "$tag" -- luccet.js luccet.css addons themes
+          rm -rf addons
+          git checkout "$tag" -- luccet.js luccet.css addons
           engine="$(node -p "require('./luccet.js').version")"
           echo "pages from main at ${GITHUB_SHA::7}, engine $engine from $tag"
           test "v$engine" = "$tag"
@@ -58,7 +58,7 @@ jobs:
       - name: the site
         run: |
           mkdir -p _site
-          cp -r index.html docs examples themes addons luccet.css LICENSE _site/
+          cp -r index.html docs examples addons luccet.css LICENSE _site/
           npx --yes terser@5.51.2 luccet.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output _site/luccet.js
           test "$(node -p "require('./_site/luccet.js').version")" = "$(node -p "require('./luccet.js').version")"
           rm -f _site/docs/README.md

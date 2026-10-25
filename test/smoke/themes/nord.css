@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: MIT */
-/* Gruvbox for Luccet, after Pavel Pertsev's gruvbox (https://github.com/morhetz/gruvbox).
-   Light for every reader. Use: <script src="luccet.js" data-use="themes/gruvbox-light.css"></script>
-   Raised to 4.5:1 contrast: muted, line-strong, code comment, code string, code function, code type, code meta, code inserted.
-   Built by tools/themes.js; edit that, not this file. */
+/* Nord for Luccet, after Arctic Ice Studio's Nord (https://www.nordtheme.com).
+   Dark for every reader. Use: <script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
+   Raised to 4.5:1 contrast: muted, line-strong, error, warn, code comment, code keyword, code number, code type, code meta, code deleted.
+   Built by build.js in github.com/Luccet/themes; edit that, not this file. */
 :root {
-  color-scheme: light;
-  --t-bg: #fbf1c7; --t-fg: #3c3836; --t-muted: #6b5f56; --t-line: #d5c4a1; --t-line-strong: #958971;
-  --t-soft: #ebdbb2; --t-link: #076678; --t-mark: #efd299; --t-error: #9d0006; --t-error-bg: #f2d9b4;
-  --t-warn: #af3a03; --t-code-comment: #695e54; --t-code-keyword: #9d0006; --t-code-string: #66610c; --t-code-number: #8f3f71;
-  --t-code-function: #396a4c; --t-code-type: #86570f; --t-code-variable: #076678; --t-code-meta: #ac3903; --t-code-inserted: #66610c;
-  --t-code-deleted: #9d0006;
+  color-scheme: dark;
+  --t-bg: #2e3440; --t-fg: #d8dee9; --t-muted: #a7aebc; --t-line: #434c5e; --t-line-strong: #787e8b;
+  --t-soft: #3b4252; --t-link: #88c0d0; --t-mark: #7e5b16; --t-error: #d79da3; --t-error-bg: #483c48;
+  --t-warn: #d28c76; --t-code-comment: #b0b7c4; --t-code-keyword: #9fb8d0; --t-code-string: #a3be8c; --t-code-number: #c9aec4;
+  --t-code-function: #88c0d0; --t-code-type: #91bdbc; --t-code-variable: #d8dee9; --t-code-meta: #a5b8d1; --t-code-inserted: #a3be8c;
+  --t-code-deleted: #dcaaaf;
 }
 @media print {
   :root {
@@ -22,7 +22,7 @@
   }
 }
 @media (prefers-contrast: more) {
-  :root { --t-muted: #3c3836; --t-line: #958971; }
+  :root { --t-muted: #d8dee9; --t-line: #787e8b; }
 }
 @media (forced-colors: active) {
   :root {

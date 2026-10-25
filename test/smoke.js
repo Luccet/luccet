@@ -14,7 +14,7 @@
 //   /gen/code300.html    a note of 300 fences in five languages, with code.js (codeNote)
 //   /gen/long1mb.html    a 1 MB note of prose, lists, tables and code, no math (longNote)
 //   /gen/long100kb.html  the same at 100 KB, over the default holdOver
-//   /gen/a11y/THEME.html a note with every construct under a theme (a11yNote), for axe
+//   /gen/a11y/luccet.html a note with every construct (a11yNote), for axe
 //   /gen/fragment.html   two closed <details> below the fold (fragment tests)
 //   /gen/built.html      test/smoke/built.html through `luccet build`;
 //                        built-katex.html with --katex; guarded.html and
@@ -151,7 +151,7 @@ function staticHandler(cdnOrigin) {
     if (url === '/gen/never.js') return; // the add-on that never loads (the deadline test): no answer, ever
     if (url.startsWith('/gen/a11y/') && url.endsWith('.html')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(a11yNote(url.slice('/gen/a11y/'.length, -'.html'.length)));
+      res.end(a11yNote());
       return;
     }
     if (url.startsWith('/gen/') && GENERATED[url.slice(5)]) {
@@ -408,17 +408,16 @@ function longNote(bytes = 1000000) {
   return out.join('\n');
 }
 
-// A note with every construct the emitter writes, under a theme (`luccet` for
-// luccet.css alone), with a language and a title, for an axe run.
-function a11yNote(theme) {
-  // The copy, lightbox and switcher add-ons too, so their controls are checked in every theme.
-  const use = ` data-use="/addons/copy.js /addons/lightbox.js /addons/switcher.js${theme === 'luccet' ? '' : ` /themes/${theme}.css`}"`;
+// A note with every construct the emitter writes, under luccet.css, with a
+// language and a title, for an axe run. (The themes are checked in
+// github.com/Luccet/themes.)
+function a11yNote() {
+  // The copy and lightbox add-ons too, so their controls are checked.
+  const use = ' data-use="/addons/copy.js /addons/lightbox.js"';
   return [
-    `<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: ${theme}</title><script src="/luccet.js"${use}></script>`,
+    `<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: luccet.css</title><script src="/luccet.js"${use}></script>`,
     '',
-    `# Every construct, in the ${theme} theme {#top}`,
-    '',
-    '::themes',
+    '# Every construct {#top}',
     '',
     'A paragraph with a [link](#top), *emphasis*, **strong**, `code`, :kbd[Ctrl], a ==highlight with a [link](#eq) inside== and a footnote.[^n]',
     '',
@@ -1815,10 +1814,9 @@ const TESTS = [
     },
   },
   {
-    // axe-core over one page per theme family (its NAME.css, light and dark;
-    // a one-mode theme as it is) and luccet.css alone: WCAG 2.0/2.1 A and AA
-    // rules, no violation. The page holds every construct the emitter writes.
-    name: 'accessibility: axe finds no WCAG A or AA violation on a page of every construct, in every theme, light and dark',
+    // axe-core over luccet.css, light and dark: WCAG 2.0/2.1 A and AA rules,
+    // no violation. The page holds every construct the emitter writes.
+    name: 'accessibility: axe finds no WCAG A or AA violation on a page of every construct, light and dark',
     url: '/gen/a11y/luccet.html',
     timeout: 240000,
     async setup(_context, _page, ctx) {
@@ -1827,9 +1825,7 @@ const TESTS = [
     },
     async check(page, ctx) {
       const origin = new URL(page.url()).origin;
-      const T = require('../tools/themes');
       const pages = [['luccet', 'light'], ['luccet', 'dark']];
-      for (const f of T.FAMILIES) for (const mode of [f.light && 'light', f.dark && 'dark'].filter(Boolean)) pages.push([f.name, mode]);
       const problems = [];
       let rules = 0;
       for (const [theme, mode] of pages) {
@@ -2254,7 +2250,7 @@ const TESTS = [
       await page.evaluate(async () => {
         const l = document.createElement('link');
         l.rel = 'stylesheet';
-        l.href = '/themes/nord.css';
+        l.href = '/test/smoke/themes/nord.css'; // a copy of Luccet/themes's nord.css
         document.head.append(l);
         await new Promise((r) => (l.onload = r));
         window.dispatchEvent(new CustomEvent('luccet:theme', { detail: { theme: 'nord', href: l.href } }));
@@ -2783,138 +2779,6 @@ const TESTS = [
       await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'the close button closes it', 3000);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
       ctx.note(`${buttons.filter((b) => b.button).length} copy buttons, ${imgs.filter((i) => !/plain$/.test(i)).length} zoomable image; image loaded in the dialog: ${shown.loaded}`);
-    },
-  },
-  {
-    name: 'switcher add-on: ::themes lists the themes; a choice applies one beside luccet.css, is remembered across pages, announced as luccet:theme and drawn by Mermaid; a page\'s own theme and a short list; at= puts the control in a page\'s own element',
-    url: '/test/smoke/switcher.html',
-    timeout: 120000,
-    context: { colorScheme: 'light' },
-    async setup(_context, page) {
-      await page.addInitScript(() => {
-        window.__themes = [];
-        window.addEventListener('luccet:theme', (e) => window.__themes.push(e.detail.theme));
-        // When a theme's link first enters the head and when the note is first
-        // put in the page, for "requested before the note renders" (the DOM, not
-        // Resource Timing: WebKit has no entry for a sheet from its memory cache).
-        window.__linkAt = null;
-        window.__mountAt = null;
-        new MutationObserver(() => {
-          if (window.__linkAt === null && document.querySelector('head link[href*="/themes/"]')) window.__linkAt = performance.now();
-          if (window.__mountAt === null && document.querySelector('main.luccet')) window.__mountAt = performance.now();
-        }).observe(document, { childList: true, subtree: true });
-      });
-    },
-    async check(page, ctx) {
-      const bgOf = (name) => /--t-bg: (#[0-9a-f]{3,6})/i.exec(fs.readFileSync(path.join(__dirname, '..', 'themes', `${name}.css`), 'utf8'))[1];
-      const state = () =>
-        page.evaluate(() => {
-          const s = document.querySelector('.luccet > .t-themes select');
-          const label = s && document.querySelector(`label[for="${s.id}"]`);
-          return {
-            value: s && s.value,
-            groups: s ? s.querySelectorAll('optgroup').length : -1,
-            texts: s ? [...s.options].slice(0, 4).map((o) => o.textContent).join() : '',
-            options: s ? s.options.length : -1,
-            label: label && label.textContent,
-            themes: [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)),
-            bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
-            events: window.__themes.join(),
-            stored: localStorage.getItem('luccet.theme'),
-          };
-        });
-      let s = await state();
-      if (s.value !== '' || s.groups !== 0 || s.options !== 33 || s.label !== 'Theme' || s.texts !== 'Default,Catppuccin (system),Catppuccin (light),Catppuccin (dark)') throw new Error(`the control at first: ${JSON.stringify(s)}`);
-      if (s.themes.length) throw new Error(`a theme loaded before any choice: ${s.themes}`);
-      await page.waitForFunction(() => document.querySelector('#flow > svg.t-mermaid-screen'), null, { timeout: 60000 });
-      const fill = () => page.evaluate(() => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill);
-      const plain = await fill();
-
-      // Nord: the link after the base style, the variables in effect, the choice kept and announced, the diagram redrawn.
-      await page.selectOption('.luccet > .t-themes select', 'nord');
-      // A sheet's variables can be in effect before its load event, which is when the add-on announces the theme
-      // and drops the old sheet (WebKit does), so the wait is for the announcement and the links, not the style alone.
-      await expect(page, (bg) => window.__themes.join() === 'nord' && [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)).join() === '/themes/nord.css' && getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Nord announced, its sheet alone and in effect', 8000, bgOf('nord'));
-      s = await state();
-      if (s.value !== 'nord' || s.stored !== 'nord' || s.events !== 'nord') throw new Error(`after choosing Nord: ${JSON.stringify(s)}`);
-      if (s.themes.join() !== '/themes/nord.css') throw new Error(`theme links: ${s.themes}`);
-      const order = await page.evaluate(() => {
-        const link = document.querySelector('link[href$="/themes/nord.css"]');
-        const base = document.getElementById('luccet-style');
-        return base && link && base.nextElementSibling === link ? 'right after the base' : 'elsewhere';
-      });
-      if (order !== 'right after the base') throw new Error(`the theme's link is ${order}`);
-      await expect(page, (was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill !== was, 'the diagram redrawn in Nord', 30000, plain);
-      const soft = /--t-soft: (#[0-9a-f]{6})/i.exec(fs.readFileSync(path.join(__dirname, '..', 'themes', 'nord.css'), 'utf8'))[1];
-      const rgb = `rgb(${[1, 3, 5].map((i) => parseInt(soft.slice(i, i + 2), 16)).join(', ')})`;
-      if ((await fill()) !== rgb) throw new Error(`a node is filled ${await fill()}, expected Nord's --t-soft ${rgb}`);
-
-      // A reload opens themed: the sheet was requested before the note was rendered.
-      await page.reload();
-      await expect(page, () => window.luccet && window.luccet.ready && document.querySelector('.luccet > .t-themes select'), 'mounted again', 20000);
-      await page.evaluate(() => window.luccet.ready);
-      const again = await page.evaluate(() => ({
-        bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
-        value: document.querySelector('.luccet > .t-themes select').value,
-        linkAt: window.__linkAt,
-        mountAt: window.__mountAt,
-        early: window.__linkAt !== null && window.__mountAt !== null && window.__linkAt <= window.__mountAt,
-        events: window.__themes.join(),
-      }));
-      if (again.bg !== bgOf('nord') || again.value !== 'nord' || !again.early) throw new Error(`after a reload: ${JSON.stringify(again)}`);
-
-      // A light file, then Default: the old sheet goes once the new is in, then none is left.
-      await page.selectOption('.luccet > .t-themes select', 'solarized-light');
-      await expect(page, (bg) => window.__themes.join() === 'nord,solarized-light' && [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)).join() === '/themes/solarized-light.css' && getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'Solarized light announced, its sheet alone and in effect', 8000, bgOf('solarized-light'));
-      s = await state();
-      if (s.themes.join() !== '/themes/solarized-light.css' || s.stored !== 'solarized-light') throw new Error(`after choosing Solarized light: ${JSON.stringify(s)}`);
-      await page.selectOption('.luccet > .t-themes select', '');
-      await expect(page, () => !document.querySelector('link[href*="/themes/"]'), 'no theme sheet left');
-      s = await state();
-      if (s.stored !== '' || s.bg === bgOf('solarized-light') || s.events !== 'nord,solarized-light,') throw new Error(`after choosing Default: ${JSON.stringify(s)}`);
-
-      // A page with its own theme and a short list: the remembered choice replaces the page's; the list is the author's.
-      await page.evaluate(() => localStorage.setItem('luccet.theme', 'nord'));
-      await page.goto(`${ctx.origin}/test/smoke/switcher-themed.html`);
-      await expect(page, () => window.luccet && window.luccet.ready && document.querySelector('.luccet > .t-themes select'), 'the themed page mounted', 20000);
-      await page.evaluate(() => window.luccet.ready);
-      const themed = await page.evaluate(() => {
-        const s = document.querySelector('.luccet > .t-themes select');
-        return {
-          value: s.value,
-          label: document.querySelector(`label[for="${s.id}"]`).textContent,
-          texts: [...s.options].map((o) => o.textContent).join(),
-          options: [...s.options].map((o) => o.value).join(),
-          themes: [...document.head.querySelectorAll('link[rel~="stylesheet"]')].map((l) => l.href.replace(/^https?:\/\/[^/]+/, '')).filter((h) => /\/themes\//.test(h)).join(),
-          bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
-        };
-      });
-      if (themed.value !== 'nord' || themed.label !== 'Colours' || themed.texts !== 'Default,Nord (dark),Solarized (system),Solarized (light),Solarized (dark)' || themed.options !== ',nord,solarized,solarized-light,solarized-dark') throw new Error(`the themed page's control: ${JSON.stringify(themed)}`);
-      if (themed.themes !== '/themes/nord.css' || themed.bg !== bgOf('nord')) throw new Error(`the themed page's theme: ${JSON.stringify(themed)}`);
-      // A remembered theme the list does not offer is shown by its name, while it lasts.
-      await page.evaluate(() => localStorage.setItem('luccet.theme', 'dracula'));
-      await page.reload();
-      await expect(page, (bg) => window.luccet && window.luccet.ready && document.querySelector('.luccet > .t-themes select option.t-themes-other') && getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg, 'the unlisted theme named in the select and in effect', 20000, bgOf('dracula'));
-      const other = await page.evaluate(() => {
-        const s = document.querySelector('.luccet > .t-themes select');
-        return { value: s.value, text: s.selectedOptions[0].textContent, bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() };
-      });
-      if (other.value !== 'dracula' || other.text !== 'dracula' || other.bg !== bgOf('dracula')) throw new Error(`with an unlisted theme: ${JSON.stringify(other)}`);
-      await page.selectOption('.luccet > .t-themes select', 'solarized-dark');
-      await expect(page, () => !document.querySelector('.luccet > .t-themes select option.t-themes-other'), 'the extra option gone once another theme is chosen');
-
-      // at=SELECTOR puts the control in the page's own element (a site navigation), and the choice holds there.
-      await page.evaluate(() => localStorage.setItem('luccet.theme', 'gruvbox-dark'));
-      await page.goto(`${ctx.origin}/test/smoke/switcher-at.html`);
-      await expect(page, () => window.luccet && window.luccet.ready && document.querySelector('nav.smoke-slot .t-themes select'), 'the page\'s navigation has the control', 30000);
-      await page.evaluate(() => window.luccet.ready);
-      const docs = await page.evaluate(() => ({
-        value: document.querySelector('nav.smoke-slot .t-themes select').value,
-        controls: document.querySelectorAll('.t-themes').length,
-        bg: getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim(),
-      }));
-      if (docs.value !== 'gruvbox-dark' || docs.controls !== 1 || docs.bg !== bgOf('gruvbox-dark')) throw new Error(`with at=: ${JSON.stringify(docs)}`);
-      await page.evaluate(() => localStorage.removeItem('luccet.theme'));
     },
   },
   {

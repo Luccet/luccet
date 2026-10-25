@@ -13,7 +13,7 @@ const STEPS = [
   ['package', ['package.js']],
   ['floor', ['floor.js']],
   ['domain', ['domain.js']],
-  ['themes', ['themes.js']],
+  ['palette', ['palette.js']],
   ['add-ons', ['addons.js']],
   ['corpus lint', ['run.js', '--lint']],
   ['conformance', ['run.js']],

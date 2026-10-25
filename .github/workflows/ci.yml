@@ -102,7 +102,7 @@ jobs:
           node-version: 22
       - run: node tools/concat.js --check
       - run: node tools/version.js --check # every place that names the version agrees with package.json
-      - run: node test/themes.js # themes/ is the build of tools/themes.js, and readable
+      - run: node test/palette.js # luccet.css's own palettes are readable (the themes are checked in Luccet/themes)
       - run: node test/package.js # what npm pack ships, the exports map, the declarations
       # The package, installed from its tarball into an empty folder: the
       # engine requires, the command runs, a subpath export resolves.
@@ -177,7 +177,7 @@ jobs:
         with:
           node-version: 22
       - run: |
-          for t in run api samples addons themes package cli language lsp docs skills; do
+          for t in run api samples addons palette package cli language lsp docs skills; do
             npx --yes c8@12.0.0 --clean=false --reporter=none node test/$t.js || exit 1
           done
           npx --yes c8@12.0.0 report --reporter=text-summary --reporter=lcov --include='luccet.js' --include='cli/**' --include='addons/**' --include='tools/**'

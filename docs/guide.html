@@ -1710,10 +1710,10 @@ The base stylesheet follows the reader's light or dark preference. Set your dark
 
 ### Themes {#themes}
 
-For a ready-made palette, list a theme from Luccet's `themes/` folder as an add-on: Solarized, Gruvbox, Nord, Dracula, One, GitHub, Catppuccin, Tokyo Night, Rosé Pine, Monokai, Everforest, Kanagawa, Sepia and High contrast.
+For a ready-made palette, list one of [Luccet's themes](https://github.com/Luccet/themes) as an add-on: Solarized, Gruvbox, Nord, Dracula, One, GitHub, Catppuccin, Tokyo Night, Rosé Pine, Monokai, Everforest, Kanagawa, Sepia and High contrast.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="themes/gruvbox.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css"></script>
 ```
 
 `gruvbox.css` follows the reader's light or dark preference; `gruvbox-light.css` and `gruvbox-dark.css` keep one palette for everyone. A theme sets only colours, and your own CSS still wins over it.
@@ -1725,7 +1725,7 @@ An add-on adds CSS with `luccet.style(css)`, or with the `css` field of a schema
 Luccet's code add-on colours fences by their language, with highlight.js, in the theme's colours:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="themes/gruvbox.css addons/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js"></script>
 ```
 
 A fence then only needs its language, as ```` ```python ````. The [Add-ons](addons.html#code) page has the languages, the colours and how to use it offline.

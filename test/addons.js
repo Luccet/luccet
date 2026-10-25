@@ -109,7 +109,7 @@ test("mermaid.js: its print palette is luccet.css's", () => {
   const src = fs.readFileSync(path.join(DIR, 'mermaid.js'), 'utf8');
   const PRINT = new Function(`return ${/const PRINT = (\{[\s\S]*?\});/.exec(src)[1]}`)();
   const long = (h) => (h.length === 4 ? '#' + [...h.slice(1)].map((c) => c + c).join('') : h);
-  const want = require('../tools/themes').printPalette();
+  const want = require('./lib/palette').printPalette();
   const keys = new Set([...Object.keys(PRINT), ...Object.keys(want)]);
   const off = [...keys].filter((k) => PRINT[k] !== long(want[k] || ''));
   if (off.length) throw new Error(off.map((k) => `--t-${k}: ${PRINT[k]}, luccet.css prints ${want[k]}`).join('; '));
@@ -119,17 +119,6 @@ test("mermaid.js: its print palette is luccet.css's", () => {
 
 // cite.js with the real engine: window.luccet is luccet.js itself, so its
 // transforms register with it, as in a browser (test/smoke.js has the page).
-test("switcher.js: its list of theme families is tools/themes.js's (name, title, light and dark)", () => {
-  const src = fs.readFileSync(path.join(DIR, 'switcher.js'), 'utf8');
-  const m = /const FAMILIES = \[([\s\S]*?)\n  \];/.exec(src);
-  if (!m) throw new Error('no FAMILIES table in switcher.js');
-  const listed = [...m[1].matchAll(/\['([^']+)', '([^']+)', '(both|light|dark)'\]/g)].map((x) => x.slice(1).join('|'));
-  const T = require('../tools/themes');
-  const built = T.FAMILIES.map((f) => `${f.name}|${f.title}|${f.light && f.dark ? 'both' : f.light ? 'light' : 'dark'}`).sort((a, b) => a.localeCompare(b));
-  if (listed.join('\n') !== built.join('\n')) throw new Error(`switcher.js lists\n${listed.join('\n')}\nbut tools/themes.js builds\n${built.join('\n')}`);
-  return `${listed.length} families`;
-});
-
 const vm = require('vm');
 const luccet = require('../luccet.js');
 function loadCite(LUCCET) {

@@ -2,7 +2,7 @@
 // code.js, Luccet's code highlighting add-on (docs/addons.html#code). It
 // colours each fence and listing whose language highlight.js knows, once
 // the note has mounted, in the page theme's code colours: the --t-code-*
-// properties of luccet.css, which the themes in themes/ set too.
+// properties of luccet.css, which a theme (github.com/Luccet/themes) sets too.
 //
 //   <script src="luccet.js" data-use="addons/code.js"></script>
 //

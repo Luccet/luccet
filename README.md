@@ -35,7 +35,7 @@ A note needs only `luccet.js`
 <script src="luccet.js"></script>
 
 :::use
-themes/nord.css
+https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css
 addons/katex.js
 addons/code.js
 :::
@@ -54,12 +54,12 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 - **To follow releases,** use `@2.0` (the newest 2.0.x), `@2` (the newest 2.x: a major keeps every note rendering the same) or `@latest` (the newest release).
 - **Not `luccet.min.js`.** jsDelivr minifies any file on request, so `luccet.min.js` exists beside `luccet.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `luccet.js`. Where bytes matter, each [GitHub Release](https://github.com/Luccet/luccet/releases) carries a minified build under that name: `https://github.com/Luccet/luccet/releases/download/vX.Y.Z/luccet.js`, or copy it to your site.
 
-**Themes:** [`themes/`](themes/) holds colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more), each an add-on: `themes/nord.css` in `:::use` (or `data-use`), or the same path on jsDelivr. See [themes](https://luccet.dev/docs/schema.html#themes).
+**Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 
-**Add-ons:** [`addons/`](addons/) holds add-ons that come with Luccet: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `switcher.js` gives a `::themes` control that picks a theme and remembers it; `katex.js` and `mathml.js` typeset math; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes; `notes.js` lists the notes of a folder from the same command's catalogue; `glossary.js` lists the terms the notes define (`:dfn[…]`, `:::definition` blocks) from its glossary, and links every `:term[…]` to the entry. List them in `:::use`, one per line. See [add-ons](https://luccet.dev/docs/addons.html).
+**Add-ons:** [`addons/`](addons/) holds add-ons that come with Luccet: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `katex.js` and `mathml.js` typeset math; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes; `notes.js` lists the notes of a folder from the same command's catalogue; `glossary.js` lists the terms the notes define (`:dfn[…]`, `:::definition` blocks) from its glossary, and links every `:term[…]` to the entry. List them in `:::use`, one per line. See [add-ons](https://luccet.dev/docs/addons.html).
 
 
-**With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js`, `luccet.css`, the add-ons and the themes under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.
+**With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js`, `luccet.css` and the add-ons under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.
 
 ## Using the CLI tool
 

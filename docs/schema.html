@@ -1369,42 +1369,19 @@ luccet.style(css)   // adds a <style> to the head; returns it
 
 ### Themes {#themes}
 
-Luccet comes with colour themes after well-known editor palettes, in the `themes/` folder next to `luccet.js`. A theme is a stylesheet [add-on](#addons): list it in `data-use`.
+Colour themes after well-known editor palettes live in their own repository, [Luccet/themes](https://github.com/Luccet/themes): Catppuccin, Dracula, Everforest, GitHub, Gruvbox, High contrast, Kanagawa, Monokai, Nord, One, Rosé Pine, Sepia, Solarized and Tokyo Night. A theme is a stylesheet [add-on](#addons): list it in `data-use`, from jsDelivr or as a copy next to the note.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="themes/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
 ```
 
-From jsDelivr, give the theme the same tag as `luccet.js`: `https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/themes/nord.css`.
-
-:::table[Themes]{#tbl-themes}
-| Theme | Files | Modes | After |
-|---|---|---|---|
-| Catppuccin | [`catppuccin.css`](../themes/catppuccin.css), [`catppuccin-light.css`](../themes/catppuccin-light.css), [`catppuccin-dark.css`](../themes/catppuccin-dark.css) | light and dark | [Catppuccin Latte (light) and Mocha (dark)](https://catppuccin.com/palette) |
-| Dracula | [`dracula.css`](../themes/dracula.css) | dark | [Dracula](https://draculatheme.com) |
-| Everforest | [`everforest.css`](../themes/everforest.css), [`everforest-light.css`](../themes/everforest-light.css), [`everforest-dark.css`](../themes/everforest-dark.css) | light and dark | [sainnhe's Everforest (medium)](https://github.com/sainnhe/everforest) |
-| GitHub | [`github.css`](../themes/github.css), [`github-light.css`](../themes/github-light.css), [`github-dark.css`](../themes/github-dark.css) | light and dark | [GitHub's Primer colours](https://primer.style/foundations/color) |
-| Gruvbox | [`gruvbox.css`](../themes/gruvbox.css), [`gruvbox-light.css`](../themes/gruvbox-light.css), [`gruvbox-dark.css`](../themes/gruvbox-dark.css) | light and dark | [Pavel Pertsev's gruvbox](https://github.com/morhetz/gruvbox) |
-| High contrast | [`high-contrast.css`](../themes/high-contrast.css), [`high-contrast-light.css`](../themes/high-contrast-light.css), [`high-contrast-dark.css`](../themes/high-contrast-dark.css) | light and dark | black and white, for low vision |
-| Kanagawa | [`kanagawa.css`](../themes/kanagawa.css) | dark | [rebelot's Kanagawa (wave)](https://github.com/rebelot/kanagawa.nvim) |
-| Monokai | [`monokai.css`](../themes/monokai.css) | dark | [Wimer Hazenberg's Monokai](https://monokai.nl) |
-| Nord | [`nord.css`](../themes/nord.css) | dark | [Arctic Ice Studio's Nord](https://www.nordtheme.com) |
-| One | [`one.css`](../themes/one.css), [`one-light.css`](../themes/one-light.css), [`one-dark.css`](../themes/one-dark.css) | light and dark | [Atom's One Light and One Dark](https://github.com/atom/atom/tree/master/packages/one-dark-syntax) |
-| Rosé Pine | [`rose-pine.css`](../themes/rose-pine.css), [`rose-pine-light.css`](../themes/rose-pine-light.css), [`rose-pine-dark.css`](../themes/rose-pine-dark.css) | light and dark | [Rosé Pine Dawn (light) and Rosé Pine (dark)](https://rosepinetheme.com/palette/) |
-| Sepia | [`sepia.css`](../themes/sepia.css) | light | the warm paper of e-readers |
-| Solarized | [`solarized.css`](../themes/solarized.css), [`solarized-light.css`](../themes/solarized-light.css), [`solarized-dark.css`](../themes/solarized-dark.css) | light and dark | [Ethan Schoonover's Solarized](https://ethanschoonover.com/solarized/) |
-| Tokyo Night | [`tokyo-night.css`](../themes/tokyo-night.css), [`tokyo-night-light.css`](../themes/tokyo-night-light.css), [`tokyo-night-dark.css`](../themes/tokyo-night-dark.css) | light and dark | [Tokyo Night Day (light) and Night (dark)](https://github.com/folke/tokyonight.nvim) |
-:::
+The repository's README lists every theme and its files. Pin a release of the themes (`@v1.0.0`) to be sure; `@1` follows the fixes of a major.
 
 - **A theme with both modes has three files.** `NAME.css` follows the reader's system setting, as luccet.css does. `NAME-light.css` and `NAME-dark.css` give every reader one palette. A theme with one mode is one file, the same for every reader.
 - **Colours only.** A theme sets the colour properties and `color-scheme`, the [code colours](addons.html#code-colours) included, after the original theme's syntax colours. Fonts, sizes and the column width stay luccet.css's ([Custom properties](#custom-properties)).
 - **Your CSS still wins.** A theme cascades after luccet.css and before your own styles ([Overriding them](#overriding)): set a property yourself to change one colour of a theme.
-- **Readable.** Every text colour has at least 4.5:1 contrast against what it is drawn on (WCAG AA), and 7:1 in High contrast; code colours as the [code add-on](addons.html#code-colours) says; a control's border (`--t-line-strong`) 3:1 against the page. Where a palette's own colour falls short, the theme darkens or lightens it until it passes; the first lines of each file name those colours. A highlight keeps the palette's yellow hue, and text in it is the text colour, a link's too (it keeps its underline), so muted text and links stay readable on it.
-- **More contrast, forced colours.** For a reader who asks for more contrast (`prefers-contrast: more`), muted text takes the text colour and rules the strong line. Under forced colours (a Windows high-contrast theme), every property takes the system's colour, as luccet.css does, and a highlight keeps the system's highlight pair.
-- **Print.** A theme prints as luccet.css does: black on white ([Print](#print)).
-- **The reader's choice.** The [switcher add-on](addons.html#switcher) gives a `::themes` control that lists the themes, applies the chosen one and remembers it across the site's pages.
-- **Your own theme.** Copy a file and change its values. To add one to Luccet, add its palette to `tools/themes.js`, which writes the folder and checks the contrast: `node tools/themes.js`.
-
+- **Readable, and printed as the base.** Every theme reaches the contrast luccet.css's own palettes do: 4.5:1 for every text colour (WCAG AA), 7:1 in High contrast, a control's border 3:1. It answers `prefers-contrast: more` and forced colours as luccet.css does, and prints as it does, black on white ([Print](#print)). The themes repository builds each file from its palette and checks all of this.
+- **Your own theme.** A theme is a stylesheet that sets the colour properties on `:root`, and again under `@media (prefers-color-scheme: dark)` for a dark mode: copy one of the themes and change its values. To add one to the collection, add its palette to the themes repository's `build.js`.
 ### Print {#print}
 
 `luccet.css` has a print stylesheet:

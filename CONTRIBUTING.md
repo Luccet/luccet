@@ -1,6 +1,6 @@
 # Contributing to Luccet
 
-Luccet is a single-file engine, `luccet.js`, built from `src/`, with a command line in `cli/`, add-ons in `addons/`, themes in `themes/`, and documentation in `docs/` that is itself written in Luccet. The engine, the conformance corpus and the documentation are the reference together: when they disagree, that is a bug to report, not something to settle by adjusting whichever is easiest.
+Luccet is a single-file engine, `luccet.js`, built from `src/`, with a command line in `cli/`, add-ons in `addons/`, and documentation in `docs/` that is itself written in Luccet. The engine, the conformance corpus and the documentation are the reference together: when they disagree, that is a bug to report, not something to settle by adjusting whichever is easiest.
 
 ## Setting up
 
