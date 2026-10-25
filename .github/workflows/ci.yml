@@ -109,7 +109,7 @@ jobs:
       - name: the package installs and runs
         run: |
           npm pack --ignore-scripts
-          mkdir -p /tmp/pkg && cd /tmp/pkg && npm init -y >/dev/null && npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/ozkrac-luccet-*.tgz
+          mkdir -p /tmp/pkg && cd /tmp/pkg && npm init -y >/dev/null && npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/luccet-*.tgz
           node -e "const t = require('luccet'); if (t.version !== require('luccet/package.json').version) throw new Error('version'); console.log('require ok', t.version, t.toHTML('# Hi').trim())"
           node -e "require('luccet/cli/language.js'); require('luccet/test/fixtures/detect.json'); console.log('subpaths ok')"
           npx luccet --version
