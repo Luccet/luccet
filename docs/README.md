@@ -15,7 +15,7 @@ The documentation is a set of Luccet notes. Every page is a `.html` file whose f
 | `docs/math.html` | Math | the TeX a formula can use (the symbol table is drawn by docs.js from `luccet.tex.symbols`), macros, environments, what is left out, fonts and browsers, the KaTeX add-on, the `tex.*` diagnostics |
 | `docs/elements.html` | Elements and output | how names become elements, the output contract, titles and labels, numbering, references, ids, figures, table captions, raw HTML, metadata |
 | `docs/schema.html` | Vocabulary and behaviour | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, transforms, styling, themes, labels in other languages |
-| `docs/addons.html` | Add-ons | the add-ons in `addons/`: code highlighting, Mermaid diagrams, copy buttons, a lightbox, citations, search, a list of notes, a glossary |
+| `docs/addons.html` | Add-ons | what an add-on is and how to load one, and the table of Luccet's add-ons, each linking to its own repository's page (github.com/Luccet/NAME); nothing else in the docs documents an add-on |
 | `docs/diagnostics.html` | Diagnostics | every diagnostic: when it fires, what happens to the content, an example, the fix |
 | `docs/tools.html` | Command line and editors | `luccet new/check/parse/build/mv/search/index/corpus/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
 | `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `luccet build`, CSP, math and KaTeX, offline use, browsers, trust, "When it does not render" |
@@ -38,7 +38,7 @@ description: Every block-level construct of Luccet: paragraphs, headings, fences
 ::toc
 ```
 
-- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/copy.js`). Math needs nothing: the engine writes it as MathML. Examples load `../luccet.js` and `../docs/docs.css`, for the site's look (not docs.js: an example is a note as a reader would write it), and declare their own vocabulary and styles (below).
+- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, and nothing else. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`). The copy button on every fence is docs.js's own, a feature of the docs: a note does without. Math needs nothing: the engine writes it as MathML. Examples load `../luccet.js` and `../docs/docs.css`, for the site's look (not docs.js: an example is a note as a reader would write it), and declare their own vocabulary and styles (below).
 - **The page's own markup.**
   - `::site-nav` is the site navigation, drawn by docs.js, with the mark before the home link.
   - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/luccet.png`, a gold emblem on a navy disc, on light and dark themes alike; the README shows the same file. The pages' favicon is `docs/favicon.ico` (16, 32 and 48 px), with `docs/apple-touch-icon.png` for a phone's home screen.
@@ -92,6 +92,7 @@ A *short* example with $x^2$.
   7. how to write it literally (the escape).
 - **Headings.** Give every heading that others link to an explicit id (`## Fenced code {#fence}`). Ids are stable: never change one that other pages link to.
 - **Links** between pages name the section: `[fences](syntax-blocks.html#fence)`. The pages stand alone: a rule is explained on a page, never left to a file in the repository.
+- **Add-ons** are documented on their own pages, the READMEs of their repositories (`https://github.com/Luccet/NAME`). These pages explain the mechanism (`data-use`, `:::use`, `luccet.block` …) and link to an add-on's page, or to `addons.html`, where a reader needs one; they do not document it.
 - **Tables** for options, fields, codes and spellings.
 - **Callouts.** `:::tip` for advice, `:::warning` for something that loses content or surprises, `:::note` for background. Use them sparingly.
 - **Coverage.** Don't invent features, and don't promise future ones. If the engine's behaviour looks wrong, or disagrees with a corpus case, stop and report it rather than documenting it.

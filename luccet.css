@@ -4,16 +4,12 @@
   color-scheme: light dark;
   --t-bg: Canvas; --t-fg: CanvasText; --t-muted: CanvasText; --t-line: GrayText; --t-line-strong: GrayText; --t-soft: ButtonFace;
   --t-link: LinkText; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
-  --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
-  --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   --t-sans: system-ui, sans-serif; --t-mono: monospace;
   --t-math: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Libertinus Math", "TeX Gyre Termes Math", "DejaVu Math TeX Gyre", "Noto Sans Math", math;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --t-mark: #5c4d00; --t-error: #ffb4ab; --t-error-bg: #3b1714; --t-warn: #e3b341;
-    --t-code-comment: #949da6; --t-code-keyword: #ff7b72; --t-code-string: #a5d6ff; --t-code-number: #79c0ff; --t-code-function: #d2a8ff;
-    --t-code-type: #ffa657; --t-code-variable: #79c0ff; --t-code-meta: #7ee787; --t-code-inserted: #7ee787; --t-code-deleted: #ffa198;
   }
 }
 /* The page in the system's colours, as the browser draws it, said outright: a theme sets them, and
@@ -145,10 +141,6 @@ html { background: var(--t-bg); color: var(--t-fg); }
     --t-bg: Canvas !important; --t-fg: CanvasText !important; --t-muted: GrayText !important; --t-line: GrayText !important;
     --t-line-strong: GrayText !important; --t-soft: ButtonFace !important; --t-link: LinkText !important; --t-mark: #fff2a8 !important;
     --t-error: #b3261e !important; --t-error-bg: #fdecea !important; --t-warn: #8a5300 !important;
-    --t-code-comment: #59636e !important; --t-code-keyword: #cf222e !important; --t-code-string: #0a3069 !important;
-    --t-code-number: #0550ae !important; --t-code-function: #6639ba !important; --t-code-type: #953800 !important;
-    --t-code-variable: #0550ae !important; --t-code-meta: #116329 !important; --t-code-inserted: #116329 !important;
-    --t-code-deleted: #82071e !important;
   }
   /* What scrolls on screen is shown whole on paper. */
   .luccet pre { white-space: pre-wrap; }

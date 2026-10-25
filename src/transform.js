@@ -97,13 +97,14 @@ function walk(root, enter, leave) {
 // reader, each in document order (pre-order, so an element comes before what
 // it holds): `attrs` (attributes, named elements, fences), `ids` (attributes,
 // headings, footnote nodes), `nums` (named elements, fences, display math,
-// headings), `refs` (references, fragment links), `fns` (footnote nodes) and
-// `heads` (headings, leaves). `inDef` maps a node inside a footnote
+// headings), `refs` (references, fragment links), `fns` (footnote nodes),
+// `heads` (headings, leaves), `math` (formulas, inline and display) and
+// `macros` (:::macros blocks). `inDef` maps a node inside a footnote
 // definition to it, as a dropped definition's content counts for nothing.
 // Rebuilt after a custom transform, which may have changed the tree.
 function index(ast, ctx) {
   if (ctx.idx) return ctx.idx;
-  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], inDef: new Map() };
+  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], math: [], macros: [], inDef: new Map() };
   const ks = [];
   const is = [];
   const ds = [];
@@ -130,6 +131,8 @@ function index(ast, ctx) {
     if (type === 'ref' || (type === 'link' && typeof n.url === 'string' && n.url[0] === '#')) k = x.refs.push(n);
     if (fn) k = x.fns.push(n);
     if (type === 'heading' || type === 'leafDirective') k = x.heads.push(n);
+    if (type === 'inlineMath' || (type === 'math' && !peek(n).unclosed)) x.math.push(n);
+    else if (named && n.name === 'macros' && typeof n.value === 'string') x.macros.push(n);
     if (k && def) x.inDef.set(n, def);
     const c = n.children || (type === 'code' ? peek(n).title : undefined);
     if (c && c.length) {
@@ -1048,13 +1051,7 @@ function meta(ast, ctx) {
 // its diagnostic points at the command at fault.
 function math(ast, ctx) {
   if (ctx.opts.math === 'tex') return;
-  const formulas = [];
-  const blocks = [];
-  walk(ast, (n) => {
-    if (n.type === 'inlineMath' || (n.type === 'math' && !peek(n).unclosed)) formulas.push(n);
-    else if (n.type === 'containerDirective' && n.name === 'macros' && typeof n.value === 'string') blocks.push(n);
-    else if (n.type === 'text') return false;
-  });
+  const { math: formulas, macros: blocks } = index(ast, ctx);
   if (!formulas.length && !blocks.length) return;
   const table = tex.table(ctx.opts.macros);
   for (const name of table.problems) ctx.report('tex.macro', null, `the page's macro ${name} is not a TeX command name with a TeX body`, 'give window.LUCCET.macros as {"\\name": "body"}');

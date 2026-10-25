@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: MIT
 // luccet.css's colours, read from src/css.js, and WCAG 2's contrast: for
 // test/palette.js (the colours the functional layer sets itself are readable
-// on the browser's own canvas) and test/addons.js (an add-on that prints as
-// the base prints). A value is a hex colour or one of the system's (Canvas,
+// on the browser's own canvas). A value is a hex colour or one of the system's (Canvas,
 // CanvasText …), which the browser resolves. The themes, which set the same
 // properties, are built and checked in github.com/Luccet/themes.
 'use strict';
 
 const PAGE = ['bg', 'fg', 'muted', 'line', 'line-strong', 'soft', 'link', 'mark', 'error', 'error-bg', 'warn'];
-const CODE = ['comment', 'keyword', 'string', 'number', 'function', 'type', 'variable', 'meta', 'inserted', 'deleted'];
-const COLOURS = [...PAGE, ...CODE.map((k) => `code-${k}`)];
-// The contrast a code colour needs on a highlighted line, for a family's own.
-const onMark = (min) => (min >= 7 ? 4.5 : 3);
+const COLOURS = [...PAGE];
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const expand = (h) => (h.length === 4 ? '#' + [...h.slice(1)].map((c) => c + c).join('') : h);
@@ -61,4 +57,4 @@ function forcedColors() {
   throw new Error('src/css.js: the forced-colors block is not closed');
 }
 
-module.exports = { PAGE, CODE, COLOURS, onMark, contrast, luminance, expand, props, css, palettes, printPalette, forcedColors };
+module.exports = { PAGE, COLOURS, contrast, luminance, expand, props, css, palettes, printPalette, forcedColors };

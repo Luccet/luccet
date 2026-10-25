@@ -11,26 +11,20 @@
 //   /gen/big.js          a ≥ 250 KB script that records its execution
 //   /gen/addon.js|.css   add-ons of a fixed size (waterfall test)
 //   /gen/math4000.html   a long note with 4,000 formulas (mathNote)
-//   /gen/code300.html    a note of 300 fences in five languages, with code.js (codeNote)
 //   /gen/long1mb.html    a 1 MB note of prose, lists, tables and code, no math (longNote)
 //   /gen/long100kb.html  the same at 100 KB, over the default holdOver
 //   /gen/a11y/luccet.html a note with every construct (a11yNote), for axe
 //   /gen/fragment.html   two closed <details> below the fold (fragment tests)
+//   /gen/use-long.html   a long note with a leading :::use (useLongNote)
 //   /gen/built.html      test/smoke/built.html through `luccet build`;
 //                        guarded.html and
 //                        guarded-fr.html from `luccet new` (--lang=fr); built-own-schema.html,
-//                        built-note-config.html, built-addon-throws.html
-//                        built-poster.html and built-cite.html are
+//                        built-note-config.html, built-addon-throws.html and
+//                        built-poster.html are
 //                        test/smoke/own-schema.html, note-config.html,
-//                        addon-throws.html, poster.html and cite.html built;
-//                        built-diagrams.html a note made beside luccet.js,
-//                        built with --diagrams
+//                        addon-throws.html and poster.html built;
+//                        built-missing.html a note whose add-ons are missing, built
 //   /gen/poster.png      a 1-pixel PNG, poster.html's poster
-//   /gen/indexed/…       a copy of test/smoke/search/ after `luccet index`
-//                        ran in it: notes.json and search.json beside the
-//                        notes, for the notes add-on and ::search{index=}
-//   /gen/glossary/…      a copy of test/smoke/glossary/ after `luccet index`
-//                        ran in it: glossary.json beside the notes
 //   {{CDN}}              in test/smoke/*.html: a second, slow origin (a "CDN")
 //   /test/samples/…      luccet.js and luccet.css resolve to the
 //                        repository's; images, videos and component scripts
@@ -41,20 +35,17 @@
 //   examples/            examples name but the repository lacks get the same
 //                        stand-ins, listed in that page's report
 //
-// Math needs nothing from the network: the engine writes MathML itself.
-// highlight.js, for addons/code.js, and Mermaid, for addons/mermaid.js, are
-// served from local copies: requests for cdn.jsdelivr.net/npm/… are answered
-// from node_modules/.cache/luccet-smoke/, which tools/hljs.js and
-// tools/mermaid.js fill once from the npm registry (tarball checked against
-// its sha512) for the version the add-on asks for. The bytes are the ones
-// jsDelivr serves, so SRI still applies, and runs are deterministic and work
-// offline after the first. --live-cdn uses the real CDN instead; so does any
-// request the cache cannot answer.
+// Math needs nothing from the network: the engine writes MathML itself. The
+// add-ons are not the engine's (github.com/Luccet), and nor are their tests:
+// a page that needs an add-on, any one, loads a fixture of test/smoke/
+// (fence-addon.js, built-addon.js, …). axe-core, for the accessibility test,
+// is fetched once from the npm registry into node_modules/.cache/luccet-smoke/
+// (tools/npm.js, the tarball checked against its sha512).
 //
 // Each test has a timeout (30 s unless it says otherwise). A test can skip
 // itself with a reason (a missing tool); skips are reported, not failed.
 //
-//   node test/smoke.js [--browsers=chromium,firefox] [--filter=TEXT] [--headed] [--live-cdn]
+//   node test/smoke.js [--browsers=chromium,firefox] [--filter=TEXT] [--headed]
 //
 // LUCCET_JS=FILE serves FILE as /luccet.js (and for the samples' luccet.js), to
 // try a build without writing the committed bundle.
@@ -74,7 +65,6 @@ const args = process.argv.slice(2);
 const opt = (k) => (args.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3) || null;
 const BROWSERS = (opt('browsers') || 'chromium,firefox').split(',');
 const FILTER = opt('filter');
-const LIVE_CDN = args.includes('--live-cdn');
 const DEFAULT_TIMEOUT = 30000;
 const LUCCET_JS = process.env.LUCCET_JS ? path.resolve(process.env.LUCCET_JS) : path.join(ROOT, 'luccet.js');
 
@@ -83,7 +73,7 @@ const TYPES = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
   '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.webm': 'video/webm',
 };
-const CSP = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:";
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:";
 const NONCE = 'luccet-smoke-nonce';
 const CSP_NONCE = CSP.replace(/(script-src|style-src) 'self'/g, `$1 'self' 'nonce-${NONCE}'`);
 
@@ -161,14 +151,6 @@ function staticHandler(cdnOrigin) {
       return;
     }
     let file = path.join(ROOT, path.normalize(url));
-    // Local copies of highlight.js and Mermaid, for the add-ons' ?base=.
-    if (url.startsWith('/vendor/highlightjs/')) file = path.join(CACHE, `highlightjs-${HLJS_VERSION}`, path.normalize(url.slice('/vendor/highlightjs/'.length)));
-    if (url.startsWith('/vendor/mermaid/')) file = path.join(CACHE, `mermaid-${MERMAID_VERSION}`, 'dist', path.normalize(url.slice('/vendor/mermaid/'.length)));
-    // The search fixtures with the files `luccet index` writes beside them.
-    if (url.startsWith('/gen/indexed/')) file = path.join(indexedDir(), path.normalize(url.slice('/gen/indexed/'.length)));
-    if (url.startsWith('/gen/glossary/')) file = path.join(indexedDir('glossary'), path.normalize(url.slice('/gen/glossary/'.length)));
-    // A sample's add-ons (addons/code.js …) resolve to the repository's, as luccet.js does.
-    if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
     // A folder's address is its index.html, as GitHub Pages and most servers serve it; a page without its extension is the page.
     if (url.endsWith('/') && fs.existsSync(path.join(file, 'index.html'))) file = path.join(file, 'index.html');
     if (!fs.existsSync(file) && fs.existsSync(`${file}.html`)) file = `${file}.html`;
@@ -188,7 +170,7 @@ function staticHandler(cdnOrigin) {
       }
     }
     if (file === path.join(ROOT, 'luccet.js')) file = LUCCET_JS;
-    if ((file !== LUCCET_JS && !file.startsWith(ROOT) && ![...INDEXED.values()].some((d) => file.startsWith(d))) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    if ((file !== LUCCET_JS && !file.startsWith(ROOT)) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);
       res.end('not found');
       return;
@@ -252,36 +234,6 @@ function mathNote(sections = 80) {
   return out.join('\n');
 }
 
-// 300 fences in five languages highlight.js's core knows, each after a
-// paragraph and each its lines twice; window.__t.render as in mathNote.
-function codeNote(fences = 300) {
-  const bodies = {
-    js: (i) => [`// Fence ${i}: a small module.`, `export function step${i}(state, input) {`, '  const next = { ...state, count: state.count + 1 };', "  if (typeof input === 'string' && input.length > 3) next.last = input.trim();", '  for (const [k, v] of Object.entries(input || {})) next[k] = v ?? null;', '  return next; /* no side effect */', '}'],
-    python: (i) => [`# Fence ${i}: a small function.`, `def step_${i}(state, value=None):`, '    # the next state', '    nxt = dict(state, count=state.get("count", 0) + 1)', '    for k, v in (value or {}).items():', '        nxt[k] = v if v is not None else 0', '    return nxt'],
-    css: (i) => [`/* Fence ${i}: a component. */`, `.card-${i} { display: grid; gap: .5rem; }`, `.card-${i} > h2 { font: 700 1.2rem/1.3 var(--font, sans-serif); }`, `@media (min-width: 40rem) { .card-${i} { grid-template-columns: 1fr 2fr; } }`],
-    json: (i) => ['{', `  "fence": ${i},`, '  "name": "step",', '  "tags": ["a", "b", "c"],', '  "nested": { "ok": true, "n": 3.5, "none": null }', '}'],
-    sql: (i) => [`-- Fence ${i}: a report.`, 'SELECT u.id, u.name, COUNT(o.id) AS orders', 'FROM users u LEFT JOIN orders o ON o.user_id = u.id', `WHERE u.created_at > '2026-01-01' AND u.id % ${i + 1} = 0`, 'GROUP BY u.id, u.name ORDER BY orders DESC LIMIT 20;'],
-  };
-  const langs = Object.keys(bodies);
-  const out = [
-    '<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/addons/code.js"></script>',
-    '',
-    '<script>',
-    '  window.__t = { script: performance.now() };',
-    "  luccet.on('render', () => { window.__t.render = performance.now(); });",
-    '</script>',
-    '',
-    `# A note of ${fences} fences`,
-    '',
-  ];
-  for (let i = 1; i <= fences; i++) {
-    const lang = langs[i % langs.length];
-    const lines = bodies[lang](i);
-    out.push(`Fence ${i}, in ${lang}: a few lines, twice, so that the page holds a lot of code.`, '', '```' + lang, ...lines, ...lines, '```', '');
-  }
-  return out.join('\n');
-}
-
 // Two closed <details> after enough prose to be below the fold: #box holds
 // the fragment target #deep and a formula, #fold holds two formulas.
 function fragmentNote() {
@@ -317,49 +269,7 @@ function fragmentNote() {
 // note is made 2.5 times its size: it is still arriving when luccet.js runs.
 function useLongNote() {
   const filler = Array.from({ length: Math.ceil((2.5 * fs.statSync(LUCCET_JS).size) / 143) }, (_, i) =>`Paragraph ${i + 1}: enough prose to make the file arrive in many network chunks on Slow 3G, so that the leading block is read long before the end.`).join('\n\n');
-  return ['<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>', '', ':::use', '/addons/copy.js', ':::', '', '# Smoke: a long note with a leading :::use', '', 'A formula $x^2$ near the top.', '', filler, ''].join('\n');
-}
-
-// A catalogue and an index as luccet index never writes them: entries whose
-// URLs are not pages of the site, beside one that is, for the notes and
-// search add-ons to leave out. Served as /gen/bad-index/, with the page
-// that reads them.
-function badIndexPage() {
-  return [
-    '<!doctype html><meta charset="utf-8"><title>Smoke: a crafted catalogue</title><script src="/luccet.js" data-use="/addons/notes.js /addons/search.js"></script>',
-    '',
-    ':::meta',
-    'robots: noindex',
-    ':::',
-    '',
-    '# Smoke: URLs a catalogue may not hold',
-    '',
-    '::notes{#list}',
-    '',
-    '::search{#box index=search.json}',
-    '',
-    'One written before the format (0.x), with no note to fall back to (notes= names this page alone):',
-    '',
-    '::search{#old index=old.json notes=index.html}',
-    '',
-    'Two with a URL that is not one:',
-    '',
-    '::search{#bad index="http://[bad"}',
-    '',
-    '::notes{#badfrom from="http://[bad"}',
-    '',
-  ].join('\n');
-}
-function badIndex() {
-  const version = require(LUCCET_JS).version;
-  const format = require(LUCCET_JS).search.format;
-  const entry = (url, label) => ({ url, id: 'h', kind: 'heading', label, title: '', text: 'alpha text' });
-  const entries = [entry('good.html', 'Alpha good'), entry('javascript:alert(1)//', 'Alpha script'), entry('data:text/html,<script>alert(1)</script>', 'Alpha data'), entry('https://other.example/x.html', 'Alpha elsewhere'), entry('//other.example/y.html', 'Alpha protocol-relative')];
-  return {
-    search: { luccet: version, format, notes: entries.map((e) => ({ url: e.url, title: e.label })), entries, terms: { alpha: entries.map((_, i) => [i, 3]), text: entries.map((_, i) => [i, 1]) }, lengths: entries.map(() => 2), avg: 2 },
-    old: { luccet: '0.5.0', notes: [], entries: [], terms: {}, lengths: [], avg: 0 }, // written before the format (0.x)
-    notes: { luccet: version, notes: entries.map((e, i) => ({ url: e.url, title: e.label, date: `2026-01-0${i + 1}`, headings: [], links: [] })) },
-  };
+  return ['<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>', '', ':::use', '/test/smoke/fence-addon.js', ':::', '', '# Smoke: a long note with a leading :::use', '', 'A formula $x^2$ near the top.', '', filler, ''].join('\n');
 }
 
 // A long note with no math, about a megabyte: the runtime's held blocks
@@ -414,10 +324,8 @@ function longNote(bytes = 1000000) {
 // language and a title, for an axe run; its formulas are the engine's
 // MathML. (The themes are checked in github.com/Luccet/themes.)
 function a11yNote() {
-  // The copy and lightbox add-ons too, so their controls are checked.
-  const use = ' data-use="/addons/copy.js /addons/lightbox.js"';
   return [
-    `<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: luccet.css</title><script src="/luccet.js"${use}></script>`,
+    '<!doctype html><html lang="en"><meta charset="utf-8"><title>Accessibility: luccet.css</title><script src="/luccet.js"></script>',
     '',
     '# Every construct {#top}',
     '',
@@ -458,14 +366,9 @@ function a11yNote() {
 
 const GENERATED = {
   'big.js': () => ['text/javascript', pad(260) + "window.order = (window.order || []).concat('external');\n"],
-  'bad-index/index.html': () => ['text/html', badIndexPage()],
-  'bad-index/search.json': () => ['application/json', JSON.stringify(badIndex().search)],
-  'bad-index/old.json': () => ['application/json', JSON.stringify(badIndex().old)],
-  'bad-index/notes.json': () => ['application/json', JSON.stringify(badIndex().notes)],
   'addon.js': () => ['text/javascript', pad(20) + 'window.__addon = (window.__addon || 0) + 1;\n'],
   'addon.css': () => ['text/css', pad(6) + '.luccet { outline-color: currentColor; }\n'],
   'math4000.html': () => ['text/html', mathNote()],
-  'code300.html': () => ['text/html', codeNote()],
   'long1mb.html': () => ['text/html', longNote()],
   'long100kb.html': () => ['text/html', longNote(100000)],
   'fragment.html': () => ['text/html', fragmentNote()],
@@ -476,8 +379,6 @@ const GENERATED = {
   'built-note-config.html': () => ['text/html', cliPage('built-note-config')],
   'built-addon-throws.html': () => ['text/html', cliPage('built-addon-throws')],
   'built-poster.html': () => ['text/html', cliPage('built-poster')],
-  'built-cite.html': () => ['text/html', cliPage('built-cite')],
-  'built-diagrams.html': () => ['text/html', cliPage('built-diagrams')],
   'poster.png': () => ['image/png', PNG_1PX],
   'guarded.html': () => ['text/html', cliPage('guarded')],
   'guarded-fr.html': () => ['text/html', cliPage('guarded-fr')],
@@ -491,21 +392,6 @@ const CLI = path.join(ROOT, 'luccet-cli.js');
 const GUARDED_NOTE = '# Smoke: a guarded note\n\nRendered by luccet.js, or shown as its source when luccet.js does not load.\n';
 const cliPages = new Map();
 
-// test/smoke/search/ (or another fixture folder) copied to a temporary
-// folder and indexed there with `luccet index`, so notes.json, search.json and
-// glossary.json sit beside the notes without being written into the
-// repository; served as /gen/indexed/ (search) and /gen/glossary/. Once each.
-const INDEXED = new Map();
-function indexedDir(name = 'search') {
-  if (INDEXED.has(name)) return INDEXED.get(name);
-  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-smoke-indexed-')), name);
-  fs.cpSync(path.join(ROOT, 'test', 'smoke', name), dir, { recursive: true });
-  const r = spawnSync(process.execPath, [CLI, 'index', dir], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
-  if (r.status !== 0) throw new Error(`luccet index exited ${r.status}: ${r.stderr.trim()}`);
-  INDEXED.set(name, dir);
-  return dir;
-}
-
 function cliPage(name) {
   if (cliPages.has(name)) return cliPages.get(name);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-smoke-cli-'));
@@ -517,26 +403,11 @@ function cliPage(name) {
   try {
     let html;
     if (name === 'built') html = cli(['build', 'test/smoke/built.html']);
-    else if (/^built-(?:own-schema|note-config|addon-throws|poster|cite)$/.test(name)) html = cli(['build', `test/smoke/${name.slice(6)}.html`]);
+    else if (/^built-(?:own-schema|note-config|addon-throws|poster)$/.test(name)) html = cli(['build', `test/smoke/${name.slice(6)}.html`]);
     else if (name === 'built-missing') {
       const file = path.join(tmp, 'missing.html');
       fs.writeFileSync(file, '<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/test/smoke/missing-addon.js /test/smoke/missing-addon.css"></script>\n# Smoke: a built page whose add-ons are missing\n');
       html = cli(['build', file]);
-    } else if (name === 'built-diagrams') {
-      // A note next to the real luccet.js and add-ons, since a browser runs
-      // them; the page's URLs are then made the server's.
-      const dir = path.join(tmp, 'diagrams');
-      fs.mkdirSync(dir, { recursive: true });
-      fs.symlinkSync(path.join(ROOT, 'luccet.js'), path.join(dir, 'luccet.js'), 'file');
-      fs.symlinkSync(path.join(ROOT, 'addons'), path.join(dir, 'addons'), 'dir');
-      fs.writeFileSync(path.join(dir, 'n.html'), '<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="addons/mermaid.js"></script>\n\n# Smoke: diagrams drawn ahead {#top}\n\n```mermaid {#flow}\nflowchart LR\n  A --> B\n```\n\n```mermaid [A listing]{#lst}\npie\n  "a": 1\n  "b": 2\n```\n');
-      // The build's own Chromium may be missing (the WebKit job installs
-      // WebKit alone): the build then warns and draws nothing, and the test
-      // reads why from cliPages and skips.
-      const r = spawnSync(process.execPath, [CLI, 'build', path.join(dir, 'n.html'), '--diagrams'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
-      if (r.status !== 0) throw new Error(`luccet build --diagrams exited ${r.status}: ${r.stderr.trim()}`);
-      html = r.stdout.replace('src="luccet.js"', 'src="/luccet.js"').replace(/(src|data-use)="addons\/mermaid\.js"/g, '$1="/addons/mermaid.js"');
-      if (!/<svg[^>]*class="t-mermaid-screen t-mermaid-light"/.test(html)) cliPages.set('built-diagrams:why', (r.stderr.match(/luccet build: (.*(?:could not be drawn|cannot be required).*)/) || [, r.stderr.trim()])[1]);
     } else {
       const file = path.join(tmp, `${name}.html`);
       cli(['new', file, '--luccet=/luccet.js', ...(name === 'guarded-fr' ? ['--lang=fr', '--title=Une note gardée'] : [])]);
@@ -549,15 +420,10 @@ function cliPage(name) {
   }
 }
 
-// ---- highlight.js and Mermaid from local copies
+// ---- axe-core from a local copy
 
 const npm = require('../tools/npm');
-const CACHE = npm.CACHE;
-const HLJS_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@highlightjs\/cdn-assets@(\d+\.\d+\.\d+)\/([^?#]+)/;
-const HLJS_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8'))[1];
-const MERMAID_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@(\d+\.\d+\.\d+)\/([^?#]+)/;
-const MERMAID_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mermaid.js'), 'utf8'))[1];
-const AXE_VERSION = '4.14.0'; // axe-core, for the accessibility test; cached like the add-ons' libraries
+const AXE_VERSION = '4.14.0'; // axe-core, for the accessibility test
 
 // A package's folder in node_modules/.cache/luccet-smoke/, filled once
 // (tools/npm.js); null if it cannot be fetched (offline on the first run).
@@ -567,33 +433,13 @@ function cached(label, packageDir, version) {
     dirs.set(
       `${label}@${version}`,
       packageDir(version).catch((e) => {
-        console.log(`    (${label} ${version} not cached, using the live CDN: ${e.message})`);
+        console.log(`    (${label} ${version} not cached and not fetched: ${e.message})`);
         return null;
       }),
     );
   return dirs.get(`${label}@${version}`);
 }
-// highlightjs-X.Y.Z/, the package (tools/hljs.js); mermaid-X.Y.Z/dist/
-// mermaid.min.js (tools/mermaid.js).
-const hljsDir = (v) => cached('highlight.js', require('../tools/hljs').packageDir, v);
-const mermaidDir = (v) => cached('Mermaid', require('../tools/mermaid').packageDir, v);
 const axeDir = (v) => cached('axe-core', (version) => npm.packageDir('axe-core', version, { folder: `axe-core-${version}`, keep: ['axe.min.js'], has: 'axe.min.js' }), v);
-
-// Answers a package's CDN requests from its copy.
-async function routeCached(context, re, dirOf) {
-  await context.route(
-    (url) => re.test(url.href),
-    async (route) => {
-      const [, version, rel] = re.exec(route.request().url());
-      const dir = await dirOf(version);
-      const file = dir && path.join(dir, path.normalize(rel));
-      if (!file || !file.startsWith(dir + path.sep) || !fs.existsSync(file)) return route.continue();
-      await route
-        .fulfill({ status: 200, body: fs.readFileSync(file), headers: { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*' } })
-        .catch(() => {}); // the context closed
-    },
-  );
-}
 
 // ---- measurement helpers
 
@@ -944,8 +790,8 @@ const DOC_TESTS = (() => {
 // `browsers` limits where it runs; `todo` lists what is still to build for it
 // (reported, not run). Optional: `timeout` (whole test), `readyTimeout`,
 // `waitUntil` for page.goto, `init` (an init script), `setup(context, page,
-// ctx)` before navigation, `offline` (stub every request to another origin
-// except highlight.js's and Mermaid's), `allowConsole` (a RegExp for the console errors the test
+// ctx)` before navigation, `offline` (stub every request to another
+// origin), `allowConsole` (a RegExp for the console errors the test
 // provokes), `expectConsoleErrors` (allow any), `context` (browser context
 // options), `noTern` (the page runs without luccet.js: no wait for luccet.ready).
 const TESTS = [
@@ -1240,7 +1086,7 @@ const TESTS = [
       const m = await page.evaluate(MATH_STATE);
       if (m.all !== 6 || m.rendered !== 6) throw new Error(`${m.rendered} of ${m.all} formulas MathML, expected 6 of 6; first other: ${String(m.firstMissing).slice(0, 160)}`);
       const urls = [...new Set(ctx.requests.map((u) => (u.startsWith(ctx.origin) ? u.slice(ctx.origin.length) : u)))].filter((u) => u !== '/favicon.ico').sort();
-      const want = ['/addons/copy.js', '/luccet.js', '/test/smoke/math-requests.html'];
+      const want = ['/luccet.js', '/test/smoke/fence-addon.js', '/test/smoke/math-requests.html'];
       if (JSON.stringify(urls) !== JSON.stringify(want)) throw new Error(`requests ${JSON.stringify(urls)}, expected the page, luccet.js and its add-on alone`);
       if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics.map((d) => d.code))}`);
     },
@@ -1335,256 +1181,6 @@ const TESTS = [
         }
         ctx.note('rendered numbers checked through a DOMSnapshot');
       }
-    },
-  },
-  {
-    name: 'code add-on: fences coloured by highlight.js with SRI, lines kept, a language loaded on first use, plain ones left',
-    url: '/test/smoke/code-addon.html',
-    async check(page) {
-      await page.waitForFunction(() => document.querySelector('code.language-tex [class*="hljs-"]'), null, { timeout: 15000 });
-      const r = await page.evaluate(() => {
-        const out = {};
-        for (const code of document.querySelectorAll('main.luccet pre > code')) {
-          out[code.className || 'none'] = {
-            spans: code.querySelectorAll('[class*="hljs-"]').length,
-            lines: [...code.querySelectorAll(':scope > .t-line')].map((l) => (l.classList.contains('t-hl') ? '*' : '') + l.textContent),
-            text: code.textContent,
-          };
-        }
-        const kw = document.querySelector('code.language-js .hljs-keyword');
-        out.keyword = kw && getComputedStyle(kw).color;
-        out.want = getComputedStyle(document.documentElement).getPropertyValue('--t-code-keyword').trim();
-        out.comment = [...document.querySelectorAll('code.language-js .t-line')].map((l) => !!l.querySelector('.hljs-comment'));
-        out.scripts = [...document.querySelectorAll('script[src*="@highlightjs/"]')].map((e) => ({ src: e.src.replace(/^.*@[\d.]+\//, ''), sri: e.integrity.startsWith('sha384-') }));
-        return out;
-      });
-      const js = r['language-js'];
-      const lines = ['// The nth Fibonacci number.', 'function fib(n) {', '*  return n < 2 ? n : fib(n - 1) + fib(n - 2); /* a long', '  comment */', '}'];
-      if (JSON.stringify(js.lines) !== JSON.stringify(lines)) throw new Error(`js lines ${JSON.stringify(js.lines)}`);
-      if (!js.spans) throw new Error('js has no highlight.js spans');
-      if (r.comment.join() !== 'true,false,true,true,false') throw new Error(`the comment spans by line: ${r.comment.join()}, want a comment on lines 1, 3 and 4`);
-      if (!r['language-python'].spans || !r['language-tex'].spans) throw new Error(`python ${r['language-python'].spans} spans, tex ${r['language-tex'].spans}`);
-      for (const k of ['language-nosuchlang', 'language-text', 'none']) if (r[k].spans) throw new Error(`${k} was coloured`);
-      const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
-      if (r.keyword !== rgb(r.want)) throw new Error(`a keyword is ${r.keyword}, --t-code-keyword is ${r.want}`);
-      const want = ['highlight.min.js', 'languages/latex.min.js'];
-      if (JSON.stringify(r.scripts.map((x) => x.src)) !== JSON.stringify(want) || !r.scripts.every((x) => x.sri)) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
-    },
-  },
-  {
-    name: 'code add-on: a theme colours code, and a strict CSP with data-nonce allows highlight.js',
-    url: '/csp-nonce/test/smoke/code-addon-theme.html',
-    async check(page) {
-      await page.waitForFunction(() => document.querySelector('code.language-haskell [class*="hljs-"]'), null, { timeout: 15000 });
-      const r = await page.evaluate(() => {
-        const kw = document.querySelector('code.language-js .hljs-keyword');
-        return { keyword: getComputedStyle(kw).color, want: getComputedStyle(document.documentElement).getPropertyValue('--t-code-keyword').trim(), csp: window.__csp, nonces: [...document.querySelectorAll('script[src*="@highlightjs/"]')].map((e) => e.nonce) };
-      });
-      if (r.want !== '#606e00') throw new Error(`--t-code-keyword is ${r.want}, solarized-light.css's is #606e00`);
-      if (r.keyword !== 'rgb(96, 110, 0)') throw new Error(`a keyword is ${r.keyword}`);
-      if (r.csp.length) throw new Error(`CSP violations: ${r.csp.join('; ')}`);
-      if (r.nonces.length !== 2 || !r.nonces.every((n) => n === 'luccet-smoke-nonce')) throw new Error(`highlight.js scripts' nonces ${JSON.stringify(r.nonces)}`);
-    },
-  },
-  {
-    name: 'code add-on: ?base= loads a local copy without SRI',
-    url: '/test/smoke/code-addon-base.html',
-    async setup(_context, _page, ctx) {
-      if (!(await hljsDir(HLJS_VERSION))) ctx.skip(`no local copy of highlight.js ${HLJS_VERSION}`);
-    },
-    async check(page) {
-      await page.waitForFunction(() => document.querySelector('code.language-tex [class*="hljs-"]'), null, { timeout: 15000 });
-      const r = await page.evaluate(() => [...document.querySelectorAll('script[src]')].map((e) => ({ src: new URL(e.src).pathname, sri: !!e.integrity })).filter((x) => x.src.startsWith('/vendor/')));
-      const want = ['/vendor/highlightjs/highlight.min.js', '/vendor/highlightjs/languages/latex.min.js'];
-      if (JSON.stringify(r.map((x) => x.src)) !== JSON.stringify(want) || r.some((x) => x.sri)) throw new Error(`scripts ${JSON.stringify(r)}`);
-      if (!(await page.evaluate(() => document.querySelector('code.language-js [class*="hljs-"]')))) throw new Error('js not coloured');
-    },
-  },
-  {
-    name: 'code add-on: highlight.js that fails to load leaves code plain, with a warning',
-    url: '/test/smoke/code-addon.html',
-    allowConsole: /Failed to load resource|Loading failed for the <script>|integrity|MIME type/i,
-    async setup(context) {
-      // Registered after the cache route, so it wins.
-      await context.route((url) => HLJS_URL.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
-    },
-    async check(page, ctx) {
-      await page.waitForTimeout(500);
-      const spans = await page.evaluate(() => document.querySelectorAll('main.luccet [class*="hljs-"]').length);
-      if (spans) throw new Error(`${spans} highlight.js spans, though it did not load`);
-      if (!(await page.evaluate(() => document.querySelectorAll('main.luccet code.language-js .t-line').length === 5))) throw new Error('the js lines changed');
-      if (!ctx.console.some((m) => m.type === 'warning' && /highlight\.js did not load/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console)}`);
-    },
-  },
-  {
-    name: 'mermaid add-on: fences drawn as diagrams in the theme, listings and ids kept, a broken one left with its error and its id, print copies with unique ids, Mermaid pinned with SRI',
-    url: '/test/smoke/mermaid-addon.html',
-    timeout: 90000,
-    async check(page, ctx) {
-      await page.waitForFunction(() => document.querySelectorAll('main.luccet .t-mermaid > svg.t-mermaid-screen').length === 11 && document.querySelectorAll('main.luccet .t-mermaid > svg.t-mermaid-print').length === 11 && document.querySelector('.t-mermaid-error'), null, { timeout: 80000 });
-      const r = await page.evaluate(() => {
-        const flow = document.getElementById('flow');
-        const rect = flow && flow.querySelector('svg .node rect, svg .node polygon');
-        const listing = document.querySelector('figure[data-t=code]');
-        const broken = document.querySelector('.t-mermaid-error');
-        return {
-          flow: flow && flow.matches('.t-mermaid') && !!flow.querySelector(':scope > svg') && flow.querySelector(':scope > pre').hidden,
-          pos: flow && flow.hasAttribute('data-pos'),
-          fill: rect && getComputedStyle(rect).fill,
-          soft: (() => { const s = document.createElement('span'); s.style.color = 'var(--t-soft)'; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; })(), // resolved, as the add-on resolves it: luccet.css's default is the system's ButtonFace
-          listing: listing && !!listing.querySelector(':scope > .t-mermaid > svg') && !!listing.querySelector(':scope > figcaption'),
-          broken: broken && broken.previousElementSibling && broken.previousElementSibling.matches('pre:not([hidden])') && /Parse error/.test(broken.textContent),
-          js: !!document.querySelector('main.luccet > pre > code.language-js'),
-          prints: document.querySelectorAll('.t-mermaid-print').length,
-          brokenId: !!(document.getElementById('broken') && document.getElementById('broken').matches('pre') && !document.getElementById('broken').hidden),
-          // An id in two drawings (Mermaid repeats some within one drawing of its own accord).
-          dupIds: (() => {
-            const owner = new Map();
-            const dup = [];
-            for (const e of document.querySelectorAll('.t-mermaid > svg [id], .t-mermaid > svg[id]')) {
-              const svg = e.closest('svg');
-              if (owner.has(e.id) && owner.get(e.id) !== svg) dup.push(e.id);
-              owner.set(e.id, svg);
-            }
-            return dup;
-          })(),
-          // Every url(#…) reference in a print copy lands inside that copy.
-          refs: [...document.querySelectorAll('.t-mermaid-print [marker-end], .t-mermaid-print [marker-start], .t-mermaid-print [fill^="url("]')].map((e) => {
-            const v = e.getAttribute('marker-end') || e.getAttribute('marker-start') || e.getAttribute('fill');
-            const m = /url\(#([^)]+)\)/.exec(v);
-            return m ? !!e.closest('svg').querySelector(`#${CSS.escape(m[1])}`) : true;
-          }),
-          scripts: [...document.querySelectorAll('script[src*="mermaid@"]')].map((e) => ({ src: e.src.replace(/^.*\/npm\//, ''), sri: e.integrity.startsWith('sha384-') })),
-        };
-      });
-      const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
-      if (!r.flow || !r.pos) throw new Error(`#flow: drawn ${r.flow}, data-pos ${r.pos}`);
-      if (r.fill !== r.soft) throw new Error(`a flowchart node is filled ${r.fill}, --t-soft resolves to ${r.soft}`);
-      if (!r.listing) throw new Error('the listing lost its diagram or its caption');
-      if (!r.broken) throw new Error('the broken diagram is not shown as source with its error');
-      if (!r.js) throw new Error('the js fence was touched');
-      if (r.prints !== 11) throw new Error(`${r.prints} print copies: the light palette is not print's, so every diagram gets one`);
-      if (!r.brokenId) throw new Error('the broken fence did not get its id back, or is hidden');
-      if (r.dupIds.length) throw new Error(`ids repeated across drawings: ${[...new Set(r.dupIds)].slice(0, 5).join(', ')}`);
-      if (!r.refs.length || !r.refs.every(Boolean)) throw new Error(`${r.refs.filter((x) => !x).length} of ${r.refs.length} url(#…) references in print copies point outside their copy`);
-      if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: `mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`, sri: true }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /Luccet mermaid\.js: Parse error/.test(m.text))) throw new Error('no console warning for the broken diagram');
-    },
-  },
-  {
-    name: 'mermaid add-on: a dark theme under a strict CSP with data-nonce: drawn in its colours, styles kept, a light copy for print',
-    url: '/csp-nonce/test/smoke/mermaid-addon-theme.html',
-    timeout: 60000,
-    async check(page, ctx) {
-      await page.waitForFunction(() => document.querySelectorAll('.t-mermaid > svg.t-mermaid-print').length === 2, null, { timeout: 40000 });
-      const look = () => {
-        const rect = document.querySelector('.t-mermaid > svg:not([style*="display: none"]) .node rect');
-        const shown = [...document.querySelectorAll('.t-mermaid > svg')].filter((s) => getComputedStyle(s).display !== 'none');
-        const node = shown[0] && shown[0].querySelector('.node rect');
-        return {
-          fill: node && getComputedStyle(node).fill,
-          maxWidth: shown[0] && shown[0].style.maxWidth,
-          kinds: shown.map((s) => s.classList[s.classList.length - 1]),
-          soft: (() => { const s = document.createElement('span'); s.style.color = 'var(--t-soft)'; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; })(), // resolved, as the add-on resolves it: luccet.css's default is the system's ButtonFace
-          csp: window.__csp,
-          nonces: [...document.querySelectorAll('script[src*="mermaid@"]')].map((e) => e.nonce),
-        };
-      };
-      const screen = await page.evaluate(look);
-      const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
-      if (screen.csp.length) throw new Error(`CSP violations: ${screen.csp.slice(0, 3).join('; ')}`);
-      if (JSON.stringify(screen.nonces) !== JSON.stringify(['luccet-smoke-nonce'])) throw new Error(`Mermaid's script nonces ${JSON.stringify(screen.nonces)}`);
-      if (screen.kinds.join() !== 't-mermaid-screen,t-mermaid-screen') throw new Error(`on screen: ${screen.kinds.join()}`);
-      if (screen.fill !== screen.soft) throw new Error(`a node is filled ${screen.fill}, nord's --t-soft is ${screen.soft} (the SVG's <style> did not apply?)`);
-      if (!/px$/.test(screen.maxWidth || '')) throw new Error(`the SVG's max-width is "${screen.maxWidth}" (its style attribute was not set again)`);
-      await page.emulateMedia({ media: 'print' });
-      const print = await page.evaluate(look);
-      if (print.kinds.join() !== 't-mermaid-print,t-mermaid-print') throw new Error(`in print: ${print.kinds.join()}`);
-      if (print.fill !== rgb('#f3f4f1')) throw new Error(`in print a node is filled ${print.fill}, luccet.css's print --t-soft is #f3f4f1`);
-    },
-  },
-  {
-    name: 'mermaid add-on: a change of light or dark preference redraws; a note rendered again reuses its drawings',
-    url: '/test/smoke/mermaid-addon.html',
-    timeout: 60000,
-    context: { colorScheme: 'light' },
-    async check(page) {
-      const fill = () => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill;
-      await page.waitForFunction(() => document.querySelector('#flow > svg.t-mermaid-screen'), null, { timeout: 40000 });
-      const light = await page.evaluate(fill);
-      await page.emulateMedia({ colorScheme: 'dark' });
-      await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill !== was && document.querySelector('#flow > svg.t-mermaid-print'), light, { timeout: 20000 });
-      const dark = await page.evaluate(() => ({ fill: getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill, soft: (() => { const s = document.createElement('span'); s.style.color = 'var(--t-soft)'; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; })() }));
-      if (dark.fill !== dark.soft || dark.fill === light) throw new Error(`after the switch a node is filled ${dark.fill} (it was ${light}), --t-soft resolves to ${dark.soft}`);
-      await page.emulateMedia({ colorScheme: 'light' });
-      await page.waitForFunction((was) => getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === was, light, { timeout: 20000 });
-      // Once the redraws the switches queued are done, render the note again.
-      const again = await page.evaluate(async () => {
-        const main = document.querySelector('main.luccet');
-        const render = window.mermaid.render;
-        let calls = 0;
-        let last = performance.now();
-        window.mermaid.render = (...a) => (calls++, (last = performance.now()), render.apply(window.mermaid, a));
-        while (performance.now() - last < 1000) await new Promise((r) => setTimeout(r, 100));
-        calls = 0;
-        const html = await (await fetch(location.href)).text();
-        await window.luccet.render(main, html.slice(html.indexOf('</script>') + '</script>'.length));
-        return { calls, svgs: main.querySelectorAll('.t-mermaid > svg.t-mermaid-screen').length };
-      });
-      if (again.calls || again.svgs !== 11) throw new Error(`rendered again: ${again.svgs} diagrams, ${again.calls} new drawings`);
-    },
-  },
-  {
-    name: 'mermaid add-on: ?base= loads a local copy without SRI; other options go to Mermaid',
-    url: '/test/smoke/mermaid-addon-base.html',
-    timeout: 60000,
-    async setup(_context, _page, ctx) {
-      if (!(await mermaidDir(MERMAID_VERSION))) ctx.skip(`no local copy of Mermaid ${MERMAID_VERSION}`);
-    },
-    async check(page) {
-      await page.waitForFunction(() => document.querySelector('.t-mermaid > svg.t-mermaid-screen'), null, { timeout: 40000 });
-      const r = await page.evaluate(() => ({
-        scripts: [...document.querySelectorAll('script[src*="mermaid.min.js"]')].map((e) => ({ src: new URL(e.src).pathname, sri: !!e.integrity })),
-        look: window.mermaid.mermaidAPI.getConfig().look,
-      }));
-      if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: '/vendor/mermaid/mermaid.min.js', sri: false }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
-      if (r.look !== 'classic') throw new Error(`look ${r.look}, want classic from ?look=classic`);
-    },
-  },
-  {
-    name: 'mermaid add-on: Mermaid is not requested for a note with no diagram',
-    url: '/test/smoke/mermaid-addon-none.html',
-    async check(page) {
-      await page.waitForTimeout(300);
-      const n = await page.evaluate(() => document.querySelectorAll('script[src*="mermaid@"]').length);
-      if (n) throw new Error('Mermaid was requested for a note with no mermaid fence');
-    },
-  },
-  {
-    name: 'mermaid add-on: a Mermaid that fails to load leaves each fence as its source, with a warning; the next render asks for it again',
-    url: '/test/smoke/mermaid-addon.html',
-    timeout: 90000,
-    allowConsole: /Failed to load resource|Loading failed for the <script>|integrity|MIME type/i,
-    async setup(context, _page, ctx) {
-      // Registered after the cache route, so it wins; lifted for the retry.
-      ctx.blocked = (url) => MERMAID_URL.test(url.href);
-      await context.route(ctx.blocked, (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
-    },
-    async check(page, ctx) {
-      await page.waitForFunction(() => [...document.querySelectorAll('script')].some((s) => /mermaid@/.test(s.src)), null, { timeout: 5000 });
-      await page.waitForTimeout(500);
-      const r = await page.evaluate(() => ({ svgs: document.querySelectorAll('.t-mermaid svg').length, hidden: document.querySelectorAll('main.luccet pre[hidden]').length, fences: document.querySelectorAll('main.luccet code.language-mermaid').length }));
-      if (r.svgs || r.hidden || r.fences !== 12) throw new Error(`${r.svgs} diagrams, ${r.hidden} hidden fences, ${r.fences} fences`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /Mermaid did not load/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      // The network is back: the note rendered again asks for Mermaid again and draws.
-      await page.context().unroute(ctx.blocked);
-      await page.evaluate(async () => {
-        const html = await (await fetch(location.href)).text();
-        await window.luccet.render(document.querySelector('main.luccet'), html.slice(html.indexOf('</script>') + '</script>'.length));
-      });
-      await page.waitForFunction(() => document.querySelectorAll('.t-mermaid > svg.t-mermaid-screen').length === 11, null, { timeout: 60000 });
-      const scripts = await page.evaluate(() => document.querySelectorAll('script[src*="mermaid@"]').length);
-      if (scripts !== 2) throw new Error(`${scripts} Mermaid script tags, expected the failed one and the retry`);
     },
   },
   {
@@ -1815,33 +1411,19 @@ const TESTS = [
     },
   },
   {
-    name: 'window.LUCCET.strings: the panel, the emitter\'s labels, the search box and the notes list speak the page\'s words',
+    name: 'window.LUCCET.strings: the panel and the emitter\'s labels speak the page\'s words, and luccet.string reads them',
     url: '/test/smoke/strings.html',
-    allowConsole: /Failed to load resource/,
     async check(page) {
-      await expect(page, () => document.querySelector('.t-search-status') && !/Indizieren/.test(document.querySelector('.t-search-status').textContent) && document.querySelector('.t-notes-status'), 'the box and the list to settle');
-      await page.fill('.t-search-box', 'zzzz');
-      await page.waitForTimeout(250);
       const r = await page.evaluate(() => ({
         panel: document.querySelector('.t-diagnostics summary').textContent,
         footnotes: document.querySelector('.t-footnotes').getAttribute('aria-label'),
         back: document.querySelector('.t-fnback').getAttribute('aria-label'),
         task: document.querySelector('.t-task input').getAttribute('aria-label'),
-        placeholder: document.querySelector('.t-search-box').placeholder,
-        status: document.querySelector('.t-search-status').textContent,
-        notes: document.querySelector('.t-notes').getAttribute('aria-label'),
-        missing: document.querySelector('.t-notes-status').textContent,
-        api: window.luccet.string('results', { n: 1 }) + ' / ' + window.luccet.string('nothing', { n: 2 }, '{n} thing|{n} things'),
+        api: window.luccet.string('problems', { n: 2 }) + ' / ' + window.luccet.string('nothing', { n: 2 }, '{n} thing|{n} things'),
       }));
       if (r.panel !== 'luccet: 1 Problem (1 Warnung)') throw new Error(`the panel: ${r.panel}`);
       if (r.footnotes !== 'Anmerkungen' || r.back !== 'Zurück' || r.task !== 'Fertig') throw new Error(`the emitter's labels: ${JSON.stringify([r.footnotes, r.back, r.task])}`);
-      if (r.placeholder !== 'Notizen durchsuchen' || r.status !== 'Keine Treffer') throw new Error(`the search box: ${JSON.stringify([r.placeholder, r.status])}`);
-      if (r.notes !== 'Notizen' || r.missing !== 'Die Liste (missing.json) fehlt.') throw new Error(`the notes list: ${JSON.stringify([r.notes, r.missing])}`);
-      if (r.api !== '1 Treffer / 2 things') throw new Error(`luccet.string: ${r.api}`);
-      await page.fill('.t-search-box', '');
-      await page.waitForTimeout(250);
-      const ready = await page.evaluate(() => document.querySelector('.t-search-status').textContent);
-      if (ready !== '1 Notiz, 3 Einträge') throw new Error(`the ready line: ${ready}`);
+      if (r.api !== '2 Probleme / 2 things') throw new Error(`luccet.string: ${r.api}`);
     },
   },
   {
@@ -2031,42 +1613,6 @@ const TESTS = [
       }
     },
   },
-  {
-    // code.js colours fences in slices of 10 ms, one per frame: no long
-    // task (> 50 ms) from the end of the mount frame until
-    // every fence is coloured, plus a settling window.
-    name: 'code add-on: no task over 50 ms colouring the 300-fence note, and every fence coloured',
-    url: '/gen/code300.html',
-    timeout: 60000,
-    async setup(_context, page, ctx) {
-      if (!(await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes('longtask')))) ctx.skip(`${ctx.browser} exposes no longtask entries (PerformanceObserver.supportedEntryTypes)`);
-    },
-    init: () => {
-      window.__lt = [];
-      window.__loaf = [];
-      try {
-        new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push({ start: e.startTime, duration: e.duration }))).observe({ type: 'longtask', buffered: true });
-      } catch {}
-      try {
-        new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__loaf.push({ start: e.startTime, duration: e.duration }))).observe({ type: 'long-animation-frame', buffered: true });
-      } catch {}
-    },
-    async check(page, ctx) {
-      const SETTLE = 300;
-      await expect(page, () => [...document.querySelectorAll('main.luccet pre > code')].filter((c) => c.querySelector('[class*="hljs-"]')).length === 300, 'all 300 fences coloured', 30000);
-      const done = await page.evaluate(() => performance.now());
-      await page.evaluate((ms) => new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(r)), ms)), SETTLE);
-      const { t, lt, loaf } = await page.evaluate(() => ({ t: window.__t, lt: window.__lt, loaf: window.__loaf }));
-      const end = (e) => e.start + e.duration;
-      const ms = (x) => `${Math.round(x)} ms`;
-      const frame = loaf.find((f) => f.start <= t.render + 1 && t.render <= end(f) + 1);
-      const mountTask = lt.find((e) => e.start <= t.render + 1 && t.render <= end(e) + 1);
-      const mountEnd = frame ? end(frame) : mountTask ? end(mountTask) : t.render;
-      const after = lt.filter((e) => e.start >= mountEnd - 1 && e.start <= done + SETTLE);
-      ctx.note(`'render' at ${ms(t.render)}, every fence coloured by ${ms(done)}; long tasks after the mount: ${after.length ? after.map((e) => `${ms(e.start)}+${ms(e.duration)}`).join(', ') : 'none'}`);
-      if (after.length) throw new Error(`${after.length} long task(s) while colouring, longest ${ms(Math.max(...after.map((e) => e.duration)))} (budget: none over 50 ms)`);
-    },
-  },
 
   // ---- a note's own vocabulary (window.LUCCET.schema), as a note and as a built page
   ...[
@@ -2241,59 +1787,6 @@ const TESTS = [
     },
   },
   {
-    name: 'built page with --diagrams: the drawings shown per scheme and in print with no Mermaid request; a theme switch draws afresh',
-    url: '/gen/built-diagrams.html',
-    timeout: 90000,
-    context: { colorScheme: 'light' },
-    async setup(_context, page, ctx) {
-      cliPage('built-diagrams');
-      const why = cliPages.get('built-diagrams:why');
-      if (why && /Executable doesn't exist|playwright install|cannot be required/.test(why)) ctx.skip(`luccet build --diagrams could not draw here: ${why}`);
-      if (why) throw new Error(`luccet build --diagrams drew no diagram: ${why}`);
-      ctx.mermaid = 0;
-      page.on('request', (q) => /mermaid\.min\.js/.test(q.url()) && ctx.mermaid++);
-    },
-    async check(page, ctx) {
-      const shown = () =>
-        page.evaluate(() =>
-          ['#flow', '#lst > .t-mermaid'].map((sel) =>
-            [...document.querySelectorAll(`${sel} > svg`)].map((s) => `${s.className.baseVal.replace(/t-mermaid-/g, '')}:${getComputedStyle(s).display}`).join(' '),
-          ),
-        );
-      const keyOf = (sel) => page.evaluate((sel) => document.querySelector(`${sel} > svg.t-mermaid-screen`).getAttribute('data-palette'), sel);
-      await page.waitForTimeout(300);
-      let s = await shown();
-      if (s[0] !== 'screen:block alt:none print:none' || s[1] !== 'screen:block alt:none print:none') throw new Error(`in the light scheme: ${JSON.stringify(s)}`);
-      const light = await keyOf('#flow');
-      if (ctx.mermaid) throw new Error('Mermaid was requested for a page whose diagrams are drawn');
-      // The dark scheme: the dark copy, still without Mermaid.
-      await page.emulateMedia({ colorScheme: 'dark' });
-      await expect(page, (was) => document.querySelector('#flow > svg.t-mermaid-screen').getAttribute('data-palette') !== was, 'the dark copy shown', 8000, light);
-      s = await shown();
-      if (s[0] !== 'alt:none screen:block print:none' || s[1] !== 'alt:none screen:block print:none') throw new Error(`in the dark scheme: ${JSON.stringify(s)}`);
-      if (ctx.mermaid) throw new Error('Mermaid was requested for the dark scheme');
-      // Print: the print copy alone.
-      await page.emulateMedia({ media: 'print' });
-      s = await shown();
-      if (s[0] !== 'alt:none screen:none print:block') throw new Error(`in print: ${JSON.stringify(s)}`);
-      await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
-      // A theme no copy was drawn for: the add-on draws afresh, once Mermaid is loaded, and the kept copies go.
-      const built = await page.evaluate(() => [...document.querySelectorAll('#flow > svg, #lst > .t-mermaid > svg')].map((e) => Number(/-p(\d+)$/.exec(e.id)[1])));
-      await page.evaluate(async () => {
-        const l = document.createElement('link');
-        l.rel = 'stylesheet';
-        l.href = '/test/smoke/themes/nord.css'; // a copy of Luccet/themes's nord.css
-        document.head.append(l);
-        await new Promise((r) => (l.onload = r));
-        window.dispatchEvent(new CustomEvent('luccet:theme', { detail: { theme: 'nord', href: l.href } }));
-      });
-      await expect(page, () => document.querySelectorAll('#flow > svg').length === 2 && document.querySelectorAll('#lst > .t-mermaid > svg').length === 2 && !document.querySelector('.t-mermaid-alt') && getComputedStyle(document.querySelector('#flow > svg.t-mermaid-screen .node rect')).fill === 'rgb(59, 66, 82)', 'both diagrams drawn afresh in Nord, the kept copies gone', 60000);
-      if (ctx.mermaid !== 1) throw new Error(`${ctx.mermaid} Mermaid requests for the fresh drawing, expected 1`);
-      // The print copies follow the screen ones; every fresh id suffix comes after the build's.
-      await expect(page, (max) => [...document.querySelectorAll('#flow > svg, #lst > .t-mermaid > svg')].every((e) => Number(/-p(\d+)$/.exec(e.id)[1]) > max), `fresh id suffixes after the build's (${built})`, 30000, Math.max(...built));
-    },
-  },
-  {
     // The build writes the engine's MathML into the HTML, so the formulas are
     // there before any script runs, and nothing is fetched for them (no
     // --math or --katex any more: test/cli.js has the usage errors).
@@ -2327,10 +1820,10 @@ const TESTS = [
     url: '/test/smoke/use.html',
     async setup(_context, page, ctx) {
       ctx.reqs = [];
-      page.on('request', (q) => /\/addons\/|\/themes\//.test(q.url()) && ctx.reqs.push(q.url().replace(/^https?:\/\/[^/]+/, '')));
+      page.on('request', (q) => /-addon\.js|\/themes\//.test(q.url()) && ctx.reqs.push(q.url().replace(/^https?:\/\/[^/]+/, '')));
     },
     async check(page, ctx) {
-      await expect(page, () => !!document.querySelector('main.luccet pre > button.t-copy'), "the copy button the block's add-on gives the fence");
+      await expect(page, () => !!document.querySelector('main.luccet pre[data-fence-addon="yes"]'), "the mark the block's add-on gives the fence");
       const r = await page.evaluate(() => ({
         useDivs: document.querySelectorAll('[data-t="use"]').length,
         nord: [...document.styleSheets].some((s) => /\/themes\/nord\.css/.test(s.href || '')),
@@ -2338,9 +1831,9 @@ const TESTS = [
       }));
       if (r.useDivs) throw new Error(`${r.useDivs} :::use elements in the page, expected none`);
       if (!r.nord) throw new Error('the theme the block lists did not load');
-      if (JSON.stringify(r.cfg) !== JSON.stringify(['copy', 'nord'])) throw new Error(`config.use ${JSON.stringify(r.cfg)}, expected copy and nord only`);
+      if (JSON.stringify(r.cfg) !== JSON.stringify(['fence-addon', 'nord'])) throw new Error(`config.use ${JSON.stringify(r.cfg)}, expected fence-addon and nord only`);
       await page.waitForTimeout(200);
-      if (ctx.reqs.some((u) => /code\.js/.test(u))) throw new Error("the late block's add-on was requested");
+      if (ctx.reqs.some((u) => /built-addon\.js/.test(u))) throw new Error("the late block's add-on was requested");
       if (!ctx.diagnostics.some((d) => d.code === 'use.late')) throw new Error('no use.late for the late block');
     },
   },
@@ -2355,13 +1848,13 @@ const TESTS = [
       await cdp.send('Network.enable');
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: SLOW_3G.latency, downloadThroughput: SLOW_3G.bytesPerSecond, uploadThroughput: SLOW_3G.bytesPerSecond });
       ctx.addonAt = null;
-      page.on('request', (q) => /\/addons\/copy\.js/.test(q.url()) && ctx.addonAt === null && (ctx.addonAt = Date.now()));
+      page.on('request', (q) => /\/test\/smoke\/fence-addon\.js/.test(q.url()) && ctx.addonAt === null && (ctx.addonAt = Date.now()));
     },
     async check(page, ctx) {
       await expect(page, () => !!document.querySelector('main.luccet h1'), 'the note mounted', 60000);
       const { origin, dcl } = await page.evaluate(() => ({ origin: performance.timeOrigin, dcl: performance.timeOrigin + performance.getEntriesByType('navigation')[0].domContentLoadedEventStart }));
       if (ctx.addonAt === null) throw new Error('the add-on was never requested');
-      ctx.note(`  addons/copy.js requested at ${Math.round(ctx.addonAt - origin)} ms, ${Math.round(dcl - ctx.addonAt)} ms before DOMContentLoaded (${Math.round(dcl - origin)} ms)`);
+      ctx.note(`  fence-addon.js requested at ${Math.round(ctx.addonAt - origin)} ms, ${Math.round(dcl - ctx.addonAt)} ms before DOMContentLoaded (${Math.round(dcl - origin)} ms)`);
       if (ctx.addonAt >= dcl) throw new Error(`the add-on was requested only at DOMContentLoaded (${Math.round(ctx.addonAt - dcl)} ms after): the streaming scan did not fire early`);
     },
   },
@@ -2435,382 +1928,6 @@ const TESTS = [
       const r = await page.evaluate(() => ({ lang: document.documentElement.lang, title: document.title, xmp: document.querySelectorAll('xmp, plaintext').length, text: document.body.innerText }));
       if (r.lang !== 'fr' || r.title !== 'Une note gardée') throw new Error(`lang ${JSON.stringify(r.lang)}, title ${JSON.stringify(r.title)}`);
       if (r.xmp || /voici la source/.test(r.text)) throw new Error(`the guard acted: ${JSON.stringify(r)}`);
-    },
-  },
-  {
-    name: 'search add-on: the linked notes are indexed, hits link to their block, a missing note is counted, nothing else is fetched',
-    url: '/test/smoke/search/index.html',
-    allowConsole: /Failed to load resource/,
-    async setup(_context, page, ctx) {
-      ctx.fetched = [];
-      page.on('request', (r) => r.resourceType() !== 'document' && /\/test\/smoke\/search\//.test(r.url()) && ctx.fetched.push(r.url().replace(/^.*\/search\//, '')));
-    },
-    async check(page, ctx) {
-      const status = () => page.evaluate(() => document.querySelector('.t-search-status').textContent);
-      await expect(page, () => !/Indexing/.test(document.querySelector('.t-search-status').textContent), 'the index to build');
-      if ((await status()) !== '2 notes, 5 entries; 1 could not be read') throw new Error(`status "${await status()}"`);
-      const hits = async (q) => {
-        await page.fill('.t-search-box', q);
-        await page.waitForTimeout(250);
-        return page.evaluate(() => [...document.querySelectorAll('.t-search-results > li')].map((li) => ({
-          title: li.querySelector('.t-search-title').textContent,
-          page: li.querySelector('.t-search-page').textContent,
-          href: li.querySelector('a').getAttribute('href').replace(/^.*\/search\//, ''),
-          snippet: li.querySelector('.t-search-snippet').textContent,
-          marks: [...li.querySelectorAll('mark')].map((m) => m.textContent),
-        })));
-      };
-      let r = await hits('pythag');
-      if (r.length !== 1) throw new Error(`"pythag": ${JSON.stringify(r)}, expected the one exercise`);
-      if (r[0].title !== 'Exercise 1 I.1' || r[0].page !== 'Alpha: triangles' || r[0].href !== 'alpha.html#ex-1') throw new Error(`"pythag" hit ${JSON.stringify(r[0])}`);
-      if (r[0].marks.join() !== 'Pythagoras' || !/using squares/.test(r[0].snippet)) throw new Error(`"pythag" snippet ${JSON.stringify(r[0])}: expected Pythagoras marked and the hard break read as a space`);
-      r = await hits('triangle');
-      if (r[0].href !== 'alpha.html#tri' || r[0].title !== 'Triangles') throw new Error(`"triangle" first hit ${JSON.stringify(r[0])}, expected the heading (a title hit weighs more)`);
-      if (!r.some((h) => h.href === 'beta.html#ex-3') || !r.some((h) => h.href === 'alpha.html#ex-2')) throw new Error(`"triangle" hits ${JSON.stringify(r.map((h) => h.href))}`);
-      r = await hits('sqrt');
-      if (r.length !== 1 || r[0].href !== 'alpha.html#tri' || r[0].marks.join() !== 'sqrt') throw new Error(`"sqrt" (TeX as written) ${JSON.stringify(r)}`);
-      r = await hits('circumference');
-      if (r.length !== 2 || r[0].href !== 'beta.html#circ') throw new Error(`"circumference" ${JSON.stringify(r.map((h) => h.href))}, expected beta's section first (shorter) then alpha's exercise`);
-      r = await hits('nothingofthesort');
-      if (r.length || (await status()) !== 'No results') throw new Error(`a miss: ${JSON.stringify(r)}, status "${await status()}"`);
-      await page.fill('.t-search-box', 'circle');
-      await page.waitForTimeout(250);
-      const url = await page.evaluate(() => location.search);
-      if (url !== '?q=circle') throw new Error(`the URL after typing: "${url}", expected ?q=circle`);
-      const fetched = [...new Set(ctx.fetched)].sort();
-      if (fetched.join() !== 'alpha.html,beta.html,missing.html,vocab.js') throw new Error(`fetched ${fetched.join(', ')}: expected the two notes and the missing one, not hidden.html or notes.txt`);
-      // The arrow keys walk the results: down from the box, along them, up to the box again; Escape returns to the box.
-      await page.fill('.t-search-box', 'circumference');
-      await expect(page, () => document.querySelectorAll('.t-search-results a').length === 2, 'two hits to walk');
-      await page.focus('.t-search-box');
-      const active = () => page.evaluate(() => (document.activeElement.matches('.t-search-box') ? 'box' : document.activeElement.matches('.t-search-results a') ? `hit ${[...document.querySelectorAll('.t-search-results a')].indexOf(document.activeElement) + 1}` : document.activeElement.localName));
-      const walk = [];
-      for (const key of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowUp', 'ArrowUp', 'ArrowDown', 'Escape', 'ArrowUp']) {
-        await page.keyboard.press(key);
-        walk.push(await active());
-      }
-      if (walk.join() !== 'hit 1,hit 2,hit 2,hit 1,box,hit 1,box,box') throw new Error(`the arrow keys walked ${walk.join(', ')}`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.html could not be fetched/.test(m.text))) throw new Error(`no warning for missing.html; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-    },
-  },
-  {
-    name: 'search add-on: from= takes another page\'s links, ?q= fills the box, limit and placeholder apply, Enter opens the first hit',
-    url: '/test/smoke/search-from.html?q=pi',
-    allowConsole: /Failed to load resource/,
-    async check(page) {
-      await expect(page, () => /result/.test(document.querySelector('.t-search-status').textContent), 'the prefilled query to run');
-      await expect(page, () => /result/.test(document.querySelectorAll('.t-search-status')[1].textContent), 'the second box too');
-      const r = await page.evaluate(() => ({
-        status: document.querySelector('.t-search-status').textContent,
-        value: document.querySelector('.t-search-box').value,
-        placeholder: document.querySelector('.t-search-box').placeholder,
-        hrefs: [...document.querySelectorAll('.t-search-results a')].map((a) => a.getAttribute('href').replace(/^.*\/search\//, '')),
-        role: document.querySelector('search.t-search').getAttribute('role'),
-        list: [...document.querySelectorAll('.t-search-results')].map((ol) => [ol.getAttribute('role'), ol.getAttribute('aria-live')]),
-        none: { status: document.querySelectorAll('.t-search-status')[1].textContent, items: document.querySelectorAll('.t-search-results')[1].children.length },
-      }));
-      if (r.status !== '1 result' || r.value !== 'pi' || r.placeholder !== 'Find an exercise') throw new Error(JSON.stringify(r));
-      if (r.hrefs.join() !== 'beta.html#circ') throw new Error(`hits ${r.hrefs.join()}, expected beta's section alone (limit=1)`);
-      if (r.role !== 'search') throw new Error(`the element is ${r.role}`);
-      if (JSON.stringify(r.list) !== JSON.stringify([['list', null], ['list', null]])) throw new Error(`the results lists: ${JSON.stringify(r.list)}, expected role=list and no live region of their own`);
-      if (r.none.status !== '1 result, none listed' || r.none.items) throw new Error(`limit=0: ${JSON.stringify(r.none)}`);
-      // Enter right after typing, before the debounce ran: the query as typed is run first, and its first hit opened.
-      await page.evaluate(() => {
-        const box = document.querySelector('.t-search-box');
-        box.value = 'pythag';
-        box.dispatchEvent(new Event('input', { bubbles: true }));
-        box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      });
-      await page.waitForURL(/alpha\.html#ex-1$/, { timeout: 5000 });
-    },
-  },
-  {
-    name: 'search add-on: index= reads the search.json luccet index wrote, fetching no note, hits resolving from the file; an index that cannot be loaded falls back to indexing here',
-    url: '/gen/indexed/indexed.html',
-    allowConsole: /Failed to load resource/,
-    async setup(_context, page, ctx) {
-      ctx.fetched = [];
-      page.on('request', (r) => r.resourceType() !== 'document' && /\/gen\/indexed\//.test(r.url()) && ctx.fetched.push(r.url().replace(/^.*\/indexed\//, '')));
-    },
-    async check(page, ctx) {
-      const status = (sel) => page.evaluate((sel) => document.querySelector(`${sel} .t-search-status`).textContent, sel);
-      await expect(page, () => ['#pre', '#live'].every((s) => document.querySelector(`${s} .t-search-status`) && !/Indexing/.test(document.querySelector(`${s} .t-search-status`).textContent)), 'both boxes to be ready');
-      if ((await status('#pre')) !== '4 notes, 7 entries') throw new Error(`status "${await status('#pre')}", expected the index's four notes, the noindex pages left out`);
-      if ((await status('#live')) !== '1 note, 3 entries') throw new Error(`the fallback's status "${await status('#live')}", expected alpha.html indexed here`);
-      await page.fill('#pre .t-search-box', 'pythag');
-      await page.waitForTimeout(250);
-      const hits = await page.evaluate(() => [...document.querySelectorAll('#pre .t-search-results > li')].map((li) => ({
-        title: li.querySelector('.t-search-title').textContent,
-        page: li.querySelector('.t-search-page').textContent,
-        href: li.querySelector('a').getAttribute('href').replace(/^.*\/indexed\//, ''),
-        marks: [...li.querySelectorAll('mark')].map((m) => m.textContent),
-      })));
-      if (hits.length !== 2 || hits[0].href !== 'alpha.html#ex-1' || hits[1].href !== 'hidden.html#no') throw new Error(`"pythag": ${JSON.stringify(hits)}, expected the exercise then the hidden note's section`);
-      if (hits[0].title !== 'Exercise 1 I.1' || hits[0].page !== 'Alpha: triangles' || hits[0].marks.join() !== 'Pythagoras') throw new Error(`the first hit ${JSON.stringify(hits[0])}`);
-      const fetched = [...new Set(ctx.fetched)].sort();
-      if (fetched.join() !== 'alpha.html,missing.json,search.json,vocab.js') throw new Error(`fetched ${fetched.join(', ')}: expected the index, the missing index, and alpha.html for the fallback box only`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-      await page.focus('#pre .t-search-box');
-      await page.keyboard.press('Enter');
-      await page.waitForURL(/\/gen\/indexed\/alpha\.html#ex-1$/, { timeout: 5000 });
-    },
-  },
-  {
-    name: 'notes add-on: lists the catalogue luccet index wrote, newest first, with dates and descriptions, a date that is not one last and without <time>; sort=title and limit; limit=0; a catalogue that cannot be loaded says so',
-    url: '/gen/indexed/notes.html',
-    allowConsole: /Failed to load resource/,
-    async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('.t-notes').length === 4 && [...document.querySelectorAll('.t-notes')].every((n) => n.querySelector('.t-notes-list, .t-notes-status')), 'the four lists to settle');
-      const r = await page.evaluate(() => [...document.querySelectorAll('.t-notes')].map((n) => ({
-        label: n.getAttribute('aria-label'),
-        tag: n.tagName,
-        role: n.querySelector('.t-notes-list') && n.querySelector('.t-notes-list').getAttribute('role'),
-        items: [...n.querySelectorAll('li')].map((li) => [li.querySelector('.t-notes-title').textContent, li.querySelector('.t-notes-title').getAttribute('href').replace(/^.*\/indexed\//, ''), (li.querySelector('.t-notes-date') || {}).textContent || '', (li.querySelector('.t-notes-desc') || {}).textContent || '', li.querySelector('time') ? li.querySelector('time').getAttribute('datetime') : null]),
-        status: (n.querySelector('.t-notes-status') || {}).textContent || '',
-      })));
-      const want = [
-        ['Beta: circles', 'beta.html', '2026-03-01', 'Circles and what is inscribed in them.', '2026-03-01'],
-        ['Alpha: triangles', 'alpha.html', '2026-02-01', 'Right triangles and their hypotenuse.', '2026-02-01'],
-        ['Hidden', 'hidden.html', '2025-12-31', '', '2025-12-31'],
-        ['Odd: a date that is not one', 'odd.html', 'March 2026', 'A catalogue entry whose date is prose.', null],
-      ];
-      if (JSON.stringify(r[0].items) !== JSON.stringify(want)) throw new Error(`the default list ${JSON.stringify(r[0].items)}, expected newest first, the odd date last as written and without <time>, the noindex pages and this page left out`);
-      if (r[0].role !== 'list') throw new Error(`the list's role is ${r[0].role}`);
-      if (r[1].items.length || r[1].status !== 'No notes.') throw new Error(`limit=0: ${JSON.stringify(r[1])}, expected none listed`);
-      if (JSON.stringify(r[2].items.map((i) => i[0])) !== JSON.stringify(['Alpha: triangles', 'Beta: circles'])) throw new Error(`sort=title limit=2: ${JSON.stringify(r[2].items)}`);
-      if (r[3].items.length || !/could not be loaded \(missing\.json\)/.test(r[3].status)) throw new Error(`the missing catalogue: ${JSON.stringify(r[3])}`);
-      if (r.some((n) => n.label !== 'Notes' || n.tag !== 'NAV')) throw new Error(`the element: ${JSON.stringify(r.map((n) => [n.tag, n.label]))}`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-    },
-  },
-  {
-    name: 'glossary add-on: ::glossary lists the terms luccet index gathered, by key, each linked to its definition, the definition rendered with its links led back to its note and its math MathML; in= keeps a folder; a missing file and a file of another format say so; :term links to the entry',
-    url: '/gen/glossary/glossary.html',
-    allowConsole: /Failed to load resource/,
-    async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('.t-glossary').length === 4 && [...document.querySelectorAll('.t-glossary')].every((n) => n.querySelector('.t-glossary-list, .t-glossary-status')) && document.querySelectorAll('#list .t-math > math').length >= 3, 'the four lists to settle, the math MathML');
-      const r = await page.evaluate(() => {
-        const rel = (h) => (h || '').replace(/^.*\/gen\/glossary\//, '');
-        const list = (id) => ({
-          entries: [...document.querySelectorAll(`#${id} dt`)].map((dt) => [dt.id, dt.textContent, rel(dt.querySelector('a').getAttribute('href')), dt.nextElementSibling.querySelector('.t-glossary-source a').textContent, dt.nextElementSibling.querySelector('p').textContent.replace(/\s+/g, ' ').trim()]),
-          links: [...document.querySelectorAll(`#${id} dd a`)].map((a) => rel(a.getAttribute('href'))),
-          status: (document.querySelector(`#${id} .t-glossary-status`) || {}).textContent || '',
-          mathml: document.querySelectorAll(`#${id} .t-math[data-tex] > math`).length,
-          math: [...document.querySelectorAll(`#${id} .t-math`)].filter((m) => !m.querySelector(':scope > math')).length,
-        });
-        return { list: list('list'), sub: list('sub'), missing: list('missing'), old: list('old'), uses: [...document.querySelectorAll('.term > a')].map((a) => [a.textContent, rel(a.getAttribute('href'))]), label: document.querySelector('#list').getAttribute('aria-label'), tag: document.querySelector('#list .t-glossary-list').tagName };
-      });
-      const want = [
-        ['glossary-kernel', 'Kernel', 'defs.html#ker', 'From Smoke: definitions', 'The set of vectors v with T(v)=0, written \\ker T.'],
-        ['glossary-nullity', 'nullity', 'defs.html#defs', 'From Smoke: definitions', 'The nullity of T is the dimension of its kernel, see Kernel.'],
-        ['glossary-truism', 'truism', 'defs.html#defs', 'From Smoke: definitions', 'A truism is a claim so obviously true that it goes without saying; see the glossary and Kernel.'],
-        ['glossary-widget', 'widget', 'sub/more.html#more', 'From Smoke: more', 'Widgets are things, with a relative link.'],
-      ];
-      const got = r.list.entries.map((e) => [e[0], e[1], e[2], e[3], e[4].replace(/\u200b|\s*(?=[.,;])/g, '')]);
-      for (let i = 0; i < want.length; i++) if (!got[i] || got[i].slice(0, 4).join('|') !== want[i].slice(0, 4).join('|')) throw new Error(`entry ${i}: ${JSON.stringify(got[i])}, expected ${JSON.stringify(want[i])} (all: ${JSON.stringify(r.list.entries)})`);
-      if (got.length !== 4) throw new Error(`${got.length} entries: ${JSON.stringify(got)}`);
-      if (!/^A truism is a claim so obviously true/.test(got[2][4]) || !/see the glossary and/.test(got[2][4])) throw new Error(`the truism's definition: ${JSON.stringify(got[2][4])}`);
-      for (const l of ['defs.html#ker', 'glossary.html', 'sub/more.txt']) if (!r.list.links.includes(l)) throw new Error(`the definitions' links ${JSON.stringify(r.list.links)} lack ${l}: a fragment, a relative link and a link from a subfolder, led back to their notes`);
-      if (r.list.mathml < 3 || r.list.math) throw new Error(`${r.list.mathml} formulas MathML, ${r.list.math} not: the definitions' formulas are the engine's MathML`);
-      if (r.sub.entries.map((e) => e[1]).join() !== 'widget') throw new Error(`in=sub/: ${JSON.stringify(r.sub.entries)}`);
-      if (!/could not be loaded \(missing\.json\)/.test(r.missing.status)) throw new Error(`the missing file: ${JSON.stringify(r.missing)}`);
-      if (r.old.status !== 'The glossary was written by luccet 0.5.0; run luccet index again.') throw new Error(`the 0.x file: ${JSON.stringify(r.old)}`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /old\.json was written by luccet 0\.5\.0 in a format this luccet \(\d+\.\d+\.\d+\) does not read: run luccet index again/.test(m.text))) throw new Error(`no warning for old.json; console: ${JSON.stringify(ctx.console.slice(0, 8))}`);
-      if (JSON.stringify(r.uses) !== JSON.stringify([['truism', 'glossary.html#glossary-truism'], ['kernels', 'glossary.html#glossary-kernel'], ['nothing', 'glossary.html#glossary-nothing']])) throw new Error(`the uses ${JSON.stringify(r.uses)}: expected links to this page's entries, title= as the term`);
-      if (r.label !== 'Glossary' || r.tag !== 'DL') throw new Error(`the element: ${r.tag} labelled ${r.label}`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /missing\.json could not be loaded/.test(m.text))) throw new Error(`no warning for missing.json; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-    },
-  },
-  {
-    name: 'notes and search add-ons: a page reached as its folder (folder/) is the index.html the catalogue and its links name, and is left out',
-    url: '/test/smoke/folder/',
-    async check(page, ctx) {
-      await expect(page, () => document.querySelector('.t-notes-list, .t-notes-status') && document.querySelector('.t-search-status') && !/Indexing/.test(document.querySelector('.t-search-status').textContent), 'the list and the search box to settle');
-      const r = await page.evaluate(() => ({
-        href: location.href,
-        items: [...document.querySelectorAll('.t-notes-list a')].map((a) => a.getAttribute('href').replace(/^.*\/folder\//, '')),
-        status: (document.querySelector('.t-notes-status') || {}).textContent || '',
-        search: document.querySelector('.t-search-status').textContent,
-      }));
-      if (!/\/folder\/$/.test(r.href)) throw new Error(`the page is at ${r.href}, expected the folder's address`);
-      if (r.items.join() !== 'plain.html,post.html') throw new Error(`the list ${JSON.stringify(r.items)} ${r.status}, expected the other two pages: the page itself left out`);
-      if (!/^1 note\b/.test(r.search)) throw new Error(`the search status "${r.search}", expected the post alone indexed`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-    },
-  },
-  {
-    name: 'notes and search add-ons: a page reached without its extension (folder/plain) is the plain.html the catalogue and its links name, and is left out',
-    url: '/test/smoke/folder/plain',
-    async check(page, ctx) {
-      await expect(page, () => document.querySelector('.t-notes-list, .t-notes-status') && document.querySelector('.t-search-status') && !/Indexing/.test(document.querySelector('.t-search-status').textContent), 'the list and the search box to settle');
-      const r = await page.evaluate(() => ({
-        href: location.href,
-        items: [...document.querySelectorAll('.t-notes-list a')].map((a) => a.getAttribute('href').replace(/^.*\/folder\//, '')),
-        search: document.querySelector('.t-search-status').textContent,
-      }));
-      if (!/\/folder\/plain$/.test(r.href)) throw new Error(`the page is at ${r.href}, expected the address without the extension`);
-      if (r.items.join() !== 'post.html,index.html') throw new Error(`the list ${JSON.stringify(r.items)}, expected the other two pages: the page itself left out`);
-      if (!/^1 note\b/.test(r.search)) throw new Error(`the search status "${r.search}", expected the post alone indexed, this page left out`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-    },
-  },
-  // cite.js: the page and its built form show the same list and citations.
-  ...[
-    ['cite add-on: @key cites a BibTeX or CSL-JSON source as [n] or (Author, Year), the block lists the cited ones, formatted and numbered in order, with the shared window.LUCCET.bib', '/test/smoke/cite.html'],
-    ['luccet build: the built page carries the bibliography and the citations, and luccet.js leaves them as they are', '/gen/built-cite.html'],
-  ].map(([name, url]) => ({
-    name,
-    url,
-    async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('main.luccet .bibliography').length === 2, 'two bibliography blocks');
-      const got = await page.evaluate(() => ({
-        cites: [...document.querySelectorAll('a.t-ref.cite')].map((a) => `${a.getAttribute('href')} ${a.textContent}`),
-        lists: [...document.querySelectorAll('.bibliography')].map((b) => ({
-          title: b.querySelector('.t-title').textContent,
-          role: b.getAttribute('role'),
-          entries: [...b.querySelectorAll('.bib-list > li')].map((li) => ({ id: li.id, label: li.querySelector('.t-label')?.textContent ?? null, text: li.textContent, link: li.querySelector('a')?.getAttribute('href') ?? null, indent: parseFloat(getComputedStyle(li).textIndent) })),
-        })),
-        dangling: document.body.textContent.includes('@nothing'),
-      }));
-      const want = ['#knuth84 [1]', '#lamport94 2', '#shared [3]', '#knuth84 Literate Programming', '#abel00 (Abel and Borel, 1900)', '#abel00 Abel and Borel (1900)', '#zed Zed et al. (n.d.). Three authors'];
-      if (got.cites.join('|') !== want.join('|')) throw new Error(`citations ${JSON.stringify(got.cites)}`);
-      const [num, ay] = got.lists;
-      if (num.title !== 'References' || ay.title !== 'Sources' || num.role !== 'doc-bibliography') throw new Error(`headings ${num.title} / ${ay.title}, role ${num.role}`);
-      if (num.entries.map((e) => `${e.id}${e.label}`).join() !== 'knuth84[1],lamport94[2],shared[3]') throw new Error(`numeric entries ${JSON.stringify(num.entries.map((e) => [e.id, e.label]))}: expected the cited three in citation order, uncited left out`);
-      if (num.entries[0].text !== '[1] Knuth, D. E. (1984). Literate Programming. The Computer Journal, 27(2), 97–111. https://doi.org/10.1093/comjnl/27.2.97' || num.entries[0].link !== 'https://doi.org/10.1093/comjnl/27.2.97') throw new Error(`Knuth's entry ${JSON.stringify(num.entries[0])}`);
-      if (num.entries[1].text !== '[2] Lamport, L. (1994). LaTeX: A Document Preparation System (2nd ed.). Addison-Wesley.') throw new Error(`Lamport's entry ${JSON.stringify(num.entries[1].text)}`);
-      if (num.entries[2].text !== '[3] Lovelace, A. (1843). Notes on the Analytical Engine. Taylor.') throw new Error(`the shared entry ${JSON.stringify(num.entries[2].text)}`);
-      if (ay.entries.map((e) => `${e.id}${e.label}`).join() !== 'abel00null,zednull') throw new Error(`author-year entries ${JSON.stringify(ay.entries.map((e) => [e.id, e.label]))}: no number labels, author order`);
-      if (ay.entries[0].text !== 'Abel, N. and Borel, É. (1900). Two authors.') throw new Error(`Abel's entry ${JSON.stringify(ay.entries[0].text)}`);
-      if (!(num.entries[0].indent < 0) || !(ay.entries[0].indent < 0)) throw new Error(`no hanging indent: text-indent ${num.entries[0].indent}, ${ay.entries[0].indent} (the add-on's stylesheet)`);
-      if (!got.dangling) throw new Error('@nothing, no source, should stay as text');
-      const codes = ctx.diagnostics.map((d) => d.code);
-      if (codes.join() !== 'ref.dangling') throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics.map((d) => `${d.code} ${d.message}`))}: expected ref.dangling for @nothing alone`);
-      if (url.startsWith('/gen/')) {
-        const raw = await (await page.request.get(ctx.origin + url)).text();
-        if (!/<li id="knuth84" class="bib numeric" data-t="bib"[^>]*><span class="t-label">\[1\]<\/span> Knuth/.test(raw) || !/href="#abel00">\(Abel and Borel, 1900\)<\/a>/.test(raw)) throw new Error('the built HTML lacks the list or the citations');
-        if ((raw.match(/<li id="knuth84"/g) || []).length !== 1 || (await page.evaluate(() => document.querySelectorAll('#knuth84').length)) !== 1) throw new Error('the entry is written or mounted more than once');
-      }
-      ctx.note(`${got.cites.length} citations, ${num.entries.length + ay.entries.length} entries in two styles`);
-    },
-  })),
-  {
-    // copy.js and lightbox.js: a real click on the button (the clipboard API
-    // needs a user gesture); Chromium reads the clipboard back, the others
-    // check the button's state. The lightbox: click, keyboard, Escape, the
-    // backdrop and focus return.
-    name: 'copy and lightbox add-ons: a button copies a fence as written, a figure image opens full size in a dialog and gives focus back',
-    url: '/test/smoke/ui.html',
-    async setup(context, _page, ctx) {
-      if (ctx.browser === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: ctx.origin });
-    },
-    async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('main.luccet pre').length === 3, 'three fences');
-      const buttons = await page.evaluate(() => [...document.querySelectorAll('main.luccet pre')].map((pre) => ({ copyable: pre.classList.contains('t-copyable'), button: pre.querySelector(':scope > button.t-copy')?.textContent ?? null, first: pre.firstElementChild?.className })));
-      if (buttons.map((b) => b.button).join() !== 'Copy,Copy,') throw new Error(`buttons ${JSON.stringify(buttons)}: expected one on each fence but the data-copy=false one`);
-      if (!buttons[0].copyable || buttons[2].copyable) throw new Error(`t-copyable ${JSON.stringify(buttons.map((b) => b.copyable))}`);
-      // The listing (lines, numbered from 3): the code alone, lines kept.
-      if (ctx.browser === 'chromium') await page.evaluate(() => navigator.clipboard.writeText('(nothing was copied)'));
-      await page.click('#lst pre > button.t-copy');
-      await expect(page, () => document.querySelector('#lst pre > button.t-copy').textContent === 'Copied', '"Copied" on the button', 3000);
-      const after = await page.evaluate(() => ({ done: document.querySelector('#lst pre > button.t-copy').getAttribute('data-done'), status: document.querySelector('.t-copy-status[role=status]')?.textContent, text: document.querySelector('#lst pre > code').textContent }));
-      if (after.done !== 'yes' || after.status !== 'Copied') throw new Error(`after the click: ${JSON.stringify(after)}`);
-      if (after.text !== 'def f():\n    return 1  # one\nprint(f())') throw new Error(`the code's text (what is copied) ${JSON.stringify(after.text)}: the button's word must not be in it`);
-      if (ctx.browser === 'chromium') {
-        const clip = await page.evaluate(() => navigator.clipboard.readText());
-        if (clip !== 'def f():\n    return 1  # one\nprint(f())') throw new Error(`the clipboard holds ${JSON.stringify(clip)}`);
-      }
-      await expect(page, () => document.querySelector('#lst pre > button.t-copy').textContent === 'Copy', 'the button back to "Copy"', 4000);
-      // The lightbox: only the plain figure's image is zoomable.
-      const imgs = await page.evaluate(() => [...document.querySelectorAll('main.luccet img')].map((i) => `${i.closest('figure')?.id || 'p'}:${i.classList.contains('t-zoomable') ? i.getAttribute('role') + '/' + i.tabIndex + '/' + i.getAttribute('aria-label') : 'plain'}`));
-      if (imgs.join(' ') !== 'fig:button/0/View full size: A grey square linked:plain alone:plain p:plain') throw new Error(`images ${JSON.stringify(imgs)}`);
-      const isOpen = () => page.evaluate(() => !!document.querySelector('dialog.t-lightbox[open]'));
-      if (await isOpen()) throw new Error('the dialog is open before any click');
-      await page.click('#fig img');
-      await expect(page, () => !!document.querySelector('dialog.t-lightbox[open]'), 'the dialog open after a click', 3000);
-      const shown = await page.evaluate(() => {
-        const d = document.querySelector('dialog.t-lightbox');
-        const img = d.querySelector('img');
-        return { src: img.getAttribute('src'), caption: d.querySelector('figcaption').textContent, label: d.getAttribute('aria-label'), close: d.querySelector('button').getAttribute('aria-label'), loaded: img.complete && img.naturalWidth > 0, scroll: getComputedStyle(document.documentElement).overflow };
-      });
-      if (!/\/gen\/poster\.png$/.test(shown.src) || shown.caption !== 'A grey square' || shown.label !== 'A grey square' || shown.close !== 'Close') throw new Error(`the dialog ${JSON.stringify(shown)}`);
-      await page.keyboard.press('Escape');
-      await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'Escape closes it', 3000);
-      if (!(await page.evaluate(() => document.activeElement === document.querySelector('#fig img')))) throw new Error('focus did not return to the image');
-      await page.keyboard.press('Enter');
-      await expect(page, () => !!document.querySelector('dialog.t-lightbox[open]'), 'Enter on the focused image opens it', 3000);
-      await page.mouse.click(4, 4); // the dialog's own area, beside the image
-      await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'a click beside the image closes it', 3000);
-      await page.click('#fig img');
-      await expect(page, () => !!document.querySelector('dialog.t-lightbox[open]'), 'open again', 3000);
-      await page.click('dialog.t-lightbox button.t-lightbox-close');
-      await expect(page, () => !document.querySelector('dialog.t-lightbox[open]'), 'the close button closes it', 3000);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-      ctx.note(`${buttons.filter((b) => b.button).length} copy buttons, ${imgs.filter((i) => !/plain$/.test(i)).length} zoomable image; image loaded in the dialog: ${shown.loaded}`);
-    },
-  },
-  {
-    name: 'mermaid add-on: ?securityLevel=loose on the add-on does not loosen it: strict, and a click with a javascript: URL makes no such link',
-    url: '/test/smoke/mermaid-loose.html',
-    timeout: 60000,
-    async setup(_context, _page, ctx) {
-      if (!(await mermaidDir(MERMAID_VERSION))) ctx.skip(`no local copy of Mermaid ${MERMAID_VERSION}`);
-    },
-    async check(page) {
-      await page.waitForFunction(() => document.querySelector('.t-mermaid > svg.t-mermaid-screen'), null, { timeout: 40000 });
-      const r = await page.evaluate(() => ({
-        level: window.mermaid.mermaidAPI.getConfig().securityLevel,
-        look: window.mermaid.mermaidAPI.getConfig().look,
-        hrefs: [...document.querySelectorAll('.t-mermaid a')].map((a) => a.getAttribute('href') || a.getAttribute('xlink:href') || ''),
-      }));
-      if (r.level !== 'strict') throw new Error(`securityLevel ${r.level}, expected strict whatever the tag says`);
-      if (r.look !== 'classic') throw new Error(`look ${r.look}: the other options still reach Mermaid`);
-      if (r.hrefs.some((h) => /^\s*javascript:/i.test(h))) throw new Error(`a javascript: link in the diagram: ${JSON.stringify(r.hrefs)}`);
-    },
-  },
-  {
-    name: 'notes and search add-ons: an entry whose URL is javascript:, data:, another site or a protocol-relative one is left out with a warning; the site\'s own page stays',
-    url: '/gen/bad-index/index.html',
-    allowConsole: /Failed to load resource/, // Enter opens good.html, which the server does not have
-    async check(page, ctx) {
-      await expect(page, () => document.querySelector('#list .t-notes-list, #list .t-notes-status') && /note/.test(document.querySelector('#box .t-search-status').textContent), 'the list and the box to settle');
-      await page.fill('#box .t-search-box', 'alpha');
-      await page.waitForTimeout(250);
-      const r = await page.evaluate(() => ({
-        list: [...document.querySelectorAll('#list .t-notes-list a')].map((a) => a.getAttribute('href').replace(/^.*\/bad-index\//, '')),
-        status: document.querySelector('#box .t-search-status').textContent,
-        hits: [...document.querySelectorAll('#box .t-search-results a')].map((a) => a.getAttribute('href').replace(/^.*\/bad-index\//, '')),
-        anchors: [...document.querySelectorAll('main.luccet a')].map((a) => a.getAttribute('href')).filter((h) => !/good\.html/.test(h)),
-      }));
-      if (r.list.join() !== 'good.html') throw new Error(`the list ${JSON.stringify(r.list)}, expected good.html alone`);
-      if (r.hits.join() !== 'good.html#h' || r.status !== '1 result') throw new Error(`"alpha": ${JSON.stringify(r.hits)} (${r.status}), expected good.html#h alone`);
-      if (r.anchors.length) throw new Error(`other links on the page: ${JSON.stringify(r.anchors)}`);
-      const warned = ctx.console.filter((m) => m.type === 'warning' && /left out/.test(m.text)).length;
-      if (warned !== 8) throw new Error(`${warned} warnings, expected one per refused URL: four in each file`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
-      await page.focus('#box .t-search-box');
-      await page.keyboard.press('Enter');
-      await page.waitForURL(/\/gen\/bad-index\/good\.html#h$/, { timeout: 5000 });
-    },
-  },
-  {
-    name: 'notes and search add-ons: a malformed index= or from= is reported in place, not left at Indexing… or empty with an unhandled rejection; an index of another format is refused, with the version that wrote it, and the notes are indexed here',
-    url: '/gen/bad-index/index.html',
-    async check(page, ctx) {
-      await expect(page, () => ['#bad', '#old'].every((s) => document.querySelector(`${s} .t-search-status`) && !/Indexing/.test(document.querySelector(`${s} .t-search-status`).textContent)) && document.querySelector('#badfrom .t-notes-status'), 'the three leaves to settle');
-      const r = await page.evaluate(() => ({ search: document.querySelector('#bad .t-search-status').textContent, notes: document.querySelector('#badfrom .t-notes-status').textContent }));
-      if (!/^The search could not be set up \(.+\)\.$/.test(r.search)) throw new Error(`the box's status "${r.search}"`);
-      if (!/^The list of notes could not be loaded \(http:\/\/\[bad\)\.$/.test(r.notes)) throw new Error(`the list's status "${r.notes}"`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /search box could not be set up/.test(m.text))) throw new Error(`no warning for the box; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /from=http:\/\/\[bad is not an http\(s\) file/.test(m.text))) throw new Error(`no warning for the list; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-      const old = await page.evaluate(() => document.querySelector('#old .t-search-status').textContent);
-      if (/could not be set up|Indexing/.test(old)) throw new Error(`the 0.x index's box says "${old}", expected the notes indexed here`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /old\.json was written by luccet 0\.5\.0 in a format this luccet \(\d+\.\d+\.\d+\) does not read: run luccet index again; indexing the notes here/.test(m.text))) throw new Error(`no warning for old.json; console: ${JSON.stringify(ctx.console.slice(0, 8))}`);
-      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics)}`);
     },
   },
   {
@@ -3017,8 +2134,7 @@ async function runTest(browser, origin, t) {
     },
   };
   const run = (async () => {
-    if (!LIVE_CDN) await routeCached(context, HLJS_URL, hljsDir), await routeCached(context, MERMAID_URL, mermaidDir);
-    if (t.offline) await context.route((url) => url.origin !== origin && ![HLJS_URL, MERMAID_URL].some((re) => re.test(url.href)), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
+    if (t.offline) await context.route((url) => url.origin !== origin, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
     const page = await context.newPage();
     page.on('console', (m) => {
       ctx.console.push({ type: m.type(), text: m.text() });

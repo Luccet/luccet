@@ -3,7 +3,7 @@
 // data-use="docs.js docs.css" (index.html: docs/docs.js docs/docs.css).
 //
 // It declares the pages' vocabulary, exposes the demo schema that live
-// examples use with schema=demo, and adds three behaviours:
+// examples use with schema=demo, and adds four behaviours:
 //   - site-nav: draws the site navigation, with the mark before the home
 //     link; `::logo` puts the same mark, small, before the text of the
 //     heading that follows it (the home page's title). The mark is
@@ -14,6 +14,8 @@
 //     from the page: its ids are prefixed, its scripts do not run, its styles
 //     are scoped, and its math, translated by the engine with the example's
 //     own macros, has its diagnostics in the example rather than the page;
+//   - copy: a button on every fence that copies its code (the docs' own: a
+//     note does without);
 //   - tex-symbols: draws the table of every TeX symbol command, from the
 //     engine's own list (luccet.tex.symbols), on the Math page.
 //
@@ -244,11 +246,57 @@
 
   T.define('code', (node) => {
     if (inResult(node)) return;
+    copyButton(node);
     const code = node.querySelector('code.language-luccet');
     if (!code) return;
     if (node.classList.contains('live')) live(node, code, ++examples);
     else highlightTern(code);
   });
+
+  // A button on every fence of the pages (not in an example's result) that
+  // copies its code as written, without line numbers or highlighting: "Copy",
+  // then "Copied" for a moment, said to a screen reader too. The clipboard
+  // API where the page may use it, else a selection, which works inside a
+  // click everywhere. A live example's source keeps its fence, and the button.
+  let copyStatus = null;
+  function copyButton(node) {
+    const pre = node.matches('pre') ? node : node.querySelector(':scope > pre');
+    const code = pre && pre.querySelector(':scope > code');
+    if (!code || pre.querySelector(':scope > .docs-copy')) return;
+    const b = el('button', { type: 'button', class: 'docs-copy' }, 'Copy');
+    let timer = 0;
+    b.addEventListener('click', () => {
+      copyText(code.textContent).then((ok) => {
+        const word = ok ? 'Copied' : 'Copy failed';
+        b.textContent = word;
+        b.setAttribute('data-done', ok ? 'yes' : 'no');
+        if (!copyStatus || !copyStatus.isConnected) document.body.append((copyStatus = el('div', { class: 'docs-copy-status', role: 'status' })));
+        copyStatus.textContent = word;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          b.textContent = 'Copy';
+          b.removeAttribute('data-done');
+        }, 1800);
+      });
+    });
+    pre.classList.add('docs-copyable');
+    pre.prepend(b);
+  }
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) return await navigator.clipboard.writeText(text), true;
+    } catch {}
+    const area = el('textarea', { readonly: '', 'aria-hidden': 'true', class: 'docs-copy-status' });
+    area.value = text;
+    document.body.append(area);
+    area.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch {}
+    area.remove();
+    return ok;
+  }
 
   // A live example: the fence, then what the engine makes of it. Nothing it
   // contains can break the page: a failure is shown in its place.

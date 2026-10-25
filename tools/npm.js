@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// npm packages for the tools and the tests: a version's tarball from the npm
+// npm packages for the tests (axe-core): a version's tarball from the npm
 // registry, checked against its sha512, unpacked once into
 // node_modules/.cache/luccet-smoke/FOLDER/. jsDelivr's /npm/ files are the
 // package's bytes, so SRI hashes taken from these copies hold, and

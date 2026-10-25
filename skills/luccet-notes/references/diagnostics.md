@@ -685,7 +685,7 @@ A `:::use` block after any content, or inside a block, quote, list item or footn
 Text.
 
 :::use
-addons/code.js
+lib/callout.js
 :::
 ```
 
@@ -778,7 +778,7 @@ The browser reports four codes while it renders, in the panel and the console; `
 ### `addon.failed` · error
 
 An add-on in `data-use` did not load (a wrong path, a missing file) or threw, or a transform it registered threw. The note renders without it, so its names get the core output: no labels, counters or behaviours. `luccet check` and the language server report it too, at the `luccet.js` line, with the reason: cannot read, does not parse as a classic script, threw.
-**Fix:** correct the path in `data-use`, which resolves from the note's folder (`../addons/…` from a subfolder); for one that throws, fix its code.
+**Fix:** correct the path in `data-use`, which resolves from the note's folder (`../lib/…` from a subfolder); for one that throws, fix its code. An `addons/…` path from Luccet 1 names a folder Luccet 2 no longer has: load that add-on from its own repository ([Add-ons](https://luccet.dev/docs/addons.html#top)).
 
 ```html expect="addon.failed"
 <!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="missing.js"></script>

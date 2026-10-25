@@ -739,7 +739,7 @@ test('index: glossary.json holds the terms the notes define, by key then note, a
   write('gl/a.html', `${FIRST}<title>Alpha</title><script src="luccet.js" data-use="addons/glossary.js"></script>\n# Alpha {#top}\n\nA :dfn[truism] is obvious, see [b](sub/b.html).\n\n:::definition[Kernel]{#k}\nThe $v$ with $T(v)=0$.\n:::\n\nUses: :term[truism], :term[kernels]{title=kernel} and :term[nothing].\n`);
   write('gl/sub/b.html', `${FIRST}<title>Bee</title><script src="../luccet.js"></script>\n## Terms {#t}\n\nA :dfn[Truism] again, and :dfn[Widgets]{title=widget}.\n`);
   fs.mkdirSync(at('gl/addons'), { recursive: true });
-  fs.copyFileSync(path.join(ROOT, 'addons', 'glossary.js'), at('gl/addons/glossary.js'));
+  write('gl/addons/glossary.js', "luccet.leaf('glossary', { tag: 'div' });\nluccet.inline('term', { tag: 'span' });\n", { luccet: false }); // the glossary add-on's names (github.com/Luccet/glossary)
   let r = run(['index', 'gl']);
   exits(r, 0, 'index');
   eq(r.err, 'luccet index: the term "truism" is defined in gl/a.html:4 and gl/sub/b.html:4; the glossary lists both\nluccet index: gl/a.html:10: the term "nothing" has no definition in these notes\nluccet index: 2 notes, 3 entries, 4 terms → gl/notes.json, gl/search.json, gl/glossary.json\n', 'the duplicate and the undefined use, at file lines; the terms counted');
@@ -771,29 +771,6 @@ test('index: a date that is not YYYY-MM-DD is written as it is and said on stder
   ok(/^luccet index: dt\/a\.html: the date "March 2026" is not YYYY-MM-DD; it is written as it is, and lists sort it last$/m.test(r.err), `stderr: ${r.err}`);
   ok(!/b\.html: the date/.test(r.err), 'a date with a time passes');
   eq(JSON.parse(read('dt/notes.json')).notes.map((n) => n.date), ['March 2026', '2026-03-02T10:00:00Z'], 'written as they are');
-});
-
-// luccet vendor copies the add-ons' libraries from the pinned packages, in the
-// layout ?base= takes. The packages come from the cache the smoke suite
-// fills (node_modules/.cache/luccet-smoke), else the registry; offline with an
-// empty cache, the test is skipped.
-test('vendor: highlight.js in the layout ?base= takes; the base lines; usage errors; math needs nothing', () => {
-  const r = run(['vendor', 'vend', '--code']);
-  if (r.code === 1 && /could not be fetched/.test(r.err)) throw new Skip(`the package is not cached and could not be fetched: ${r.err.trim().split('\n')[0]}`);
-  exits(r, 0, 'vendor --code');
-  ok(fs.existsSync(at('vend/highlight/highlight.min.js')) && fs.readdirSync(at('vend/highlight/languages')).some((f) => f.endsWith('.min.js')), 'highlight.js with its languages');
-  ok(!fs.existsSync(at('vend/mermaid')), 'only what was asked for');
-  ok(/^luccet vendor: code 11\.\d+\.\d+ → vend\/highlight \(\d+ files\); load it with addons\/code\.js\?base=vend\/highlight$/m.test(r.err), `the base line: ${r.err}`);
-  ok(/^luccet vendor: 1 package, \d+ files, [\d.]+ MB; a \?base= resolves from the note's folder/m.test(r.err), `the summary: ${r.err}`);
-  // The copies are the pinned package's bytes: the add-on's own hash matches highlight.min.js.
-  const sri = `sha384-${require('crypto').createHash('sha384').update(fs.readFileSync(at('vend/highlight/highlight.min.js'))).digest('base64')}`;
-  ok(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8').includes(sri), 'highlight.min.js is the file the add-on pins');
-  for (const flag of ['--katex', '--mathml']) exits(run(['vendor', 'vend', flag]), 2, `${flag}: math is built in`);
-  exits(run(['vendor']), 2, 'DIR missing');
-  exits(run(['vendor', 'a', 'b']), 2, 'two DIRs');
-  write('vend/file.txt', 'x', { luccet: false });
-  exits(run(['vendor', 'vend/file.txt']), 2, 'DIR is a file');
-  exits(run(['vendor', 'vend', '--bogus']), 2, 'an unknown flag');
 });
 
 test('check --no-scripts: a note is analysed without running its add-ons', () => {
@@ -1007,7 +984,7 @@ test("analyse: every note of the repository gets the same analysis parsed here a
     sameAnalysis(a, note.analyse(text, f, { hostParse: false }), path.relative(ROOT, f));
     if (path.dirname(f) === path.join(ROOT, 'docs') && a.files.length && !a.vocab.hostParse) docs.push(path.relative(ROOT, f));
   }
-  ok(notes > 60, `${notes} notes`);
+  ok(notes > 50, `${notes} notes`);
   // The docs' add-ons declare plain data, so the tools parse their pages warm:
   // a page that stays in the sandbox costs several times as much.
   eq(docs, [], 'docs pages parsed in the sandbox');
@@ -1408,69 +1385,14 @@ test("check and build read the page's math: window.LUCCET.macros, data-math, and
   ok(/<span class="t-math" data-pos="1:4">\\foo<\/span>/.test(run(['build', 'pm/c.html']).out), 'built with the TeX, for the add-on to typeset');
 });
 
-// `build --diagrams` draws the mermaid fences in a headless Chromium: tested
-// when playwright and its Chromium are there and the smoke tests' Mermaid
-// copy is cached (node_modules/.cache/luccet-smoke/mermaid-*); else skipped.
-test('build --diagrams: mermaid fences drawn ahead with light, dark and print copies; a broken one kept with diagram.error; no add-on, no fence', async () => {
-  const cache = path.join(ROOT, 'node_modules', '.cache', 'luccet-smoke');
-  const mermaid = fs.existsSync(cache) && fs.readdirSync(cache).find((d) => /^mermaid-\d/.test(d) && fs.existsSync(path.join(cache, d, 'dist', 'mermaid.min.js')));
-  // The note loads the real luccet.js and add-ons, since a browser runs them.
-  fs.mkdirSync(at('dg'), { recursive: true });
-  for (const [name, target] of [['luccet.js', path.join(ROOT, 'luccet.js')], ['addons', path.join(ROOT, 'addons')]]) {
-    try {
-      fs.symlinkSync(target, at('dg', name), name === 'addons' ? 'dir' : 'file');
-    } catch {
-      fs.cpSync(target, at('dg', name), { recursive: true });
-    }
-  }
-  const note = `${FIRST}<script src="luccet.js" data-use="addons/mermaid.js"></script>\n\n# D\n\n\`\`\`mermaid {#flow .wide}\nflowchart LR\n  A --> B\n\`\`\`\n\n\`\`\`mermaid [A listing]{#lst}\npie\n  "a": 1\n\`\`\`\n\n\`\`\`mermaid\nnot a diagram ((\n\`\`\`\n`;
-  fs.writeFileSync(at('dg', 'n.html'), note);
-  // Without the add-on the diagrams are not drawn, and the build says so; a note without a fence gets no stylesheet.
-  write('dg/plain.html', `${FIRST}<script src="luccet.js"></script>\n\n\`\`\`mermaid\nflowchart LR\n  A --> B\n\`\`\`\n`, { luccet: false });
-  let r = run(['build', 'dg/plain.html', '--diagrams']);
-  exits(r, 0, 'build --diagrams without the add-on');
-  ok(/does not load addons\/mermaid\.js, so its diagrams are not drawn/.test(r.err) && /1 diagram, 0 drawn ahead/.test(r.err) && !/luccet-mermaid-style/.test(r.out), `without the add-on: ${r.err}`);
-  write('dg/none.html', `${FIRST}<script src="luccet.js" data-use="addons/mermaid.js"></script>\n\nNo diagram.\n`, { luccet: false });
-  r = run(['build', 'dg/none.html', '--diagrams']);
-  exits(r, 0, 'build --diagrams without a fence');
-  ok(/0 formulas; 0 diagrams$/m.test(r.err) && !/luccet-mermaid-style/.test(r.out), `without a fence: ${r.err}`);
-  if (!mermaid) throw new Skip('no Mermaid in node_modules/.cache/luccet-smoke (run the smoke tests once)');
-  let pw = null;
-  try {
-    pw = require('playwright');
-  } catch {
-    throw new Skip('playwright cannot be required');
-  }
-  try {
-    await (await pw.chromium.launch()).close();
-  } catch (e) {
-    throw new Skip(`Chromium cannot launch: ${String(e.message).split('\n')[0]}`);
-  }
-  r = run(['build', 'dg/n.html', '--diagrams', '--json']);
-  exits(r, 0, 'build --diagrams');
-  const j = JSON.parse(r.out);
-  eq(j.diagrams, { total: 3, drawn: 2, from: `the cached ${mermaid.replace('-', ' ')}` }, '--json diagrams');
-  ok(/3 diagrams, 2 drawn ahead with Mermaid from the cached mermaid/.test(r.err), `summary: ${r.err}`);
-  ok(/^dg\/n\.html:15:1: warning diagram\.error: Mermaid cannot draw this diagram, so the page keeps the fence: /m.test(r.err), `the broken fence's warning: ${r.err}`);
-  eq(j.diagnostics.map((d) => `${d.code} ${d.filePosition.start.line}:${d.filePosition.start.column}`), ['diagram.error 15:1'], '--json diagnostics');
-  const html = j.html;
-  const p = pageParts(html);
-  wellFormed(html);
-  ok(/<style id="luccet-mermaid-style">\n\.t-mermaid \{/.test(p.head), 'the diagrams stylesheet in the head');
-  // The fence's id and data-pos on the wrapper, the fence hidden inside; a listing keeps its figure.
-  ok(/<div class="t-mermaid" id="flow" data-pos="4:1"><svg[^>]*class="t-mermaid-screen t-mermaid-light"[^>]*data-palette="Canvas,CanvasText,[^"]*\|light"/.test(p.main), `the first wrapper, its palette as written (the system's colours) and its scheme: ${p.main.slice(0, 300)}`);
-  ok(/<figure id="lst" class="t-block code" data-t="code" data-pos="9:1"><div class="t-mermaid"><svg/.test(p.main), 'the listing wrapped inside its figure');
-  const copies = [...p.main.matchAll(/<svg\b[^>]*class="(t-mermaid-[a-z -]+)"/g)].map((m) => m[1]);
-  eq(copies, ['t-mermaid-screen t-mermaid-light', 't-mermaid-screen t-mermaid-dark', 't-mermaid-print', 't-mermaid-screen t-mermaid-light', 't-mermaid-screen t-mermaid-dark', 't-mermaid-print'], 'a light, a dark and a print copy per diagram (luccet.css follows the system)');
-  ok(/<pre class="wide" data-t="code" data-pos="4:1" hidden><code class="language-mermaid">flowchart LR/.test(p.main), 'the fence kept, hidden, without its id');
-  ok(/<pre data-t="code" data-pos="14:1"><code class="language-mermaid">not a diagram \(\(/.test(p.main) && !/t-mermaid-error/.test(p.main), 'the broken fence kept as a fence, no error in the page');
-  const ids = [...p.main.matchAll(/<svg id="([^"]+)"/g)].map((m) => m[1]);
-  ok(new Set(ids).size === 6 && ids.every((i) => /^t-mermaid-\d+-p\d+$/.test(i)), `unique ids per copy: ${ids}`);
-  const keys = [...p.main.matchAll(/data-palette="([^"]*)"/g)].map((m) => m[1]);
-  ok(keys[0] !== keys[1] && keys[1] !== keys[2] && keys[0] === keys[3] && keys[2] === keys[5], 'palette keys: light, dark and print differ; the same per scheme across diagrams');
-  // Without --diagrams nothing of this is written.
-  const plain = run(['build', 'dg/n.html']);
-  ok(!/luccet-mermaid-style|<svg/.test(plain.out), 'no drawing without the flag');
+test('vendor and build --diagrams are gone with their add-ons, each with a message naming where they went', () => {
+  write('gone/n.html', `${FIRST}<script src="luccet.js"></script>\n# x\n`);
+  const v = run(['vendor', 'vend']);
+  exits(v, 2, 'luccet vendor');
+  ok(/^luccet vendor: this command is gone: since 2\.0 the add-ons are separate \(github\.com\/Luccet\), and each one that loads a library has its own tools\/vendor\.js; math needs nothing\n$/.test(v.err), `vendor: ${v.err}`);
+  const d = run(['build', 'gone/n.html', '--diagrams']);
+  exits(d, 2, 'build --diagrams');
+  ok(/--diagrams is gone: since 2\.0 the Mermaid add-on is separate \(github\.com\/Luccet\/mermaid\)/.test(d.err), `--diagrams: ${d.err}`);
 });
 
 test('build: refusals and usage errors', () => {
@@ -1480,9 +1402,6 @@ test('build: refusals and usage errors', () => {
   exits(run(['build', 'e/n.html', '-o', 'e/n.html']), 2, '-o the note itself');
   eq(read('e/n.html'), `${FIRST}<script src="luccet.js"></script>\n# x\n`, 'the note');
   exits(run(['build']), 2, 'no FILE');
-  const dn = run(['build', 'e/n.html', '--diagrams', '--no-scripts']);
-  exits(dn, 2, '--diagrams with --no-scripts');
-  ok(/luccet build: --diagrams opens the note in a browser, which runs its code; drop --no-scripts, or build without --diagrams/.test(dn.err), `the refusal: ${dn.err}`);
   fs.mkdirSync(at('e/dist'));
   exits(run(['build', 'e/n.html', '-o', 'e/dist']), 0, '-o a directory');
   ok(fs.existsSync(at('e/dist/n.html')), 'written as dist/n.html');
@@ -1676,7 +1595,7 @@ test('usage: help, unknown commands, --help, --version', () => {
   exits(run([]), 0, 'no command');
   exits(run(['bogus']), 2, 'an unknown command');
   exits(run(['usage']), 2, 'usage is not a command');
-  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'vendor', 'lsp']) {
+  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'lsp']) {
     const r = run([c, '--help']);
     exits(r, 0, `${c} --help`);
     ok(r.out.startsWith(`usage: luccet ${c}`), `${c} --help prints its synopsis`);

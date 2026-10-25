@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: A complete tutorial for Luccet, from the first line of a note to vocabularies, styling, diagnostics, the command line and publishing, with live examples throughout.
@@ -537,7 +537,7 @@ def greet(name):
 ```
 ````
 
-The language becomes the class `language-python` on `<code>`, which syntax highlighters look for. Luccet itself does not colour code. To start a line with three backticks as text, escape the first one: ```` \``` ````.
+The language becomes the class `language-python` on `<code>`, which syntax highlighters look for. Luccet itself does not colour code: an add-on does ([Add-ons](addons.html#top)). To start a line with three backticks as text, escape the first one: ```` \``` ````.
 
 ### Line numbers and highlights {#code-lines}
 
@@ -586,23 +586,6 @@ function* fib() {
 
 @lst-fib never ends; take what you need.
 ````
-
-### Diagrams {#diagrams}
-
-With the Mermaid add-on, a fence in the language `mermaid` is drawn as a diagram, in the theme's colours: flowcharts, sequence diagrams, Gantt charts and the rest of Mermaid's diagrams.
-
-```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="addons/mermaid.js"></script>
-```
-
-````luccet
-```mermaid
-flowchart LR
-  A[Write] --> B[Check] --> C[Publish]
-```
-````
-
-Put it in a `:::figure` to give it a caption and a number. The [Add-ons](addons.html#mermaid) page has the colours, the options and how to use it offline.
 
 ### Fences inside fences {#fence-in-fence}
 
@@ -1034,7 +1017,7 @@ Not in a block.
 `{raw}` on a block keeps its body as plain text, for a script to read: a diagram description, data, a chart. Nothing in it is parsed.
 
 ```luccet {.live}
-:::mermaid{raw}
+:::diagram{raw}
 graph TD; A-->B
   *not emphasis*
 :::
@@ -1630,6 +1613,8 @@ When an add-on and the note's own `window.LUCCET.schema` declare the same name, 
 - **An add-on that fails** to load, or throws while it runs, is reported as `addon.failed`. The note still renders, with whatever the add-on registered before the error.
 - **Under the command line**, a local add-on runs as it does in the browser. A remote one (`https://…`) is not loaded: `luccet check` reports `addon.remote`, an info, and does not know the names it declares.
 
+Luccet's own add-ons, for coloured code, diagrams, citations, search and more, each live in a repository of their own: [Add-ons](addons.html#top) lists them, with a link to each one's page.
+
 ### Behaviour: `luccet.define` {#define}
 
 `luccet.define(name, fn)` runs `fn(element)` once on every element whose `data-t` is `name`, after the note is rendered. It is how a name gets behaviour: a chart, a copy button, a quiz. Call it from a script in the note, or give the schema entry a `dom` function.
@@ -1654,7 +1639,7 @@ luccet.define('clock', (el) => {
 
 ## Styling {#styling}
 
-A note is real HTML, so CSS styles it as it styles any page. Luccet ships a small base stylesheet: a readable column, light and dark colours, tables, code, grids and figures.
+A note is real HTML, so CSS styles it as it styles any page. Luccet's base stylesheet is functional only: a note looks like plain HTML, in the browser's own type and colours, light or dark, and the stylesheet adds what Luccet's constructs need (line numbers, grids, an equation's number, math, scrolling, errors). The look is yours, or a [theme](schema.html#themes)'s.
 
 ### Your own CSS {#own-css}
 
@@ -1695,7 +1680,7 @@ A note looks like plain HTML, in the browser's own type and colours, light or da
 | `--t-muted`, `--t-line`, `--t-soft` | secondary text, borders, code and table backgrounds |
 | `--t-link`, `--t-mark` | links and highlights |
 | `--t-error`, `--t-error-bg`, `--t-warn` | error colours |
-| `--t-code-keyword`, `--t-code-string` … | code colours, for the [code add-on](addons.html#code) |
+| `--t-code-keyword`, `--t-code-string` … | code colours: the [code add-on](https://github.com/Luccet/code)'s, set by a theme |
 | `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts, in a theme |
 | `--t-width`, `--t-size`, `--t-leading` | column width, font size, line height, in a theme |
 
@@ -1722,13 +1707,7 @@ An add-on adds CSS with `luccet.style(css)`, or with the `css` field of a schema
 
 ### Coloured code {#coloured-code}
 
-Luccet's code add-on colours fences by their language, with highlight.js, in the theme's colours:
-
-```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js"></script>
-```
-
-A fence then only needs its language, as ```` ```python ````. The [Add-ons](addons.html#code) page has the languages, the colours and how to use it offline.
+Luccet's [code add-on](https://github.com/Luccet/code) colours fences by their language, in the theme's colours, so a fence only needs its language, as ```` ```python ````. Its page says how to load it; [Add-ons](addons.html#top) lists it with the others.
 
 **Reference:** [styling](schema.html#styling), [themes](schema.html#themes), [add-ons](addons.html#top), [`luccet.style`](api.html#style).
 

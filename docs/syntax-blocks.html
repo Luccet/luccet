@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: Every block-level construct of Luccet: paragraphs, headings, fences, raw HTML, math, quotes, lists, tables, containers, cells, leaves, footnotes, attribute lines.
@@ -3015,7 +3015,7 @@ Text for a behaviour to read.
 ```
 :::
 
-**Ending.** A raw body ends only at a bare closer (`:::`, any colon count) or at `:::/` plus its own name (`:::/macros`, `:::/mermaid`), indented or not, with trailing whitespace ignored. Any other closer line inside it is content, and so is an opener line, a blank line, a heading, `:::end`: nothing else is structural inside it.
+**Ending.** A raw body ends only at a bare closer (`:::`, any colon count) or at `:::/` plus its own name (`:::/macros`, `:::/diagram`), indented or not, with trailing whitespace ignored. Any other closer line inside it is content, and so is an opener line, a blank line, a heading, `:::end`: nothing else is structural inside it.
 
 ```luccet {.live expect="tex.misplaced"}
 :::macros
@@ -3035,7 +3035,7 @@ Above, `# not a heading`, `:::aside` and `:::/aside` are content of the macros b
 - An opener inside a raw body does not nest, so the first closer ends the raw body and the next one is stray.
 
 ```luccet {.live expect="block.stray-closer"}
-:::mermaid{raw}
+:::diagram{raw}
 :::inner
 x
 :::
@@ -3090,8 +3090,8 @@ The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 
 ```luccet {.live}
 :::use
-addons/mermaid.js
-themes/nord.css addons/code.js?base=vendor/highlight
+lib/callout.js
+themes/nord.css lib/chart.js?colours=dark
 :::
 
 The add-ons load; the block renders nothing here.
@@ -3101,7 +3101,7 @@ The add-ons load; the block renders nothing here.
 Some text first.
 
 :::use
-addons/code.js
+lib/callout.js
 :::
 ```
 
@@ -3110,7 +3110,7 @@ addons/code.js
 `{raw}` on a container makes its body one verbatim text node, emitted escaped inside the element, for a behaviour (a diagram renderer, a chart) to read. The `raw` key itself is never emitted; the title slot, the id, classes and other keys are kept.
 
 ```luccet {.live}
-:::mermaid[Flow]{raw #flow .diagram}
+:::diagram[Flow]{raw #flow .wide}
 graph TD
   A --> B & C
   *not emphasis*

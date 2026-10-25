@@ -83,7 +83,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: node_modules/.cache/luccet-smoke
-          key: luccet-smoke-${{ hashFiles('addons/code.js', 'addons/mermaid.js') }}
+          key: luccet-smoke-${{ hashFiles('test/smoke.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -123,7 +123,6 @@ jobs:
         with:
           node-version: 22
       - run: node test/api.js
-      - run: node test/addons.js # addons/ under the command line; code.js's highlight.js table
       - run: node test/cli.js
       - run: node test/lsp.js
       - run: node test/docs.js # the documentation's pages, live examples and links
@@ -156,7 +155,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: node_modules/.cache/luccet-smoke
-          key: luccet-smoke-${{ hashFiles('addons/code.js', 'addons/mermaid.js') }}
+          key: luccet-smoke-${{ hashFiles('test/smoke.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -177,10 +176,10 @@ jobs:
         with:
           node-version: 22
       - run: |
-          for t in run tex api samples addons palette package cli language lsp docs skills; do
+          for t in run tex api samples palette package cli language lsp docs skills; do
             npx --yes c8@12.0.0 --clean=false --reporter=none node test/$t.js || exit 1
           done
-          npx --yes c8@12.0.0 report --reporter=text-summary --reporter=lcov --include='luccet.js' --include='cli/**' --include='addons/**' --include='tools/**'
+          npx --yes c8@12.0.0 report --reporter=text-summary --reporter=lcov --include='luccet.js' --include='cli/**' --include='tools/**'
       - uses: actions/upload-artifact@v6
         with:
           name: coverage

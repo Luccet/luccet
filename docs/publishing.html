@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Publishing · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Publishing · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: How to publish Luccet notes: the file and its first line, opening notes from disk, static hosts and GitHub Pages, pre-rendering with luccet build, Content-Security-Policy, math and offline use, browsers, trust, performance, and what to do when a note does not render.
@@ -114,7 +114,7 @@ Double-click the note, or drag it onto a browser window. It renders from disk, f
 
 - **Relative paths work.** `luccet.js`, add-ons, stylesheets and images found next to the note, or in folders below or above it, load from disk.
 - **Root-relative paths do not.** `/luccet.js` means the root of your disk when the note is opened from a file. Use relative paths (`../luccet.js`).
-- **Math works from disk**, with no network: Luccet writes it as MathML itself. Add-ons that fetch a library from a CDN, such as code highlighting and Mermaid, need the network unless you serve a copy; see [Offline use](#offline).
+- **Math works from disk**, with no network: Luccet writes it as MathML itself. An add-on loaded from a CDN, or one that fetches a library from a CDN, needs the network; see [Offline use](#offline).
 - **Garbled characters.** Opened from disk, both browsers read a note without `<meta charset>` as UTF-8 in our tests. From a server, they may not; keep the charset.
 
 **The diagnostics panel.** While you work, problems should be visible. When the note is opened from a `file:` URL, or from `localhost`, `127.0.0.1` or `[::1]`, `luccet.js` adds a panel at the bottom of the page, after the note:
@@ -202,7 +202,7 @@ Here `site/` holds the notes and `luccet.js`, and `tools/luccet/` is a copy of L
 
 ## Pre-rendering with luccet build {#build}
 
-A note renders in the reader's browser. `luccet build` does the rendering ahead of time, and writes a page that already holds the HTML. The page still loads `luccet.js`, which adds behaviours, the panel, and copy and print handling. Its formulas are in the HTML as MathML, like the rest of the note, and with `--diagrams` the Mermaid diagrams are drawn at build time too, so the page loads no Mermaid. How the command works is on [luccet build](tools.html#build).
+A note renders in the reader's browser. `luccet build` does the rendering ahead of time, and writes a page that already holds the HTML. The page still loads `luccet.js`, which adds behaviours, the panel, and copy and print handling. Its formulas are in the HTML as MathML, like the rest of the note. How the command works is on [luccet build](tools.html#build).
 
 ```sh
 luccet build notes/maps.html -o site/maps.html
@@ -254,7 +254,7 @@ Content-Security-Policy: default-src 'self'; img-src 'self' data:
 
 - `'self'` allows `luccet.js`, `luccet.css` and add-ons from your site.
 - **Math needs nothing more.** The engine writes it as MathML, which is markup: no script, stylesheet or font is fetched for it, and it carries no `style` attributes.
-- **An add-on that fetches a library** from a CDN needs that CDN in `script-src`. The code highlighting and Mermaid add-ons load theirs from jsDelivr, so a note using them needs `script-src 'self' https://cdn.jsdelivr.net`, or a copy of the library served with `?base=` (see [Offline use](#offline)).
+- **An add-on from a CDN**, or one that fetches a library from a CDN, needs that CDN in `script-src`: `script-src 'self' https://cdn.jsdelivr.net` for an add-on loaded from jsDelivr. Or serve copies from your site: an add-on that loads a library has its own way to use a copy (see its page, from [Add-ons](addons.html#top)).
 - `luccet.css` comes from the repository, next to `luccet.js`. It is the same stylesheet `luccet.js` would otherwise inline in a `<style>` element, which a strict `style-src` blocks.
 
 ### Luccet's own styles {#csp-cssom}
@@ -275,7 +275,7 @@ With the policy above, these remain, and they are yours:
 
 - **Your own `style` attributes**, whether written as `{style="…"}` or in raw HTML. They stay attributes, as in hand-written HTML, and the policy blocks them: one violation each, and the style is not applied. Use a class and a stylesheet instead.
 - **Inline scripts in the note**, such as a `<script>` block, are blocked unless the policy allows them, with a nonce or a hash. Scripts from your own origin (`<script src="app.js">`) are allowed by `'self'`.
-- **An add-on's library.** The code highlighting and Mermaid add-ons fetch their library's script from jsDelivr when a note needs it. A policy that does not allow the CDN blocks it, with a violation, and the code stays plain or the diagrams stay as their source. Allow the CDN in `script-src`, or serve a copy with `?base=`.
+- **An add-on, or its library, from a CDN.** A policy that does not allow the CDN blocks it, with a violation: a blocked add-on is an [`addon.failed`](diagnostics.html#addon-failed), and an add-on whose library is blocked goes without it. Allow the CDN in `script-src`, or serve copies from your site (see the add-on's page).
 
 ### Nonces {#csp-nonce}
 
@@ -311,24 +311,15 @@ Chromium reports a blocked `style` attribute while it parses the HTML, Firefox w
 
 Math needs nothing to publish. Luccet turns each formula's TeX into MathML itself, in the browser and in `luccet build` alike, and the browser lays the MathML out with the reader's math font. There is no add-on, no library and no CDN, so the math works offline and under a strict policy as the rest of the note does. The TeX a formula can use, and the fonts and browsers it needs, are on [Math](math.html#top).
 
-For KaTeX's look, the same in every browser and close to LaTeX's, there is a KaTeX add-on, from github.com/Luccet, no longer part of Luccet itself. It turns the engine's MathML off and typesets every formula with KaTeX, which it fetches from a CDN, so a note that loads it needs the network, or a copy of KaTeX given to it with `?base=`, and a policy that allows either. See [KaTeX instead](math.html#katex).
+For KaTeX's look, the same in every browser and close to LaTeX's, there is a [KaTeX add-on](https://github.com/Luccet/katex), no longer part of Luccet itself. It turns the engine's MathML off and typesets every formula with KaTeX, which it fetches from a CDN, so a note that loads it needs the network and a policy that allows the CDN, or a copy of KaTeX, as its page explains. See [KaTeX instead](math.html#katex).
 
-A note written for Luccet 1 that still names `addons/katex.js` or `addons/mathml.js` in `data-use` gets an [`addon.failed`](diagnostics.html#addon-failed) error, since those files are gone, and its formulas are MathML anyway: remove the add-on from `data-use`.
+A note written for Luccet 1 that still names `addons/katex.js` or `addons/mathml.js` in `data-use` gets an [`addon.failed`](diagnostics.html#addon-failed) error, since Luccet's `addons/` folder is gone, and its formulas are MathML anyway: remove the add-on from `data-use` ([An add-on fails](#addon-fails)).
 
 ## Offline use {#offline}
 
-A note works without a network if everything it loads is local: `luccet.js` and its add-ons. Math needs nothing: formulas render from disk, from a `file:` URL, with no network, in both browsers.
+A note works without a network if everything it loads is local: `luccet.js` and its add-ons, as copies next to the note rather than URLs on a CDN. Math needs nothing: formulas render from disk, from a `file:` URL, with no network, in both browsers.
 
-The code highlighting and Mermaid add-ons fetch their library from jsDelivr by default. To use them offline, serve a copy of each and point the add-on at it with `?base=`:
-
-1. Write the copies with [`luccet vendor vendor`](tools.html#vendor): it writes `vendor/highlight/` and `vendor/mermaid/`, from the versions the add-ons pin.
-2. Point the add-ons at them:
-
-   ```html
-   <!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="addons/code.js?base=vendor/highlight addons/mermaid.js?base=vendor/mermaid"></script>
-   ```
-
-A local base gets no integrity hash; `luccet vendor` copies the pinned files, the ones the add-ons' hashes match. To load no Mermaid at all, draw the diagrams at build time with `luccet build --diagrams` ([diagrams drawn ahead](tools.html#build-diagrams)).
+An add-on that loads a library from a CDN, as those for code highlighting, diagrams and KaTeX do, has its own way to use a local copy of it instead: see its page, from [Add-ons](addons.html#top).
 
 ## Browsers {#browsers}
 
@@ -343,7 +334,7 @@ A local base gets no integrity hash; `luccet vendor` copies the pinned files, th
 - copying formulas, printing to PDF, the network waterfall on a slow connection, long tasks on a 4,000-formula note, and the first paint of a 1 MB note (the last five in Chromium; copying and the 1 MB note also in Firefox);
 - accessibility: [axe-core](https://github.com/dequelabs/axe-core) finds no WCAG 2.0 or 2.1 A or AA violation on a page holding every construct the emitter writes, in luccet.css alone and in every theme, light and dark.
 
-**Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property, `MutationObserver`, and MathML layout (`MathMLElement`), since formulas are MathML: Chrome and Edge 109, Firefox 78 and Safari 14, or newer. Chrome 109 is the first Chromium to lay out MathML. In an older browser `luccet.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page. For that to work, `luccet.js` and the add-ons must at least parse there: a test (`test/floor.js`) fails the build when either uses syntax or an API those versions lack.
+**Minimum versions.** The runtime needs `replaceChildren`, `CSS.escape`, `:is()`, `nonce` as a property, `MutationObserver`, and MathML layout (`MathMLElement`), since formulas are MathML: Chrome and Edge 109, Firefox 78 and Safari 14, or newer. Chrome 109 is the first Chromium to lay out MathML. In an older browser `luccet.js` does not start: it writes a line saying so and shows the note as its source, readable, instead of a half-rendered page. For that to work, `luccet.js` must at least parse there: a test (`test/floor.js`) fails the build when it uses syntax or an API those versions lack.
 
 **WebKit is tested, Safari not verified.** The smoke suite also runs in Playwright's WebKit, the engine behind Safari, in CI, where it blocks a change as Chromium and Firefox do. Nothing on these pages has been checked in Safari itself. The command line and the language server run their tests on Windows in CI the same way.
 
@@ -485,6 +476,8 @@ error addon.failed at the luccet.js line (file line 1): the add-on missing-addon
 
 **Cause.** A path in `data-use` or `:::use` is wrong, the file is missing on the host, or the add-on's origin is unreachable. `luccet.js` waits for every add-on to load or fail before it renders, so a failing add-on never blocks the note.
 
+**From Luccet 1.** Luccet 2 has no `addons/` folder, so a note that loads an add-on from it, `addons/code.js` say, gets this error once it moves to Luccet 2. Each add-on lives in its own repository now: load it from there ([Add-ons](addons.html#top)). `addons/katex.js` and `addons/mathml.js` can simply go, since formulas are MathML ([Math and KaTeX](#katex)).
+
 **An add-on that throws.** An add-on that loads but throws while it runs is reported too. What it registered before the error stays in effect:
 
 ```text
@@ -513,7 +506,7 @@ error tex.unknown at line 4:35 (file line 5): \thetha is not a command Luccet kn
 
 **Fix.** Correct the TeX as the hint says. `luccet check` and your editor report the same diagnostic before you publish. Every code, with its fix, is in [Inside a formula](diagnostics.html#tex); what Luccet's math leaves out is in [Math](math.html#unsupported).
 
-**Every formula shows as its TeX, with no diagnostic.** Something asked for TeX instead of MathML, and nothing rendered it: a math add-on such as [KaTeX's](#katex), which asks for TeX when it loads, then could not fetch its library (it says so in the console); or `data-math="tex"` on the tag, or `math: 'tex'` in `window.LUCCET`, given for a renderer that did not run. **Fix.** Check the add-on's connection, or its `?base=` copy; or drop `data-math` and `math: 'tex'` to have MathML.
+**Every formula shows as its TeX, with no diagnostic.** Something asked for TeX instead of MathML, and nothing rendered it: a math add-on such as [KaTeX's](#katex), which asks for TeX when it loads, then could not fetch its library (it says so in the console); or `data-math="tex"` on the tag, or `math: 'tex'` in `window.LUCCET`, given for a renderer that did not run. **Fix.** Check the add-on's connection, or its copy of KaTeX; or drop `data-math` and `math: 'tex'` to have MathML.
 
 **The math shows, but brackets do not grow and sums and integrals stay small.** The reader's computer has no math font: some Linux systems have none. **Fix.** Install one, such as Latin Modern Math or STIX Two Math, or have a theme bring one ([fonts and browsers](math.html#browsers)).
 
@@ -528,7 +521,7 @@ error tex.unknown at line 4:35 (file line 5): \thetha is not a command Luccet kn
 | an inline style element (`style-src-elem`) | Luccet's inline base stylesheet | link `luccet.css` in the head, or use `data-css` or `data-nonce` |
 | inline style attributes (`style-src-attr`) | your `style=`, or a [built page](#csp-built) | use classes; publish the note rather than a built page |
 | an inline script (`script-src-elem`) | a `<script>` block in the note, or the guard | `data-nonce` with a nonce policy, or move the code to a file |
-| a script from `https://cdn.jsdelivr.net` (`script-src-elem`) | the CDN is not allowed for the [code highlighting](addons.html#code) or [Mermaid](addons.html#mermaid) add-on | add `https://cdn.jsdelivr.net` to `script-src`, or serve a copy with `?base=` ([Offline use](#offline)) |
+| a script from `https://cdn.jsdelivr.net` (`script-src-elem`) | the CDN is not allowed for an [add-on](addons.html#top) loaded from it, or for the library an add-on loads | add `https://cdn.jsdelivr.net` to `script-src`, or serve copies from your site ([Offline use](#offline)) |
 
 The details are on [Content-Security-Policy](#csp).
 

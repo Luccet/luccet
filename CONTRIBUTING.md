@@ -1,6 +1,6 @@
 # Contributing to Luccet
 
-Luccet is a single-file engine, `luccet.js`, built from `src/`, with a command line in `cli/`, add-ons in `addons/`, and documentation in `docs/` that is itself written in Luccet. The engine, the conformance corpus and the documentation are the reference together: when they disagree, that is a bug to report, not something to settle by adjusting whichever is easiest.
+Luccet is a single-file engine, `luccet.js`, built from `src/`, with a command line in `cli/`, and documentation in `docs/` that is itself written in Luccet. The engine, the conformance corpus and the documentation are the reference together: when they disagree, that is a bug to report, not something to settle by adjusting whichever is easiest.
 
 ## Setting up
 
@@ -23,7 +23,7 @@ npm run smoke                 # the browser tests (the print test also needs mut
 ## A change
 
 1. **A branch per change**, from `main`, and a pull request. Keep a pull request to one thing: a fix, a feature, a page.
-2. **A test that fails before the change** and passes after it: a corpus case for the engine (`test/corpus/*.txt`), a CLI or LSP test for the tools (`test/cli.js`, `test/lsp.js`), an API test (`test/api.js`), a smoke test for the runtime and the add-ons (`test/smoke.js`). `node test/run.js --lint` checks that a corpus case cites the documentation section it tests.
+2. **A test that fails before the change** and passes after it: a corpus case for the engine (`test/corpus/*.txt`), a CLI or LSP test for the tools (`test/cli.js`, `test/lsp.js`), an API test (`test/api.js`), a smoke test for the runtime (`test/smoke.js`). The add-ons have their own repositories (github.com/Luccet), with their own tests. `node test/run.js --lint` checks that a corpus case cites the documentation section it tests.
 3. **The documentation in the same pull request.** A change in behaviour changes a page in `docs/`; its live examples are checked against the engine by `npm test`, so an example that no longer holds fails the build.
 4. **A line in `CHANGELOG.md`**, under the unreleased section at the top, saying what changed for a reader of the previous release. CI fails a pull request that leaves the changelog alone; label it `no-changelog` when there is nothing to say (a typo, a test alone).
 5. **Every suite green**: `npm test`, and `npm run smoke` for anything the browser runs. CI runs both on every pull request, plus the command line and the language server on Windows and the smoke suite in WebKit, blocking too, and a coverage report (c8, as a run artifact) of the Node suites. A change to the language server should also be run against [luccet.nvim](https://github.com/Luccet/luccet.nvim), the Neovim plugin, which is a client of it: check the plugin out beside this repository and run `nvim --headless -u NONE -l test/run.lua` in it (`LUCCET_ROOT` names another checkout). The plugin’s own CI runs those tests against Luccet’s `main`; the engine does not depend on the plugin.

@@ -1,6 +1,6 @@
 # Vocabulary, add-ons, themes and behaviour
 
-Read this when a note uses names such as `:::theorem`, `:::note` or `::toc`; when you add a numbered kind of element, labels in another language, a theme, code colours or diagrams; or when you write CSS or a script for a note. The syntax is in [syntax.md](syntax.md), every code in [diagnostics.md](diagnostics.md), the commands in [tools.md](tools.md).
+Read this when a note uses names such as `:::theorem`, `:::note` or `::toc`; when you add a numbered kind of element, labels in another language, a theme or an add-on; or when you write CSS or a script for a note. The syntax is in [syntax.md](syntax.md), every code in [diagnostics.md](diagnostics.md), the commands in [tools.md](tools.md).
 
 ## What a vocabulary is
 
@@ -89,25 +89,25 @@ The toc is a `nav` listing both headings, the theorem a `section` labelled "Theo
 - **Where.** A classic script in the head, before the luccet.js line. A `<script>` inside the note runs after the note is rendered: too late to declare names for it.
 - **Function fields** (`label`, `dom`) and `css` work here as in an add-on.
 - **A bad entry** (a reserved name, a value that is not an object) is skipped with a console warning; the others apply.
-- **`window.LUCCET`** carries other settings too: `lang` (label language), `macros` (TeX macros for every formula: `{"\\R": "\\mathbb{R}"}`) and `use` (per-add-on options, keyed by the add-on's file name: `use: {code: {…}}`).
+- **`window.LUCCET`** carries other settings too: `lang` (label language), `macros` (TeX macros for every formula: `{"\\R": "\\mathbb{R}"}`) and `use` (per-add-on options, keyed by the add-on's file name: `use: {callout: {…}}`).
 - **Under the command line.** `luccet check`, `luccet build` and the language server run the head's classic scripts too, so they see the same vocabulary (in a separate context, which is not a security boundary: [Trust](tools.md#trust)). A remote `src` is not run (`head.script`, info); a missing file or a script that throws is `head.script` (warning). Scripts with `async`, `defer` or `type="module"` are not run.
 
 ## Add-ons: `data-use` and `:::use`
 
 An add-on is a script or a stylesheet listed, space-separated, in `data-use` on the luccet.js tag:
 
-```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js"></script>
+```html expect="addon.remote"
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js"></script>
 ```
 
 or, one or more per line, in a `:::use` block, the readable form for several. It must lead the note: top level, before any content, with only `:::meta` and blank lines before it; one anywhere else is `use.late` (error) and ignored. Both forms merge, the tag's entries first. The block emits nothing.
 
-```html
+```html expect="addon.remote"
 <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::use
 https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css
-addons/code.js
+https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
 :::
 ```
 
@@ -119,20 +119,20 @@ addons/code.js
 | a remote script (`https://…`) | loaded by the browser | not loaded: `addon.remote` (info); the names it declares are unknown to the check |
 | a remote stylesheet | loaded by the browser | nothing reported |
 
-- **Paths** are URLs relative to the note, like any `src`: from `notes/a.html` write `data-use="../addons/code.js"`, as its luccet.js line has `src="../luccet.js"`. Under the command line a root-relative path (`/lib/x.js`) resolves from the note's folder or the nearest ancestor that has it.
+- **Paths** are URLs relative to the note, like any `src`: from `notes/a.html` write `data-use="../lib/callout.js"`, as its luccet.js line has `src="../luccet.js"`. Under the command line a root-relative path (`/lib/x.js`) resolves from the note's folder or the nearest ancestor that has it.
 - **Order.** Scripts download in parallel and run in the order listed; a later add-on sees and can change an earlier one's entries. Stylesheets cascade in the order listed: a theme listed after another CSS add-on wins at equal specificity.
 - **Options** go in the query string and arrive in `luccet.config.use.NAME`, where NAME is the file name without its folder, `.min` and extension: `data-use="lib/callout.min.js?collapse=all"` gives `luccet.config.use.callout.collapse === 'all'`. Write `&` as `&amp;` in strict HTML; both work. In a `:::use` entry, write `&` as it is. Defaults can sit in `window.LUCCET = {use: {callout: {…}}}`; the query wins key by key.
 - **Failure never blanks the note.** A script that fails to load renders the note without it; one that throws renders it with what it registered before the error. Both are `addon.failed`.
 - **A remote add-on that declares names** makes `luccet check` blind to them: under strict names those names show as `name.unknown`, and `luccet build` warns that the page uses them without their entries. Prefer a local copy when the vocabulary matters to the check. `addon.remote` alone does not fail the check.
-- **`luccet new FILE --use="../addons/code.js ../addons/copy.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
+- **`luccet new FILE --use="../lib/callout.js ../lib/theme.css"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
 
 ```html expect="addon.remote"
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/addons/code.js https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
 
 # Remote add-ons
 ```
 
-From jsDelivr, give each add-on and theme the same TAG as the note's `luccet.js`.
+On jsDelivr, Luccet's add-ons and themes have versions of their own, not `luccet.js`'s: `@1` follows each one's major version 1.
 
 ## The schema fields
 
@@ -365,49 +365,24 @@ An HTML name: known.
 
 When a note's vocabulary is complete, strict names are a cheap way to find typos; add it only if the user wants it kept.
 
-## The built-in add-ons: code colours and diagrams
+## Luccet's add-ons
 
-Luccet ships two script add-ons in `addons/`, next to `luccet.js`. Neither declares vocabulary: they define behaviours on `code` (every fence carries `data-t="code"`) and add styles. List them in `data-use`, with a theme if you like.
+Luccet's add-ons are not part of the engine. Each lives in a repository of its own under github.com/Luccet, whose README is its page: the names it declares, its options, and how to use it offline. Read that page before using an add-on or changing how a note uses it.
 
-````html
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Pipeline</title>
-<script>
-window.LUCCET = {schema: {block: {figure: {tag: 'figure', counter: 'figure', label: 'Figure'}}}};
-</script>
-<script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css addons/code.js addons/mermaid.js"></script>
+| Add-on | What it does |
+|---|---|
+| [code](https://github.com/Luccet/code) | colours code fences by language, with highlight.js, in the theme's colours (`--t-code-*`) |
+| [mermaid](https://github.com/Luccet/mermaid) | draws diagrams from fences in Mermaid's language, in the theme's colours |
+| [lightbox](https://github.com/Luccet/lightbox) | opens a figure's image full size in a dialog |
+| [cite](https://github.com/Luccet/cite) | cites sources from a `:::bibliography` block (BibTeX or CSL-JSON) as `@key`, and lists them |
+| [search](https://github.com/Luccet/search) | a `::search` box over a set of notes, indexed in the browser or from the `search.json` that `luccet index` writes |
+| [notes](https://github.com/Luccet/notes) | `::notes`, a list of a folder's notes from the `notes.json` that `luccet index` writes |
+| [glossary](https://github.com/Luccet/glossary) | `::glossary`, the terms a folder's notes define (`:dfn[…]`, `:::definition`), and `:term[…]` links to them |
+| [katex](https://github.com/Luccet/katex) | typesets math with KaTeX, for KaTeX's look, in place of the engine's MathML |
 
-:::figure[From source to page]{#fig-pipeline}
-```mermaid
-flowchart LR
-  S[source] --> P[parse] --> T[transform] --> E[emit]
-```
-:::
-
-@fig-pipeline shows the steps, and this fence is coloured by its language:
-
-```python
-print("hello")
-```
-````
-
-**`code.js`** colours every fence that names its language, titled or not, with highlight.js, in the theme's `--t-code-*` colours.
-- Common languages (js, python, bash, c, css, html, json, sql, yaml …) load at once; the rest of highlight.js's languages load on first use. Write the language or an alias: ```` ```py ````, ```` ```tex ````.
-- Left plain: a fence with no language, `text`, `txt`, `plaintext`, `nohighlight`, or a language highlight.js does not know (such as `luccet`). Inline code is never coloured.
-- `lines`, `hl=` and `start` keep working; the text does not change, so copying code copies the same text.
-
-**`mermaid.js`** draws each ```` ```mermaid ```` fence as a diagram (flowcharts, sequence, class, state, ER, Gantt, pie, mind maps, timelines …), in the theme's colours and sans-serif font, redrawn when the reader switches light and dark (a dark palette's diagram gets a second copy, in print colours, for printing).
-- Put the fence in a `:::figure[Caption]{#id}` for a caption, a number (when the vocabulary counts figures) and `@id`. An id on the fence itself (```` ```mermaid {#id} ````) goes to the diagram.
-- Mermaid's options go in the query (`?look=classic`, `?theme=forest`) or in `window.LUCCET = {use: {mermaid: {…}}}` for nested ones; `themeVariables` there win over the theme's colours. Mermaid runs with `securityLevel: 'strict'`.
-- Mermaid loads only on a page with a `mermaid` fence. A diagram Mermaid cannot read stays as its source with Mermaid's message after it; `luccet check` does not read diagrams and reports nothing for them.
-
-**How they load.** Both fetch their library from jsDelivr, pinned with SRI hashes; code is plain and diagrams show their source until it arrives, and stay so (with a console warning) if it never does. Under `luccet check` and `luccet build` they run but colour and draw nothing; a built page is coloured and drawn when `luccet.js` runs on it.
-
-**Offline, or a strict Content-Security-Policy:** point `?base=` at a local copy, loaded without SRI.
-- `addons/code.js?base=vendor/highlight`: the folder holding `highlight.min.js` and `languages/` (the layout of the npm package `@highlightjs/cdn-assets`).
-- `addons/mermaid.js?base=vendor/mermaid`: the folder holding `mermaid.min.js` (the `dist/` folder of the npm package `mermaid`).
-- A `window.hljs` or `window.mermaid` already on the page is used as it is.
-- Math is not an add-on: the engine writes every formula as MathML, offline too. For KaTeX's look instead there is an optional KaTeX add-on (github.com/Luccet), which turns the engine's MathML off (`math: 'tex'`).
-- With a CSP, allow `https://cdn.jsdelivr.net` in `script-src`, or use copies; with `data-nonce` on the luccet.js tag the add-ons' scripts and styles carry the nonce.
+- **Load one** from jsDelivr, `https://cdn.jsdelivr.net/gh/Luccet/NAME@1/NAME.js`, in `data-use` or `:::use`, or from a copy next to the note. A remote one is `addon.remote` under `luccet check`, which then does not know the names it declares; a local copy is run.
+- **Math needs no add-on:** the engine writes every formula as MathML, offline too.
+- **Offline or under a strict Content-Security-Policy,** an add-on that fetches a library from a CDN (code, mermaid, katex) has its own way to use a local copy: see its page. With a CDN, allow it in `script-src`.
 
 ## Themes
 
@@ -451,11 +426,10 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 | `.t-ref`, `.t-fnref`, `.t-fnback`, `.t-footnotes` | a resolved `@id`; footnote marks, back links, the footnote section |
 | `li.t-task` | a task item |
 | `pre[data-lines]`, `.t-line`, `.t-hl` | numbered code, its lines, highlighted lines |
-| `.hljs-keyword` … | tokens coloured by `code.js` |
 | `.t-error` | content shown as an error |
 | `.t-diagnostics` | the diagnostics panel, after `main` |
 
-**Custom properties**, on `:root`: the contract between luccet.css (its own parts: the panel, line numbers, errors), the add-ons and a theme. Their defaults are the system's colours (`Canvas`, `CanvasText`, `LinkText` …), or luccet.css's own for errors, code and highlighted lines; the fonts and measures are a theme's:
+**Custom properties**, on `:root`: the contract between luccet.css (its own parts: the panel, line numbers, errors), the add-ons and a theme. Their defaults are the system's colours (`Canvas`, `CanvasText`, `LinkText` …), or luccet.css's own for errors and highlighted lines; the fonts and measures are a theme's:
 
 | Property | Sets |
 |---|---|
@@ -463,7 +437,7 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 | `--t-muted`, `--t-line`, `--t-soft` | secondary text; rules and borders; code and table-header backgrounds |
 | `--t-link`, `--t-mark` | links; `==highlight==` and highlighted lines |
 | `--t-error`, `--t-error-bg`, `--t-warn` | errors and warnings |
-| `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | code colours for `code.js` |
+| `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | code colours: not luccet.css's, but the [code add-on](https://github.com/Luccet/code)'s, which defines their defaults; a theme sets them |
 | `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts |
 | `--t-width`, `--t-size`, `--t-leading` | column width, base size, line height: a theme's (`classic.css`: `40rem`, `18px`, `1.6`); luccet.css sets none |
 
@@ -476,7 +450,7 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 </style>
 ```
 
-**Where your CSS goes.** Luccet's sheets form one group in the head: luccet.css, then each `data-use` entry in order (a CSS add-on, or what a script add-on adds with `luccet.style` — a math add-on's stylesheet among them), then other `luccet.style` sheets (schema `css` from `window.LUCCET.schema`, note scripts). Your head `<style>` or `<link rel="stylesheet">` comes after the group, and a `<style>` block in the note after that, so both win over luccet.css, themes and add-ons at equal specificity. For one note, a `<style>` in the head (before the luccet.js line) or at the end of the note is enough; for many, a CSS add-on.
+**Where your CSS goes.** Luccet's sheets form one group in the head: luccet.css, then each `data-use` entry in order (a CSS add-on, or what a script add-on adds with `luccet.style`), then other `luccet.style` sheets (schema `css` from `window.LUCCET.schema`, note scripts). Your head `<style>` or `<link rel="stylesheet">` comes after the group, and a `<style>` block in the note after that, so both win over luccet.css, themes and add-ons at equal specificity. For one note, a `<style>` in the head (before the luccet.js line) or at the end of the note is enough; for many, a CSS add-on.
 
 **Dark mode.** luccet.css sets `color-scheme: light dark`, so a plain note follows the reader's system in the browser's own colours; a theme sets its dark colours inside `@media (prefers-color-scheme: dark)`. A colour you set outside that query holds in both modes, so setting only some colours can put light text on your light background: set the whole palette, or set it per mode.
 
@@ -593,9 +567,9 @@ conjecture: {tag: 'section', counter: 'theorem', label: 'Conjecture', ref: '{lab
 
 **Translate the labels.** Make each `label` a map with the new language and set `lang` once (`:::meta` or `<html lang>`).
 
-**Add a theme and code colours.** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/github.css addons/code.js"`: the theme from jsDelivr (or a copy next to the note), the add-on by its path relative to the note; check that local files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
+**Add a theme and code colours.** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/github.css https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js"`: both from jsDelivr, or copies next to the note by their paths relative to it; check that local files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
 
-**A note opened without a network.** Math needs nothing. Copy highlight.js and Mermaid next to the note (`luccet vendor DIR`) and point each add-on's `?base=` at them; otherwise code stays plain and diagrams stay source.
+**A note opened without a network.** Math needs nothing. Load `luccet.js`, the add-ons and the themes from copies next to the note; an add-on that fetches a library (code, mermaid, katex) has its own way to use a local copy of it, on its page.
 
 ## The demo schema
 
@@ -605,6 +579,6 @@ The ```` ```luccet schema=demo ```` examples here, and the documentation's live 
 
 - [Vocabulary and behaviour](https://luccet.dev/docs/schema.html#fields): every field in full; [window.LUCCET](https://luccet.dev/docs/schema.html#window-luccet); [add-ons under node](https://luccet.dev/docs/schema.html#addons-under-node); [the demo schema](https://luccet.dev/docs/schema.html#demo-schema).
 - [Numbering](https://luccet.dev/docs/elements.html#numbering), [references](https://luccet.dev/docs/elements.html#references), [title slots](https://luccet.dev/docs/elements.html#title-slots), [allowlists](https://luccet.dev/docs/elements.html#allowlists).
-- [Add-ons: code](https://luccet.dev/docs/addons.html#code) and [Mermaid](https://luccet.dev/docs/addons.html#mermaid); [themes](https://luccet.dev/docs/schema.html#themes); [styling](https://luccet.dev/docs/schema.html#styling).
+- [Add-ons](https://luccet.dev/docs/addons.html#top), each linking to its page; [themes](https://luccet.dev/docs/schema.html#themes); [styling](https://luccet.dev/docs/schema.html#styling).
 - [`luccet.define`](https://luccet.dev/docs/api.html#define), [`luccet.on`](https://luccet.dev/docs/api.html#on), [`luccet.style`](https://luccet.dev/docs/api.html#style), [`luccet.config`](https://luccet.dev/docs/api.html#config), [the lifecycle](https://luccet.dev/docs/api.html#lifecycle).
 - Back to [SKILL.md](../SKILL.md).

@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/code.js ../addons/mermaid.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: The add-ons that come with Luccet, in its addons/ folder: code highlighting with highlight.js, copy buttons on code, diagrams with Mermaid, a lightbox for figures, citations from BibTeX or CSL-JSON, a search box over a set of notes, a list of them, and a glossary.
+description: Luccet's add-ons, each in its own repository under github.com/Luccet: what an add-on is, how a note loads one, and the list, from code highlighting and diagrams to citations, search and a glossary, each linked to its page.
 :::
 
 ::site-nav
@@ -10,383 +10,47 @@ description: The add-ons that come with Luccet, in its addons/ folder: code high
 
 ::toc
 
-Luccet comes with add-ons in the `addons/` folder next to `luccet.js`. Each one is a script [add-on](schema.html#addons): list it in `data-use` on the luccet.js tag, or in a [`:::use` block](syntax-blocks.html#use) at the top of the note, with a [theme](schema.html#themes) if you like.
+The add-ons each live in their own repository under [github.com/Luccet](https://github.com/Luccet), whose README is the add-on's page: what it does, its options, and how to use it offline.
+
+## The add-ons {#list}
+
+:::table[Add-ons]{#tbl-addons}
+| Add-on | What it does | Its page |
+|---|---|---|
+| code | colours code fences by language, with highlight.js, in the theme's colours (`--t-code-*`) | [Luccet/code](https://github.com/Luccet/code) |
+| mermaid | draws ```` ```mermaid ```` fences as diagrams, in the theme's colours; can draw a built page's diagrams ahead | [Luccet/mermaid](https://github.com/Luccet/mermaid) |
+| lightbox | opens a figure's image full size in a dialog | [Luccet/lightbox](https://github.com/Luccet/lightbox) |
+| cite | cites sources from a `:::bibliography` block (BibTeX or CSL-JSON) as `@key`, and lists them | [Luccet/cite](https://github.com/Luccet/cite) |
+| search | a `::search` box over a set of notes, indexed in the browser or from the index [`luccet index`](tools.html#index) writes | [Luccet/search](https://github.com/Luccet/search) |
+| notes | `::notes`, a list of a folder's notes from the catalogue [`luccet index`](tools.html#index) writes | [Luccet/notes](https://github.com/Luccet/notes) |
+| glossary | `::glossary`, the terms a folder's notes define (`:dfn[…]`, `:::definition`), and `:term[…]` links to them | [Luccet/glossary](https://github.com/Luccet/glossary) |
+| katex | typesets math with KaTeX, for KaTeX's look, in place of the engine's MathML | [Luccet/katex](https://github.com/Luccet/katex) |
+:::
+
+**Math needs no add-on.** The engine translates each formula's TeX to MathML itself, and the browser lays it out ([Math](math.html#top)). The katex add-on is for KaTeX's look instead.
+
+## Loading an add-on {#loading}
+
+An add-on is a script or a stylesheet that a note loads, to add what the engine leaves out: names and their meaning, behaviour, a look. List it in `data-use` on the luccet.js tag:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="addons/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js"></script>
 ```
 
-Several read better in a `:::use` block, one or more per line, which must come first in the note, after `:::meta` at most:
+Several read better in a [`:::use` block](syntax-blocks.html#use), one or more per line, which must come first in the note, after `:::meta` at most:
 
 ```html
 <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::use
 https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css
-addons/code.js
-addons/mermaid.js
+https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
+https://cdn.jsdelivr.net/gh/Luccet/cite@1/cite.js
 :::
 ```
 
-From jsDelivr, give each add-on the same tag as `luccet.js`: `https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/addons/code.js`.
+Each add-on below lives in its own repository under [github.com/Luccet](https://github.com/Luccet), whose README is its page: what it does, its options, and how to use it offline. From jsDelivr, an add-on's URL is `https://cdn.jsdelivr.net/gh/Luccet/NAME@1/NAME.js`; a copy next to the note works too, and is the one `luccet check` can load ([remote add-ons](schema.html#addon-failed)). A [theme](schema.html#themes) is a stylesheet add-on, from [Luccet/themes](https://github.com/Luccet/themes).
 
-**Math needs no add-on.** The engine translates each formula's TeX to MathML itself, and the browser lays it out: there is nothing to load, in the browser and in `luccet build` alike ([Math](math.html)). For KaTeX's look instead, an optional KaTeX add-on is available from github.com/Luccet ([KaTeX instead](math.html#katex)).
+## Your own {#own}
 
-:::table[Add-ons]{#tbl-addons}
-| Add-on | What it does |
-|---|---|
-| [`code.js`](#code) | colours code by its language, with highlight.js, in the theme's colours |
-| [`mermaid.js`](#mermaid) | draws `mermaid` fences as diagrams, with Mermaid, in the theme's colours |
-| [`copy.js`](#copy) | a button on every fence that copies its code |
-| [`lightbox.js`](#lightbox) | opens a figure's image full size, in a dialog |
-| [`search.js`](#search) | a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes, each hit linking to its heading or block |
-| [`notes.js`](#notes) | a `::notes` list of the notes in a folder, from the catalogue `luccet index` writes |
-| [`glossary.js`](#glossary) | a `::glossary` list of the terms a folder's notes define, from the glossary `luccet index` writes; `:term[…]` links a use to it |
-| [`cite.js`](#cite) | cites sources from a `:::bibliography` block, in BibTeX or CSL-JSON, with `@key` |
-:::
-
-## Code highlighting {#code}
-
-`code.js` colours the code in every fence that names its language: keywords, strings, comments, numbers, function and type names. The colours come from the page's theme.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/code.js"></script>
-<script src="luccet.js" data-use="addons/code.js?base=vendor/highlight"></script>
-```
-:::
-
-This page loads it, so the fence below is coloured:
-
-```js {lines hl=3}
-// The nth Fibonacci number.
-function fib(n) {
-  return n < 2 ? n : fib(n - 1) + fib(n - 2);
-}
-```
-
-### Which fences {#code-fences}
-
-- **A fence that names its language,** by name or by alias: ```` ```js ````, ```` ```python ````, ```` ```tex ````. Titled fences ([listings](elements.html#numbering)) are coloured too.
-- **Left as they are:** a fence with no language, one marked `text`, `txt`, `plaintext` or `nohighlight`, and one in a language highlight.js does not know, such as `luccet`. Inline code is never coloured.
-- **Line numbers and highlighted lines stay.** `{lines hl=3}` works as it does without the add-on: the coloured text is split back into the lines, and a comment that runs over two lines is coloured on both.
-- **The text does not change.** The add-on only wraps it in `<span class="hljs-…">` elements, so copying code copies the same text.
-- **In slices, after the note shows.** The fences are coloured a few at a time, 10 ms of work per frame, so a page of hundreds of fences stays responsive while it colours them; printing colours what is left first.
-
-### Languages {#code-languages}
-
-- **With the add-on, 36 languages load at once,** highlight.js's common bundle: bash, c, cpp, csharp, css, diff, go, graphql, ini, java, javascript, json, kotlin, less, lua, makefile, markdown, objectivec, perl, php, php-template, plaintext, python, python-repl, r, ruby, rust, scss, shell, sql, swift, typescript, vbnet, wasm, xml and yaml, with their aliases (`js`, `py`, `sh`, `html` …).
-- **157 more load the first time a note uses one,** each a small file: latex (`tex`), haskell (`hs`), scala, elixir, julia, matlab, ocaml, dockerfile, nginx, powershell and the rest of [highlight.js's languages](https://highlightjs.readthedocs.io/en/latest/supported-languages.html).
-- **An alias two languages share is not used:** `ls` is both Lasso and LiveScript, so write `lasso` or `livescript`.
-
-### Colours {#code-colours}
-
-The add-on maps highlight.js's classes onto ten [custom properties](schema.html#custom-properties). luccet.css sets them for light, dark and print, and every [theme](schema.html#themes) sets its own, after that theme's syntax colours.
-
-:::table[Code colours]{#tbl-code-colours}
-| Property | Colours |
-|---|---|
-| `--t-code-comment` | comments, in italics |
-| `--t-code-keyword` | keywords, tag names |
-| `--t-code-string` | strings, regular expressions |
-| `--t-code-number` | numbers, literals such as `true` and `null` |
-| `--t-code-function` | function names, section titles |
-| `--t-code-type` | types, class names, built-ins |
-| `--t-code-variable` | variables, attributes, properties |
-| `--t-code-meta` | preprocessor lines, doctypes, prompts |
-| `--t-code-inserted` | added lines in a diff |
-| `--t-code-deleted` | removed lines in a diff |
-:::
-
-- **Readable.** Each code colour has at least 4.5:1 contrast against the code background, and 3:1 on a highlighted line (`hl=`), where it sits on the highlight colour; in High contrast, 7:1 and 4.5:1. A theme's original colour that falls short is darkened or lightened until it passes.
-- **Print** uses luccet.css's light colours, as the rest of the page does.
-- **Your own colours:** set the properties in your CSS, as for any [custom property](schema.html#overriding), or style highlight.js's classes (`.hljs-keyword` …) directly.
-
-```html
-<style>
-  :root { --t-code-keyword: #8250df; }
-  .hljs-comment { font-style: normal; }
-</style>
-```
-
-### How it loads {#code-loading}
-
-- **From jsDelivr.** The add-on asks for highlight.js 11.12.0 as soon as it runs, alongside the other add-ons, pinned with [SRI](publishing.html#csp) hashes. Code shows plain until it arrives, then turns coloured.
-- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `highlight.min.js` and `languages/`, the layout of the npm package `@highlightjs/cdn-assets`. A copy is loaded without SRI.
-- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's scripts carry the nonce.
-- **A highlight.js already on the page** is used as it is, with the languages it has.
-- **If highlight.js does not load,** code stays plain, and the console shows a warning.
-- **Without the page.** `luccet check` and `luccet build` run the add-on but do not colour code: a built page is coloured when `luccet.js` runs on it, and without JavaScript code shows plain.
-
-### A newer highlight.js {#code-updating}
-
-The version and its hashes live in a table in `addons/code.js`. To move to another version, run `node tools/hljs.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
-
-## Diagrams {#mermaid}
-
-`mermaid.js` draws each fence in the language `mermaid` as a diagram, with [Mermaid](https://mermaid.js.org): flowcharts, sequence, class, state and entity–relationship diagrams, Gantt and pie charts, mind maps, timelines, git graphs and the rest of [Mermaid's diagrams](https://mermaid.js.org/intro/syntax-reference.html). They take the page theme's colours and its sans-serif font.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/mermaid.js"></script>
-<script src="luccet.js" data-use="addons/mermaid.js?base=vendor/mermaid"></script>
-```
-:::
-
-This page loads it. This source:
-
-````luccet
-```mermaid
-flowchart LR
-  A[Write the note] --> B{Does it parse?}
-  B -- yes --> C[Publish]
-  B -- no --> D[Fix it]
-  D --> A
-```
-````
-
-draws this diagram:
-
-```mermaid
-flowchart LR
-  A[Write the note] --> B{Does it parse?}
-  B -- yes --> C[Publish]
-  B -- no --> D[Fix it]
-  D --> A
-```
-
-### Figures and ids {#mermaid-figures}
-
-- **In a figure,** a diagram gets the figure's caption, its number where the vocabulary counts figures, and references.
-- **An id on the fence,** as in ```` ```mermaid {#id} ````, goes to the diagram, so links land on it; a diagram Mermaid cannot draw gives it back to the fence. The ids inside a drawing (its nodes, markers, styles) are made unique to each placement, so two fences with one source, or a screen and a print copy, never repeat an id.
-- **A titled fence** (```` ```mermaid[Title] ````) is a [listing](guide.html#listings), as for code. For a diagram, a figure usually reads better.
-
-````luccet
-:::figure[From source to page]{#fig-pipeline}
-```mermaid
-flowchart LR
-  S[source] --> P[parse] --> T[transform] --> E[emit] --> M[mount]
-```
-:::
-
-@fig-pipeline shows the engine's steps.
-````
-
-:::figure[From source to page]{#fig-pipeline}
-```mermaid
-flowchart LR
-  S[source] --> P[parse] --> T[transform] --> E[emit] --> M[mount]
-```
-:::
-
-@fig-pipeline shows the engine's steps.
-
-### Colours {#mermaid-colours}
-
-The add-on sets Mermaid's `base` theme from the page's [custom properties](schema.html#custom-properties), so every [theme](schema.html#themes) has matching diagrams.
-
-- **Shapes and lines.** Nodes are `--t-soft` with `--t-muted` borders, lines and arrows `--t-muted`, text `--t-fg`. Notes are `--t-mark`, and critical tasks in a Gantt chart are `--t-error` on `--t-error-bg`.
-- **Categories:** pie slices, git branches, mind map and timeline sections, the series of an xy chart. These take the theme's accents in turn: `--t-link`, then the [code colours](#code-colours), less any too close to one already taken. Pie slices and branches use the accents themselves; sections use a tint of them, with text in `--t-fg`.
-- **Light, dark and print.** Mermaid writes the colours into each drawing, so the add-on draws a diagram for the palette in effect, and again when the reader switches between light and dark, or when a page script switches the theme and says so with a `luccet:theme` event (below). Unless the palette is already the print palette, a diagram is drawn a second time in print colours, dark on white as luccet.css prints, and that copy is the one printed: a dark theme's and a light theme's alike.
-- **`luccet:theme`.** A page that switches its theme itself, by replacing the theme's `<link>`, dispatches a `luccet:theme` event on `window` once the new stylesheet applies, with `detail.theme` (a name, `""` for none) and `detail.href`: `window.dispatchEvent(new CustomEvent('luccet:theme', {detail: {theme: 'nord', href}}))`. The add-on draws its diagrams again in the new colours.
-- **Drawn ahead.** [`luccet build --diagrams`](tools.html#build-diagrams) draws the fences into the page, a copy per palette and the print copy, each marked with its palette (`data-palette`). The add-on adopts them: it shows the copy for the palette in effect and asks for Mermaid only when none fits, as after a theme switch, when it draws afresh. Each copy the add-on draws itself carries `data-palette` too.
-- **Your own colours:** set the custom properties, or Mermaid's own theme variables, which win: `window.LUCCET = {use: {mermaid: {themeVariables: {primaryColor: '#e8f0fe'}}}}`. With a Mermaid theme of its own, such as `?theme=forest`, a diagram keeps Mermaid's colours.
-
-### Options {#mermaid-options}
-
-- **Mermaid's settings.** Every option but `base` goes to `mermaid.initialize`: `?look=classic` for Mermaid's earlier look, or `?layout=dagre` for the layout before ELK, Mermaid 12's default. Nested settings go in `window.LUCCET = {use: {mermaid: {…}}}`.
-- **One diagram's settings:** a diagram's own `config` front matter, or a `%%{init: …}%%` line, applies to that diagram alone.
-- **Strict security.** Mermaid runs with `securityLevel: 'strict'`, whatever the add-on's options say: labels cannot hold HTML or scripts, and clicking a node runs no JavaScript.
-
-### How it loads {#mermaid-loading}
-
-- **Only where it is needed.** The add-on asks for Mermaid 12.1.0 when a note has a `mermaid` fence. It is one file from jsDelivr, pinned with [SRI](publishing.html#csp): 1.5 MB compressed, 5.5 MB as JavaScript. Each fence shows its source until Mermaid arrives.
-- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `mermaid.min.js`, the `dist/` folder of the npm package `mermaid`. A copy is loaded without SRI. A `window.mermaid` already on the page is used as it is.
-- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, or use a copy. Mermaid writes inline styles as it draws. With [`data-nonce`](publishing.html#csp), the add-on sets them through the CSSOM and gives its `<style>` elements the nonce, so a `style-src` without `'unsafe-inline'` works. Without `data-nonce`, a policy that blocks inline styles puts the labels out of place.
-- **Not in an untrusted root.** A fence in a root rendered with [`safe`](api.html#render) stays as its source: behaviours do not run there.
-- **A diagram Mermaid cannot read** stays as its source, followed by Mermaid's message, which the console shows too. `luccet check` does not read diagrams, so it reports nothing for them.
-- **If Mermaid does not load,** each fence stays as its source, and the console shows a warning; the next render (a `luccet.render`, an editor's preview) asks for it again.
-- **Without the page.** `luccet check` and `luccet build` run the add-on but draw nothing: a built page draws its diagrams when `luccet.js` runs on it, and without JavaScript each fence shows its source.
-
-### A newer Mermaid {#mermaid-updating}
-
-The version and its hash live in a table in `addons/mermaid.js`. To move to another version, run `node tools/mermaid.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
-
-## Copy buttons {#copy}
-
-`copy.js` puts a button on every fence and listing that copies its code to the clipboard: the code alone, as written, without line numbers or highlighting. The button says "Copy", then "Copied" for a moment, and a status line says the same to a screen reader. It is not printed.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/copy.js"></script>
-```
-````luccet
-```js {data-copy=false}
-no button on this one
-```
-````
-:::
-
-- **Where.** Inside the `<pre>`, first, as `<button type="button" class="t-copy">`, positioned in the fence's top corner; the `<pre>` gets the class `t-copyable`. Because the button is inside the fence, a fence another add-on moves or hides, a [diagram](#mermaid), takes it along. `{data-copy=false}` on a fence (on the listing, for a titled one) gives it none.
-- **What is copied** is the text of the fence's `<code>`: the lines as written, with their line breaks, without the numbers, which are CSS counters, and without the highlighting, which is markup.
-- **How.** The clipboard API where the page may use it (a secure context: `https`, a local file, `localhost`); elsewhere the copy goes through a selection and `execCommand`, which works inside a click everywhere. When neither works the button says "Copy failed".
-- **The words** `copy`, `copied` and `copyFailed` come from [`window.LUCCET.strings`](api.html#strings) when the page sets them. The status line is `div.t-copy-status[role=status]`, visually hidden, appended to the body.
-- **Styling.** The button uses the theme's colours (`--t-fg` on `--t-bg`, a `--t-line-strong` border) and is faded until the fence is hovered or the button focused; a stylesheet add-on can restyle `.t-copy`. Under a strict CSP its styles carry the page's nonce, as every `luccet.style` does.
-- **Without the page,** `luccet check` and `luccet build` load the add-on and nothing happens: a built page gets its buttons when `luccet.js` runs. An [untrusted root](api.html#render) gets no behaviour, so no buttons.
-
-## Lightbox {#lightbox}
-
-`lightbox.js` opens a figure's image full size, in a dialog, on a click or on Enter, with the figure's caption under it. Escape, the close button or a click beside the image closes it, and focus returns to the image.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/lightbox.js"></script>
-<script src="luccet.js" data-use="addons/lightbox.js?images=all"></script>
-```
-```luccet
-![A luccet in flight](luccet.jpg){#fig-luccet}
-
-:::figure[Left as it is]{data-lightbox=false}
-![A map](map.png)
-:::
-```
-:::
-
-- **Which images.** Every `<img>` in a [figure](elements.html#figures), implicit or `:::figure`. `images=all`, on the add-on or in `window.LUCCET = {use: {lightbox: {images: 'all'}}}`, takes every image of the note. An image inside a link is left to its link, and `{data-lightbox=false}` on a figure or an image leaves it alone.
-- **The image** gets the class `t-zoomable` (a zoom cursor), `tabindex="0"`, `role="button"`, `aria-haspopup="dialog"` and an `aria-label` of "View full size" with its alt text, so it is a control a keyboard and a screen reader reach; it stays an `<img>` where it was, so the page's own CSS keeps applying.
-- **The dialog** is one `<dialog class="t-lightbox">` for the page, appended to the body when first needed: a close button (`t-lightbox-close`, labelled Close), the image at up to 94% of the viewport's width and 86% of its height, and the caption (`t-lightbox-caption`, the figure's `<figcaption>` text, with its label, else the alt text). Its `aria-label` is the caption. While it is open the page behind does not scroll (in browsers with `:has()`).
-- **The words** `viewFullSize` and `close` come from [`window.LUCCET.strings`](api.html#strings) when the page sets them.
-- **Needs `<dialog>`** (Chrome 37, Firefox 98, Safari 15.4). In an older browser inside [the support floor](publishing.html#browsers) the add-on does nothing and images stay as they are.
-- **Without the page,** `luccet check` and `luccet build` load the add-on and nothing happens; a built page gets the behaviour when `luccet.js` runs. An untrusted root gets none.
-
-## Search {#search}
-
-`search.js` declares a `::search` leaf: a search box over a set of notes, built in the browser when the page opens. The notes are fetched and parsed by the engine, with the page's own vocabulary, and split into entries — every heading's section and every named block with an id, an exercise or a theorem — so a hit links straight to its place on its page. Nothing is built ahead and nothing leaves the browser: it suits a wiki of notes published as they are. With `index=`, the box reads the index [`luccet index`](tools.html#index) wrote instead: one file, no note fetched, for a site with many notes.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/search.js"></script>
-```
-```luccet
-::search
-::search{from=index.html}
-::search{notes="algebra/chapter1.html algebra/chapter2.html" limit=10 placeholder="Find an exercise"}
-::search{index=search.json}
-```
-:::
-
-- **Which notes.** `::search` alone covers the notes this page links to: every same-origin link to an `.html` file, the page itself left out (a folder's address, `blog/`, is its `index.html`, and a page without its extension, `blog/post`, is `blog/post.html`). `from=PAGE` covers the notes another page links to — an index page, so a search page needs no list of its own. `notes="A B"` lists them. A link to something that is not a note (no `luccet.js` tag) or cannot be fetched is skipped, with a warning in the console, and counted in the status line.
-- **A prebuilt index.** `index=search.json` loads the [`search.json`](tools.html#index-files) that [`luccet index`](tools.html#index) wrote, relative to the page: one request and no parsing, with the same ranking, and the hits resolve from the file's folder. An index that cannot be loaded, is not one, or is of another format than this version reads (its `format`, which changes only in a major release; a file with none was written before 1.0) is reported in the console, and the notes are indexed here instead, from `notes`, `from` or the page's links. An entry's URL resolves against the file and must be a page on its origin, as `luccet index` writes them; any other, a `javascript:` or `data:` URL or another site, is left out, with a warning in the console. Write the file again when the notes change ([Keeping the files current](tools.html#index-hook)).
-- **The vocabulary.** Load the notes' schema add-on on the search page too (`data-use="math.js addons/search.js"`), so their `:::exercise` and `:::theorem` blocks parse as they do on their own pages, with their labels and numbers. An index written by `luccet index` was built with it already.
-- **A hit** shows the entry's label and title — "Exercise 3 II.1", a heading's text — the page it is on, and a snippet with the matching words marked. The link lands on the block's id. Enter opens the first hit of the query as typed, running it first if the box had not caught up. The arrow keys walk the results: down from the box to the first hit and along them, up back to the box, and Escape returns to the box from any hit.
-- **Matching is lexical.** Words are folded, so `cafe` finds `Café` in either Unicode form and `istanbul` finds `İstanbul`, and stemmed lightly, so `triangle` finds `triangles`; a query word stands for every word it begins: `pythag` finds Pythagoras and Pythagorean. Chinese, Japanese and Korean are searched by pairs of characters, so `東京` finds 東京タワー with no spaces in the text ([Words](api.html#search)). Entries are ranked BM25-style; a word in an entry's title counts for more than one in its text. TeX is searched as written: `sqrt` finds `\\sqrt`. A word the notes never use finds nothing.
-- **Options** go on the leaf, on the add-on (`addons/search.js?from=index.html`), or in `window.LUCCET = {use: {search: {…}}}`; the leaf's win. `limit` caps the results (20; `limit=0` lists none and the status still counts them); `placeholder` sets the box's. `?q=WORD` in the page's URL fills the box, and typing keeps the URL up to date, so a search can be linked to.
-- **The element** is a `<search role="search">` with the classes `t-search`, `t-search-box`, `t-search-status` and `t-search-results`, styled from the theme's variables; a stylesheet add-on can restyle them. The status line is the one live region (`role="status"`), so a screen reader hears the count, not every hit; the results are an `<ol role="list">`, a list even without its bullets. Its words (the placeholder, Indexing…, the counts, No results) come from [`window.LUCCET.strings`](api.html#strings) when the page sets them.
-- **Privacy.** Only the notes listed or linked are fetched, from the page's own origin; a note that no page links to is never read. `index=` and `from=` name `http(s)` URLs; anything else is refused, and a box that cannot be set up says so in place. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetches.
-- **Without the page.** `luccet check` and `luccet build` know the leaf and do nothing with it: the box is built when `luccet.js` runs. The same search over files, with lines, is [`luccet search`](tools.html#search); the pipeline both run is [`luccet.search`](api.html#search).
-
-## Notes {#notes}
-
-`notes.js` declares a `::notes` leaf: a list of the notes in a folder, read from the catalogue [`luccet index`](tools.html#index) writes, `notes.json`: each note's title, linked, its date and its description. It is the front page of a wiki, or of a site that lists what it holds, without a build: run `luccet index` when the notes change, and the page lists them when it opens.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/notes.js"></script>
-```
-```luccet
-::notes
-::notes{from=../notes.json in=BookOfProof/ sort=title limit=10}
-```
-:::
-
-- **Which notes.** `::notes` alone reads `notes.json` next to the page; `from=PATH` names the catalogue, an `http(s)` URL. The page itself is left out, also when it is reached as its folder (`blog/` for `blog/index.html`) or without its extension (`blog/post` for `blog/post.html`). `in=FOLDER` keeps the notes under a folder, a prefix of their path in the catalogue. An entry's URL resolves against the catalogue and must be a page on its origin, as `luccet index` writes them; any other, a `javascript:` or `data:` URL or another site, is left out, with a warning in the console.
-- **The order.** `sort=date`, the default, puts the newest first and undated notes last, and with them a note whose date is not one (`YYYY-MM-DD`, a time after it allowed), which is shown as written without a `<time>`; `sort=title` sorts by title; `sort=path` keeps the catalogue's order, the folder's. `limit=N` caps the list (`limit=0` lists none).
-- **What a note shows:** its title, linked, its date in a `<time>`, and its description, as [`luccet index`](tools.html#index-files) found them in the head and the `:::meta` of each note.
-- **Options** go on the leaf, on the add-on (`addons/notes.js?from=notes.json`), or in `window.LUCCET = {use: {notes: {…}}}`; the leaf's win.
-- **The element** is a `<nav aria-label="Notes">` with the classes `t-notes`, `t-notes-list` (a `<ul role="list">`), `t-notes-title`, its words (the label Notes, No notes., the failure line) from [`window.LUCCET.strings`](api.html#strings) when the page sets them, `t-notes-date`, `t-notes-desc` and `t-notes-status`, styled from the theme's variables; a stylesheet add-on can restyle them.
-- **When the catalogue cannot be loaded,** or `from=` is not a URL, the leaf says so in place, with the reason in the console. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
-- **Without the page.** `luccet check` and `luccet build` know the leaf and do nothing with it: the list is built when `luccet.js` runs.
-
-## Glossary {#glossary}
-
-`glossary.js` declares a `::glossary` leaf: the terms the notes of a folder define, read from the glossary [`luccet index`](tools.html#index) writes, `glossary.json`, each term linked to where it is defined, with its definition as it reads on its own page; and a `:term[…]` inline, a use of a term, linked to the glossary page's entry. A term is defined where the word is explained: by `:dfn[…]`, HTML's element for the defining instance of a word, whose paragraph is the definition, or by a titled `:::definition` block, whose body is ([`luccet.glossary`](api.html#glossary)). No note needs a build: run `luccet index` when the notes change, and the page lists the terms when it opens.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/glossary.js"></script>
-```
-```luccet
-A :dfn[truism] is a claim so obviously true that it goes without saying.
-
-:::definition[Kernel]{#ker}
-The set of vectors $v$ with $T(v) = 0$.
-:::
-
-::glossary
-::glossary{from=../wiki/glossary.json in=algebra/}
-
-Every :term[truism], and the :term[kernels]{title=kernel} too, link to the glossary page.
-```
-:::
-
-- **Defining a term.** `:dfn[truism]` in the sentence that explains it; `title=` gives the canonical form when the text is not it (`:dfn[truisms]{title=truism}`), as HTML's rule says. A `:::definition[Kernel]` block defines its title by its body, as math notes do. A `dfn` in a heading is defined by the paragraph after it. The same word defined in two notes is listed twice, and `luccet index` says so.
-- **Which terms.** `::glossary` alone reads `glossary.json` next to the page; `from=PATH` names the file, an `http(s)` URL. `in=FOLDER` keeps the terms of the notes under a folder, a prefix of their path in the file. A note's URL resolves against the file and must be a page on its origin, as `luccet index` writes them; any other is left out, with a warning in the console.
-- **What an entry shows.** The terms in the order of their folded key (`Café` with `cafe`), each a `<dt>` whose id is the term's slug (`glossary-truism`) and whose text links to the definition in its note, then a `<dd>` with the definition rendered as on its page: its links lead back to the note, its formulas are MathML, and a line names the note. Raw HTML in a definition is escaped, as in a note rendered `safe`.
-- **Uses.** `:term[truism]` is a link to the glossary page, `glossary.html` beside the note unless `page=` says otherwise (`addons/glossary.js?page=/wiki/glossary.html` for notes in several folders), with `title=` as the term when the text is inflected. The link is in the tree, so `luccet check` reports a page that is not there as [`link.missing`](diagnostics.html#link-missing) at the use, and `luccet build` writes it; the entry's `#` is added when the page shows, since the entries exist once the list is built. The link is drawn with a dotted underline.
-- **Options** go on the leaf, on the add-on (`addons/glossary.js?page=…`), or in `window.LUCCET = {use: {glossary: {…}}}`; the leaf's win.
-- **The element** is a `<div role="region" aria-label="Glossary">` with the classes `t-glossary`, `t-glossary-list` (a `<dl>`), `t-glossary-source` and `t-glossary-status`, its words (the label Glossary, No terms., From {title}, the failure lines) from [`window.LUCCET.strings`](api.html#strings) when the page sets them; a use is a `<span class="term">` around its link.
-- **When the file cannot be loaded,** or is of another format than this version reads (its `format`, which the definitions' trees follow; it changes only in a major release, and a file with none was written before 1.0), the leaf says so in place, with the reason in the console; run `luccet index` again. The page needs to be served over HTTP: from a `file:` URL browsers refuse the fetch.
-- **Without the page.** `luccet check` and `luccet build` know the leaf and do nothing with it: the list is built when `luccet.js` runs. A use's link is theirs.
-
-## Citations {#cite}
-
-`cite.js` cites sources: a `:::bibliography` block holds them, in BibTeX or CSL-JSON, and `@key` cites one. A citation is a [reference](syntax-inline.html#reference), so nothing new is written: it reads "[1]", or "(Knuth, 1984)" in the author-year style, and links to the entry; the block lists the cited sources, formatted in one plain style, in the order it numbers them.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/cite.js"></script>
-```
-```luccet
-As @knuth84 showed, and @lamport94 agreed.
-
-:::bibliography
-@article{knuth84,
-  author = {Knuth, Donald E.}, title = {Literate programming},
-  journal = {The Computer Journal}, volume = 27, number = 2,
-  pages = {97--111}, year = 1984, doi = {10.1093/comjnl/27.2.97}}
-@book{lamport94, author = {Leslie Lamport}, title = {{\LaTeX}: A Document Preparation System},
-  publisher = {Addison-Wesley}, edition = {2nd}, year = 1994}
-:::
-```
-:::
-
-The engine writes (as `luccet build` shows it, without positions):
-
-```html
-<p>As <a class="t-ref cite" href="#knuth84">[1]</a> showed, and <a class="t-ref cite" href="#lamport94">[2]</a> agreed.</p>
-<section class="t-block bibliography" data-t="bibliography" role="doc-bibliography"><div class="t-title">References</div><ul class="t-block bib-list" data-t="bib-list" role="list"><li id="knuth84" class="bib numeric" data-t="bib"><span class="t-label">[1]</span> Knuth, D. E. (1984). Literate programming. <em>The Computer Journal</em>, 27(2), 97–111. <a href="https://doi.org/10.1093/comjnl/27.2.97">https://doi.org/10.1093/comjnl/27.2.97</a></li>
-<li id="lamport94" class="bib numeric" data-t="bib"><span class="t-label">[2]</span> Lamport, L. (1994). <em>LaTeX: A Document Preparation System</em> (2nd ed.). Addison-Wesley.</li>
-</ul>
-</section>
-```
-
-- **The sources** go in the block's body, verbatim: BibTeX entries (`@type{key, field = {value}, …}`, with `@string` macros, `"quoted"` and bare values, `#` concatenation, the month abbreviations; `@comment` and `@preamble` are skipped), or CSL-JSON, an array of items (`[{"id": "knuth84", "type": "article-journal", …}]`), which many reference managers export. LaTeX in a value is read as text: braces are removed, accents composed (`M{\"u}ller` is Müller), `--` is an en dash, `\LaTeX` is LaTeX.
-- **The key** is what `@` cites, so it must be one `@` reaches: a letter or `_`, then letters, digits, `_` and `-` (`knuth84`, `knuth-1984`; not `knuth:84`). A key `@` cannot reach is listed but not citable, with [`cite.key`](#cite-diagnostics).
-- **Which sources are listed:** the cited ones. `{all}` lists every source. The list is sorted by the first author's family name, then year, then title (`sort=author`, the default); `sort=cited` follows the order of first citation, as IEEE does; `sort=source` keeps the order written. The numbers follow the list, so with `sort=author` "[1]" is the first by author; a second `:::bibliography` keeps counting.
-- **The citation's text.** In the numeric style (`style=numeric`, the default) `@key` reads "[1]" and `@key{ref=number}` "1". With `{style=author-year}` on the block, `@key` reads "(Knuth, 1984)", `@key{ref=label}` the narrative "Knuth (1984)" and `@key{ref=number}` the year; two authors are "Abel and Borel", three or more "Zed et al.", an undated source "n.d.". In both styles `@key{ref=title}` is the title and `@key{ref=full}` the citation followed by the title. The link gets the class `cite` beside `t-ref`.
-- **The heading** is the title written in the brackets, `:::bibliography[Sources]`, else "References" in the note's [label language](schema.html#languages) (English, German, French, Spanish, Italian, Portuguese, Dutch).
-- **The style of an entry** is one plain style, close to APA: authors as "Family, I. I." joined with "and" (two) or commas and "and" (more; "et al." for `and others`), the year in parentheses, the title (in italics for a book or a thesis), the journal or book in italics with volume(issue) and pages, the publisher, and the DOI as a `https://doi.org/` link (else the URL). Articles, books, chapters and proceedings, theses, reports and anything else have each their shape; fields an entry lacks are left out.
-- **A shared bibliography.** A head script before the luccet.js line sets `window.LUCCET.bib` to the same text, or to an array of CSL items: `<script src="refs.js"></script>` with ``window.LUCCET = {bib: `@article{…}`}`` in it, kept beside the notes. The note's first `:::bibliography` lists from its body and from `window.LUCCET.bib` (with an empty body, from the page's alone); a later block lists its own body. luccet.js reads the head in the browser, and the command line runs it under node, so both see the same sources.
-- **The elements** are a `<section role="doc-bibliography">` with the classes `t-block bibliography`, its heading in `t-title`, a `<ul role="list">` with `bib-list`, and one `<li>` per source with `bib` and the style's class (`numeric`, `author-year`), its number in `t-label`, hanging-indented by the add-on's stylesheet; a stylesheet add-on can restyle them. Each entry carries its line in the source as its position, so the editor's go-to-definition on `@key` lands on it.
-- **Under node,** `luccet check`, `luccet build` and the language server run the add-on's transforms, so they see the list as the page will: `luccet build` writes it into the page, pre-rendered, and `luccet check` reports the diagnostics below with file lines.
-
-### Diagnostics {#cite-diagnostics}
-
-| Code | Severity | When |
-|---|---|---|
-| `cite.syntax` | warning | An entry cannot be read (a brace not closed, a field without `=`, CSL-JSON that does not parse). It is left out; the others stay. |
-| `cite.duplicate` | warning | A key is given twice. The second entry is left out. |
-| `cite.key` | warning | A key `@` cannot reach (`knuth:84`). The entry is listed, without an id. |
-| `cite.empty` | info | A `:::bibliography` with no source in its body and none in `window.LUCCET.bib`. |
-
-Each is at the entry's line. A `@key` that names no source is the engine's [`ref.dangling`](diagnostics.html#ref-dangling), as for any reference.
+An add-on of your own is a stylesheet, or a short script that calls `luccet.block`, `luccet.define`, `luccet.style` and the rest: [Add-ons](schema.html#addons) has how they load, take options and fail, and [Writing an add-on](schema.html#writing-an-addon) a complete one.

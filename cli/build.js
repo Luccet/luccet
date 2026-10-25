@@ -22,7 +22,6 @@
 const fs = require('fs');
 const path = require('path');
 const { analyse, attributes, luccet } = require('./note');
-const { styleTag } = require('./diagrams');
 
 const escAttr = (s) => String(s).replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c]);
 const escText = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c]);
@@ -60,11 +59,9 @@ function htmlAttributes(head, add) {
 
 // ---------------------------------------------------------------- build
 
-// build(text, file, {noScripts, diagrams}) -> null when the file is not a
-// note, else {html, diagnostics, warnings, math: {total}, use, nonce,
-// toFile}. The formulas are MathML, as the engine writes them. With diagrams,
-// the head carries the stylesheet the diagrams cli/diagrams.js draws into the
-// page need (removed again if none is drawn).
+// build(text, file, {noScripts}) -> null when the file is not a note, else
+// {html, diagnostics, warnings, math: {total}, use, nonce, toFile}. The
+// formulas are MathML, as the engine writes them.
 function build(text, file, opts = {}) {
   const a = analyse(text, file, { noScripts: opts.noScripts });
   if (!a) return null;
@@ -147,7 +144,6 @@ function build(text, file, opts = {}) {
   const css = attrs['data-css'];
   const base = sheets.find((s) => s.href != null && (s.href === css || /(?:^|\/)luccet(?:\.min)?\.css$/i.test(s.href.replace(/[?#].*$/, ''))));
   const after = use.filter(isCss).map((u) => link(u));
-  if (opts.diagrams) after.push(styleTag(attrs['data-nonce']));
   if (base) {
     head = [head.slice(0, base.start), head.slice(base.start, base.end), ...after.map((x) => `\n${x}`), head.slice(base.end)].join('');
   } else {

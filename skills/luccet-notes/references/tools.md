@@ -317,7 +317,7 @@ A note is a static file: no build step, no server code. Publishing is uploading 
 
 The notes, `luccet.js`, every add-on, theme, stylesheet and image they use, keeping the folder layout their relative paths expect.
 
-- **One `luccet.js` at the site's root**, each note pointing at it relatively (`luccet.js`, `../luccet.js`): `luccet new` writes that. Or load it from jsDelivr with a pinned tag (`@vX.Y.Z`), and give add-ons and themes from jsDelivr the same tag.
+- **One `luccet.js` at the site's root**, each note pointing at it relatively (`luccet.js`, `../luccet.js`): `luccet new` writes that. Or load it from jsDelivr with a pinned tag (`@vX.Y.Z`); add-ons and themes on jsDelivr have versions of their own (`@1`).
 - **Relative paths only.** Root-relative `/luccet.js` breaks from disk and under a sub-path. The file name must stay `luccet.js` (not `luccet.min.js`).
 - **The canonical first line** keeps the doctype (without it: quirks mode, math as TeX, `doc.quirks`) and the charset (without it, a server that names no charset garbles non-ASCII text, with no diagnostic):
 
@@ -352,16 +352,16 @@ Any static host serves notes with no configuration: no rewrites, no headers; `.h
 
 ### Math and offline use
 
-Math needs nothing: the engine turns each formula's TeX into MathML, and the browser lays it out with the reader's math font, offline too. `luccet.css` names the common math fonts; on a computer with none (some Linux systems), brackets do not stretch and big operators stay small. KaTeX's look, the same in every browser, is an optional add-on from github.com/Luccet. Details: [Math](https://luccet.dev/docs/math.html).
+Math needs nothing: the engine turns each formula's TeX into MathML, and the browser lays it out with the reader's math font, offline too. `luccet.css` names the common math fonts; on a computer with none (some Linux systems), brackets do not stretch and big operators stay small. KaTeX's look, the same in every browser, is an optional add-on, [Luccet/katex](https://github.com/Luccet/katex). Details: [Math](https://luccet.dev/docs/math.html).
 
-Only code highlighting and diagrams fetch libraries: `luccet vendor DIR` copies highlight.js and Mermaid for `?base=` (see the add-ons).
+Offline, load `luccet.js`, the add-ons and the themes from copies next to the notes. An add-on that fetches a library from a CDN (code highlighting, diagrams, KaTeX) has its own way to use a local copy: see its page, from [Add-ons](https://luccet.dev/docs/addons.html#top).
 
 ### Content-Security-Policy
 
 Without a CSP header, skip this. Under a strict policy (no `'unsafe-inline'`):
 
 - **Link `luccet.css`** (copy it from the checkout, next to `luccet.js`) in the head, so `luccet.js` does not inline its stylesheet; or use `data-css`, or `data-nonce`.
-- **Math needs nothing:** it is MathML in the page, with no script, stylesheet or font to fetch. Allow `https://cdn.jsdelivr.net` only for add-ons that load a library (code highlighting, diagrams), or point their `?base=` at a local copy.
+- **Math needs nothing:** it is MathML in the page, with no script, stylesheet or font to fetch. Allow `https://cdn.jsdelivr.net` only for add-ons loaded from it, or that load a library from it (code highlighting, diagrams, KaTeX); or serve copies, as each add-on's page says.
 - **Still blocked, and yours:** `style` attributes (`{style="…"}`, raw HTML: use classes), inline `<script>` blocks in the note (unless allowed by nonce or hash; move code to a file), and in a built page the `style` attributes of aligned columns and `cols` grids; under a strict CSP, publish the note itself.
 - **Nonces** on a static host are fixed values, no better than `'unsafe-inline'`.
 

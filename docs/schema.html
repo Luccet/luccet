@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: How to give Luccet's element names meaning, look and behaviour: the schema and every schema field, window.LUCCET.schema, add-ons, luccet.define, custom transforms, styling, and labels in other languages.
@@ -568,7 +568,7 @@ The demo schema sets no `titleDefault`, so this field has no live example.
 How a container's body is read.
 
 ```js
-luccet.block('mermaid', { body: 'raw' });
+luccet.block('diagram', { body: 'raw' });
 ```
 
 - **`'blocks'`**, the default: the body is Luccet blocks.
@@ -576,7 +576,7 @@ luccet.block('mermaid', { body: 'raw' });
   - The body is one text node, written escaped inside the element, for a behaviour to read.
   - Nothing in it is Luccet: `:::note` and `*x*` are text.
   - It ends only at a bare `:::` or at `:::/name`.
-  - The title still works: `:::mermaid[Flow]`.
+  - The title still works: `:::diagram[Flow]`.
 - **`'inline'`** is accepted, but as built it is read exactly like `'blocks'`: a list in the body is still a list.
 - Any other value is read as `'blocks'`.
 - Containers only: a leaf's brackets always hold inline content.
@@ -584,7 +584,7 @@ luccet.block('mermaid', { body: 'raw' });
 `{raw}` gives one element the same body, with no schema:
 
 ```luccet {.live}
-:::mermaid{raw}
+:::diagram{raw}
 graph TD
   A --> B
 :::
@@ -1288,17 +1288,17 @@ The title belongs in brackets.
 
 ### Custom properties {#custom-properties}
 
-The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, in the browser's own type and colours, light or dark, and `luccet.css` adds only what Luccet's constructs need (line numbers, grids, an equation's number, the math font and the few rules the engine's MathML needs, scrolling where content would overflow, errors and the diagnostics panel). The look is a [theme's](#themes). The custom properties on `:root` are the contract between them: `luccet.css` draws its own parts with them, the code and Mermaid add-ons read them, and a theme sets them. Their defaults are the system's colours, or `luccet.css`'s own where the system has none.
+The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, in the browser's own type and colours, light or dark, and `luccet.css` adds only what Luccet's constructs need (line numbers, grids, an equation's number, the math font and the few rules the engine's MathML needs, scrolling where content would overflow, errors and the diagnostics panel). The look is a [theme's](#themes). The custom properties on `:root` are the contract between them: `luccet.css` draws its own parts with them, add-ons read them, and a theme sets them. Their defaults are the system's colours, or `luccet.css`'s own where the system has none.
 
 :::table[Custom properties]{#tbl-properties}
 | Property | Light | Dark | Used for |
 |---|---|---|---|
-| `--t-bg` | `Canvas` | | the page as the browser draws it: the diagnostics panel, Mermaid; a theme's page |
+| `--t-bg` | `Canvas` | | the page as the browser draws it: the diagnostics panel; a theme's page |
 | `--t-fg` | `CanvasText` | | the text |
 | `--t-muted` | `CanvasText` | | line numbers; quotes, captions and equation numbers in a theme (the system's `GrayText` is too faint for text in some browsers) |
 | `--t-line` | `GrayText` | | rules and borders in a theme |
 | `--t-line-strong` | `GrayText` | | a control's border, 3:1 against the page: the diagnostics panel; `kbd` and a search box in a theme |
-| `--t-soft` | `ButtonFace` | | Mermaid's shapes; code backgrounds and table headers in a theme |
+| `--t-soft` | `ButtonFace` | | code backgrounds and table headers in a theme |
 | `--t-link` | `LinkText` | | links in a theme |
 | `--t-mark` | `#fff2a8` | `#5c4d00` | highlighted code lines; `==highlight==` in a theme, where text in it is `--t-fg` (a plain note's highlight is the browser's) |
 | `--t-error` | `#b3261e` | `#ffb4ab` | `.t-error` text and border, the panel |
@@ -1308,9 +1308,10 @@ The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, 
 | `--t-mono` | `monospace` | | `.t-error`; code in a theme |
 | `--t-math` | `"Latin Modern Math", "STIX Two Math", "Cambria Math", "Libertinus Math", "TeX Gyre Termes Math", "DejaVu Math TeX Gyre", "Noto Sans Math", math` | | the math font of every formula's `<math>`: a font with OpenType's math table, so brackets stretch and big operators grow ([fonts](math.html#browsers)). A theme may set it, with a math font of its own first |
 | `--t-font`, `--t-width`, `--t-size`, `--t-leading` | | | a theme's body font, text column, base size and line height; `luccet.css` sets none of them, the [classic theme](#themes) sets all four |
-| `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | GitHub's | GitHub's | code colours, for the [code add-on](addons.html#code-colours) |
 | `--t-cols` | | | a grid's columns, set by Luccet on each grid |
 :::
+
+**Code colours** are not `luccet.css`'s: `--t-code-comment`, `--t-code-keyword` and the rest belong to the [code add-on](https://github.com/Luccet/code), which defines their defaults, and a [theme](#themes) sets them with its palette.
 
 ### Overriding them {#overriding}
 
@@ -1392,7 +1393,7 @@ The repository's README lists every theme and its files. Pin a release of the th
 ### Print {#print}
 
 `luccet.css` has a print stylesheet:
-- the page prints dark on light: `color-scheme` is `light` and every colour property takes its light value (the system's light colours, `luccet.css`'s own for errors, code and highlights), `!important`, so a dark theme or a reader in dark mode still prints on white, and no theme has to repeat this;
+- the page prints dark on light: `color-scheme` is `light` and every colour property of `luccet.css` ([Custom properties](#custom-properties)) takes its light value (the system's light colours, `luccet.css`'s own for errors and highlights), `!important`, so a dark theme or a reader in dark mode still prints on white, and no theme has to repeat this. These are the page's colours: an add-on's own, such as the code add-on's `--t-code-*`, are not among them;
 - code wraps, and tables, code and equations no longer scroll;
 - the diagnostics panel is hidden.
 

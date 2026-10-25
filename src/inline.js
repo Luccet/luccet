@@ -765,7 +765,7 @@ function dollar(i) {
 // math transform's diagnostics inside the formula.
 function mathNode(value, at) {
   const node = { type: 'inlineMath', value, position: null };
-  if (!atomMode) node.data = { luccet: { texAt: [pos(at, at).start] } };
+  if (!atomMode) node.data = { luccet: { texAt: [ctx.point(spanStart(span, at))] } };
   return node;
 }
 // `<`: a comment (`<!-->` and `<!--->` are complete), an angle autolink, or

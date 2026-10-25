@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: The luccet object in node and in the browser: parse, transform, emit, toHTML, check, visit, outline, the schema registry, the runtime API and its events, luccet.config, the lifecycle, and the AST with its data.luccet fields.
@@ -66,7 +66,7 @@ A second luccet.js on the same page leaves the first in charge. It warns, `lucce
 
 ### Under node {#under-node}
 
-The engine is an npm package, `luccet`, installed with npm from this repository at a tag (it is not on the npm registry): the same `luccet.js`, with `luccet.css`, the add-ons, the command line as the `luccet` binary, and type declarations (`luccet.d.ts`).
+The engine is an npm package, `luccet`, installed with npm from this repository at a tag (it is not on the npm registry): the same `luccet.js`, with `luccet.css`, the command line as the `luccet` binary, and type declarations (`luccet.d.ts`).
 
 ```sh
 npm install github:Luccet/luccet#vX.Y.Z
@@ -167,8 +167,8 @@ luccet.parse(':::note\nOpen.').diagnostics;
 **`opts.schema`.** The parser reads one schema field, `body: 'raw'`. A container whose entry has it keeps its body as text, as `{raw}` does:
 
 ```js
-const schema = { block: { mermaid: { body: 'raw' } }, leaf: {}, inline: {} };
-const src = ':::mermaid\na --> *b*\n:::';
+const schema = { block: { diagram: { body: 'raw' } }, leaf: {}, inline: {} };
+const src = ':::diagram\na --> *b*\n:::';
 
 luccet.parse(src).ast.children[0].children;            // → [ { type: 'paragraph', … } ]
 luccet.parse(src, { schema }).ast.children[0].value;   // → 'a --> *b*'
@@ -334,7 +334,7 @@ luccet.emit(ast, { positions: false });
 //   + '<p>See <a class="t-ref" href="#kernel">Kernel</a>.</p>\n</div>\n'
 ```
 
-**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line, and `luccet build --diagrams` uses it to position a [`diagram.error`](diagnostics.html#diagram-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
+**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line. `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
 
 **`math`** (default: MathML) decides how a formula is written. By default it is `span.t-math` holding the `<math>` element the `math` transform wrote ([Math](#math-nodes)), with its TeX in `data-tex`; a formula that does not translate is its TeX as text, in `span.t-math.t-error`. A formula the transform did not translate, in a parse AST or a tree transformed with `math: 'tex'`, is translated here, without the note's macros. `math: 'tex'` writes each formula as its TeX, as text, with no `data-tex`, for a renderer of your own ([output](elements.html#math-output)):
 
@@ -553,7 +553,7 @@ luccet.search.format → 1
 ```
 :::
 
-The pipeline behind the [search add-on](addons.html#search) and [`luccet search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
+The pipeline behind the [search add-on](https://github.com/Luccet/search) and [`luccet search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
 
 ```js
 const { ast } = luccet.parse('# Triangles {#tri}
@@ -583,7 +583,7 @@ luccet.search.snippet(entries[1].text, ['pythagora']);
 - **`describe(head, ast)`** is what a catalogue holds for a note ([`luccet index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
 - **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
 - **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share.
-- **`format`** is the number of the index's format, 1: `luccet index` writes it into `search.json`, and the [search add-on](addons.html#search) and [`luccet search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
+- **`format`** is the number of the index's format, 1: `luccet index` writes it into `search.json`, and the [search add-on](https://github.com/Luccet/search) and [`luccet search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
 
 ### `luccet.glossary` {#glossary}
 
@@ -597,7 +597,7 @@ luccet.glossary.format → 1
 ```
 :::
 
-The terms a note defines, for the [glossary add-on](addons.html#glossary) and [`luccet index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
+The terms a note defines, for the [glossary add-on](https://github.com/Luccet/glossary) and [`luccet index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
 
 ```js
 const { ast } = luccet.parse('# Terms {#terms}
@@ -621,7 +621,7 @@ luccet.glossary.uses(ast);
 - **`terms(ast, {blocks})`** walks a transformed tree and returns every term in note order. `term` is the text as written, or the `title=` of a `dfn`, which HTML takes as the term's canonical form (`:dfn[truisms]{title=truism}` defines "truism"). `key` is the term folded as [search](#search) folds words, one form for `Café` and `cafe`; `slug` is an id for the term on a glossary page, `glossary-` and the key with hyphens. `id` is the anchor nearest above the term: its own, else its block's, else its section's heading's, `''` at the top of the note. `how` is `'dfn'` or the block's name. `definition` holds the definition's nodes, positions removed, for `luccet.emit` on another page: a `dfn`'s paragraph (the paragraph after its heading when it stands in one; its cell, as a paragraph, in a table), a block's body without its title. A `dfn` inside a block that names the block's own term is not a second term. `blocks` lists the names of the blocks that define, `['definition']` by default; a block without a title defines nothing.
 - **`uses(ast)`** lists every `:term[…]`, with `title=` as the term, so a tool can say which has no definition.
 - **`key(text)`** and **`slug(text)`** are the folding and the id, for an add-on that links a use to a glossary page's entry.
-- **`format`** is the number of `glossary.json`'s format, 1, as [`luccet.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](addons.html#glossary) takes a file of its format whatever version wrote it.
+- **`format`** is the number of `glossary.json`'s format, 1, as [`luccet.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](https://github.com/Luccet/glossary) takes a file of its format whatever version wrote it.
 
 ### `luccet.tex` {#tex}
 
@@ -938,8 +938,8 @@ The runtime's configuration: `window.LUCCET` merged with the `data-*` attributes
 
 ```html
 <!doctype html><meta charset="utf-8">
-<script>window.LUCCET = { use: { lightbox: { images: 'all' } }, macros: { '\\R': '\\mathbb{R}' }, lang: 'en' }</script>
-<script src="luccet.js" data-use="addons/lightbox.js theorems.js?labels=de theme.min.css?dark"
+<script>window.LUCCET = { use: { callout: { collapse: 'all' } }, macros: { '\\R': '\\mathbb{R}' }, lang: 'en' }</script>
+<script src="luccet.js" data-use="callout.js theorems.js?labels=de theme.min.css?dark"
         data-nonce="abc"></script>
 ```
 
@@ -947,7 +947,7 @@ On that page, once luccet.js has started:
 
 ```js
 luccet.config;
-// → { use: { lightbox: { images: 'all' }, theorems: { labels: 'de' }, theme: { dark: '' } },
+// → { use: { callout: { collapse: 'all' }, theorems: { labels: 'de' }, theme: { dark: '' } },
 //     macros: { '\\R': '\\mathbb{R}' }, lang: 'en', nonce: 'abc', diagnostics: false, quiet: false }
 ```
 
@@ -1012,25 +1012,21 @@ luccet.style('.t-block.aside { border-inline-start: 3px solid var(--t-line); }')
 :::syntax
 ```js
 luccet.string(key, params?, fallback?) → string
-window.LUCCET = { strings: { noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer' } };
+window.LUCCET = { strings: { problems: '{n} Problem|{n} Probleme', footnotes: 'Anmerkungen' } };
 ```
 :::
 
-The few words the runtime and the add-ons write for the reader, in a language of your choice. `window.LUCCET.strings` maps a key to a string; `luccet.string(key, params, fallback)` returns the string for `key`, the page's when it sets one, else `fallback`, else the runtime's own; `{name}` fields are filled from `params`, and a string with a `|` is `singular|plural`, chosen by `params.n`. An add-on brings its own keys and fallbacks the same way.
+The few words the runtime and the add-ons write for the reader, in a language of your choice. `window.LUCCET.strings` maps a key to a string; `luccet.string(key, params, fallback)` returns the string for `key`, the page's when it sets one, else `fallback`, else the runtime's own; `{name}` fields are filled from `params`, and a string with a `|` is `singular|plural`, chosen by `params.n`. An add-on brings its own keys and fallbacks the same way, and its page lists them ([Add-ons](addons.html#top)).
 
 | Key | Default | Where |
 |---|---|---|
 | `problems`, `errors`, `warnings`, `infos` | `{n} problem\|{n} problems` … | the diagnostics panel's summary and the console group |
 | `footnotes`, `back`, `done`, `todo` | Footnotes, Back to the text, Done, Not done | the emitter's [ARIA labels](elements.html#accessibility); without a string they follow the note's label language |
-| `searchPlaceholder`, `indexing`, `notesCount`, `entriesCount`, `unreadable`, `results`, `noneListed`, `noResults`, `searchFailed` | Search the notes, Indexing…, `{n} note\|{n} notes`, `{n} entry\|{n} entries`, `; {n} could not be read`, `{n} result\|{n} results`, `, none listed`, No results, `The search could not be set up ({why}).` | the [search add-on](addons.html#search) |
-| `notes`, `noNotes`, `notesFailed` | Notes, No notes., `The list of notes could not be loaded ({from}).` | the [notes add-on](addons.html#notes) |
-| `copy`, `copied`, `copyFailed` | Copy, Copied, Copy failed | the [copy add-on](addons.html#copy) |
-| `viewFullSize`, `close` | View full size, Close | the [lightbox add-on](addons.html#lightbox) |
 
 ```html
 <!doctype html><meta charset="utf-8"><script>
-window.LUCCET = { lang: 'de', strings: { searchPlaceholder: 'Notizen durchsuchen', noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer', problems: '{n} Problem|{n} Probleme' } };
-</script><script src="luccet.js" data-use="addons/search.js"></script>
+window.LUCCET = { lang: 'de', strings: { problems: '{n} Problem|{n} Probleme', errors: '{n} Fehler|{n} Fehler', warnings: '{n} Warnung|{n} Warnungen' } };
+</script><script src="luccet.js"></script>
 ```
 
 Under node, `luccet check` and `luccet build` give an add-on the fallback alone. The engine's own messages, the diagnostics, are not translated: they name codes and syntax, and the tools print them.
@@ -1240,10 +1236,10 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
 **Verbatim bodies.** `:::meta`, `:::macros`, `:::script`, `:::style`, `:::html`, a container with `{raw}` and one whose schema entry has `body: 'raw'` keep their body as `value`, with empty `children`:
 
 ```json
-// :::mermaid{raw}
+// :::diagram{raw}
 // a --> b
 // :::
-{"type": "containerDirective", "name": "mermaid", "children": [],
+{"type": "containerDirective", "name": "diagram", "children": [],
  "data": {"luccet": {"colons": 3, "namePosition": {…}}},
  "attributes": {"raw": ""}, "value": "a --> b"}
 ```
@@ -1658,4 +1654,4 @@ See @nowhere.
 
 The runtime counts the file line of the luccet.js tag from what the HTML parser kept of the head. It is exact for the canonical first line and for line breaks between head elements. But the HTML parser drops the line break after `<!doctype html>`, `<html …>` and `<head>`, so a head that puts them on lines of their own gives file lines that are too low, by one for each.
 
-**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`luccet.emit`](#emit)). It is how a browser maps an element back to its note line, and how `luccet build --diagrams` positions a [`diagram.error`](diagnostics.html#diagram-error).
+**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`luccet.emit`](#emit)). It is how a browser maps an element back to its note line.

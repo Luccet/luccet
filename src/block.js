@@ -757,7 +757,7 @@ function math1(r, fi, te) {
   const f = skipSp(fi + 2, r.close);
   const node = { type: 'math', value: src.slice(f, trimEnd(fi + 2, r.close)) };
   attach(node, pa, r.res);
-  luccet(node).texAt = [ctx.position(f, f).start];
+  luccet(node).texAt = [ctx.point(f)];
   node.position = ctx.position(pa ? pa.start : fi, te);
   addChild(node);
 }
@@ -984,7 +984,7 @@ function finish(v) {
   const node = v.node;
   const opened = lineOf(v.open);
   node.value = (v.tex || v.lines).join('\n');
-  if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map((o) => ctx.position(o, o).start));
+  if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map(ctx.point));
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
   if (v.kind === 'raw' && v.name === 'use') readUse(v);

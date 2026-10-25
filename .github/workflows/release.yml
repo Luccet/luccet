@@ -1,6 +1,6 @@
 # The release job. Pushing a tag vX.Y.Z runs every test, checks that the tag
 # matches luccet.version and that luccet.js is the build of src/, publishes
-# the site (index.html, docs/, examples/, addons/, luccet.js, luccet.css) to GitHub Pages,
+# the site (index.html, docs/, examples/, luccet.js, luccet.css) to GitHub Pages,
 # and drafts the GitHub Release with a minified luccet.js (under the same
 # name), luccet.css and a zip of the distribution attached; the maintainer
 # publishes the draft. The npm package is installed from the tag
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: node_modules/.cache/luccet-smoke
-          key: luccet-smoke-${{ hashFiles('addons/code.js', 'addons/mermaid.js') }}
+          key: luccet-smoke-${{ hashFiles('test/smoke.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -80,7 +80,7 @@ jobs:
       - name: the distribution zip
         run: |
           mkdir -p dist/luccet
-          cp -r luccet.js luccet.css luccet.d.ts LICENSE CHANGELOG.md addons dist/luccet/
+          cp -r luccet.js luccet.css luccet.d.ts LICENSE CHANGELOG.md dist/luccet/
           (cd dist && zip -qr "luccet-$GITHUB_REF_NAME.zip" luccet)
           ls -l dist/*.zip
       - name: the draft release, with min/luccet.js as luccet.js, luccet.css and the zip
@@ -110,7 +110,7 @@ jobs:
       - name: the site
         run: |
           mkdir -p _site
-          cp -r index.html docs examples addons luccet.css LICENSE _site/
+          cp -r index.html docs examples luccet.css LICENSE _site/
           npx --yes terser@5.51.2 luccet.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output _site/luccet.js
           test "$(node -p "require('./_site/luccet.js').version")" = "${GITHUB_REF_NAME#v}"
           rm -f _site/docs/README.md

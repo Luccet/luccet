@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Math · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Math · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: Luccet's math: the TeX a formula can use, its macros and environments, how formulas become MathML, fonts and browsers, and what is left out.
@@ -266,7 +266,7 @@ Every browser Luccet supports lays out MathML: Chrome and Edge from 109, Firefox
 
 ## KaTeX instead {#katex}
 
-For KaTeX's look, the same in every browser and close to LaTeX's, load the KaTeX add-on, from github.com/Luccet. It turns the engine's MathML off, `{math: 'tex'}`, and typesets every formula with KaTeX, which it fetches from a CDN.
+For KaTeX's look, the same in every browser and close to LaTeX's, load the [KaTeX add-on](https://github.com/Luccet/katex), whose page says how. It turns the engine's MathML off, `{math: 'tex'}`, and typesets every formula with KaTeX, which it fetches from a CDN.
 
 `math: 'tex'` can also be given to `luccet.toHTML`, `luccet.transform` and `luccet.emit`, and to the page as `window.LUCCET.math` or `data-math="tex"`: each formula is then written as its TeX, as in Luccet 1, for a tool of your own to render ([API](api.html#tohtml)).
 

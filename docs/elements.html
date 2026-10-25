@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Elements and output · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Elements and output · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
 description: How Luccet turns names into HTML elements, and the shape of a note's output: the allowlists, reserved names, the output contract, titles and labels, table captions, figures, numbering, references, ids, raw HTML, safe rendering and metadata.
@@ -580,7 +580,7 @@ Luccet writes `data-pos="line:col"`, the source position of the element, on:
 - the `div.t-macros` of `:::macros`;
 - the `pre.t-error` of a reserved container or of an unclosed comment or raw-text block, and the `div.t-eq.t-error` of an unclosed equation.
 
-Headings, paragraphs, lists, pipe tables, links, images and code spans have none. Lines are note lines: line 1 is the line after the `luccet.js` line, and columns count from 1. The runtime uses `data-pos` to map an element back to its note line, and `luccet build --diagrams` to position a [`diagram.error`](diagnostics.html#diagram-error). The examples on this page leave it out; a note in the browser has it. With the demo schema, this note:
+Headings, paragraphs, lists, pipe tables, links, images and code spans have none. Lines are note lines: line 1 is the line after the `luccet.js` line, and columns count from 1. The runtime uses `data-pos` to map an element back to its note line. The examples on this page leave it out; a note in the browser has it. With the demo schema, this note:
 
 ````luccet
 :::theorem

@@ -306,3 +306,13 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .docs-symbols > li { display: flex; align-items: baseline; gap: .6rem; margin: 0; padding: .15rem 0; border-block-end: 1px solid var(--t-line); }
 .docs-symbol { flex: 0 0 1.6rem; text-align: center; font-size: 1.15em; }
 .docs-symbols code { font-size: .78em; background: none; padding: 0; overflow-wrap: anywhere; }
+
+/* docs.js's copy button on every fence, as the theme's muted text at rest. */
+.luccet pre.docs-copyable { position: relative; }
+.docs-copy { position: absolute; inset-block-start: .4rem; inset-inline-end: .4rem; margin: 0; padding: .3em .6em; font: 600 .75rem/1 var(--t-sans); color: var(--t-muted); background: var(--t-bg); border: 1px solid var(--t-line-strong); border-radius: 4px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.docs-copy:hover, .docs-copy:focus-visible, .docs-copyable:hover > .docs-copy { color: var(--t-fg); }
+.docs-copy:focus-visible { outline: 2px solid var(--t-link); outline-offset: 1px; }
+.docs-copy[data-done="yes"] { border-color: var(--t-fg); }
+.docs-copy[data-done="no"] { color: var(--t-error); border-color: var(--t-error); }
+.docs-copy-status { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media print { .docs-copy { display: none; } }

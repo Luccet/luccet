@@ -37,13 +37,12 @@ A note needs only `luccet.js`
 <script src="luccet.js"></script>
 
 :::use
-https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css
-addons/code.js
-addons/copy.js
+https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css
+https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
 :::
 ```
 
-One add-on also fits on the tag, as `data-use="addons/code.js"`; both forms work together.
+One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work together.
 
 **From jsDelivr**, which serves this repository's tagged releases:
 
@@ -58,10 +57,10 @@ One add-on also fits on the tag, as `data-use="addons/code.js"`; both forms work
 
 **Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 
-**Add-ons:** [`addons/`](addons/) holds add-ons that come with Luccet: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes; `notes.js` lists the notes of a folder from the same command's catalogue; `glossary.js` lists the terms the notes define (`:dfn[…]`, `:::definition` blocks) from its glossary, and links every `:term[…]` to the entry. List them in `:::use`, one per line. See [add-ons](https://luccet.dev/docs/addons.html).
+**Add-ons** live in their own repositories, each with its page: [code](https://github.com/Luccet/code) colours code by its language, [mermaid](https://github.com/Luccet/mermaid) draws `mermaid` fences as diagrams, [lightbox](https://github.com/Luccet/lightbox) opens a figure's image full size, [cite](https://github.com/Luccet/cite) cites the sources of a `:::bibliography` block, [search](https://github.com/Luccet/search) gives a `::search` box over a set of notes, [notes](https://github.com/Luccet/notes) lists the notes of a folder, [glossary](https://github.com/Luccet/glossary) lists the terms the notes define, and [katex](https://github.com/Luccet/katex) typesets math with KaTeX instead of the engine's MathML. List them in `:::use`, one per line, from jsDelivr: `https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js`. See [add-ons](https://luccet.dev/docs/addons.html).
 
 
-**With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js`, `luccet.css` and the add-ons under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.
+**With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js` and `luccet.css` under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.
 
 ## Using the CLI tool
 
@@ -72,7 +71,6 @@ node luccet-cli.js new notes/linear-maps.html     # write the first line
 node luccet-cli.js check notes/                    # diagnostics and broken links, with file lines
 node luccet-cli.js build notes/linear-maps.html -o out.html   # a static, pre-rendered page
 node luccet-cli.js mv notes/linear-maps.html notes/algebra/    # move it, rewriting the links to and from it
-node luccet-cli.js vendor vendor/                  # local copies of highlight.js and Mermaid, for ?base=
 node luccet-cli.js search "rank nullity" notes/              # the sections and blocks that use these words, with lines
 node luccet-cli.js index notes/                    # notes.json, search.json and glossary.json, what ::notes, ::search and ::glossary read
 node luccet-cli.js lsp                              # the language server, over stdio

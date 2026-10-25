@@ -29,7 +29,6 @@
     "./luccet.css": "./luccet.css",
     "./cli/*": "./cli/*",
     "./src/*": "./src/*",
-    "./addons/*": "./addons/*",
     "./skills/*": "./skills/*",
     "./test/fixtures/detect.json": "./test/fixtures/detect.json",
     "./package.json": "./package.json"
@@ -44,11 +43,7 @@
     "luccet-cli.js",
     "cli/",
     "src/",
-    "addons/",
     "skills/",
-    "tools/npm.js",
-    "tools/hljs.js",
-    "tools/mermaid.js",
     "test/fixtures/detect.json",
     "CHANGELOG.md"
   ],
@@ -59,8 +54,6 @@
     "build": "node tools/concat.js",
     "bump": "node tools/version.js",
     "tag": "node tools/version.js --tag",
-    "hljs": "node tools/hljs.js",
-    "mermaid": "node tools/mermaid.js",
     "test": "node test/all.js",
     "test:corpus": "node test/run.js",
     "lint:corpus": "node test/run.js --lint",

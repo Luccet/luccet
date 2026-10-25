@@ -3,10 +3,10 @@
 // luccet.css's colours (docs/schema.html#custom-properties). The functional
 // layer draws a note in the system's colours, light or dark (color-scheme),
 // and sets colours of its own only where the system has none: errors and
-// warnings, code for the code add-on, a highlighted line. Those reach 4.5:1
-// against the canvas browsers draw (white; #121212 in Chromium's dark scheme,
-// #1c1b22 in Firefox's), errors on their own background too, and code 3:1 on
-// a highlighted line. Every colour property has a default; print and forced
+// warnings, a highlighted line. Those reach 4.5:1 against the canvas browsers
+// draw (white; #121212 in Chromium's dark scheme, #1c1b22 in Firefox's),
+// errors on their own background too. (Code's colours, --t-code-*, are the
+// code add-on's.) Every colour property has a default; print and forced
 // colours set every one of them !important, so no theme has to. The themes,
 // which set the same properties, are checked in github.com/Luccet/themes.
 //
@@ -41,7 +41,7 @@ test('every colour property has a default: a system colour, or a hex colour wher
   for (const k of ['sans', 'mono']) if (!light[k]) p.push(`no --t-${k}`);
 });
 
-test('the colours it sets itself reach their contrast on the canvas browsers draw (4.5:1; errors on their background too; code 3:1 on a highlighted line)', (p) => {
+test('the colours it sets itself reach their contrast on the canvas browsers draw (4.5:1; errors on their background too)', (p) => {
   const { light, dark } = P.palettes();
   for (const [scheme, c] of Object.entries({ light, dark })) {
     const own = P.COLOURS.filter((k) => HEX.test(c[k] || ''));
@@ -51,7 +51,7 @@ test('the colours it sets itself reach their contrast on the canvas browsers dra
         if (r < 4.5) p.push(`${scheme}: --t-${k} on the canvas ${bg} is ${r.toFixed(2)}:1`);
       }
     }
-    const pairs = [['error', 'error-bg', 4.5], ...P.CODE.map((k) => [`code-${k}`, 'mark', 3])];
+    const pairs = [['error', 'error-bg', 4.5]];
     for (const [a, b, least] of pairs) {
       const r = P.contrast(c[a], c[b]);
       if (r < least) p.push(`${scheme}: --t-${a} on --t-${b} is ${r.toFixed(2)}:1, under ${least}:1`);

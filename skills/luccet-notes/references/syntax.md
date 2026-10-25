@@ -184,7 +184,7 @@ lazily continued.
 - **Line keys**, reserved and never emitted: `lines` numbers the lines; `hl=2,4-6` highlights lines, counted as displayed; `start=10` starts the numbering at 10. Other keys and classes go on `<pre>`.
 - **A titled fence is a listing:** a `figure.t-block.code` holding the `<pre>` and a `<figcaption>`; author attributes go on the figure, line keys on `<pre>`. It is numbered ("Listing 1") only when the vocabulary declares `code`. An empty title, ```` ```js[] ````, makes a plain fence.
 - **Unclosed:** a fence runs to the end of the quote, item or footnote that holds it, or of the note, through `:::` closers: `block.unclosed-fence`, plus `block.unclosed` for each container it swallowed.
-- Every fence carries `data-t="code"`; highlighting and diagrams (a `mermaid` fence) come from add-ons ([vocabulary.md](vocabulary.md)).
+- Every fence carries `data-t="code"`; highlighting and diagrams come from add-ons ([vocabulary.md](vocabulary.md)).
 
 `````luccet
 ```python[Take n items]{#lst-take lines hl=2 start=10}
@@ -428,7 +428,7 @@ author: O. Carrera
 
 For $x \in \R^n$, $\norm{x} \ge 0$.
 
-:::mermaid[Flow]{raw #flow}
+:::diagram[Flow]{raw #flow}
 graph TD
   A --> B
 :::

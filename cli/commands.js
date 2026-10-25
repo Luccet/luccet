@@ -21,7 +21,6 @@ const { parseArgs } = require('util');
 const { spawnSync } = require('child_process');
 const { split, notNote, attributes, analyse, htmlFiles, repository, luccet, clean, readText } = require('./note');
 const { build, escAttr } = require('./build');
-const { drawInto } = require('./diagrams');
 const links = require('./links');
 const examples = require('./examples');
 const { relocate, apply } = require('./relocate');
@@ -30,12 +29,11 @@ const SYNOPSIS = {
   new: 'luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
   check: 'luccet check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'luccet parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'luccet build FILE… [-o OUT] [--diagrams] [--json] [--no-scripts]',
+  build: 'luccet build FILE… [-o OUT] [--json] [--no-scripts]',
   mv: 'luccet mv FROM… TO [--root=DIR] [--dry-run] [--json]',
   search: 'luccet search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'luccet index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
   corpus: 'luccet corpus PATH… [--out=DIR]',
-  vendor: 'luccet vendor DIR [--code] [--mermaid]',
   lsp: 'luccet lsp [--stdio]',
 };
 
@@ -61,8 +59,7 @@ const usage = () =>
       Write a static, pre-rendered page (to stdout without -o) that still
       loads luccet.js. Several FILEs, or a folder, need -o DIR: each note's
       page goes into DIR, under its name, or under its path in the folder
-      given. Formulas are MathML, as the engine writes them. --diagrams draws the
-      mermaid fences ahead, in a headless Chromium (the playwright package).
+      given. Formulas are MathML, as the engine writes them.
       --json prints one object instead (the page in it without -o).
       --no-scripts builds without running the note's own code.
   ${SYNOPSIS.mv}
@@ -100,12 +97,6 @@ const usage = () =>
       fence's spec=, else PAGE#ID, the section of docs/PAGE.html it is in
       (PAGE#top before any heading; guide#top for a page outside docs/).
       --out writes DIR/docs-PAGE.txt.
-  ${SYNOPSIS.vendor}
-      Write local copies of the libraries the add-ons load from jsDelivr —
-      highlight.js, Mermaid — in the layout their ?base= option takes, under
-      DIR/highlight and DIR/mermaid, from the pinned packages (downloaded
-      once, checked against the registry's hash). Without a flag, both. For
-      offline notes and strict policies. Math needs nothing: it is built in.
   ${SYNOPSIS.lsp}
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
@@ -764,8 +755,7 @@ async function buildPage(args) {
   const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, diagrams: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
   if (o.math !== undefined || o.katex) throw new UsageError(`${o.katex ? '--katex' : '--math'} is gone: since 2.0 every formula is MathML, written by the engine, with nothing to pre-render`);
-  // --diagrams opens the note in a browser, where its head scripts and add-ons run: there is no drawing without running its code.
-  if (o.diagrams && o['no-scripts']) throw new UsageError('--diagrams opens the note in a browser, which runs its code; drop --no-scripts, or build without --diagrams');
+  if (o.diagrams) throw new UsageError('--diagrams is gone: since 2.0 the Mermaid add-on is separate (github.com/Luccet/mermaid), and draws a built page\'s diagrams ahead with its own tools/diagrams.js');
   if (!positionals.length) throw new UsageError('FILE is missing');
   const stat = (p) => {
     try {
@@ -857,23 +847,20 @@ async function buildMany(positionals, dir, o) {
 async function buildOne(file, out, into, o, { named, urls }) {
   const shown = slash(file); // paths printed, and in --json, with forward slashes on every platform
   const text = read(file, 'build');
-  const r = build(text, file, { noScripts: o['no-scripts'], diagrams: !!o.diagrams });
+  const r = build(text, file, { noScripts: o['no-scripts'] });
   if (!r) {
     if (!named) return null;
     throw new UsageError(`${shown} is not a note (${notNote(text)})`, false);
   }
-  // --diagrams: the mermaid fences drawn into the page by a headless browser.
-  const dg = o.diagrams ? await drawInto(r, file) : null;
   // --json: the warnings and diagnostics in one object on stdout, with the
   // page when no -o takes it; the summary and the warnings go to stderr too.
   const warnings = [];
-  const diagnostics = [...r.diagnostics, ...(dg ? dg.failures : [])];
+  const diagnostics = r.diagnostics;
   const said = (w) => {
     warnings.push(clean(w));
     warn(`luccet build: ${clean(w)}`);
   };
   for (const w of r.warnings) said(w);
-  if (dg) for (const w of dg.warnings) said(w);
   for (const d of diagnostics) warn(format(shown, d));
   if (urls && out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (luccet.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
   if (!out && !o.json) process.stdout.write(r.html);
@@ -890,9 +877,8 @@ async function buildOne(file, out, into, o, { named, urls }) {
     }
   }
   const m = r.math;
-  const drawn = dg ? `; ${plural(dg.total, 'diagram')}${dg.total ? `, ${dg.drawn} drawn ahead${dg.drawn ? ` with Mermaid from ${dg.from}` : ''}` : ''}` : '';
-  warn(`luccet build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${drawn}`);
-  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+  warn(`luccet build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}`);
+  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total }, warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
   if (!out) json.html = r.html;
   return json;
 }
@@ -1091,78 +1077,10 @@ function corpus(args) {
 
 // ---------------------------------------------------------------- vendor
 
-// The layout each add-on's `?base=` takes (docs/addons.html), from the
-// package the add-on pins (its version table; tools/*.js fetch the package
-// once into the cache, checked against the registry's hash): the files to
-// copy, as [from, to] relative to the package folder and to DIR/FOLDER.
-const VENDOR = {
-  code: { flag: 'code', addon: 'code.js', folder: 'highlight', tool: 'hljs', root: '', files: [['highlight.min.js'], ['languages']] },
-  mermaid: { flag: 'mermaid', addon: 'mermaid.js', folder: 'mermaid', tool: 'mermaid', root: 'dist', files: [['mermaid.min.js']] },
-};
-
-// The version an add-on pins, from its table.
-function pinned(addon) {
-  const m = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(__dirname, '..', 'addons', addon), 'utf8'));
-  if (!m) throw new Error(`addons/${addon} pins no version`);
-  return m[1];
-}
-
-async function vendor(args) {
-  const { values: o, positionals } = options(args, { code: { type: 'boolean' }, mermaid: { type: 'boolean' } });
-  if (o.help) return help('vendor');
-  if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one DIR' : 'DIR is missing');
-  const dir = positionals[0];
-  if (!dir.trim()) throw new UsageError('DIR is empty');
-  const st = fs.statSync(dir, { throwIfNoEntry: false });
-  if (st && !st.isDirectory()) throw new UsageError(`${dir} is not a folder`, false);
-  const chosen = Object.values(VENDOR).filter((v) => o[v.flag]);
-  const list = chosen.length ? chosen : Object.values(VENDOR);
-  const shown = (p) => path.relative(process.cwd(), p).split(path.sep).join('/') || '.';
-  const lines = [];
-  let files = 0;
-  let bytes = 0;
-  let failed = false;
-  for (const v of list) {
-    const version = pinned(v.addon);
-    let pkg;
-    try {
-      pkg = await require(`../tools/${v.tool}`).packageDir(version);
-    } catch (e) {
-      warn(`luccet vendor: ${v.addon.replace(/\.js$/, '')} ${version} could not be fetched (${clean((e && e.message) || e)}); is the network there?`);
-      failed = true;
-      continue;
-    }
-    const from = path.join(pkg, v.root);
-    const to = path.join(dir, v.folder);
-    fs.mkdirSync(to, { recursive: true });
-    let n = 0;
-    const copy = (src, dest) => {
-      const s = fs.statSync(src);
-      if (s.isDirectory()) {
-        fs.mkdirSync(dest, { recursive: true });
-        for (const name of fs.readdirSync(src).sort()) copy(path.join(src, name), path.join(dest, name));
-        return;
-      }
-      fs.copyFileSync(src, dest);
-      n++;
-      bytes += s.size;
-      say(shown(dest));
-    };
-    for (const [rel] of v.files) {
-      const src = path.join(from, rel);
-      if (!fs.existsSync(src)) {
-        warn(`luccet vendor: ${v.addon}: the package has no ${rel}; the layout the add-on expects has changed`);
-        failed = true;
-        continue;
-      }
-      copy(src, path.join(to, rel));
-    }
-    files += n;
-    lines.push(`${v.addon.replace(/\.js$/, '')} ${version} → ${shown(to)} (${plural(n, 'file')}); load it with addons/${v.addon}?base=${shown(to)}`);
-  }
-  for (const l of lines) warn(`luccet vendor: ${l}`);
-  warn(`luccet vendor: ${plural(lines.length, 'package')}, ${plural(files, 'file')}, ${(bytes / 1048576).toFixed(1)} MB; a ?base= resolves from the note's folder, so write the path from there`);
-  return failed ? 1 : 0;
+// `luccet vendor` went with the add-ons it served, in 2.0: each add-on that
+// loads a library has its own tools/vendor.js.
+function vendor() {
+  throw new UsageError('this command is gone: since 2.0 the add-ons are separate (github.com/Luccet), and each one that loads a library has its own tools/vendor.js; math needs nothing', false);
 }
 
 // ---------------------------------------------------------------- lsp

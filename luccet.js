@@ -1318,7 +1318,7 @@ function dollar(i) {
 // math transform's diagnostics inside the formula.
 function mathNode(value, at) {
   const node = { type: 'inlineMath', value, position: null };
-  if (!atomMode) node.data = { luccet: { texAt: [pos(at, at).start] } };
+  if (!atomMode) node.data = { luccet: { texAt: [ctx.point(spanStart(span, at))] } };
   return node;
 }
 // `<`: a comment (`<!-->` and `<!--->` are complete), an angle autolink, or
@@ -2320,7 +2320,7 @@ function math1(r, fi, te) {
   const f = skipSp(fi + 2, r.close);
   const node = { type: 'math', value: src.slice(f, trimEnd(fi + 2, r.close)) };
   attach(node, pa, r.res);
-  luccet(node).texAt = [ctx.position(f, f).start];
+  luccet(node).texAt = [ctx.point(f)];
   node.position = ctx.position(pa ? pa.start : fi, te);
   addChild(node);
 }
@@ -2547,7 +2547,7 @@ function finish(v) {
   const node = v.node;
   const opened = lineOf(v.open);
   node.value = (v.tex || v.lines).join('\n');
-  if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map((o) => ctx.position(o, o).start));
+  if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map(ctx.point));
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
   if (v.kind === 'raw' && v.name === 'use') readUse(v);
@@ -2940,7 +2940,7 @@ module.exports = { outline };
   // ---- src/search.js
   defs['search'] = function (module, exports, require) {
 // Search over notes (docs/api.html#search): the pipeline behind the search
-// add-on (addons/search.js), `luccet search` and `luccet index`. records()
+// add-on (github.com/Luccet/search), `luccet search` and `luccet index`. records()
 // splits a transformed AST into entries — one per heading's section and one
 // per named block with an id — index() builds a lexical index over the
 // entries of any number of notes, query() ranks them BM25-style, snippet()
@@ -3310,7 +3310,7 @@ module.exports = { plain, title, describe, records, fold, stem, tokens, index, q
   // ---- src/glossary.js
   defs['glossary'] = function (module, exports, require) {
 // The terms a note defines (docs/api.html#glossary), for the glossary
-// add-on (addons/glossary.js) and `luccet index`, which gathers a folder's
+// add-on (github.com/Luccet/glossary) and `luccet index`, which gathers a folder's
 // into glossary.json. A term is the defining instance of a word, as HTML
 // has it: a `:dfn[…]` inline (any inline whose element is dfn), whose
 // definition is the paragraph it stands in; or a block of a listed name
@@ -5599,13 +5599,14 @@ function walk(root, enter, leave) {
 // reader, each in document order (pre-order, so an element comes before what
 // it holds): `attrs` (attributes, named elements, fences), `ids` (attributes,
 // headings, footnote nodes), `nums` (named elements, fences, display math,
-// headings), `refs` (references, fragment links), `fns` (footnote nodes) and
-// `heads` (headings, leaves). `inDef` maps a node inside a footnote
+// headings), `refs` (references, fragment links), `fns` (footnote nodes),
+// `heads` (headings, leaves), `math` (formulas, inline and display) and
+// `macros` (:::macros blocks). `inDef` maps a node inside a footnote
 // definition to it, as a dropped definition's content counts for nothing.
 // Rebuilt after a custom transform, which may have changed the tree.
 function index(ast, ctx) {
   if (ctx.idx) return ctx.idx;
-  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], inDef: new Map() };
+  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], math: [], macros: [], inDef: new Map() };
   const ks = [];
   const is = [];
   const ds = [];
@@ -5632,6 +5633,8 @@ function index(ast, ctx) {
     if (type === 'ref' || (type === 'link' && typeof n.url === 'string' && n.url[0] === '#')) k = x.refs.push(n);
     if (fn) k = x.fns.push(n);
     if (type === 'heading' || type === 'leafDirective') k = x.heads.push(n);
+    if (type === 'inlineMath' || (type === 'math' && !peek(n).unclosed)) x.math.push(n);
+    else if (named && n.name === 'macros' && typeof n.value === 'string') x.macros.push(n);
     if (k && def) x.inDef.set(n, def);
     const c = n.children || (type === 'code' ? peek(n).title : undefined);
     if (c && c.length) {
@@ -6550,13 +6553,7 @@ function meta(ast, ctx) {
 // its diagnostic points at the command at fault.
 function math(ast, ctx) {
   if (ctx.opts.math === 'tex') return;
-  const formulas = [];
-  const blocks = [];
-  walk(ast, (n) => {
-    if (n.type === 'inlineMath' || (n.type === 'math' && !peek(n).unclosed)) formulas.push(n);
-    else if (n.type === 'containerDirective' && n.name === 'macros' && typeof n.value === 'string') blocks.push(n);
-    else if (n.type === 'text') return false;
-  });
+  const { math: formulas, macros: blocks } = index(ast, ctx);
   if (!formulas.length && !blocks.length) return;
   const table = tex.table(ctx.opts.macros);
   for (const name of table.problems) ctx.report('tex.macro', null, `the page's macro ${name} is not a TeX command name with a TeX body`, 'give window.LUCCET.macros as {"\\name": "body"}');
@@ -7514,22 +7511,19 @@ module.exports = { emit };
 // clipping. The look (a reading column, type, a palette) is a theme's
 // (github.com/Luccet/themes). The --t-* properties are the contract between
 // the two: here they default to the system's colours, or to colours of their
-// own where the system has none (errors, code, a highlighted line).
+// own where the system has none (errors, a highlighted line). Code's colours,
+// --t-code-*, are the code add-on's (github.com/Luccet/code).
 
 const css = `:root {
   color-scheme: light dark;
   --t-bg: Canvas; --t-fg: CanvasText; --t-muted: CanvasText; --t-line: GrayText; --t-line-strong: GrayText; --t-soft: ButtonFace;
   --t-link: LinkText; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
-  --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
-  --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   --t-sans: system-ui, sans-serif; --t-mono: monospace;
   --t-math: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Libertinus Math", "TeX Gyre Termes Math", "DejaVu Math TeX Gyre", "Noto Sans Math", math;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --t-mark: #5c4d00; --t-error: #ffb4ab; --t-error-bg: #3b1714; --t-warn: #e3b341;
-    --t-code-comment: #949da6; --t-code-keyword: #ff7b72; --t-code-string: #a5d6ff; --t-code-number: #79c0ff; --t-code-function: #d2a8ff;
-    --t-code-type: #ffa657; --t-code-variable: #79c0ff; --t-code-meta: #7ee787; --t-code-inserted: #7ee787; --t-code-deleted: #ffa198;
   }
 }
 /* The page in the system's colours, as the browser draws it, said outright: a theme sets them, and
@@ -7661,10 +7655,6 @@ html { background: var(--t-bg); color: var(--t-fg); }
     --t-bg: Canvas !important; --t-fg: CanvasText !important; --t-muted: GrayText !important; --t-line: GrayText !important;
     --t-line-strong: GrayText !important; --t-soft: ButtonFace !important; --t-link: LinkText !important; --t-mark: #fff2a8 !important;
     --t-error: #b3261e !important; --t-error-bg: #fdecea !important; --t-warn: #8a5300 !important;
-    --t-code-comment: #59636e !important; --t-code-keyword: #cf222e !important; --t-code-string: #0a3069 !important;
-    --t-code-number: #0550ae !important; --t-code-function: #6639ba !important; --t-code-type: #953800 !important;
-    --t-code-variable: #0550ae !important; --t-code-meta: #116329 !important; --t-code-inserted: #116329 !important;
-    --t-code-deleted: #82071e !important;
   }
   /* What scrolls on screen is shown whole on paper. */
   .luccet pre { white-space: pre-wrap; }

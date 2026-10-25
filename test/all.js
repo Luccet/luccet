@@ -14,7 +14,6 @@ const STEPS = [
   ['floor', ['floor.js']],
   ['domain', ['domain.js']],
   ['palette', ['palette.js']],
-  ['add-ons', ['addons.js']],
   ['corpus lint', ['run.js', '--lint']],
   ['conformance', ['run.js']],
   ['tex', ['tex.js']],

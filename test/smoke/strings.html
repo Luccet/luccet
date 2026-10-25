@@ -1,15 +1,11 @@
 <!doctype html><html lang="de"><meta charset="utf-8"><script>
-window.LUCCET = { diagnostics: true, strings: { problems: '{n} Problem|{n} Probleme', warnings: '{n} Warnung|{n} Warnungen', footnotes: 'Anmerkungen', back: 'Zurück', done: 'Fertig', todo: 'Offen', searchPlaceholder: 'Notizen durchsuchen', indexing: 'Indizieren…', notesCount: '{n} Notiz|{n} Notizen', entriesCount: '{n} Eintrag|{n} Einträge', noResults: 'Keine Treffer', results: '{n} Treffer|{n} Treffer', notes: 'Notizen', notesFailed: 'Die Liste ({from}) fehlt.' } };
-</script><script src="/luccet.js" data-use="/addons/search.js /addons/notes.js"></script>
+window.LUCCET = { diagnostics: true, strings: { problems: '{n} Problem|{n} Probleme', warnings: '{n} Warnung|{n} Warnungen', footnotes: 'Anmerkungen', back: 'Zurück', done: 'Fertig', todo: 'Offen' } };
+</script><script src="/luccet.js"></script>
 
 # Smoke: the page's own words
 
 A footnote[^a] and a task, and a reference to @nowhere.
 
 - [x] erledigt
-
-::search{notes="search/alpha.html"}
-
-::notes{from=missing.json}
 
 [^a]: Eine Anmerkung.
