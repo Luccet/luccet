@@ -334,6 +334,7 @@ From uncaught-parser-exceptions-blank-page: nested `:a[` elements recursed per l
 ## audit/price-then-formula
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 From dollar-price-swallows-prose: a price no longer opens a span that runs to the next formula, across lines or into a code span; the first dollar decides and a whitespace-preceded candidate aborts.
 
@@ -407,6 +408,7 @@ From table-dollar-toggle-breaks-rows: `Cost ($)` in the header turned the table 
 ## audit/table-prices-and-math
 
 spec: syntax-blocks#tables syntax-inline#inline-math syntax-inline#algorithm
+options: math=tex
 
 From table-dollar-toggle-breaks-rows: two prices, a price beside a formula, and a shell variable each keep the row's cells.
 
@@ -519,6 +521,7 @@ See @über, @intro-é and @thé.
 ## audit/slug-yields-to-earlier-ids
 
 spec: elements#ids syntax-blocks#slugs elements#references
+options: math=tex
 
 From id-collisions-across-kinds: block, equation and span ids were never registered, so a later heading got the same id. One registry in document order: a slug that meets an earlier id of any kind gets `-2`, silently, and the references reach the earlier element.
 
@@ -668,6 +671,7 @@ see @2024-plan
 ## audit/digit-first-id-on-display-math
 
 spec: syntax-blocks#display-math syntax-blocks#finding-the-group syntax-inline#reference
+options: math=tex
 
 From digit-first-ids-unreferenceable: `$$x$$ #1` numbered an equation that `@1` could not reach. `{#1}` is not an attribute group (`#` needs an IDENT), so after the closer it is junk: `math.closer-tail`, a paragraph after an unnumbered equation, and `@1` is text.
 
@@ -713,6 +717,7 @@ see @2024-plan
 ## audit/unclosed-display-math-keeps-heading
 
 spec: syntax-blocks#display-math diagnostics#three-mistakes syntax-blocks#r7
+options: math=tex
 
 From unclosed-display-math-eats-sections: the audit's exact input. The blank line ends the unclosed `$$` with `math.unclosed`; its source is shown in `.t-eq.t-error`, the heading and prose survive, and the next equation is an equation.
 
@@ -747,6 +752,7 @@ E = mc^2</div>
 ## audit/unclosed-display-math-heading-terminates
 
 spec: syntax-blocks#display-math syntax-blocks#line-algorithm
+options: math=tex
 
 From unclosed-display-math-eats-sections: with no blank line, the heading line itself is a terminator and is reprocessed; the following one-line equation is untouched.
 
@@ -1059,6 +1065,7 @@ See @foo, @foo-2 and @a::b.
 ## audit/ref-shows-number
 
 spec: elements#references elements#numbering syntax-inline#reference syntax-blocks#display-math
+options: math=tex
 
 From refs-cannot-show-numbers: `@id` to an untitled theorem rendered the raw id and to a titled one its title. References now show the label and number (theorem and lemma share a counter), equations `(n)`, headings their text, and `ref=` chooses.
 
@@ -1110,6 +1117,7 @@ Also @thm-2{ref=full}, number @thm-2{ref=number}, and @thm-typo.
 ## audit/ref-text-keeps-math
 
 spec: elements#references syntax-inline#reference elements#title-slots
+options: math=tex
 
 From textcontent-copies-raw-tex-into-refs-toc-title: reference text was copied from `textContent`, so math became raw TeX and `**bold**` plain. A reference to a heading carries the heading's inline content, and `ref=title` the title's, math and markup included.
 
@@ -1134,6 +1142,7 @@ See @energy, @t and @t{ref=title}.
 ## audit/ref-not-in-atoms
 
 spec: syntax-inline#algorithm syntax-inline#reference syntax-inline#raw-inline-html
+options: math=tex
 
 From lsp-refs-matched-in-code-math-attributes: the editor renamed `@thm` inside code, math, an attribute and a comment. References never occur inside atoms: the line has exactly one reference, so a rename has exactly one edit.
 
@@ -1662,6 +1671,7 @@ dimension |
 ## audit/autowrap-display-math-id
 
 spec: syntax-blocks#display-math syntax-blocks#attribute-line publishing#auto-wrap
+options: math=tex
 
 From r2-1/textwidth-autowrap-breaks-one-line-constructs: a `$$ … $$ {#id}` one-liner wrapped before its group. The equation is complete and unnumbered; the group alone on the next line is an attribute line with no block after it.
 
@@ -1899,6 +1909,7 @@ Just a paragraph.
 ## audit/macros-block-and-no-include
 
 spec: syntax-blocks#macros syntax-blocks#leaf syntax-inline#reference
+options: math=tex
 
 From shared-macros-undocumented-no-include: macros are a `:::macros` block, and notes are single files: `::include[…]` is an inert leaf and a reference to another file's id is dangling.
 

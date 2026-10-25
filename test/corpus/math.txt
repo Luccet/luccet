@@ -15,6 +15,7 @@ the opener's indentation, and the closer line's leading whitespace is not TeX.
 ## math/spec-example
 
 spec: syntax-blocks#display-math elements#numbering
+options: math=tex
 
 The display-math example: a multi-line equation with an id on its closer is numbered; the one-line form after it is not.
 
@@ -34,6 +35,7 @@ $$ e^{i\pi} + 1 = 0 $$
 ## math/multi-line
 
 spec: syntax-blocks#display-math syntax-blocks#lines
+options: math=tex
 
 Form (c) with an empty rest: the lines between the opener and the closer are the TeX, joined with `\n`.
 
@@ -56,6 +58,7 @@ c = d</span></div>
 ## math/one-line
 
 spec: syntax-blocks#display-math
+options: math=tex
 
 Form (a): an unescaped `$$` later on the opener line, followed by nothing, completes the equation; the TeX between is trimmed as in the display-math example.
 
@@ -74,6 +77,7 @@ $$ \int_0^1 x\,dx = \tfrac12 $$
 ## math/one-line-glued
 
 spec: syntax-blocks#display-math
+options: math=tex
 
 Form (a) needs no spaces: `$$x^2$$` is a complete equation.
 
@@ -88,6 +92,7 @@ $$x^2$$
 ## math/one-line-attrs
 
 spec: syntax-blocks#display-math syntax-blocks#positions elements#numbering elements#references
+options: math=tex
 
 Form (a) takes an attribute group after the second `$$`; with an id the equation is numbered and `@eq-e` renders `(1)`.
 
@@ -105,6 +110,7 @@ See @eq-e.
 ## math/one-line-escaped-dollar
 
 spec: syntax-blocks#display-math syntax-inline#escapes
+options: math=tex
 
 On the opener line `\$` is skipped as a pair, so in `5\$$$` the closing `$$` is the last two dollars and the TeX keeps `\$`.
 
@@ -138,6 +144,7 @@ $$ E = mc^2 $$, as Einstein wrote.
 ## math/opener-rest-first-line
 
 spec: syntax-blocks#display-math
+options: math=tex
 
 Form (c) with a non-empty rest: the text glued after `$$` is the first TeX line.
 
@@ -161,6 +168,7 @@ a &amp;= b
 ## math/opener-rest-leading-space
 
 spec: syntax-blocks#display-math syntax-blocks#r3
+options: math=tex
 
 Form (c) with a space between `$$` and the first TeX line, the way most authors write it: the rest of the opener line has its leading whitespace stripped, as the one-line form strips it in the display-math example.
 
@@ -184,6 +192,7 @@ a &amp;= b
 ## math/opener-tail-error
 
 spec: syntax-blocks#display-math diagnostics#math-opener-tail
+options: math=tex
 
 A rest that is a strong group starting with `#` is `math.opener-tail` at the group; the block still opens and closes normally (the TeX value is asserted in math/opener-tail-glued-kept-as-tex).
 
@@ -204,6 +213,7 @@ $$
 ## math/opener-tail-glued-kept-as-tex
 
 spec: syntax-blocks#display-math diagnostics#math-opener-tail
+options: math=tex
 
 The misplaced group stays in the TeX (KaTeX shows it as an error), and the equation gets no id and no number.
 
@@ -245,6 +255,7 @@ $$
 ## math/opener-key-value-group-is-tex
 
 spec: syntax-blocks#display-math syntax-blocks#strong-and-weak
+options: math=tex
 
 Only a strong group starting with `#` or `.` is an opener tail; `{n=1}` is strong but is ordinary TeX, with no diagnostic.
 
@@ -262,6 +273,7 @@ $$
 ## math/closer-attrs
 
 spec: syntax-blocks#display-math syntax-blocks#positions syntax-blocks#merging-and-emission elements#numbering
+options: math=tex
 
 The closer takes any attribute group after spaces; the id numbers the equation, and other attributes go on `div.t-eq`.
 
@@ -282,6 +294,7 @@ $$ {#eq-a data-k=v}
 ## math/closer-attrs-glued
 
 spec: syntax-blocks#display-math syntax-blocks#positions
+options: math=tex
 
 The closer's group may be glued to the `$$`.
 
@@ -298,6 +311,7 @@ $${#eq-x}
 ## math/closer-weak-group
 
 spec: syntax-blocks#display-math syntax-blocks#positions syntax-blocks#strong-and-weak
+options: math=tex
 
 The closer is a structural line, so a weak group is accepted too: `{hidden}` becomes a boolean attribute, and without an id there is no number.
 
@@ -314,6 +328,7 @@ $$ {hidden}
 ## math/closer-tail
 
 spec: syntax-blocks#display-math diagnostics#math-closer-tail
+options: math=tex
 
 Text after the closing `$$` is `math.closer-tail` at its first character and is emitted as a paragraph after the equation.
 
@@ -335,6 +350,7 @@ $$ where x is real.
 ## math/closer-tail-malformed-group
 
 spec: syntax-blocks#display-math syntax-blocks#positions
+options: math=tex
 
 A group after the closer that does not parse (`#1` is not an IDENT) is a closer tail, not `attr.malformed`, and becomes paragraph text.
 
@@ -356,6 +372,7 @@ $$ {#1}
 ## math/closer-tail-after-group
 
 spec: syntax-blocks#display-math
+options: math=tex
 
 A valid group followed by more text after the closer: the whole tail is junk, so `math.closer-tail` is at the `{`, the equation gets no id and no number, and the tail paragraph is `{#e} more`.
 
@@ -377,6 +394,7 @@ $$ {#e} more
 ## math/closer-tail-next-line
 
 spec: syntax-blocks#display-math
+options: math=tex
 
 A closer tail followed directly by a paragraph line: the tail paragraph continues on the following lines by the normal paragraph rules.
 
@@ -400,6 +418,7 @@ x is real.</p>
 ## math/closer-text-before
 
 spec: syntax-blocks#display-math
+options: math=tex
 
 Text before the closing `$$` on the closer line is the last TeX line.
 
@@ -437,7 +456,7 @@ a = b
 ## math/closer-trailing-whitespace
 
 spec: syntax-blocks#display-math syntax-blocks#r3 syntax-blocks#lines
-options: escaped
+options: escaped math=tex
 
 The closer is tested on the right-trimmed line, so trailing spaces after the closing `$$` are not a closer tail.
 
@@ -457,6 +476,7 @@ $$\u0020\u0020
 ## math/closer-escaped-dollar
 
 spec: syntax-blocks#display-math syntax-inline#escapes
+options: math=tex
 
 The closer is the first unescaped `$$`: in `5\$$$` the `\$` is skipped as a pair, so the closer is the last two dollars and `\$` stays in the TeX.
 
@@ -472,6 +492,7 @@ $$
 ## math/non-terminator-lines
 
 spec: syntax-blocks#display-math syntax-blocks#line-algorithm
+options: math=tex
 
 Only the listed terminators end display math: lines shaped like a list item, a quote, a table row, raw HTML, a leaf and an attribute line are TeX.
 
@@ -895,6 +916,7 @@ spec: syntax-blocks#display-math syntax-inline#ambiguity syntax-inline#escapes
 ## math/interrupts-paragraph
 
 spec: syntax-blocks#display-math syntax-blocks#paragraph
+options: math=tex
 
 A `$$` line interrupts a paragraph.
 
@@ -913,6 +935,7 @@ $$
 ## math/in-container-numbered
 
 spec: syntax-blocks#display-math syntax-blocks#container elements#numbering elements#references
+options: math=tex
 
 Display math in a theorem body (the "In one screen" example): the theorem and the equation are numbered on their own counters, and both references resolve.
 
@@ -939,6 +962,7 @@ By @thm-rn and @eq-rn.
 ## math/in-quote
 
 spec: syntax-blocks#display-math syntax-blocks#blockquote
+options: math=tex
 
 Display math inside a blockquote: each line's `> ` prefix is stripped before the remainder reaches the block.
 
@@ -955,6 +979,7 @@ Display math inside a blockquote: each line's `> ` prefix is stripped before the
 ## math/in-list-item
 
 spec: syntax-blocks#display-math syntax-blocks#lists
+options: math=tex
 
 Display math inside a list item, at its content column, interrupting the item's paragraph.
 
@@ -976,6 +1001,7 @@ Display math inside a list item, at its content column, interrupting the item's 
 ## math/indented-in-container
 
 spec: syntax-blocks#display-math syntax-blocks#r2 syntax-blocks#lines
+options: math=tex
 
 Container bodies may be indented freely: indented `$$` lines still open and close display math. TeX lines are dedented by the opener's indentation, as fence content is, and the closer line's leading whitespace is not TeX, so the TeX is `x^2`.
 
@@ -1001,6 +1027,7 @@ Container bodies may be indented freely: indented `$$` lines still open and clos
 ## math/numbering-only-with-id
 
 spec: syntax-blocks#display-math elements#numbering elements#references
+options: math=tex
 
 Equations are numbered in document order, and only those with an id; an equation without one takes no number.
 
@@ -1024,6 +1051,7 @@ See @eq-a and @eq-e.
 ## math/ref-dangling
 
 spec: syntax-blocks#display-math syntax-inline#reference elements#references
+options: math=tex
 
 A reference to an equation id that does not exist stays literal, with `ref.dangling`.
 
@@ -1045,6 +1073,7 @@ See @eq-x.
 ## math/attribute-line-id-numbers
 
 spec: syntax-blocks#display-math syntax-blocks#attribute-line elements#numbering
+options: math=tex
 
 An attribute line before display math attaches to `div.t-eq`; its id numbers the equation like a closer id.
 
@@ -1065,6 +1094,7 @@ See @eq-a.
 ## math/class-only-not-numbered
 
 spec: syntax-blocks#display-math elements#numbering
+options: math=tex
 
 A class on the closer does not number the equation; only an id does. `div.t-eq` has the classes `t-eq`, then the author's classes.
 
@@ -1081,6 +1111,7 @@ $$ {.wide}
 ## math/content-not-luccet
 
 spec: syntax-blocks#display-math syntax-blocks#r4
+options: math=tex
 
 The body is verbatim TeX: emphasis, references, links and code spans are not recognised (so `@eq-a` is no reference and gets no `ref.dangling`).
 
@@ -1097,6 +1128,7 @@ $$
 ## math/content-escaped
 
 spec: syntax-blocks#display-math syntax-blocks#r4
+options: math=tex
 
 The TeX is HTML-escaped and otherwise unchanged: `<` and `&` are escaped, and an entity is not passed through.
 

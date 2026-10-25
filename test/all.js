@@ -17,6 +17,7 @@ const STEPS = [
   ['add-ons', ['addons.js']],
   ['corpus lint', ['run.js', '--lint']],
   ['conformance', ['run.js']],
+  ['tex', ['tex.js']],
   ['api', ['api.js']],
   ['samples', ['samples.js']],
   ['perf', ['perf.js']],

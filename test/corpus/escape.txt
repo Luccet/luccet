@@ -327,6 +327,7 @@ Consider
 ## escape/latex-delimiters-in-display-math-silent
 
 spec: syntax-inline#latex-delimiters syntax-inline#escapes
+options: math=tex
 
 Inside display math the backslash belongs to TeX: no hint.
 
@@ -461,6 +462,7 @@ a <span title="\*">b</span>
 ## escape/none-in-math
 
 spec: syntax-inline#escapes syntax-inline#inline-math
+options: math=tex
 
 Inside `$…$` the backslash belongs to TeX; the TeX reaches the output unchanged.
 

@@ -51,7 +51,7 @@ console.log('hi')
 
 ## Math {#math}
 
-An example's macros are its own, and so are its KaTeX errors.
+An example's macros are its own, and so are the diagnostics of its formulas.
 
 ```luccet {.live}
 :::macros
@@ -65,16 +65,16 @@ $$
 $$
 ```
 
-```luccet {.live}
+```luccet {.live expect="tex.unknown"}
 Without its own :::macros, $\RR$ is unknown here.
 ```
 
-```luccet {.live}
+```luccet {.live expect="tex.unbalanced tex.unknown"}
 :::macros
 \newcommand{\half
 :::
 
-A formula KaTeX rejects: $\notacommand$.
+A formula that does not translate: $\notacommand$.
 ```
 
 ## Highlighting {#highlighting}

@@ -5,24 +5,22 @@
 //   the preserved head (plus a doctype and charset if it lacks them)
 //   :::meta written into it: <title>, html[lang|dir], <meta name>
 //   viewport and color-scheme metas, if absent
-//   luccet's sheets, before the head's first author stylesheet: KaTeX's CSS
-//     (when math is pre-rendered), luccet.css inlined (or the head's link to it,
-//     or data-css), then the CSS add-ons of data-use
+//   luccet's sheets, before the head's first author stylesheet: luccet.css
+//     inlined (or the head's link to it, or data-css), then the CSS add-ons
+//     of data-use
 //   <script src="…luccet.js" data-built>, then the script add-ons as static
 //     tags, so that both run before the note's own scripts
-//   <main class="luccet"> holding the emitted HTML: luccet.toHTML's output
+//   <main class="luccet"> holding the emitted HTML: luccet.toHTML's output,
+//     its formulas MathML
 //   <script type="text/luccet" id="luccet-source" data-line="N"> holding the note
 //   <script type="application/json" id="luccet-diagnostics"> when it has any
 //
 // luccet.js still runs on the page (src/runtime.js `startBuilt`): behaviours,
-// math the build left, copy, print, fragments, diagnostics and the events.
-// With `katex`, formulas are pre-rendered to HTML+MathML by the katex npm
-// package, if it can be required (it is not a dependency).
+// copy, print, fragments, diagnostics and the events.
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const { analyse, attributes, luccet } = require('./note');
 const { styleTag } = require('./diagrams');
 
@@ -38,185 +36,6 @@ const decodeSource = (s) => s.replace(/<\\(\\*)(\/script|!--)/gi, '<$1$2');
 // JSON inside a <script>: `<` as its JSON escape, so no `</script` or `<!--`.
 const LT_ESCAPE = '\\' + 'u003c';
 const scriptJson = (v) => JSON.stringify(v).replace(/</g, LT_ESCAPE);
-
-// ---------------------------------------------------------------- KaTeX
-
-// The katex npm package, from the CLI's own resolution (and NODE_PATH), then
-// from the note's directory and the working directory: {katex, main} or null.
-function requireKatex(dir) {
-  const tries = [() => require.resolve('katex'), () => require.resolve('katex', { paths: [dir, process.cwd()] })];
-  for (const resolve of tries) {
-    try {
-      const main = resolve();
-      const katex = require(main);
-      if (katex && typeof katex.renderToString === 'function') return { katex, main };
-    } catch {}
-  }
-  return null;
-}
-
-// The folder the note gives the KaTeX add-on, `?base=` on addons/katex.js in
-// the tag's data-use or the :::use block, as the add-on reads it; '' when it
-// names none. (window.LUCCET.use.katex.base, set by a script, is not seen.)
-function katexBase(entries) {
-  for (const entry of entries) {
-    const q = entry.indexOf('?');
-    if (q < 0) continue;
-    const file = entry.slice(0, q);
-    if (file.slice(file.lastIndexOf('/') + 1).replace(/(?:\.min)?\.m?js$/i, '') !== 'katex') continue;
-    const base = (new URLSearchParams(entry.slice(q + 1).replace(/#.*$/, '')).get('base') || '').trim();
-    if (base) return base;
-  }
-  return '';
-}
-
-// Where the page loads KaTeX's CSS from: the add-on's base, else the CDN at
-// the installed version, with SRI computed from the package's own copy
-// (jsDelivr serves the npm tarball's bytes).
-function katexSheet(k, base) {
-  if (base) return { href: `${base.replace(/\/+$/, '')}/katex.min.css`, integrity: null };
-  const file = path.join(path.dirname(k.main), 'katex.min.css');
-  let integrity = null;
-  try {
-    integrity = `sha384-${crypto.createHash('sha384').update(fs.readFileSync(file)).digest('base64')}`;
-  } catch {}
-  return { href: `https://cdn.jsdelivr.net/npm/katex@${k.katex.version}/dist/katex.min.css`, integrity };
-}
-
-// ---------------------------------------------------------------- Temml
-
-// The temml npm package (--math=mathml), resolved like katex: {temml, main}
-// or null. It renders TeX to native MathML.
-function requireTemml(dir) {
-  const tries = [() => require.resolve('temml'), () => require.resolve('temml', { paths: [dir, process.cwd()] })];
-  for (const resolve of tries) {
-    try {
-      const main = resolve();
-      const temml = require(main);
-      if (temml && typeof temml.renderToString === 'function') return { temml, main };
-    } catch {}
-  }
-  return null;
-}
-
-// Temml's stylesheet, inlined so the page stays one self-contained file: its
-// one font (Temml.woff2, for script letters) becomes a data: URL. Native
-// MathML needs no font for the rest. Null when the package's files cannot be
-// read, in which case the browser draws the MathML with no extra styles.
-function temmlCss(main) {
-  const dir = path.dirname(main);
-  let css;
-  try {
-    css = fs.readFileSync(path.join(dir, 'Temml-Local.css'), 'utf8');
-  } catch {
-    return null;
-  }
-  try {
-    const woff2 = fs.readFileSync(path.join(dir, 'Temml.woff2')).toString('base64');
-    css = css.replace(/url\((['"]?)Temml\.woff2\1\)/g, `url(data:font/woff2;base64,${woff2})`);
-  } catch {}
-  return css;
-}
-
-// Pre-renders the formulas to native MathML with Temml, as prerender() does
-// with KaTeX: the :::macros bodies make a preamble, then each formula with
-// throwOnError and annotate (the TeX kept in an <annotation>, so it still
-// copies as $tex$). A formula Temml rejects stays as its TeX source, since a
-// MathML page turns luccet.js's KaTeX off.
-function prerenderMathml(ast, M) {
-  const failures = [];
-  const formulas = [];
-  const macroNodes = [];
-  walk(ast, (n) => {
-    if (n.type === 'containerDirective' && n.name === 'macros') macroNodes.push(n);
-    else if (n.type === 'inlineMath' || (n.type === 'math' && !(n.data && n.data.luccet && n.data.luccet.unclosed))) formulas.push(n);
-  });
-  let macros = {};
-  const preamble = macroNodes.map((n) => n.value || '').join('\n');
-  if (preamble.trim()) {
-    try {
-      macros = M.definePreamble(preamble);
-    } catch (e) {
-      failures.push({ node: macroNodes[0], message: `the :::macros block does not parse: ${e.message}` });
-    }
-  }
-  const open = String.fromCharCode(0xe000) + crypto.randomBytes(4).toString('hex');
-  const close = String.fromCharCode(0xe001);
-  const done = [];
-  for (const n of formulas) {
-    try {
-      const html = M.renderToString(n.value || '', { throwOnError: true, annotate: true, displayMode: n.type === 'math', macros });
-      done.push({ n, value: n.value || '', html });
-      n.value = `${open}${done.length - 1}${close}`;
-    } catch (e) {
-      failures.push({ node: n, message: `Temml cannot render this formula, so it stays as its TeX source: ${e.message}` });
-    }
-  }
-  const at = new RegExp(`>${open}(\\d+)${close}</span>`, 'g');
-  const left = new RegExp(`${open}(\\d+)${close}`, 'g');
-  return {
-    count: done.length,
-    failures,
-    fill: (html) => html.replace(at, (_, i) => ` data-tex="${escAttr(done[i].value)}">${done[i].html}</span>`).replace(left, (_, i) => escText(done[i].value)),
-    restore: () => done.forEach((d) => (d.n.value = d.value)),
-  };
-}
-
-// Every node of the tree, toc entries included (they hold copies of the
-// headings' inline nodes), in document order.
-function walk(root, fn) {
-  const stack = [root];
-  while (stack.length) {
-    const n = stack.pop();
-    if (!n || typeof n !== 'object') continue;
-    fn(n);
-    const toc = n.data && n.data.luccet && n.data.luccet.toc;
-    const kids = [...(n.children || []), ...(Array.isArray(toc) ? toc : [])];
-    for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
-  }
-}
-
-// Pre-renders the formulas as the runtime typesets them: every :::macros
-// body first, into one shared table, then each formula with throwOnError. A
-// formula KaTeX rejects is left for luccet.js, which reports math.error on the
-// page. The rendered HTML goes in through placeholders in the math nodes'
-// values, which emit() writes as text.
-function prerender(ast, K) {
-  const macros = {};
-  const failures = [];
-  const formulas = [];
-  walk(ast, (n) => {
-    if (n.type === 'containerDirective' && n.name === 'macros') {
-      try {
-        K.renderToString(n.value || '', { throwOnError: true, displayMode: false, globalGroup: true, macros });
-      } catch (e) {
-        failures.push({ node: n, message: `the :::macros block does not parse: ${e.message}` });
-      }
-    } else if (n.type === 'inlineMath' || (n.type === 'math' && !(n.data && n.data.luccet && n.data.luccet.unclosed))) formulas.push(n);
-  });
-  const open = String.fromCharCode(0xe000) + crypto.randomBytes(4).toString('hex');
-  const close = String.fromCharCode(0xe001);
-  const done = [];
-  for (const n of formulas) {
-    try {
-      const html = K.renderToString(n.value || '', { throwOnError: true, displayMode: n.type === 'math', macros });
-      done.push({ n, value: n.value || '', html });
-      n.value = `${open}${done.length - 1}${close}`;
-    } catch (e) {
-      failures.push({ node: n, message: `KaTeX cannot typeset this formula, so luccet.js will: ${e.message}` });
-    }
-  }
-  const at = new RegExp(`>${open}(\\d+)${close}</span>`, 'g');
-  const left = new RegExp(`${open}(\\d+)${close}`, 'g');
-  return {
-    count: done.length,
-    failures,
-    // The emitted span is `<span class="t-math" …>PLACEHOLDER</span>`: its
-    // TeX goes into data-tex, which the runtime reads instead of the text.
-    fill: (html) => html.replace(at, (_, i) => ` data-tex="${escAttr(done[i].value)}">${done[i].html}</span>`).replace(left, (_, i) => escText(done[i].value)),
-    restore: () => done.forEach((d) => (d.n.value = d.value)),
-  };
-}
 
 // ---------------------------------------------------------------- the head
 
@@ -241,17 +60,14 @@ function htmlAttributes(head, add) {
 
 // ---------------------------------------------------------------- build
 
-// build(text, file, {math, noScripts, diagrams}) -> null when the file is not
-// a note, else {html, diagnostics, failures, warnings, math:{total,
-// prerendered, engine}, use, nonce, toFile}. math is 'katex' (pre-render with
-// KaTeX), 'mathml' (native MathML with Temml) or absent (formulas left for
-// luccet.js at view time). With diagrams, the head carries the stylesheet the
-// diagrams cli/diagrams.js draws into the page need (removed again if none
-// is drawn).
+// build(text, file, {noScripts, diagrams}) -> null when the file is not a
+// note, else {html, diagnostics, warnings, math: {total}, use, nonce,
+// toFile}. The formulas are MathML, as the engine writes them. With diagrams,
+// the head carries the stylesheet the diagrams cli/diagrams.js draws into the
+// page need (removed again if none is drawn).
 function build(text, file, opts = {}) {
   const a = analyse(text, file, { noScripts: opts.noScripts });
   if (!a) return null;
-  const dir = path.dirname(path.resolve(file));
   const attrs = attributes(a.tag);
   const warnings = [];
   // Loading vocabulary under node (addon.failed, addon.remote, head.script)
@@ -275,43 +91,13 @@ function build(text, file, opts = {}) {
   }
   const notes = a.diagnostics.filter((d) => d.position);
 
-  // Math, pre-rendered when asked for and the package is there. KaTeX
-  // (--math=katex) makes HTML+MathML; Temml (--math=mathml) makes native
-  // MathML and turns luccet.js's KaTeX off for the page. KaTeX's stylesheet
-  // comes from the folder the note gives the add-on, as the page's would.
-  // data-katex on the tag, read before 2.0, is named so it can be moved.
-  if (attrs['data-katex'] !== undefined) warnings.push('data-katex on the luccet.js tag is not read since 2.0: name KaTeX\'s folder with ?base= on addons/katex.js');
-  let pre = null;
-  let sheet = null;
-  let mathml = false;
-  if (opts.math === 'katex') {
-    const k = requireKatex(dir);
-    if (!k) warnings.push('the katex package cannot be required (npm install katex); formulas are left to luccet.js');
-    else {
-      pre = prerender(a.ast, k.katex);
-      sheet = katexSheet(k, katexBase([...(attrs['data-use'] || '').split(/\s+/), ...(a.use || []).map((e) => e.url)].filter(Boolean)));
-    }
-  } else if (opts.math === 'mathml') {
-    const t = requireTemml(dir);
-    if (!t) warnings.push('the temml package cannot be required (npm install temml); formulas are left to luccet.js');
-    else {
-      pre = prerenderMathml(a.ast, t.temml);
-      sheet = temmlCss(t.main) ? { inlineCss: temmlCss(t.main) } : null;
-      mathml = true;
-    }
-  }
-  let body;
-  try {
-    body = luccet.emit(a.ast, a.opts);
-  } finally {
-    if (pre) pre.restore();
-  }
-  if (pre) body = pre.fill(body);
+  // The formulas are the engine's MathML, like the rest of the body.
+  // data-katex on the tag, read before 2.0, is named so it can be removed.
+  if (attrs['data-katex'] !== undefined) warnings.push('data-katex on the luccet.js tag is not read since 2.0, when math became built in: remove it');
+  const body = luccet.emit(a.ast, a.opts);
   // The emitter's own diagnostic (output.limit), found only now: on the page and the console like the others.
   for (const d of (a.ast.data && a.ast.data.luccet && a.ast.data.luccet.diagnostics) || []) if (d.code === 'output.limit') notes.push(Object.assign({ filePosition: a.toFile(d.position) }, d));
   const total = (body.match(/\bclass="(?:[^"]*\s)?t-math[\s"]/g) || []).length;
-  const prerendered = pre ? pre.count : 0;
-  if (pre && !pre.count) sheet = null;
 
   // The head: preserved, with the canonical first line's doctype and charset.
   let head = a.head;
@@ -343,7 +129,7 @@ function build(text, file, opts = {}) {
   if (!named.has('viewport')) lines.push('<meta name="viewport" content="width=device-width, initial-scale=1">');
   if (!named.has('color-scheme')) lines.push('<meta name="color-scheme" content="light dark">');
 
-  // Luccet's sheets, in cascade order: KaTeX, the base, the CSS add-ons, before
+  // Luccet's sheets, in cascade order: the base, then the CSS add-ons, before
   // the head's first author stylesheet so the author's rules win; a head link
   // to luccet.css (or to data-css) is the base itself, and the group forms
   // around it.
@@ -360,22 +146,18 @@ function build(text, file, opts = {}) {
   }
   const css = attrs['data-css'];
   const base = sheets.find((s) => s.href != null && (s.href === css || /(?:^|\/)luccet(?:\.min)?\.css$/i.test(s.href.replace(/[?#].*$/, ''))));
-  const before = sheet ? [sheet.inlineCss ? `<style id="luccet-temml-style"${n}>\n${sheet.inlineCss}</style>` : link(sheet.href, sheet.integrity)] : [];
   const after = use.filter(isCss).map((u) => link(u));
   if (opts.diagrams) after.push(styleTag(attrs['data-nonce']));
   if (base) {
-    head = [head.slice(0, base.start), ...before.map((x) => `${x}\n`), head.slice(base.start, base.end), ...after.map((x) => `\n${x}`), head.slice(base.end)].join('');
+    head = [head.slice(0, base.start), head.slice(base.start, base.end), ...after.map((x) => `\n${x}`), head.slice(base.end)].join('');
   } else {
     const own = css ? link(css) : `<style id="luccet-style"${n}>\n${luccet.css}</style>`;
-    const group = [...before, own, ...after];
+    const group = [own, ...after];
     const at = sheets.length ? sheets[0].start : head.length;
     head = at < head.length ? `${head.slice(0, at)}${group.join('\n')}\n${head.slice(at)}` : `${head}\n${group.join('\n')}`;
   }
 
-  // luccet.js, marked as a built page. The engine renders no math itself, so a
-  // formula that was not pre-rendered shows only if the note loads a math
-  // add-on; one pre-rendered here is already typeset (KaTeX HTML) or native
-  // MathML (Temml). The tag keeps its data-use, with the `:::use` block's
+  // luccet.js, marked as a built page. The tag keeps its data-use, with the `:::use` block's
   // entries merged in: the block emits nothing, and luccet.js on the built page
   // reads the tag alone.
   let tag = a.tag.replace(/^<script/i, '<script data-built');
@@ -393,7 +175,7 @@ function build(text, file, opts = {}) {
     ...(notes.length ? [`<script type="application/json" id="luccet-diagnostics">${scriptJson(notes.map(({ filePosition, ...d }) => d))}</script>`] : []),
     '',
   ].join('\n');
-  return { html: page, diagnostics: notes, failures: pre ? pre.failures : [], warnings, math: { total, prerendered, engine: pre ? (mathml ? 'mathml' : 'katex') : null }, use, nonce: attrs['data-nonce'] || null, toFile: a.toFile };
+  return { html: page, diagnostics: notes, warnings, math: { total }, use, nonce: attrs['data-nonce'] || null, toFile: a.toFile };
 }
 
 module.exports = { build, decodeSource, escAttr };

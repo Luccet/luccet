@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/code.js ../addons/mermaid.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/code.js ../addons/mermaid.js ../addons/copy.js"></script>
 
 :::meta
-description: The add-ons that come with Luccet, in its addons/ folder: math with KaTeX or MathML, code highlighting with highlight.js, copy buttons on code, diagrams with Mermaid, a lightbox for figures, citations from BibTeX or CSL-JSON, a search box over a set of notes, and a list of them.
+description: The add-ons that come with Luccet, in its addons/ folder: code highlighting with highlight.js, copy buttons on code, diagrams with Mermaid, a lightbox for figures, citations from BibTeX or CSL-JSON, a search box over a set of notes, a list of them, and a glossary.
 :::
 
 ::site-nav
@@ -11,8 +11,6 @@ description: The add-ons that come with Luccet, in its addons/ folder: math with
 ::toc
 
 Luccet comes with add-ons in the `addons/` folder next to `luccet.js`. Each one is a script [add-on](schema.html#addons): list it in `data-use` on the luccet.js tag, or in a [`:::use` block](syntax-blocks.html#use) at the top of the note, with a [theme](schema.html#themes) if you like.
-
-**The engine renders no math itself.** It leaves each formula as its TeX, the way a code fence stays plain without [`code.js`](#code). To typeset the math, load a math add-on: [`katex.js`](#katex) for KaTeX, or [`mathml.js`](#mathml) for native MathML. Load one, not both.
 
 ```html
 <!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="addons/code.js"></script>
@@ -26,22 +24,25 @@ Several read better in a `:::use` block, one or more per line, which must come f
 :::use
 https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css
 addons/code.js
-addons/katex.js
+addons/mermaid.js
 :::
 ```
 
 From jsDelivr, give each add-on the same tag as `luccet.js`: `https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/addons/code.js`.
 
+**Math needs no add-on.** The engine translates each formula's TeX to MathML itself, and the browser lays it out: there is nothing to load, in the browser and in `luccet build` alike ([Math](math.html)). For KaTeX's look instead, an optional KaTeX add-on is available from github.com/Luccet ([KaTeX instead](math.html#katex)).
+
 :::table[Add-ons]{#tbl-addons}
 | Add-on | What it does |
 |---|---|
-| [`katex.js`](#katex) | typesets formulas with KaTeX, to styled HTML with its own fonts |
-| [`mathml.js`](#mathml) | typesets formulas as native MathML, with Temml, no fonts to load |
 | [`code.js`](#code) | colours code by its language, with highlight.js, in the theme's colours |
 | [`mermaid.js`](#mermaid) | draws `mermaid` fences as diagrams, with Mermaid, in the theme's colours |
+| [`copy.js`](#copy) | a button on every fence that copies its code |
+| [`lightbox.js`](#lightbox) | opens a figure's image full size, in a dialog |
 | [`search.js`](#search) | a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes, each hit linking to its heading or block |
 | [`notes.js`](#notes) | a `::notes` list of the notes in a folder, from the catalogue `luccet index` writes |
 | [`glossary.js`](#glossary) | a `::glossary` list of the terms a folder's notes define, from the glossary `luccet index` writes; `:term[…]` links a use to it |
+| [`cite.js`](#cite) | cites sources from a `:::bibliography` block, in BibTeX or CSL-JSON, with `@key` |
 :::
 
 ## Code highlighting {#code}
@@ -70,7 +71,7 @@ function fib(n) {
 - **Left as they are:** a fence with no language, one marked `text`, `txt`, `plaintext` or `nohighlight`, and one in a language highlight.js does not know, such as `luccet`. Inline code is never coloured.
 - **Line numbers and highlighted lines stay.** `{lines hl=3}` works as it does without the add-on: the coloured text is split back into the lines, and a comment that runs over two lines is coloured on both.
 - **The text does not change.** The add-on only wraps it in `<span class="hljs-…">` elements, so copying code copies the same text.
-- **In slices, after the note shows.** The fences are coloured a few at a time, 10 ms of work per frame, as the KaTeX add-on typesets, so a page of hundreds of fences stays responsive while it colours them; printing colours what is left first.
+- **In slices, after the note shows.** The fences are coloured a few at a time, 10 ms of work per frame, so a page of hundreds of fences stays responsive while it colours them; printing colours what is left first.
 
 ### Languages {#code-languages}
 
@@ -110,9 +111,9 @@ The add-on maps highlight.js's classes onto ten [custom properties](schema.html#
 
 ### How it loads {#code-loading}
 
-- **From jsDelivr.** The add-on asks for highlight.js 11.12.0 as soon as it runs, alongside KaTeX and the other add-ons, pinned with [SRI](publishing.html#csp) hashes. Code shows plain until it arrives, then turns coloured.
+- **From jsDelivr.** The add-on asks for highlight.js 11.12.0 as soon as it runs, alongside the other add-ons, pinned with [SRI](publishing.html#csp) hashes. Code shows plain until it arrives, then turns coloured.
 - **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `highlight.min.js` and `languages/`, the layout of the npm package `@highlightjs/cdn-assets`. A copy is loaded without SRI.
-- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, as KaTeX needs, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's scripts carry the nonce.
+- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's scripts carry the nonce.
 - **A highlight.js already on the page** is used as it is, with the languages it has.
 - **If highlight.js does not load,** code stays plain, and the console shows a warning.
 - **Without the page.** `luccet check` and `luccet build` run the add-on but do not colour code: a built page is coloured when `luccet.js` runs on it, and without JavaScript code shows plain.
@@ -258,69 +259,6 @@ no button on this one
 - **Needs `<dialog>`** (Chrome 37, Firefox 98, Safari 15.4). In an older browser inside [the support floor](publishing.html#browsers) the add-on does nothing and images stay as they are.
 - **Without the page,** `luccet check` and `luccet build` load the add-on and nothing happens; a built page gets the behaviour when `luccet.js` runs. An untrusted root gets none.
 
-## Math with KaTeX {#katex}
-
-`katex.js` typesets every formula — `$x$`, `$$…$$` and a [`:::macros`](guide.html#math) block — with [KaTeX](https://katex.org), to styled HTML in KaTeX's own fonts, so the math looks the same in every browser. It is the typeset default; for native MathML with no fonts to load, use [`mathml.js`](#mathml) instead.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/katex.js"></script>
-<script src="luccet.js" data-use="addons/katex.js?base=vendor/katex"></script>
-```
-:::
-
-- **Without a math add-on, formulas stay as TeX.** The engine renders no math itself; this add-on (or [`mathml.js`](#mathml)) typesets it. The TeX is kept in each formula's `data-tex`, so a typeset formula still copies as `$tex$`.
-- **Options** go in `window.LUCCET = {use: {katex: {macros: {…}, strict: false, …}}}` — anything KaTeX takes but `displayMode` and `throwOnError` — or on the add-on's URL, `addons/katex.js?strict=false`, where `true` and `false` read as the booleans they spell. A `:::macros` block fills one shared macro table first. `trust` applies to the page's own formulas; a root rendered with [`safe`](api.html#render) is typeset with trust off whatever the page sets, with a copy of the macro table, and its `:::macros` blocks define nothing.
-- **Long notes stay smooth.** Formulas are typeset in time slices, so no task runs long; a note's off-screen blocks get `content-visibility` while they are, and a formula in a closed `<details>` is typeset when it opens. Everything pending is typeset before printing or a fragment scroll.
-
-### How it loads {#katex-loading}
-
-- **From jsDelivr.** The add-on asks for KaTeX 0.19.0 at the first formula, with its stylesheet, pinned with [SRI](publishing.html#csp). Each formula shows its TeX until KaTeX arrives, then is typeset.
-- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `katex.min.js` and `katex.min.css`, the `dist/` folder of the npm package `katex`. A copy is loaded without SRI. A `window.katex` already on the page is used as it is.
-- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src` and `style-src`, or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's script and stylesheet carry the nonce; KaTeX writes its styles through the CSSOM, so its formulas need no inline-style exception.
-- **A formula KaTeX cannot parse** stays as its TeX source, marked `t-error`, with the reason in the console.
-- **If KaTeX or its stylesheet does not load,** each formula stays as its TeX source, and the console shows a warning: a formula typeset without the stylesheet would show three times over. The next render asks for them again.
-- **Without the page.** `luccet check` and `luccet build` (without `--math`) do nothing with it: a note shows its math when `luccet.js` runs. `luccet build --math=katex` ([Command line](tools.html#build)) pre-renders it instead, so no script loads at view time.
-
-### A newer KaTeX {#katex-updating}
-
-The version and its hashes live in a table in `addons/katex.js`. To move to another version, run `node tools/katex.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
-
-## Math as MathML {#mathml}
-
-`mathml.js` renders every formula as native [MathML](https://developer.mozilla.org/en-US/docs/Web/MathML) with [Temml](https://temml.org), a lighter alternative to [`katex.js`](#katex). The browser draws the MathML with its math fonts, so once Temml has run nothing else is fetched: the math is selectable, scales with the text, and prints as part of the page.
-
-:::syntax
-```html
-<script src="luccet.js" data-use="addons/mathml.js"></script>
-<script src="luccet.js" data-use="addons/mathml.js?base=vendor/temml"></script>
-```
-:::
-
-- **One math add-on, not two.** Load `mathml.js` or [`katex.js`](#katex), not both. The engine renders no math itself, so they never clash.
-- **The same TeX, the same places.** `$x$`, `$$…$$` and `:::macros` work exactly as they do with KaTeX ([Math](guide.html#math)). The add-on reads each formula's TeX, so the [dollar rules](syntax-inline.html#inline-math) are unchanged.
-- **The TeX is kept.** Each formula keeps its TeX in a MathML `<annotation>` and in `data-tex`, so it still copies as `$tex$`.
-- **An untrusted root** (one rendered with [`safe`](api.html#render)) is typeset with a copy of the macro table, and its `:::macros` blocks define nothing for the page.
-
-### MathML or KaTeX {#mathml-why}
-
-- **[`katex.js`](#katex)** typesets to styled HTML, with KaTeX's own fonts, so a formula looks the same in every browser. It is the better choice for exact, print-quality layout and for the widest match with LaTeX.
-- **`mathml.js`** needs no KaTeX: the browser draws the MathML, so the page is lighter and, when [pre-rendered](tools.html#build), carries no math code or fonts at all. Its layout is the browser's, so it varies a little between browsers, and a few rare constructs differ. Choose it for self-contained, offline or accessible pages.
-- **Pre-render for a static page.** `luccet build --math=mathml` writes the MathML into the page with the [`temml` npm package](tools.html#build), so a published note shows its math with no script, no stylesheet and no font to fetch — the add-on is for notes that render themselves.
-
-### How it loads {#mathml-loading}
-
-- **From jsDelivr.** The add-on asks for Temml 0.14.0 at the first formula, with its stylesheet, pinned with [SRI](publishing.html#csp): one 164 KB file and a 9 KB stylesheet, neither fetched by a note without math. Each formula shows its TeX until Temml arrives, then becomes MathML.
-- **A copy of your own,** for offline use or a strict policy: `?base=` names the folder of `temml.min.js` and `Temml-Local.css`, the `dist/` folder of the npm package `temml`. A copy is loaded without SRI. A `window.temml` already on the page is used as it is.
-- **Content-Security-Policy.** Allow `https://cdn.jsdelivr.net` in `script-src`, in `style-src` (the stylesheet) and in `font-src` (the fonts it names), or use a copy. With [`data-nonce`](publishing.html#csp), the add-on's script and its stylesheet carry the nonce. Temml writes a few style attributes on a formula; a policy that forbids inline styles (no `'unsafe-inline'` in `style-src`) blocks them, so some spacing may be off. For exact math under a strict policy, [pre-render](tools.html#build) instead.
-- **A formula Temml cannot parse** stays as its TeX source, marked `t-error`, with the reason in the console.
-- **If Temml does not load,** each formula stays as its TeX source, and the console shows a warning; the next render asks for it again.
-- **Without the page.** `luccet check` and `luccet build` (without `--math=mathml`) run the add-on but render nothing: a note that loads it shows its MathML when `luccet.js` runs, and without JavaScript each formula shows its TeX.
-
-### A newer Temml {#mathml-updating}
-
-The version and its hashes live in a table in `addons/mathml.js`. To move to another version, run `node tools/temml.js VERSION`: it downloads the package from the npm registry once, checks it, and rewrites the table.
-
 ## Search {#search}
 
 `search.js` declares a `::search` leaf: a search box over a set of notes, built in the browser when the page opens. The notes are fetched and parsed by the engine, with the page's own vocabulary, and split into entries — every heading's section and every named block with an id, an exercise or a theorem — so a hit links straight to its place on its page. Nothing is built ahead and nothing leaves the browser: it suits a wiki of notes published as they are. With `index=`, the box reads the index [`luccet index`](tools.html#index) wrote instead: one file, no note fetched, for a site with many notes.
@@ -393,7 +331,7 @@ Every :term[truism], and the :term[kernels]{title=kernel} too, link to the gloss
 
 - **Defining a term.** `:dfn[truism]` in the sentence that explains it; `title=` gives the canonical form when the text is not it (`:dfn[truisms]{title=truism}`), as HTML's rule says. A `:::definition[Kernel]` block defines its title by its body, as math notes do. A `dfn` in a heading is defined by the paragraph after it. The same word defined in two notes is listed twice, and `luccet index` says so.
 - **Which terms.** `::glossary` alone reads `glossary.json` next to the page; `from=PATH` names the file, an `http(s)` URL. `in=FOLDER` keeps the terms of the notes under a folder, a prefix of their path in the file. A note's URL resolves against the file and must be a page on its origin, as `luccet index` writes them; any other is left out, with a warning in the console.
-- **What an entry shows.** The terms in the order of their folded key (`Café` with `cafe`), each a `<dt>` whose id is the term's slug (`glossary-truism`) and whose text links to the definition in its note, then a `<dd>` with the definition rendered as on its page: its links lead back to the note, its formulas are typeset by the page's math add-on (load it on the glossary page too), and a line names the note. Raw HTML in a definition is escaped, as in a note rendered `safe`.
+- **What an entry shows.** The terms in the order of their folded key (`Café` with `cafe`), each a `<dt>` whose id is the term's slug (`glossary-truism`) and whose text links to the definition in its note, then a `<dd>` with the definition rendered as on its page: its links lead back to the note, its formulas are MathML, and a line names the note. Raw HTML in a definition is escaped, as in a note rendered `safe`.
 - **Uses.** `:term[truism]` is a link to the glossary page, `glossary.html` beside the note unless `page=` says otherwise (`addons/glossary.js?page=/wiki/glossary.html` for notes in several folders), with `title=` as the term when the text is inflected. The link is in the tree, so `luccet check` reports a page that is not there as [`link.missing`](diagnostics.html#link-missing) at the use, and `luccet build` writes it; the entry's `#` is added when the page shows, since the entries exist once the list is built. The link is drawn with a dotted underline.
 - **Options** go on the leaf, on the add-on (`addons/glossary.js?page=…`), or in `window.LUCCET = {use: {glossary: {…}}}`; the leaf's win.
 - **The element** is a `<div role="region" aria-label="Glossary">` with the classes `t-glossary`, `t-glossary-list` (a `<dl>`), `t-glossary-source` and `t-glossary-status`, its words (the label Glossary, No terms., From {title}, the failure lines) from [`window.LUCCET.strings`](api.html#strings) when the page sets them; a use is a `<span class="term">` around its link.

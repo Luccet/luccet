@@ -324,6 +324,7 @@ https\://x.org
 ## autolink/bare-in-code-and-math
 
 spec: syntax-inline#autolinks syntax-inline#ambiguity
+options: math=tex
 
 Inside code or math a URL is not a link.
 

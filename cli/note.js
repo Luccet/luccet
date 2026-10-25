@@ -156,7 +156,7 @@ function readText(file) {
 // cannot read files): the head's classic scripts and the script add-ons of
 // data-use, each {url, code} in document order, and the problems that are the
 // host's to see — a remote script or add-on (not run under node), a local one
-// that cannot be read. `dataUse/Lang/Katex` build the add-ons' luccet.config;
+// that cannot be read. `dataUse/Lang/Math` build the add-ons' luccet.config;
 // `hasCode` is false when there is nothing to run (the analysis stays here).
 // A `seq` orders every script, add-on and problem as it appears, so the
 // problems the host finds here and those the sandbox finds there merge back
@@ -247,6 +247,7 @@ function collect(tag, dir, head, note) {
     use,
     dataUse,
     dataLang: attrs['data-lang'] !== undefined ? attrs['data-lang'].trim() : undefined,
+    dataMath: attrs['data-math'] !== undefined ? attrs['data-math'].trim() : undefined,
     hasCode: scripts.length > 0 || addons.length > 0,
   };
 }
@@ -286,7 +287,7 @@ const toFile = (pos, line) => ({
 //   - a remote add-on: `addon.remote`, an info at the luccet.js line;
 //   - a head script: `head.script`, an info or a warning at its <script>.
 // `.demo` is window.luccetDocs.demo, a documentation add-on's schema, or null.
-// `.vocab` is the vocabulary the analysis used, {stamp, schema, lang, ran,
+// `.vocab` is the vocabulary the analysis used, {stamp, schema, lang, math, macros, ran,
 // hostParse}: `stamp` tells the head and the code apart from another's, `ran`
 // is false when the sandbox did not run the code, and `hostParse` is true
 // when it ran the code and the note was parsed here. A caller that analyses the
@@ -317,9 +318,9 @@ function prepare(text, file, opts) {
   const transform = opts.transform !== false;
   const stamp = crypto
     .createHash('sha1')
-    .update(JSON.stringify([parts.head, c.dataUse ?? null, c.dataLang ?? null, c.scripts.map((s) => s.code), c.addons.map((a) => a.code)]))
+    .update(JSON.stringify([parts.head, c.dataUse ?? null, c.dataLang ?? null, c.dataMath ?? null, c.scripts.map((s) => s.code), c.addons.map((a) => a.code)]))
     .digest('hex');
-  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform, hostParse: opts.hostParse !== false };
+  const req = opts.noScripts || !c.hasCode ? null : { note: parts.note, head: parts.head, dataUse: c.dataUse, dataLang: c.dataLang, dataMath: c.dataMath, scripts: c.scripts, addons: c.addons, vocabSeq: c.vocabSeq, transform, hostParse: opts.hostParse !== false };
   return { parts, c, transform, stamp, req, opts };
 }
 
@@ -327,6 +328,9 @@ function prepare(text, file, opts) {
 function finish({ parts, c, transform, stamp, opts }, r) {
   let schema = { block: {}, leaf: {}, inline: {} };
   let lang = c.dataLang || undefined;
+  // The page's math (src/tex.js): data-math, then what its scripts and add-ons set.
+  let math = c.dataMath === 'tex' ? 'tex' : undefined;
+  let macros;
   let demo = null;
   let luccetDocs = null;
   let all;
@@ -337,7 +341,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
   // here with an empty vocabulary (a note that declares none is unaffected),
   // or with the last one when it is given and the code has not changed.
   const here = () => {
-    const options = { schema, head: parts.head, lang };
+    const options = { schema, head: parts.head, lang, math, macros };
     const parsed = luccet.parse(parts.note, options);
     if (!transform) {
       all = parsed.diagnostics;
@@ -358,6 +362,8 @@ function finish({ parts, c, transform, stamp, opts }, r) {
     if (last) {
       schema = last.schema;
       lang = last.lang == null ? undefined : last.lang;
+      math = last.math || math;
+      macros = last.macros || undefined;
     }
     ast = here();
     problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed, !!last) }]);
@@ -367,6 +373,8 @@ function finish({ parts, c, transform, stamp, opts }, r) {
     // filePosition set on them below stays off the tree's own.
     schema = r.schema;
     lang = r.lang == null ? undefined : r.lang;
+    math = r.math || undefined;
+    macros = r.macros || undefined;
     luccetDocs = r.luccetDocs || null;
     demo = luccetDocs && luccetDocs.demo ? luccetDocs.demo : null;
     ast = here();
@@ -375,6 +383,8 @@ function finish({ parts, c, transform, stamp, opts }, r) {
   } else {
     schema = r.schema;
     lang = r.lang == null ? undefined : r.lang;
+    math = r.math || undefined;
+    macros = r.macros || undefined;
     luccetDocs = r.luccetDocs || null;
     demo = luccetDocs && luccetDocs.demo ? luccetDocs.demo : null;
     ast = r.ast;
@@ -386,7 +396,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
   // by the sandbox), then any transform failure, as they run last.
   problems = problems.slice().sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).concat(failures.map((f) => ({ kind: 'transform', ...f })));
 
-  const options = { schema, head: parts.head, lang };
+  const options = { schema, head: parts.head, lang, math, macros };
   const at = (d) => d.position.start.offset;
   all.sort((a, b) => at(a) - at(b) || a.position.end.offset - b.position.end.offset || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   for (const d of all) d.filePosition = toFile(d.position, parts.line);
@@ -400,7 +410,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
     return p.kind === 'head' ? point(p.line, p.column) : point(parts.line, 1);
   };
   const loading = problems.map((p) => ({ ...loadingDiagnostic(p), filePosition: where(p) }));
-  const vocab = { stamp, schema, lang: lang === undefined ? null : lang, ran, hostParse: !!(r && r.hostParse) };
+  const vocab = { stamp, schema, lang: lang === undefined ? null : lang, math: math || null, macros: macros || null, ran, hostParse: !!(r && r.hostParse) };
   return { ...parts, schema, opts: options, ast, demo, luccetDocs, use: c.use, files: c.files, vocab, diagnostics: loading.concat(all), toFile: (pos) => toFile(pos, parts.line) };
 }
 

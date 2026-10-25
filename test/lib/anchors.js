@@ -21,7 +21,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..', '..');
 // The pages an anchor may name: docs/NAME.html, and `index` for index.html.
-const PAGES = ['index', 'guide', 'syntax-blocks', 'syntax-inline', 'elements', 'schema', 'diagnostics', 'tools', 'publishing', 'api'];
+const PAGES = ['index', 'guide', 'syntax-blocks', 'syntax-inline', 'math', 'elements', 'schema', 'diagnostics', 'tools', 'publishing', 'api'];
 
 // Required on first use, so that an engine that does not load (cli/note.js
 // requires luccet.js) is reported for the page instead of thrown on require.

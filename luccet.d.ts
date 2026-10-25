@@ -73,6 +73,10 @@ declare namespace luccet {
     lang?: string;
     /** The nesting limit of blocks, 64 by default. */
     maxDepth?: number;
+    /** 'tex' writes each formula as its TeX, for a renderer of your own; MathML by default. */
+    math?: 'mathml' | 'tex';
+    /** The page's TeX macros, `{'\\RR': '\\mathbb{R}'}`, before the note's :::macros. */
+    macros?: Record<string, string>;
   }
   export interface EmitOptions extends ParseOptions {
     /** Write data-pos on block elements (true). */
@@ -157,6 +161,21 @@ declare namespace luccet {
     readonly format: number;
   }
 
+  export interface TexError {
+    code: string;
+    message: string;
+    hint: string;
+    /** Offsets into the TeX: where the problem starts and ends. */
+    at: number;
+    end: number;
+  }
+  export interface Tex {
+    /** One formula as MathML, as the math transform makes it, or why it cannot be. */
+    (source: string, opts?: { display?: boolean; macros?: Record<string, string> }): { mathml: string; error?: undefined } | { mathml?: undefined; error: TexError };
+    /** The symbol commands: [name, character, TeX class]. */
+    readonly symbols: ReadonlyArray<readonly [string, string, string]>;
+  }
+
   export type LuccetEvent = 'render' | 'math' | 'ready' | 'diagnostic';
   export type Remove = () => void;
 
@@ -167,6 +186,10 @@ declare namespace luccet {
     css?: string;
     nonce?: string;
     lang?: string;
+    /** 'tex' writes formulas as their TeX (data-math="tex"); an add-on that typesets math sets it. */
+    math?: string;
+    /** The page's TeX macros, `{'\\RR': '\\mathbb{R}'}`. */
+    macros?: Record<string, string>;
     diagnostics?: boolean;
     quiet?: boolean;
     /** Milliseconds the mount waits for an add-on still loading, 12 000 by default. */
@@ -194,6 +217,7 @@ declare namespace luccet {
     outline(ast: Root): Outline;
     readonly search: Search;
     readonly glossary: Glossary;
+    readonly tex: Tex;
     /** The names of the registered transforms, in order. */
     readonly transforms: string[];
     /** The base stylesheet, luccet.css. */

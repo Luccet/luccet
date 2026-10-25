@@ -890,6 +890,7 @@ next
 ## table/pipe-in-code-and-math
 
 spec: syntax-blocks#tables syntax-inline#algorithm syntax-inline#code-span syntax-inline#inline-math
+options: math=tex
 
 Pipes inside a code span or a math span do not split cells: `| $|x|$ | `a|b` |` has two cells.
 
@@ -909,6 +910,7 @@ Pipes inside a code span or a math span do not split cells: `| $|x|$ | `a|b` |` 
 ## table/math-spans-pipe
 
 spec: syntax-blocks#tables syntax-inline#residual-pipe syntax-inline#ambiguity
+options: math=tex
 
 `| $a | b$ |` is one cell: the math span contains the pipe.
 
@@ -1027,6 +1029,7 @@ An unescaped pipe inside `:kbd[…]` splits the cell, which leaves `:kbd[` unclo
 ## table/escaped-pipe-in-atoms-stays
 
 spec: syntax-blocks#tables syntax-inline#escapes syntax-inline#code-span syntax-inline#inline-math
+options: math=tex
 
 Inside code and math there are no escapes: `\|` reaches the code span as written and TeX as its norm bar.
 
@@ -1046,6 +1049,7 @@ Inside code and math there are no escapes: `\|` reaches the code span as written
 ## table/pipe-in-verbatim-math
 
 spec: syntax-blocks#tables syntax-inline#verbatim-math
+options: math=tex
 
 Verbatim math is an atom, so its pipes do not split the row.
 

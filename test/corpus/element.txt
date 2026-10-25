@@ -58,6 +58,7 @@ An :idea[inline] one.
 ## element/schema-tag
 
 spec: elements#names elements#title-slots
+options: math=tex
 
 The schema entry's `tag` chooses the element (step 2): the fixture schema's `theorem` is a `<section>` with a counted label.
 

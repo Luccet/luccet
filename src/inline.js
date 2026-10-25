@@ -375,7 +375,7 @@ function bind(it, res) {
   if (a >= 0) {
     const q = text[a + 3];
     const e = text[a] === '#' ? matchAt(scan.IDENT, text, a + 1) : q === '"' || q === "'" ? text.indexOf(q, a + 4) + 1 : matchAt(ID_VALUE, text, a + 3);
-    n.data = { luccet: { idPosition: pos(a, Math.max(e, a + 1)) } };
+    ((n.data || (n.data = {})).luccet || (n.data.luccet = {})).idPosition = pos(a, Math.max(e, a + 1)); // kept beside what the node has (a formula's texAt)
   }
   const { ref, tag } = res.attrs;
   if (tag !== undefined) {
@@ -737,7 +737,11 @@ function dollar(i) {
     let k = i + 2;
     while (text[k] === '`') k++;
     const j = closingRun(k - i - 1, k);
-    if (j >= 0) return atom(i, j + k - i - 1, { type: 'inlineMath', value: codeContent(text.slice(k, j)), position: null }, STRONG);
+    if (j >= 0) {
+      const raw = text.slice(k, j);
+      const value = codeContent(raw);
+      return atom(i, j + k - i - 1, mathNode(value, k + (value.length < raw.length ? 1 : 0)), STRONG);
+    }
     return lit(i, i + 1);
   }
   if (i + 1 >= to || spaceAt(i + 1) || (i > from && text[i - 1] === '$' && !escaped(i - 1))) return lit(i, i + 1);
@@ -755,7 +759,14 @@ function dollar(i) {
   const value = text.slice(i + 1, j);
   if (!atomMode && /[0-9]/.test(nx) && suspect(value))
     rep('math.suspect-price', i, i + 1, 'this formula starts with a digit and holds words: is the `$` a price?', 'if `$` is a price, write `\\$`');
-  return atom(i, j + 1, { type: 'inlineMath', value, position: null }, STRONG);
+  return atom(i, j + 1, mathNode(value, i + 1), STRONG);
+}
+// An inlineMath node; texAt is where its TeX starts in the source, for the
+// math transform's diagnostics inside the formula.
+function mathNode(value, at) {
+  const node = { type: 'inlineMath', value, position: null };
+  if (!atomMode) node.data = { luccet: { texAt: [pos(at, at).start] } };
+  return node;
 }
 // `<`: a comment (`<!-->` and `<!--->` are complete), an angle autolink, or
 // a raw tag; else text. A tag passes when its name is lower-case and

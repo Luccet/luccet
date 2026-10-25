@@ -1,0 +1,290 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Math · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
+
+:::meta
+description: Luccet's math: the TeX a formula can use, its macros and environments, how formulas become MathML, fonts and browsers, and what is left out.
+:::
+
+::site-nav
+
+# Math {#top}
+
+::toc
+
+Write a formula in TeX between dollars. Luccet turns the TeX into MathML itself, in the browser and in `luccet build` alike, and the browser lays the MathML out in the reader's math font. Nothing else is needed: no add-on, no download and no network.
+
+```luccet {.live}
+The roots of $ax^2 + bx + c = 0$ are
+
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+```
+
+This page lists the TeX that Luccet reads. How to write a formula in a note, with its edge cases, is on the syntax pages: [inline math](syntax-inline.html#inline-math), [verbatim math](syntax-inline.html#verbatim-math) and [display math](syntax-blocks.html#display-math).
+
+## Writing a formula {#formulas}
+
+- **Inline math** goes between single dollars, `$x^2$`, and stays in the line.
+- **Display math** goes between `$$` lines and stands on its own, centred. An id after the closing `$$` numbers it, and `@id` refers to it ([numbering](elements.html#numbering)).
+- **Verbatim math**, `` $`…` ``, holds TeX with dollars or brackets that would end ordinary inline math.
+- **Macros** for the whole note go in a [`:::macros`](syntax-blocks.html#macros) block ([macros](#macros)).
+
+A formula becomes a `span.t-math` holding a `<math>` element, with the TeX in `data-tex`. Display math is a `<math display="block">` inside a `div.t-eq`, with the equation number beside it. Copying a formula copies its TeX between dollars.
+
+```luccet {.live}
+Euler's identity, $e^{i\pi} + 1 = 0$, joins five constants:
+
+$$
+e^{i\pi} + 1 = 0
+$$ {#eq-euler}
+
+@eq-euler is often called the most beautiful equation.
+```
+
+A formula whose TeX does not translate is shown as its TeX, marked as an error, with a [diagnostic](#errors).
+
+## The commands {#commands}
+
+The commands are LaTeX's, with the AMS symbols and environments: what KaTeX and MathJax accept, short of the parts that do not apply to a note ([what is left out](#unsupported)). TeX's spacing is kept: a relation gets more space than an operator, a function name a thin space before its argument, and a minus with nothing before it none.
+
+### Letters, digits and symbols {#symbols}
+
+A letter is a variable, in italics; digits are upright, and `3.14` is one number. Greek letters are commands: lower case in italics, capitals upright, as in TeX, and `\varGamma` and the like give italic capitals. A symbol can also be typed as itself: `α`, `≤` and `→` mean `\alpha`, `\le` and `\to`.
+
+```luccet {.live}
+$\alpha + \beta = \gamma$, $\Gamma(n) = (n - 1)!$, $a \le b \ne c$, $x \in A \cup B$, $f \colon X \to Y$, $P \Rightarrow Q$.
+```
+
+Every symbol command, by its class (which sets its spacing):
+
+::tex-symbols
+
+### Scripts and primes {#scripts}
+
+`^` makes a superscript and `_` a subscript, of the one thing after it, or of a group in braces. A base has at most one of each, in either order. A prime, `'`, follows its base; `f''` is two.
+
+```luccet {.live}
+$x^2$, $x^{2n}$, $a_{ij}$, $x_i^2$, $e^{-x^2}$, ${}^{14}C$, $f'(x)$, $f''(x)$, $g'^2$.
+```
+
+A second superscript on the same base is [`tex.script`](diagnostics.html#tex-script): write `x^{ab}`, or `{x^a}^b`.
+
+### Fractions, binomials and roots {#fractions}
+
+| Command | Gives |
+|---|---|
+| `\frac{a}{b}`, `{a \over b}` | a fraction |
+| `\dfrac`, `\tfrac` | a fraction in display or text size |
+| `\cfrac` | a continued fraction, every part in display size |
+| `\binom{n}{k}`, `{n \choose k}`, `\dbinom`, `\tbinom` | a binomial coefficient |
+| `\sqrt{x}`, `\sqrt[n]{x}` | a square root, an n-th root |
+
+```luccet {.live}
+$\frac{1}{2}$, $\frac12$, $\tfrac{a}{b}$, $\binom{n}{k}$, $\sqrt{2}$, $\sqrt[3]{x + y}$.
+
+$$
+\frac{1}{1 + \cfrac{1}{1 + \cfrac{1}{x}}}
+$$
+```
+
+### Big operators and functions {#operators}
+
+The big operators `\sum`, `\prod`, `\coprod`, `\bigcup`, `\bigcap`, `\bigoplus`, `\bigotimes` and the like take their limits above and below in display math and beside them inline, as in TeX. The integrals, `\int`, `\iint`, `\iiint`, `\oint` and the others, keep them beside. `\limits` and `\nolimits` after an operator change that.
+
+Function names are upright with TeX's spacing: `\sin \cos \tan \cot \sec \csc \arcsin \arccos \arctan \sinh \cosh \tanh \coth \log \ln \lg \exp \arg \deg \dim \hom \ker`. `\lim \max \min \sup \inf \det \gcd \Pr \liminf \limsup \argmax \argmin` take limits like the big operators. `\operatorname{name}` makes another, and `\operatorname*{name}` one with limits; `\bmod`, `\pmod{n}` and `\mod{n}` write *mod*.
+
+```luccet {.live}
+$\sum_{i=1}^n i = \frac{n(n+1)}{2}$, $\int_0^1 f(x)\,dx$, $\lim_{x \to 0} \frac{\sin x}{x} = 1$, $\operatorname{rank} A$, $a \equiv b \pmod{n}$.
+
+$$
+\sum_{i=1}^n i = \frac{n(n+1)}{2} \qquad \prod_{k=1}^{\infty} (1 + q^k) \qquad \max_{x \in S} f(x)
+$$
+```
+
+### Brackets {#fences}
+
+Brackets in a formula are as tall as the line. `\left` and `\right` make a pair grow with what they hold, and `\middle` adds one between them; `.` stands for no bracket. `\big`, `\Big`, `\bigg` and `\Bigg` give four fixed sizes, with `l`, `r` or `m` after them for an opening, closing or middle one.
+
+The brackets: `( ) [ ] \{ \}`, `\langle \rangle`, `| \|`, `\lvert \rvert \lVert \rVert`, `\lfloor \rfloor \lceil \rceil`, `/ \backslash`, the arrows `\uparrow \downarrow \updownarrow` and their doubled forms.
+
+```luccet {.live}
+$\left( \frac{a}{b} \right)$, $\left\{ x \mid x > 0 \right\}$, $\left. \frac{df}{dx} \right|_{x = 0}$, $\left\langle u, v \right\rangle$, $\Big( \big( x \big) \Big)$.
+```
+
+### Accents and braces {#accents}
+
+| Command | Gives |
+|---|---|
+| `\hat \check \tilde \acute \grave \dot \ddot \breve \bar \vec \mathring` | an accent on a letter |
+| `\widehat \widetilde \overrightarrow \overleftarrow \overleftrightarrow` | one over several |
+| `\overline \underline` | a line above, a line below |
+| `\overbrace{…}^{label}`, `\underbrace{…}_{label}` | a brace with a label |
+| `\overset{a}{b}`, `\underset{a}{b}`, `\stackrel{a}{b}` | a above or below b |
+| `\xrightarrow{f}`, `\xleftarrow[g]{f}` and the like | an arrow that grows with its labels |
+
+```luccet {.live}
+$\hat{x}$, $\vec{v}$, $\bar{z}$, $\dot{x}$, $\widehat{ABC}$, $\overline{AB}$, $\overrightarrow{PQ}$, $\underbrace{a + \cdots + a}_{n}$, $\overset{\text{def}}{=}$, $A \xrightarrow{f} B$.
+```
+
+`\widetilde` grows over several letters in Firefox and Safari; Chromium draws a plain tilde.
+
+### Fonts {#fonts}
+
+| Command | Gives |
+|---|---|
+| `\mathbb{R}` | ℝ, double-struck |
+| `\mathcal{L}`, `\mathscr{L}` | ℒ, script |
+| `\mathfrak{g}` | 𝔤, fraktur |
+| `\mathbf{v}` | bold, upright |
+| `\boldsymbol{\alpha}`, `\bm{\alpha}` | bold, italic letters and Greek |
+| `\mathit`, `\mathsf`, `\mathtt` | italic, sans-serif, typewriter |
+| `\mathrm{d}` | upright |
+
+The letters are Unicode's mathematical letters, so they keep their font when copied. `\rm`, `\bf`, `\it`, `\sf`, `\tt` and `\cal` switch the font for the rest of a group.
+
+```luccet {.live}
+$x \in \mathbb{R}^n$, $\mathcal{L}(\mathbf{v})$, $\mathfrak{g}$, $\boldsymbol{\nabla} f$, $\mathrm{d}x$, $\mathsf{A}$, $\mathtt{B}$.
+```
+
+### Text {#text}
+
+`\text{…}` holds words, with their spaces, in the surrounding text's font; `\textbf`, `\textit`, `\textsf` and `\texttt` style them. Inside, `$…$` goes back to math, and `--`, `---` and quotes become dashes and curly quotes.
+
+```luccet {.live}
+$$
+|x| = \begin{cases} x & \text{if } x \ge 0 \\ -x & \text{otherwise} \end{cases}
+$$
+```
+
+### Spaces {#spacing}
+
+Spaces in TeX do nothing; these commands make space.
+
+| Command | Width |
+|---|---|
+| `\,` `\:` `\;` | a thin, medium and thick space (3, 4 and 5 eighteenths of an em) |
+| `\!` | a negative thin space |
+| `\quad`, `\qquad` | 1 em, 2 em |
+| `\ `, `~` | a word space |
+| `\hspace{2em}`, `\kern3mu`, `\mkern`, `\mskip` | a given width: em, ex, pt, mm, cm, in, mu … |
+| `\phantom{x}`, `\hphantom`, `\vphantom` | the space x would take, its width or its height |
+
+```luccet {.live}
+$\int\!\!\int_D f\,dA$, $a \quad b \qquad c$, $x\ \text{and}\ y$.
+```
+
+### Colour, boxes and classes {#colour}
+
+- `\color{red}` colours the rest of a group, and `\textcolor{red}{x}` colours x. A colour is a CSS colour name, `#rgb`, `#rrggbb` or `[HTML]{rrggbb}`.
+- `\boxed{…}` boxes a formula; `\cancel`, `\bcancel` and `\xcancel` strike it out.
+- `\mathrel`, `\mathbin`, `\mathop`, `\mathord`, `\mathopen`, `\mathclose`, `\mathpunct` and `\mathinner` give something the spacing of that class.
+
+```luccet {.live}
+$\color{red} x + y$, $\textcolor{#1a7f37}{z}$, $\boxed{E = mc^2}$, $\cancel{x}$, $a \mathrel{\triangleq} b$.
+```
+
+## Environments {#environments}
+
+An environment is `\begin{name}` … `\end{name}`. In it, `&` separates cells and `\\` ends a row; `\\[1em]` adds space under the row.
+
+| Environment | Gives |
+|---|---|
+| `matrix`, `pmatrix`, `bmatrix`, `Bmatrix`, `vmatrix`, `Vmatrix` | a matrix: bare, or between parentheses, brackets, braces, bars or double bars |
+| `smallmatrix` | a small matrix, for inline math |
+| `cases`, `dcases`, `rcases` | cases with a brace: left, left in display size, right |
+| `aligned`, `split`, `alignedat` | lines aligned at their `&`: right, left, right, left … |
+| `gathered` | lines centred |
+| `array` | a table with its columns' alignment, `{l c r}`, a bar between two letters for a line between the columns, `\hline` for a line between rows |
+| `align*`, `alignat*`, `gather*`, `equation*` | in display math, the same as `aligned`, `alignedat`, `gathered` and a group |
+| `\substack{…}` | lines under a big operator |
+
+```luccet {.live}
+$$
+\begin{pmatrix} a & b \\ c & d \end{pmatrix}
+\begin{vmatrix} 1 & 0 \\ 0 & 1 \end{vmatrix}
+\qquad
+\begin{array}{l|r} x & 1 \\ \hline y & 2 \end{array}
+$$
+
+$$
+\begin{aligned}
+(a + b)^2 &= (a + b)(a + b) \\
+          &= a^2 + 2ab + b^2
+\end{aligned}
+$$
+```
+
+In display math, lines broken with `\\` outside an environment are centred, as in `gathered`. An equation is numbered as a whole: give it an id after the closing `$$`. The numbered LaTeX environments, `align`, `gather`, `equation` and `multline`, are [`tex.unsupported`](diagnostics.html#tex-unsupported), with the unnumbered form as the hint.
+
+## Macros {#macros}
+
+A macro is a command you define. Define the macros for the whole note in a [`:::macros`](syntax-blocks.html#macros) block:
+
+```luccet {.live}
+:::macros
+\gdef\R{\mathbb{R}}
+\gdef\norm#1{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{\left| #1 \right|}
+\DeclareMathOperator{\Tr}{Tr}
+:::
+
+For $v \in \R^n$, $\norm{v} \ge 0$, $\abs{x} \le \norm{x}$ and $\Tr A$.
+```
+
+- `\gdef\name{body}` and `\def\name{body}` define a macro, `#1` to `#9` in the body standing for its arguments, written right after the name: `\def\pair#1#2{(#1, #2)}`.
+- `\newcommand{\name}[2]{body}` defines one of two arguments; `\newcommand{\name}[2][x]{body}` makes the first optional, `x` by default, given in brackets: `\name[y]{z}`. `\newcommand` refuses a command that exists already, `\renewcommand` redefines one, and `\providecommand` defines one only if it does not exist.
+- `\DeclareMathOperator{\name}{text}` defines a function name; `\DeclareMathOperator*` one with limits.
+- `\let\new\old` makes `\new` mean what `\old` means now.
+
+Where macros apply:
+
+- A `:::macros` block's definitions apply to every formula in the note, wherever the block stands.
+- `\gdef` in a formula defines a macro for the formulas after it, in the note's order. `\def` and `\newcommand` in a formula last until the end of that formula, or of the group they are in.
+- A page can give macros for all its notes in `window.LUCCET.macros`: `{"\\R": "\\mathbb{R}"}`, the number of arguments being the highest `#n` in the body ([API](api.html#config)).
+
+A macro that uses itself would never end: a formula stops at 10,000 expansions, with [`tex.limit`](diagnostics.html#tex-limit).
+
+## What is left out {#unsupported}
+
+Some LaTeX commands are not part of Luccet's math. Each is [`tex.unsupported`](diagnostics.html#tex-unsupported), with a hint:
+
+| Commands | Why, and what to do |
+|---|---|
+| `\label \ref \eqref \tag \notag \nonumber` | Luccet numbers and refers to equations itself: an id after the closing `$$`, `@id` in the text |
+| `\href \url \includegraphics \htmlClass \htmlId \htmlStyle \htmlData` | a formula never writes a link, an image or an HTML attribute: put them beside the formula |
+| `\ce \pu` | chemistry (mhchem) is not part of Luccet's math |
+| `\verb \char \edef \xdef \newenvironment \genfrac \above \atop \mathchoice \sideset \raisebox \rule \llap \rlap \clap \mathllap \mathrlap \mathclap \cancelto \sout \hdashline \cline \multicolumn \fcolorbox \definecolor` | not supported in this version |
+| the environments `align gather equation multline alignat CD` | use `aligned`, `gathered`, `alignedat` or their starred forms; Luccet numbers the equation |
+
+Because no command writes a link, an attribute or a request, a formula from an untrusted source cannot do either ([safe rendering](elements.html#safe)).
+
+## Fonts and browsers {#browsers}
+
+The browser lays the MathML out with a math font, one with OpenType's math table, which tells it how to stretch brackets and roots and how large to draw big operators. `luccet.css` names the common ones, `"Latin Modern Math"`, `"STIX Two Math"`, `"Cambria Math"`, `"Libertinus Math"`, `"TeX Gyre Termes Math"`, `"DejaVu Math TeX Gyre"` and `"Noto Sans Math"`, then the browser's own `math`. Windows has Cambria Math and macOS STIX Two Math. On a computer with none of them, brackets do not stretch and big operators stay small; install one, or have a theme name a math font it brings ([themes](schema.html#themes)).
+
+Every browser Luccet supports lays out MathML: Chrome and Edge from 109, Firefox from 78, Safari from 14 ([browsers](publishing.html#browsers)). They differ in small ways: Firefox and Safari stretch a wide tilde, Chromium does not, and Safari's spacing differs slightly from the other two.
+
+## KaTeX instead {#katex}
+
+For KaTeX's look, the same in every browser and close to LaTeX's, load the KaTeX add-on, from github.com/Luccet. It turns the engine's MathML off, `{math: 'tex'}`, and typesets every formula with KaTeX, which it fetches from a CDN.
+
+`math: 'tex'` can also be given to `luccet.toHTML`, `luccet.transform` and `luccet.emit`, and to the page as `window.LUCCET.math` or `data-math="tex"`: each formula is then written as its TeX, as in Luccet 1, for a tool of your own to render ([API](api.html#tohtml)).
+
+## When a formula does not translate {#errors}
+
+A formula whose TeX does not translate is shown as its TeX, marked `t-error`, and the first problem in it is a diagnostic, at the line and column of the command at fault: in the panel, from `luccet check` and in your editor. The codes:
+
+| Code | When |
+|---|---|
+| [`tex.unknown`](diagnostics.html#tex-unknown) | a command Luccet does not know, usually a typo |
+| [`tex.unsupported`](diagnostics.html#tex-unsupported) | a LaTeX command Luccet leaves out |
+| [`tex.unbalanced`](diagnostics.html#tex-unbalanced) | a brace, `\left` or `\begin` never closed, or a closer with nothing to close |
+| [`tex.argument`](diagnostics.html#tex-argument) | an argument missing or unreadable |
+| [`tex.script`](diagnostics.html#tex-script) | a second superscript or subscript |
+| [`tex.misplaced`](diagnostics.html#tex-misplaced) | `&`, `\\` or the like where it cannot stand |
+| [`tex.macro`](diagnostics.html#tex-macro) | a macro definition that does not work |
+| [`tex.limit`](diagnostics.html#tex-limit) | macros that expand without end, or groups nested too deep |
+
+```luccet {.live expect="tex.unknown"}
+The area is $\pi r^2$, the angle $\thetha$.
+```

@@ -31,11 +31,12 @@
 // is from when that way started a child per note).
 //
 //   analyse(req)        run a note's code and analyse it, blocking; req is
-//                       {note, head, dataUse, dataLang, scripts, addons,
-//                       transform, hostParse}, the result {schema,
-//                       lang, demo, ast, diagnostics, problems, failures}, or
-//                       with hostParse, when the code allows it, {hostParse:
-//                       true, schema, lang, demo, problems} for the host to
+//                       {note, head, dataUse, dataLang, dataMath, scripts,
+//                       addons, transform, hostParse}, the result {schema,
+//                       lang, math, macros, demo, ast, diagnostics, problems,
+//                       failures}, or with hostParse, when the code allows it,
+//                       {hostParse: true, schema, lang, math, macros, demo,
+//                       problems} for the host to
 //                       parse; {failed} on a child error (a timeout, a
 //                       crash); scripts and addons are [{url, code, line?,
 //                       column?}], read by the host.
@@ -106,6 +107,31 @@ function driverSetup() {
     construct: function () { return inert; },
   });
   var BROWSER = 'document customElements HTMLElement Element Node Event CustomEvent EventTarget CSS CSSStyleSheet navigator location history localStorage sessionStorage matchMedia getComputedStyle requestAnimationFrame cancelAnimationFrame requestIdleCallback setTimeout clearTimeout setInterval clearInterval queueMicrotask MutationObserver IntersectionObserver ResizeObserver fetch addEventListener removeEventListener dispatchEvent'.split(' ');
+
+  // luccet.config's math, as the runtime reads it: window.LUCCET.math and
+  // .macros, data-math winning over the first.
+  function pageMath(given, dataMath) {
+    var out = {};
+    try {
+      if (given && typeof given === 'object') {
+        if (own(given, 'math')) out.math = given.math;
+        if (own(given, 'macros')) out.macros = given.macros;
+      }
+    } catch (e) {}
+    if (dataMath !== undefined) out.math = dataMath;
+    return out;
+  }
+  // Page macros as plain data, {name: TeX string}, or undefined.
+  function texMacros(v) {
+    if (!v || typeof v !== 'object') return undefined;
+    var out = {};
+    var keys = ownNames(v);
+    for (var i = 0; i < keys.length; i++) {
+      var d = describe(v, keys[i]);
+      if (d.enumerable && hasOwn(d, 'value') && typeof d.value === 'string') out[keys[i]] = d.value;
+    }
+    return out;
+  }
 
   // luccet.config as the runtime builds it (src/runtime.js readConfig): `use`
   // from window.LUCCET.use and data-use's query strings, and `lang`.
@@ -225,7 +251,7 @@ function driverSetup() {
       render: function () { return Promise.resolve([]); },
       ready: new Promise(function () {}),
       diagnostics: [],
-      config: shimConfig(given, req.dataUse, lang),
+      config: Object.assign(shimConfig(given, req.dataUse, lang), pageMath(given, req.dataMath)),
       version: E.version,
       parse: E.parse,
       emit: E.emit,
@@ -293,13 +319,21 @@ function driverSetup() {
       }
       return true;
     };
+    // The page's math, as the add-ons left it: an add-on that typesets math
+    // itself (KaTeX's) sets config.math = 'tex'; macros are name -> TeX.
+    var math;
+    var macros;
+    try {
+      math = shim.config.math === 'tex' ? 'tex' : undefined;
+      macros = texMacros(shim.config.macros);
+    } catch (e) {}
     var hostParse = false;
     try {
       hostParse = !!req.hostParse && names() === builtinTransforms && plain(schema, 0);
     } catch (e) {}
-    if (hostParse) return stringify({ hostParse: true, schema: schema, lang: lang === undefined ? null : lang, luccetDocs: luccetDocs, problems: problems, failures: failures, consoleOut: consoleOut });
+    if (hostParse) return stringify({ hostParse: true, schema: schema, lang: lang === undefined ? null : lang, math: math || null, macros: macros || null, luccetDocs: luccetDocs, problems: problems, failures: failures, consoleOut: consoleOut });
 
-    var options = { schema: schema, head: req.head, lang: lang };
+    var options = { schema: schema, head: req.head, lang: lang, math: math, macros: macros };
     var parsed = E.parse(req.note, options);
     var diagnostics = parsed.diagnostics;
     if (req.transform) {
@@ -307,7 +341,7 @@ function driverSetup() {
       diagnostics = diagnostics.concat(parsed.ast.data.luccet.diagnostics);
     }
 
-    return stringify({ schema: schema, lang: lang === undefined ? null : lang, luccetDocs: luccetDocs, ast: parsed.ast, diagnostics: diagnostics, problems: problems, failures: failures, consoleOut: consoleOut });
+    return stringify({ schema: schema, lang: lang === undefined ? null : lang, math: math || null, macros: macros || null, luccetDocs: luccetDocs, ast: parsed.ast, diagnostics: diagnostics, problems: problems, failures: failures, consoleOut: consoleOut });
   };
 }
 

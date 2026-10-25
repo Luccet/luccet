@@ -89,7 +89,7 @@ The toc is a `nav` listing both headings, the theorem a `section` labelled "Theo
 - **Where.** A classic script in the head, before the luccet.js line. A `<script>` inside the note runs after the note is rendered: too late to declare names for it.
 - **Function fields** (`label`, `dom`) and `css` work here as in an add-on.
 - **A bad entry** (a reserved name, a value that is not an object) is skipped with a console warning; the others apply.
-- **`window.LUCCET`** carries other settings too: `lang` (label language) and `use` (per-add-on options, keyed by the add-on's file name — the KaTeX add-on reads `use: {katex: {macros: {…}, …}}`).
+- **`window.LUCCET`** carries other settings too: `lang` (label language), `macros` (TeX macros for every formula: `{"\\R": "\\mathbb{R}"}`) and `use` (per-add-on options, keyed by the add-on's file name: `use: {code: {…}}`).
 - **Under the command line.** `luccet check`, `luccet build` and the language server run the head's classic scripts too, so they see the same vocabulary (in a separate context, which is not a security boundary: [Trust](tools.md#trust)). A remote `src` is not run (`head.script`, info); a missing file or a script that throws is `head.script` (warning). Scripts with `async`, `defer` or `type="module"` are not run.
 
 ## Add-ons: `data-use` and `:::use`
@@ -124,7 +124,7 @@ addons/code.js
 - **Options** go in the query string and arrive in `luccet.config.use.NAME`, where NAME is the file name without its folder, `.min` and extension: `data-use="lib/callout.min.js?collapse=all"` gives `luccet.config.use.callout.collapse === 'all'`. Write `&` as `&amp;` in strict HTML; both work. In a `:::use` entry, write `&` as it is. Defaults can sit in `window.LUCCET = {use: {callout: {…}}}`; the query wins key by key.
 - **Failure never blanks the note.** A script that fails to load renders the note without it; one that throws renders it with what it registered before the error. Both are `addon.failed`.
 - **A remote add-on that declares names** makes `luccet check` blind to them: under strict names those names show as `name.unknown`, and `luccet build` warns that the page uses them without their entries. Prefer a local copy when the vocabulary matters to the check. `addon.remote` alone does not fail the check.
-- **`luccet new FILE --use="../addons/code.js ../addons/katex.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
+- **`luccet new FILE --use="../addons/code.js ../addons/copy.js"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
 
 ```html expect="addon.remote"
 <!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/luccet@TAG/addons/code.js https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
@@ -406,7 +406,7 @@ print("hello")
 - `addons/code.js?base=vendor/highlight`: the folder holding `highlight.min.js` and `languages/` (the layout of the npm package `@highlightjs/cdn-assets`).
 - `addons/mermaid.js?base=vendor/mermaid`: the folder holding `mermaid.min.js` (the `dist/` folder of the npm package `mermaid`).
 - A `window.hljs` or `window.mermaid` already on the page is used as it is.
-- Math is an add-on the same way: load `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML with Temml), and point its `?base=` at a local copy for offline use. `addons/katex.js?base=vendor/katex` names the folder of KaTeX's `dist/` files (`katex.min.js`, `katex.min.css` and `fonts/`); `addons/mathml.js?base=vendor/temml` the folder of Temml's. Without a math add-on, formulas stay as their TeX source.
+- Math is not an add-on: the engine writes every formula as MathML, offline too. For KaTeX's look instead there is an optional KaTeX add-on (github.com/Luccet), which turns the engine's MathML off (`math: 'tex'`).
 - With a CSP, allow `https://cdn.jsdelivr.net` in `script-src`, or use copies; with `data-nonce` on the luccet.js tag the add-ons' scripts and styles carry the nonce.
 
 ## Themes
@@ -486,7 +486,7 @@ A note is HTML, so CSS styles it. Key every rule on Luccet's classes and `data-t
 
 **`luccet.define(name, fn)`** runs `fn(el)` once on every element whose `data-t` is `name` (containers, leaves, inline elements, every fence as `code`; not bare spans), after the note is rendered and **before math is typeset**. No schema entry is needed. It returns a function that removes it; `luccet.undefine(name)` removes all of the name's functions. Several functions per name all run, in registration order, after the entry's `dom`. Errors are caught and logged; the others still run.
 
-**`luccet.on(event, fn)`** with `render` (after the behaviours, before math), `math` (after the formulas in view are typeset, again when a closed `<details>` opens, with that `<details>` as root), `ready` (once, after math and the scroll to the URL's fragment) or `diagnostic` (each runtime diagnostic). Any other event throws. A `ready` listener added after `ready` never runs: `await luccet.ready` works at any time. A behaviour that needs typeset math listens for `math` and works inside `root`, safe to run twice.
+**`luccet.on(event, fn)`** with `render` (after the behaviours; an add-on that typesets math itself works here), `math` (after the `render` listeners: the formulas are in place), `ready` (once, after math and the scroll to the URL's fragment) or `diagnostic` (each runtime diagnostic). Any other event throws. A `ready` listener added after `ready` never runs: `await luccet.ready` works at any time. A behaviour that needs the formulas listens for `math` and works inside `root`, safe to run twice.
 
 **Read options from the element.** Attributes arrive as written, so `{data-to=2026-12-31}` is `el.dataset.to`; a raw body (`{raw}` or `body: 'raw'`) is `el.textContent`.
 
@@ -595,7 +595,7 @@ conjecture: {tag: 'section', counter: 'theorem', label: 'Conjecture', ref: '{lab
 
 **Add a theme and code colours.** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/github.css addons/code.js"`: the theme from jsDelivr (or a copy next to the note), the add-on by its path relative to the note; check that local files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
 
-**A note opened without a network.** Copy highlight.js, Mermaid and KaTeX (or Temml) next to the note and point each add-on's `?base=` at them; otherwise code stays plain, diagrams stay source and math stays TeX.
+**A note opened without a network.** Math needs nothing. Copy highlight.js and Mermaid next to the note (`luccet vendor DIR`) and point each add-on's `?base=` at them; otherwise code stays plain and diagrams stay source.
 
 ## The demo schema
 

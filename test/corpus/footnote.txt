@@ -42,6 +42,7 @@ Both are subspaces.[^subspace]
 ## footnote/def-continuation
 
 spec: syntax-blocks#footnote-definition
+options: math=tex
 
 The footnote-definition example: a line indented 2 columns continues the definition's paragraph, stripped by 2.
 

@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>
+
+# Smoke: a formula that does not translate keeps its TeX
+
+Bad: $`\frac{1}{` and good: $x$.
+
+$$
+\frac{a}{
+$$ {#eq-bad}
+
+Unknown: $\notacommand + 1$.

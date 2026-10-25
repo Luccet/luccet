@@ -610,6 +610,7 @@ A container may nest in an item at its content column; tightness unwraps only pa
 ## list/nests-table-and-math
 
 spec: syntax-blocks#lists syntax-blocks#tables syntax-blocks#display-math
+options: math=tex
 
 Tables and display math nest in items at the content column.
 

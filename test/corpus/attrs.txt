@@ -91,6 +91,7 @@ let x;
 ## attrs/line-before-display-math
 
 spec: syntax-blocks#attribute-line syntax-blocks#display-math
+options: math=tex
 
 On display math the attributes go on `div.t-eq`; an id there numbers the equation.
 
@@ -493,6 +494,7 @@ Click [answer]{hidden}.
 ## attrs/weak-after-math-is-text
 
 spec: syntax-blocks#positions syntax-blocks#strong-and-weak
+options: math=tex
 
 After a math span only strong groups bind; a weak one stays text, with no diagnostic because it does not start with `#` or `.`.
 
@@ -510,6 +512,7 @@ See $f${x} and $g${open}.
 ## attrs/strong-after-math
 
 spec: syntax-blocks#positions
+options: math=tex
 
 A strong group glued after a math span binds to it (as in `$x${#e}`).
 

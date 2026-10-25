@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Vocabulary and behaviour · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: How to give Luccet's element names meaning, look and behaviour: the schema and every schema field, window.LUCCET.schema, add-ons, luccet.define, custom transforms, styling, and labels in other languages.
@@ -730,7 +730,7 @@ The examples in this section are source, not live. A live example renders with t
 - **When.** At mount, after every add-on has registered its entries. Each entry goes through `luccet.block`, `luccet.leaf` or `luccet.inline`.
 - **Precedence.** So the note's entry replaces an add-on's entry for the same name, **whole**: the fields are not merged. An add-on's `dom` for that name is gone, unless the note's entry has one too.
 - **A bad entry** (a reserved name, a value that is not an object) is skipped with a warning in the console; the others apply.
-- **The levels and `strict`** are read: `strict: true` turns on [strict names](#strict), and `strict: false` turns off an add-on's. `window.LUCCET` carries other settings too, such as `lang` and `use` (a math add-on's options live under `use.katex`; [Configuration](api.html#config)).
+- **The levels and `strict`** are read: `strict: true` turns on [strict names](#strict), and `strict: false` turns off an add-on's. `window.LUCCET` carries other settings too, such as `lang`, `use` (the add-ons' options) and `macros` (TeX macros for every formula; [Configuration](api.html#config)).
 - **Built pages.** `luccet build` applies the vocabulary when it writes the HTML. luccet.js applies it again when the built page starts, for the behaviours and for `luccet.render`.
 
 **Under node.** `luccet check`, `luccet parse`, `luccet build` and the language server run the head's scripts in a sandbox, in document order, before the add-ons. Then `window.LUCCET.schema` goes on top, as in the browser.
@@ -981,7 +981,7 @@ luccet.define('countdown', (el) => {
 - **Keyed on `data-t`.** `fn` runs for every element whose `data-t` is `name`: containers, leaves and inline elements, with or without a schema entry, and every fence (`data-t="code"`). A bare span `[x]{…}` has no `data-t`.
 - **Once per element** and function. Elements are remembered, so `luccet.render()` never runs a function twice on one element.
 - **Document order**, element by element. For each element: its schema `dom`, then each `define` function for its name, in registration order.
-- **Before math.** Formulas are still TeX — no math add-on has typeset them yet — when behaviours run. See [Behaviours that need typeset math](#pattern-math).
+- **Math is there.** Formulas are already MathML when behaviours run. An add-on that renders math itself does it later, in a `render` listener: see [Behaviours that need rendered math](#pattern-math).
 - **Additive.** Several functions per name all run.
 - **`undo()`** removes that one function, for elements met afterwards; what it did to earlier elements stays.
 - **`luccet.undefine(name)`** removes every function `define` registered for the name. A schema `dom` stays.
@@ -1023,8 +1023,8 @@ const off = luccet.on(event, fn)
 :::table[Events]{#tbl-events}
 | Event | When | `fn` receives |
 |---|---|---|
-| `render` | after the behaviours, before any formula is typeset; a listener may return a promise, which the runtime awaits before `math` (a math add-on typesets here) | the root: `main.luccet`, or the element given to `luccet.render` |
-| `math` | after the formulas in view are typeset; again when a closed `<details>` opens and its formulas are typeset | the root, or that `<details>` |
+| `render` | after the behaviours; the formulas are MathML already. A listener may return a promise, which the runtime awaits before `math` (an add-on that renders math itself does it here) | the root: `main.luccet`, or the element given to `luccet.render` |
+| `math` | right after the `render` listeners have settled: the formulas are final | the root |
 | `ready` | once, after the first `render` and `math` and the scroll to the URL's fragment | `main.luccet` |
 | `diagnostic` | for each runtime diagnostic reported after you subscribe: `addon.failed`, `script.document-write`, `script.domcontentloaded`, `doc.quirks` | the diagnostic object |
 :::
@@ -1094,9 +1094,9 @@ luccet.define('chart', (el) => {
 
 No schema entry is needed: `::countdown` and `:::chart` already carry their `data-t`.
 
-#### Behaviours that need typeset math {#pattern-math}
+#### Behaviours that need rendered math {#pattern-math}
 
-Behaviours always run before math. A behaviour that needs a [math add-on's](addons.html#katex) output listens for `math`:
+The formulas are MathML when the note mounts, so a behaviour already sees each `span.t-math` with its `<math>` element and its TeX in `data-tex`. Code that measures them, or that must also see what an add-on renders itself (the [KaTeX add-on](math.html#katex) does it in a `render` listener), listens for `math`:
 
 ```js
 luccet.on('math', (root) => {
@@ -1106,11 +1106,10 @@ luccet.on('math', (root) => {
 });
 ```
 
-- `math` fires on `main.luccet` once a math add-on has typeset the formulas in view. Without a math add-on in `data-use`, `math` still fires, but each formula stays as its TeX.
-- Formulas inside a closed `<details>` wait until it opens; `math` then fires again with the `<details>` as `root`. So work inside `root`, and make the handler safe to run twice.
-- A math add-on saves each formula's TeX to its `data-tex` attribute as it typesets, and it stays after; by the `math` event it is set.
+- `math` fires on `main.luccet` once the `render` listeners have settled, and again with its root at each `luccet.render`. So work inside `root`.
+- Each formula's TeX is in its `data-tex` attribute. A formula that does not translate has the class `t-error` and shows its TeX as text.
 
-To render new Luccet content into a part of the page, as a live preview does, use `luccet.render(root, source)`: it runs the behaviours on the new elements, and a math add-on typesets their math ([`luccet.render`](api.html#render)).
+To render new Luccet content into a part of the page, as a live preview does, use `luccet.render(root, source)`: its formulas are MathML too, and it runs the behaviours on the new elements ([`luccet.render`](api.html#render)).
 
 ## Custom transforms {#transforms}
 
@@ -1245,8 +1244,8 @@ Every element Luccet writes carries classes and attributes to key CSS on. Key on
 | `.t-cell` | one cell of a container |
 | `.t-eq` | a display equation's box |
 | `.t-eqno` | an equation's number |
-| `.t-math` | every formula; display formulas also have `data-display`, and a [math add-on](addons.html#katex) adds `data-tex` when it typesets |
-| `.t-error` | a problem shown where it is: opener junk, an unclosed comment or `$$`, a `:::script`, or a formula a math add-on cannot parse |
+| `.t-math` | every formula, holding its `<math>` element, with its TeX in `data-tex`; display formulas also have `data-display` ([Math](math.html)) |
+| `.t-error` | a problem shown where it is: opener junk, an unclosed comment or `$$`, a `:::script`, or a formula whose TeX does not translate |
 | `.t-footnotes` | the footnote section; `.t-fnref` the reference, `.t-fnback` the back link |
 | `.t-task` | a task list item, with its checkbox |
 | `.t-ref` | a resolved reference `@id` |
@@ -1289,7 +1288,7 @@ The title belongs in brackets.
 
 ### Custom properties {#custom-properties}
 
-The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, in the browser's own type and colours, light or dark, and `luccet.css` adds only what Luccet's constructs need (line numbers, grids, an equation's number, scrolling where content would overflow, errors and the diagnostics panel). The look is a [theme's](#themes). The custom properties on `:root` are the contract between them: `luccet.css` draws its own parts with them, the code and Mermaid add-ons read them, and a theme sets them. Their defaults are the system's colours, or `luccet.css`'s own where the system has none.
+The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, in the browser's own type and colours, light or dark, and `luccet.css` adds only what Luccet's constructs need (line numbers, grids, an equation's number, the math font and the few rules the engine's MathML needs, scrolling where content would overflow, errors and the diagnostics panel). The look is a [theme's](#themes). The custom properties on `:root` are the contract between them: `luccet.css` draws its own parts with them, the code and Mermaid add-ons read them, and a theme sets them. Their defaults are the system's colours, or `luccet.css`'s own where the system has none.
 
 :::table[Custom properties]{#tbl-properties}
 | Property | Light | Dark | Used for |
@@ -1307,6 +1306,7 @@ The base stylesheet, `luccet.css`, is functional: a note looks like plain HTML, 
 | `--t-warn` | `#8a5300` | `#e3b341` | warnings in the panel |
 | `--t-sans` | `system-ui, sans-serif` | | the panel; headings and table headers in a theme |
 | `--t-mono` | `monospace` | | `.t-error`; code in a theme |
+| `--t-math` | `"Latin Modern Math", "STIX Two Math", "Cambria Math", "Libertinus Math", "TeX Gyre Termes Math", "DejaVu Math TeX Gyre", "Noto Sans Math", math` | | the math font of every formula's `<math>`: a font with OpenType's math table, so brackets stretch and big operators grow ([fonts](math.html#browsers)). A theme may set it, with a math font of its own first |
 | `--t-font`, `--t-width`, `--t-size`, `--t-leading` | | | a theme's body font, text column, base size and line height; `luccet.css` sets none of them, the [classic theme](#themes) sets all four |
 | `--t-code-comment`, `-keyword`, `-string`, `-number`, `-function`, `-type`, `-variable`, `-meta`, `-inserted`, `-deleted` | GitHub's | GitHub's | code colours, for the [code add-on](addons.html#code-colours) |
 | `--t-cols` | | | a grid's columns, set by Luccet on each grid |
@@ -1333,7 +1333,7 @@ body { max-inline-size: 42rem; margin-inline: auto; font: 1.1rem/1.6 Georgia, se
 2. each add-on in `data-use` order: a CSS add-on's link, or the `luccet.style` sheets a script add-on adds;
 3. other `luccet.style` sheets: from `window.LUCCET.schema` entries, from note scripts.
 
-Your own head styles come after the group, and a `<style>` written in the note after that. So at equal specificity, **your CSS wins** over Luccet's and over every add-on's. A [math add-on](addons.html#katex) appends its library's stylesheet (KaTeX's or Temml's) to the head separately, outside this group.
+Your own head styles come after the group, and a `<style>` written in the note after that. So at equal specificity, **your CSS wins** over Luccet's and over every add-on's.
 
 Ways to add your own CSS:
 - a `<style>` or `<link rel="stylesheet">` in the head, before the luccet.js line;
@@ -1387,16 +1387,16 @@ The repository's README lists every theme and its files. Pin a release of the th
 - **Your CSS still wins.** A theme cascades after luccet.css and before your own styles ([Overriding them](#overriding)): set a property yourself to change one colour of a theme.
 - **Readable.** Every theme reaches 4.5:1 for every text colour (WCAG AA), 7:1 in High contrast, a control's border 3:1, and answers `prefers-contrast: more`; the themes repository checks each one. Print and forced colours are `luccet.css`'s ([Print](#print)), whatever the theme.
 - **Your own theme.** A theme is a stylesheet that sets the colour properties on `:root`, and again under `@media (prefers-color-scheme: dark)` for a dark mode, and styles the page with them: copy one of the themes and change its values.
+- **A math font.** A theme may also set `--t-math`, to put a math font of its own first, one it loads with `@font-face`, for readers whose system has none ([fonts and browsers](math.html#browsers)).
 
 ### Print {#print}
 
 `luccet.css` has a print stylesheet:
 - the page prints dark on light: `color-scheme` is `light` and every colour property takes its light value (the system's light colours, `luccet.css`'s own for errors, code and highlights), `!important`, so a dark theme or a reader in dark mode still prints on white, and no theme has to repeat this;
 - code wraps, and tables, code and equations no longer scroll;
-- the diagnostics panel is hidden;
-- a math add-on's formulas stay in their sentences in the PDF's text.
+- the diagnostics panel is hidden.
 
-The rest is a theme's: `classic.css` drops its column limit and padding in print, sets `--t-size` to `11pt`, and keeps paragraphs, headings, figures and equations whole across page breaks. Before printing, luccet.js opens every `details.t-block` (closing them again afterwards), and a [math add-on](addons.html#katex) typesets every formula still waiting.
+The rest is a theme's: `classic.css` drops its column limit and padding in print, sets `--t-size` to `11pt`, and keeps paragraphs, headings, figures and equations whole across page breaks. Before printing, luccet.js opens every `details.t-block` (closing them again afterwards). Formulas need nothing: they are MathML from the start.
 
 To change print, write `@media print` rules. To print a colour property your own way, set it `!important` there:
 

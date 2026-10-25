@@ -20,7 +20,7 @@ If $V$ is finite-dimensional then $\dim V = \dim \ker T + \dim \operatorname{im}
 By @thm-rn, an injective map between spaces of equal dimension is surjective.
 ```
 
-It renders as plain HTML, in the browser's own type and colours, light or dark. For a look, list a [theme](https://github.com/Luccet/themes): `<script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css"></script>`.
+It renders as plain HTML, in the browser's own type and colours, light or dark, and the formulas as MathML: Luccet translates the TeX itself, with nothing to load ([math](https://luccet.dev/docs/math.html)). For a look, list a [theme](https://github.com/Luccet/themes): `<script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css"></script>`.
 
 
 ## Documentation
@@ -38,12 +38,12 @@ A note needs only `luccet.js`
 
 :::use
 https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css
-addons/katex.js
 addons/code.js
+addons/copy.js
 :::
 ```
 
-One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms work together.
+One add-on also fits on the tag, as `data-use="addons/code.js"`; both forms work together.
 
 **From jsDelivr**, which serves this repository's tagged releases:
 
@@ -58,7 +58,7 @@ One add-on also fits on the tag, as `data-use="addons/katex.js"`; both forms wor
 
 **Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 
-**Add-ons:** [`addons/`](addons/) holds add-ons that come with Luccet: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `katex.js` and `mathml.js` typeset math; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes; `notes.js` lists the notes of a folder from the same command's catalogue; `glossary.js` lists the terms the notes define (`:dfn[…]`, `:::definition` blocks) from its glossary, and links every `:term[…]` to the entry. List them in `:::use`, one per line. See [add-ons](https://luccet.dev/docs/addons.html).
+**Add-ons:** [`addons/`](addons/) holds add-ons that come with Luccet: `code.js` colours code by its language, `copy.js` puts a copy button on every fence, and `mermaid.js` draws `mermaid` fences as diagrams, both in the theme's colours; `lightbox.js` opens a figure's image full size; `cite.js` cites the sources of a `:::bibliography` block, BibTeX or CSL-JSON, as `@key` and lists the cited ones; `search.js` gives a `::search` box over a set of notes, indexed in the browser or from the index `luccet index` writes; `notes.js` lists the notes of a folder from the same command's catalogue; `glossary.js` lists the terms the notes define (`:dfn[…]`, `:::definition` blocks) from its glossary, and links every `:term[…]` to the entry. List them in `:::use`, one per line. See [add-ons](https://luccet.dev/docs/addons.html).
 
 
 **With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js`, `luccet.css` and the add-ons under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.
@@ -72,7 +72,7 @@ node luccet-cli.js new notes/linear-maps.html     # write the first line
 node luccet-cli.js check notes/                    # diagnostics and broken links, with file lines
 node luccet-cli.js build notes/linear-maps.html -o out.html   # a static, pre-rendered page
 node luccet-cli.js mv notes/linear-maps.html notes/algebra/    # move it, rewriting the links to and from it
-node luccet-cli.js vendor vendor/                  # local copies of KaTeX, highlight.js, Mermaid and Temml, for ?base=
+node luccet-cli.js vendor vendor/                  # local copies of highlight.js and Mermaid, for ?base=
 node luccet-cli.js search "rank nullity" notes/              # the sections and blocks that use these words, with lines
 node luccet-cli.js index notes/                    # notes.json, search.json and glossary.json, what ::notes, ::search and ::glossary read
 node luccet-cli.js lsp                              # the language server, over stdio

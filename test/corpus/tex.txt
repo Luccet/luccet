@@ -1,0 +1,750 @@
+# TeX
+
+The TeX inside formulas (docs/math.html): what the engine's translator (src/tex.js) makes of it, as MathML, and the `tex.*` diagnostics. Luccet's own math syntax, the dollars and `$$` blocks, is in inline-math.txt and math.txt.
+
+## tex/output-inline
+
+spec: math#formulas
+
+A formula is a `span.t-math` holding a `<math>` element, its TeX in `data-tex`.
+
+````luccet
+Let $x^2$ be.
+````
+
+````html
+<p>Let <span class="t-math" data-tex="x^2"><math><msup><mi>x</mi><mn>2</mn></msup></math></span> be.</p>
+````
+
+## tex/output-display
+
+spec: math#formulas elements#numbering
+
+Display math is a `<math display="block">` in `div.t-eq`, with its number beside it.
+
+````luccet
+$$
+E = mc^2
+$$ {#eq-e}
+
+By @eq-e.
+````
+
+````html
+<div id="eq-e" class="t-eq"><span class="t-math" data-display data-tex="E = mc^2"><math display="block"><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math></span><span class="t-eqno">(1)</span></div>
+<p>By <a class="t-ref" href="#eq-e">(1)</a>.</p>
+````
+
+## tex/escape
+
+spec: math#formulas
+
+The TeX is escaped in `data-tex` and in the MathML: `<` and `&`.
+
+````luccet
+$a < b \& c$
+````
+
+````html
+<p><span class="t-math" data-tex="a &lt; b \&amp; c"><math><mi>a</mi><mo>&lt;</mo><mi>b</mi><mi>&amp;</mi><mi>c</mi></math></span></p>
+````
+
+## tex/verbatim
+
+spec: math#formulas syntax-inline#verbatim-math
+
+Verbatim math translates like any formula: `\$` is a dollar sign, and an interval's brackets are plain brackets.
+
+````luccet
+Costs $`\$5` or $`]0,1[`.
+````
+
+````html
+<p>Costs <span class="t-math" data-tex="\$5"><math><mi>$</mi><mn>5</mn></math></span> or <span class="t-math" data-tex="]0,1["><math><mo stretchy="false">]</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">[</mo></math></span>.</p>
+````
+
+## tex/letters-digits
+
+spec: math#symbols
+
+A letter is an `<mi>`; digits are one `<mn>`, a `.` between digits included.
+
+````luccet
+$ab + 3.14x - 2$
+````
+
+````html
+<p><span class="t-math" data-tex="ab + 3.14x - 2"><math><mi>a</mi><mi>b</mi><mo>+</mo><mn>3.14</mn><mi>x</mi><mo>−</mo><mn>2</mn></math></span></p>
+````
+
+## tex/greek
+
+spec: math#symbols
+
+Lower-case Greek is italic, as a single letter is; capitals are upright (`mathvariant="normal"`); `\varGamma` is the italic capital.
+
+````luccet
+$\alpha \Gamma \varGamma$
+````
+
+````html
+<p><span class="t-math" data-tex="\alpha \Gamma \varGamma"><math><mi>α</mi><mi mathvariant="normal">Γ</mi><mi>𝛤</mi></math></span></p>
+````
+
+## tex/unicode-input
+
+spec: math#symbols
+
+A symbol typed as itself is the command it stands for: `α` an `<mi>`, `≤` a relation.
+
+````luccet
+$α ≤ β$
+````
+
+````html
+<p><span class="t-math" data-tex="α ≤ β"><math><mi>α</mi><mo>≤</mo><mi>β</mi></math></span></p>
+````
+
+## tex/spacing-classes
+
+spec: math#commands
+
+TeX's spacing: a minus with nothing before it, or after an opening bracket, has no space; one between operands is the dictionary's.
+
+````luccet
+$-a + (-b) = c$
+````
+
+````html
+<p><span class="t-math" data-tex="-a + (-b) = c"><math><mo lspace="0em" rspace="0em">−</mo><mi>a</mi><mo>+</mo><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">−</mo><mi>b</mi><mo stretchy="false">)</mo><mo>=</mo><mi>c</mi></math></span></p>
+````
+
+## tex/relations-adjacent
+
+spec: math#commands
+
+Two relations in a row have no space between them, as in TeX.
+
+````luccet
+$a := b$
+````
+
+````html
+<p><span class="t-math" data-tex="a := b"><math><mi>a</mi><mo lspace="0.2778em" rspace="0em">:</mo><mo lspace="0em">=</mo><mi>b</mi></math></span></p>
+````
+
+## tex/scripts
+
+spec: math#scripts
+
+Scripts take one atom or a group; a base has a superscript and a subscript at most; an empty group is a base.
+
+````luccet
+$x_i^2 + a_{ij} + {}^{14}C$
+````
+
+````html
+<p><span class="t-math" data-tex="x_i^2 + a_{ij} + {}^{14}C"><math><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup><mo>+</mo><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>+</mo><msup><mrow></mrow><mn>14</mn></msup><mi>C</mi></math></span></p>
+````
+
+## tex/primes
+
+spec: math#scripts
+
+A prime follows its base at full size; a superscript after it goes on the primed base.
+
+````luccet
+$f'(x) + g''^2$
+````
+
+````html
+<p><span class="t-math" data-tex="f'(x) + g''^2"><math><mrow><mi>f</mi><mo lspace="0em" rspace="0em">′</mo></mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>+</mo><msup><mrow><mi>g</mi><mo lspace="0em" rspace="0em">″</mo></mrow><mn>2</mn></msup></math></span></p>
+````
+
+## tex/fractions
+
+spec: math#fractions
+
+A command takes one token as an argument, so `\frac12` is a half; a fraction is TeX's inner class, a thin space from an ordinary atom.
+
+````luccet
+$2\frac12 + \frac{a}{b}$
+````
+
+````html
+<p><span class="t-math" data-tex="2\frac12 + \frac{a}{b}"><math><mn>2</mn><mspace width="0.1667em"></mspace><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>+</mo><mfrac><mi>a</mi><mi>b</mi></mfrac></math></span></p>
+````
+
+## tex/binom-root
+
+spec: math#fractions
+
+A binomial is a fraction with no line between stretchy parentheses; `\sqrt[3]` is an `<mroot>`.
+
+````luccet
+$\binom{n}{k} \sqrt{2} \sqrt[3]{x}$
+````
+
+````html
+<p><span class="t-math" data-tex="\binom{n}{k} \sqrt{2} \sqrt[3]{x}"><math><mrow><mo fence="true" form="prefix" stretchy="true" symmetric="true">(</mo><mfrac linethickness="0"><mi>n</mi><mi>k</mi></mfrac><mo fence="true" form="postfix" stretchy="true" symmetric="true">)</mo></mrow><mspace width="0.1667em"></mspace><msqrt><mn>2</mn></msqrt><mroot><mi>x</mi><mn>3</mn></mroot></math></span></p>
+````
+
+## tex/big-operators
+
+spec: math#operators
+
+A sum takes its limits above and below (`movablelimits` puts them beside it inline); an integral keeps them beside.
+
+````luccet
+$$
+\sum_{i=1}^n i = \int_0^1 f
+$$
+````
+
+````html
+<div class="t-eq"><span class="t-math" data-display data-tex="\sum_{i=1}^n i = \int_0^1 f"><math display="block"><munderover><mo lspace="0em">∑</mo><mrow><mi>i</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>i</mi><mo>=</mo><msubsup><mo>∫</mo><mn>0</mn><mn>1</mn></msubsup><mi>f</mi></math></span></div>
+````
+
+## tex/function-names
+
+spec: math#operators
+
+A function name is an upright `<mi>` with a thin space before an ordinary atom; `\lim` takes its limits under it.
+
+````luccet
+$\sin x + \lim_{n} a_n + \operatorname{rank} A$
+````
+
+````html
+<p><span class="t-math" data-tex="\sin x + \lim_{n} a_n + \operatorname{rank} A"><math><mi>sin</mi><mspace width="0.1667em"></mspace><mi>x</mi><mo>+</mo><munder><mo movablelimits="true" lspace="0em" rspace="0em">lim</mo><mi>n</mi></munder><mspace width="0.1667em"></mspace><msub><mi>a</mi><mi>n</mi></msub><mo>+</mo><mi>rank</mi><mspace width="0.1667em"></mspace><mi>A</mi></math></span></p>
+````
+
+## tex/scripts-in-scripts
+
+spec: math#scripts math#commands
+
+In a script, relations and operators have no space, as in TeX.
+
+````luccet
+$\sum_{i=1} x$
+````
+
+````html
+<p><span class="t-math" data-tex="\sum_{i=1} x"><math><munder><mo lspace="0em">∑</mo><mrow><mi>i</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow></munder><mi>x</mi></math></span></p>
+````
+
+## tex/fences
+
+spec: math#fences
+
+`\left` and `\right` make stretchy fences in an `<mrow>`; plain brackets do not stretch.
+
+````luccet
+$\left( \frac{a}{b} \right) (x)$
+````
+
+````html
+<p><span class="t-math" data-tex="\left( \frac{a}{b} \right) (x)"><math><mrow><mo fence="true" form="prefix" stretchy="true" symmetric="true">(</mo><mfrac><mi>a</mi><mi>b</mi></mfrac><mo fence="true" form="postfix" stretchy="true" symmetric="true">)</mo></mrow><mspace width="0.1667em"></mspace><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math></span></p>
+````
+
+## tex/fences-middle-none
+
+spec: math#fences
+
+`.` is no fence; `\middle` is a stretchy separator.
+
+````luccet
+$\left\{ x \middle| x > 0 \right.$
+````
+
+````html
+<p><span class="t-math" data-tex="\left\{ x \middle| x > 0 \right."><math><mrow><mo fence="true" form="prefix" stretchy="true" symmetric="true">{</mo><mi>x</mi><mo fence="true" form="infix" stretchy="true" symmetric="true" lspace="0.05em" rspace="0.05em">|</mo><mi>x</mi><mo>&gt;</mo><mn>0</mn></mrow></math></span></p>
+````
+
+## tex/big-sizes
+
+spec: math#fences
+
+`\big` and its kin are fixed sizes.
+
+````luccet
+$\bigl( x \bigr)$
+````
+
+````html
+<p><span class="t-math" data-tex="\bigl( x \bigr)"><math><mo minsize="1.2em" maxsize="1.2em" stretchy="true" symmetric="true" fence="true">(</mo><mi>x</mi><mo minsize="1.2em" maxsize="1.2em" stretchy="true" symmetric="true" fence="true">)</mo></math></span></p>
+````
+
+## tex/accents
+
+spec: math#accents
+
+An accent is an `<mover accent="true">`; `\overline` is a line drawn by luccet.css.
+
+````luccet
+$\hat{x} \vec{v} \widehat{AB} \overline{AB}$
+````
+
+````html
+<p><span class="t-math" data-tex="\hat{x} \vec{v} \widehat{AB} \overline{AB}"><math><mover accent="true"><mi>x</mi><mo stretchy="false">̂</mo></mover><mover accent="true"><mi>v</mi><mo stretchy="false">⃗</mo></mover><mover accent="true"><mrow><mi>A</mi><mi>B</mi></mrow><mo stretchy="true">̂</mo></mover><mrow class="t-overline"><mrow><mi>A</mi><mi>B</mi></mrow></mrow></math></span></p>
+````
+
+## tex/braces
+
+spec: math#accents
+
+A brace is stretchy, and its label goes under or over it.
+
+````luccet
+$\underbrace{a + b}_{n}$
+````
+
+````html
+<p><span class="t-math" data-tex="\underbrace{a + b}_{n}"><math><munder><munder accentunder="true"><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow><mo stretchy="true">⏟</mo></munder><mi>n</mi></munder></math></span></p>
+````
+
+## tex/fonts
+
+spec: math#fonts
+
+Fonts are Unicode's mathematical letters; `\mathrm` is upright, and its letters make one name.
+
+````luccet
+$\mathbb{R} \mathcal{L} \mathbf{v} \mathrm{d}x \mathrm{max}$
+````
+
+````html
+<p><span class="t-math" data-tex="\mathbb{R} \mathcal{L} \mathbf{v} \mathrm{d}x \mathrm{max}"><math><mi>ℝ</mi><mi>ℒ</mi><mi>𝐯</mi><mi mathvariant="normal">d</mi><mi>x</mi><mi>max</mi></math></span></p>
+````
+
+## tex/text
+
+spec: math#text
+
+`\text` is an `<mtext>`; a space at its edge is a no-break space, so the browser keeps it; `$…$` inside is math (in verbatim math, which may hold a `$`).
+
+````luccet
+$`\text{if } x \text{ is $y$}`
+````
+
+````html
+<p><span class="t-math" data-tex="\text{if } x \text{ is $y$}"><math><mtext>if </mtext><mi>x</mi><mrow><mtext> is </mtext><mi>y</mi></mrow></math></span></p>
+````
+
+## tex/spacing
+
+spec: math#spacing
+
+Space commands are `<mspace>`; a negative one is a negative margin, by class.
+
+````luccet
+$a\,b\quad c\!d$
+````
+
+````html
+<p><span class="t-math" data-tex="a\,b\quad c\!d"><math><mi>a</mi><mspace width="0.1667em"></mspace><mi>b</mi><mspace width="1em"></mspace><mi>c</mi><mspace class="t-n3"></mspace><mi>d</mi></math></span></p>
+````
+
+## tex/colour
+
+spec: math#colour
+
+`\color` colours the rest of the group; a colour must be a CSS name or a hex colour.
+
+````luccet
+$\color{red} x + \textcolor{#00f}{y}$
+````
+
+````html
+<p><span class="t-math" data-tex="\color{red} x + \textcolor{#00f}{y}"><math><mrow mathcolor="red"><mi>x</mi><mo>+</mo><mrow mathcolor="#00f"><mi>y</mi></mrow></mrow></math></span></p>
+````
+
+## tex/boxes
+
+spec: math#colour
+
+`\boxed` and `\cancel` are drawn by luccet.css, from a class.
+
+````luccet
+$\boxed{E} \cancel{x}$
+````
+
+````html
+<p><span class="t-math" data-tex="\boxed{E} \cancel{x}"><math><mrow class="t-boxed"><mi>E</mi></mrow><mrow class="t-cancel"><mi>x</mi></mrow></math></span></p>
+````
+
+## tex/env-matrix
+
+spec: math#environments
+
+A matrix is an `<mtable>`; `pmatrix` puts stretchy parentheses around it.
+
+````luccet
+$\begin{pmatrix} a & b \\ c & d \end{pmatrix}$
+````
+
+````html
+<p><span class="t-math" data-tex="\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}"><math><mrow><mo fence="true" form="prefix" stretchy="true" symmetric="true">(</mo><mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true" symmetric="true">)</mo></mrow></math></span></p>
+````
+
+## tex/env-cases
+
+spec: math#environments
+
+`cases` is a brace before a table whose columns luccet.css aligns left.
+
+````luccet
+$$
+|x| = \begin{cases} x & x \ge 0 \\ -x & \text{else} \end{cases}
+$$
+````
+
+````html
+<div class="t-eq"><span class="t-math" data-display data-tex="|x| = \begin{cases} x &amp; x \ge 0 \\ -x &amp; \text{else} \end{cases}"><math display="block"><mo stretchy="false" lspace="0em" rspace="0em">|</mo><mi>x</mi><mo stretchy="false" lspace="0em" rspace="0em">|</mo><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true" symmetric="true">{</mo><mtable class="t-cases"><mtr><mtd><mi>x</mi></mtd><mtd><mi>x</mi><mo>≥</mo><mn>0</mn></mtd></mtr><mtr><mtd><mo lspace="0em" rspace="0em">−</mo><mi>x</mi></mtd><mtd><mtext>else</mtext></mtd></mtr></mtable></mrow></math></span></div>
+````
+
+## tex/env-aligned
+
+spec: math#environments
+
+`aligned` aligns at `&`: right, then left. A right-hand cell starts with an empty atom, so its relation keeps its space.
+
+````luccet
+$$
+\begin{aligned} a &= b \\ &= c \end{aligned}
+$$
+````
+
+````html
+<div class="t-eq"><span class="t-math" data-display data-tex="\begin{aligned} a &amp;= b \\ &amp;= c \end{aligned}"><math display="block"><mtable class="t-align" displaystyle="true"><mtr><mtd><mi>a</mi></mtd><mtd><mrow></mrow><mo>=</mo><mi>b</mi></mtd></mtr><mtr><mtd></mtd><mtd><mrow></mrow><mo>=</mo><mi>c</mi></mtd></mtr></mtable></math></span></div>
+````
+
+## tex/env-array
+
+spec: math#environments
+
+`array` takes its columns' alignment and lines; `\hline` is a line between rows.
+
+````luccet
+$\begin{array}{l|r} a & b \\ \hline c & d \end{array}$
+````
+
+````html
+<p><span class="t-math" data-tex="\begin{array}{l|r} a &amp; b \\ \hline c &amp; d \end{array}"><math><mtable><mtr><mtd class="t-left"><mi>a</mi></mtd><mtd class="t-right t-vline"><mi>b</mi></mtd></mtr><mtr class="t-hline"><mtd class="t-left"><mi>c</mi></mtd><mtd class="t-right t-vline"><mi>d</mi></mtd></mtr></mtable></math></span></p>
+````
+
+## tex/display-lines
+
+spec: math#environments
+
+In display math, lines broken with `\\` are centred, as in `gathered`.
+
+````luccet
+$$
+a = b \\
+c = d
+$$
+````
+
+````html
+<div class="t-eq"><span class="t-math" data-display data-tex="a = b \\
+c = d"><math display="block"><mtable class="t-gather" displaystyle="true"><mtr><mtd><mi>a</mi><mo>=</mo><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi><mo>=</mo><mi>d</mi></mtd></mtr></mtable></math></span></div>
+````
+
+## tex/macros-block
+
+spec: math#macros syntax-blocks#macros
+
+A `:::macros` block's definitions apply to every formula, the ones before it too.
+
+````luccet
+First $\R$.
+
+:::macros
+\gdef\R{\mathbb{R}}
+\gdef\norm#1{\lVert #1 \rVert}
+:::
+
+Then $\norm{v} \in \R$.
+````
+
+````html
+<p>First <span class="t-math" data-tex="\R"><math><mi>ℝ</mi></math></span>.</p>
+<div class="t-macros" hidden>\gdef\R{\mathbb{R}}
+\gdef\norm#1{\lVert #1 \rVert}</div>
+<p>Then <span class="t-math" data-tex="\norm{v} \in \R"><math><mo stretchy="false">‖</mo><mi>v</mi><mo stretchy="false">‖</mo><mo>∈</mo><mi>ℝ</mi></math></span>.</p>
+````
+
+## tex/macros-gdef-order
+
+spec: math#macros
+
+A `\gdef` in a formula defines the macro for the formulas after it, not the ones before.
+
+````luccet
+Before $\half$.
+
+$\gdef\half{\frac12} \half$ and after $\half$.
+````
+
+````html
+<p>Before <span class="t-math t-error" data-tex="\half">\half</span>.</p>
+<p><span class="t-math" data-tex="\gdef\half{\frac12} \half"><math><mfrac><mn>1</mn><mn>2</mn></mfrac></math></span> and after <span class="t-math" data-tex="\half"><math><mfrac><mn>1</mn><mn>2</mn></mfrac></math></span>.</p>
+````
+
+````diagnostics
+1:9-1:14 error tex.unknown
+````
+
+## tex/macros-local
+
+spec: math#macros
+
+`\def` and `\newcommand` in a formula last to its end.
+
+````luccet
+$\def\two{2} \two$ and $\two$.
+````
+
+````html
+<p><span class="t-math" data-tex="\def\two{2} \two"><math><mn>2</mn></math></span> and <span class="t-math t-error" data-tex="\two">\two</span>.</p>
+````
+
+````diagnostics
+1:25-1:29 error tex.unknown
+````
+
+## tex/macros-newcommand
+
+spec: math#macros
+
+`\newcommand` with an optional first argument; `\DeclareMathOperator` makes a function name.
+
+````luccet
+:::macros
+\newcommand{\pow}[2][2]{#2^{#1}}
+\DeclareMathOperator{\Tr}{Tr}
+:::
+
+$\pow{x} \pow[3]{y} \Tr A$
+````
+
+````html
+<div class="t-macros" hidden>\newcommand{\pow}[2][2]{#2^{#1}}
+\DeclareMathOperator{\Tr}{Tr}</div>
+<p><span class="t-math" data-tex="\pow{x} \pow[3]{y} \Tr A"><math><msup><mi>x</mi><mn>2</mn></msup><msup><mi>y</mi><mn>3</mn></msup><mspace width="0.1667em"></mspace><mi>Tr</mi><mspace width="0.1667em"></mspace><mi>A</mi></math></span></p>
+````
+
+## tex/unsupported
+
+spec: math#unsupported diagnostics#tex-unsupported
+
+`\tag` is not supported: the hint says how Luccet numbers equations.
+
+````luccet
+$$
+E = mc^2 \tag{1}
+$$
+````
+
+````html
+<div class="t-eq"><span class="t-math t-error" data-display data-tex="E = mc^2 \tag{1}">E = mc^2 \tag{1}</span></div>
+````
+
+````diagnostics
+2:10-2:14 error tex.unsupported
+````
+
+## tex/unsupported-href
+
+spec: math#unsupported diagnostics#tex-unsupported
+
+A formula writes no link.
+
+````luccet
+$\href{https://example.com}{x}$
+````
+
+````html
+<p><span class="t-math t-error" data-tex="\href{https://example.com}{x}">\href{https://example.com}{x}</span></p>
+````
+
+````diagnostics
+1:2-1:7 error tex.unsupported
+````
+
+## tex/error-unknown
+
+spec: math#errors diagnostics#tex-unknown
+
+A formula that does not translate is shown as its TeX, `t-error`, with its diagnostic at the command, and the nearest known command as a hint.
+
+````luccet
+The angle $\thetha$.
+````
+
+````html
+<p>The angle <span class="t-math t-error" data-tex="\thetha">\thetha</span>.</p>
+````
+
+````diagnostics
+1:12-1:19 error tex.unknown
+````
+
+## tex/error-unbalanced
+
+spec: diagnostics#tex-unbalanced
+
+An unclosed brace is reported at the brace.
+
+````luccet
+$\frac{a}{b$
+````
+
+````html
+<p><span class="t-math t-error" data-tex="\frac{a}{b">\frac{a}{b</span></p>
+````
+
+````diagnostics
+1:10-1:11 error tex.unbalanced
+````
+
+## tex/error-argument
+
+spec: diagnostics#tex-argument
+
+A missing argument is reported at its command.
+
+````luccet
+$\frac{1}$
+````
+
+````html
+<p><span class="t-math t-error" data-tex="\frac{1}">\frac{1}</span></p>
+````
+
+````diagnostics
+1:2-1:7 error tex.argument
+````
+
+## tex/error-script
+
+spec: diagnostics#tex-script
+
+A second superscript is reported at its `^`.
+
+````luccet
+$x^2^3$
+````
+
+````html
+<p><span class="t-math t-error" data-tex="x^2^3">x^2^3</span></p>
+````
+
+````diagnostics
+1:5-1:6 error tex.script
+````
+
+## tex/error-misplaced
+
+spec: diagnostics#tex-misplaced
+
+`&` outside an environment; in display math the hint is `aligned`.
+
+````luccet
+$$
+a &= b
+$$
+````
+
+````html
+<div class="t-eq"><span class="t-math t-error" data-display data-tex="a &amp;= b">a &amp;= b</span></div>
+````
+
+````diagnostics
+2:3-2:4 error tex.misplaced
+````
+
+## tex/error-macro
+
+spec: diagnostics#tex-macro math#macros
+
+`\newcommand` for a command that exists is reported in the `:::macros` block, at its name; the formula uses the command's own meaning.
+
+````luccet
+:::macros
+\newcommand{\sin}{s}
+:::
+
+$\sin x$
+````
+
+````html
+<div class="t-macros" hidden>\newcommand{\sin}{s}</div>
+<p><span class="t-math" data-tex="\sin x"><math><mi>sin</mi><mspace width="0.1667em"></mspace><mi>x</mi></math></span></p>
+````
+
+````diagnostics
+2:13-2:17 error tex.macro
+````
+
+## tex/error-limit
+
+spec: diagnostics#tex-limit
+
+A macro that uses itself stops at the expansion limit.
+
+````luccet
+:::macros
+\gdef\again{\again}
+:::
+
+$\again$
+````
+
+````html
+<div class="t-macros" hidden>\gdef\again{\again}</div>
+<p><span class="t-math t-error" data-tex="\again">\again</span></p>
+````
+
+````diagnostics
+5:2-5:8 error tex.limit
+````
+
+## tex/error-one-per-formula
+
+spec: math#errors
+
+Each formula that fails has one diagnostic, its first problem; the others translate.
+
+````luccet
+$\foo + \bar$ and $x$ and $x^2^3$
+````
+
+````html
+<p><span class="t-math t-error" data-tex="\foo + \bar">\foo + \bar</span> and <span class="t-math" data-tex="x"><math><mi>x</mi></math></span> and <span class="t-math t-error" data-tex="x^2^3">x^2^3</span></p>
+````
+
+````diagnostics
+1:2-1:6 error tex.unknown
+1:31-1:32 error tex.script
+````
+
+## tex/safe
+
+spec: elements#safe math#unsupported
+options: safe
+
+Under `safe`, formulas translate as usual: no command writes a link or an attribute.
+
+````luccet
+$\alpha \href{javascript:x}{y}$
+````
+
+````html
+<p><span class="t-math t-error" data-tex="\alpha \href{javascript:x}{y}">\alpha \href{javascript:x}{y}</span></p>
+````
+
+````diagnostics
+1:9-1:14 error tex.unsupported
+````

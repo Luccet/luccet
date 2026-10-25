@@ -14,6 +14,8 @@ const registry = require('./schema');
 const pipeline = require('./transform');
 const { emit } = require('./emit');
 const { css } = require('./css');
+const T = require('./tex');
+const { symbols: TEX_SYMBOLS } = require('./tex-symbols');
 const runtime = require('./runtime');
 
 const version = '2.0.0';
@@ -55,6 +57,17 @@ function toHTML(source, opts) {
   return emit(pipeline.run(ast, o), o);
 }
 
+// tex(source, {display, macros}) -> {mathml} | {error: {code, message,
+// hint, at, end}}: one formula as the math transform makes it, macros
+// being the page's ({'\\RR': '\\mathbb{R}'}). tex.symbols: the symbol
+// commands, [name, char, class], for editors and the docs.
+function tex(source, opts) {
+  const o = opts || {};
+  const r = T.render(String(source), { display: !!o.display, macros: T.table(o.macros) });
+  return r.mathml ? { mathml: r.mathml } : { error: r.error };
+}
+tex.symbols = Object.freeze([...TEX_SYMBOLS].map(([name, [k, c]]) => Object.freeze([name, c, k])));
+
 module.exports = {
   version,
   parse,
@@ -66,6 +79,7 @@ module.exports = {
   outline,
   search,
   glossary,
+  tex,
   schema: registry.schema,
   block: registry.block,
   leaf: registry.leaf,

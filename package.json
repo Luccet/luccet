@@ -14,7 +14,8 @@
     "html",
     "notes",
     "math",
-    "katex",
+    "mathml",
+    "tex",
     "language-server",
     "static-site"
   ],
@@ -46,10 +47,8 @@
     "addons/",
     "skills/",
     "tools/npm.js",
-    "tools/katex.js",
     "tools/hljs.js",
     "tools/mermaid.js",
-    "tools/temml.js",
     "test/fixtures/detect.json",
     "CHANGELOG.md"
   ],

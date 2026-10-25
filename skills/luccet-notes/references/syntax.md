@@ -268,7 +268,7 @@ $$ e^{i\pi} + 1 = 0 $$ {#eq-euler}
 By @eq-chain and @eq-euler.
 ```
 
-```luccet expect="math.opener-tail"
+```luccet expect="math.opener-tail tex.misplaced"
 $$ {#eq-wrong}
 x^2
 $$
@@ -404,7 +404,7 @@ Right.
 A raw body is one verbatim text node in which nothing is Luccet. It ends only at a bare `:::` (any count) or at `:::/` and its own name. Every other line, openers and closers included, is content, so an opener inside does not nest and the first bare `:::` ends the block.
 
 - **`{raw}` on any container** keeps the body as text, escaped inside the element, for a script or an add-on to read (diagrams, data). The title, id, classes and keys stay.
-- **`:::macros`** holds TeX definitions, one per line: `\gdef\R{\mathbb{R}}`. Every macros block is read before any formula is typeset, so its macros work in every formula of the note, wherever the block stands; it may sit inside other blocks. It renders as a hidden `div.t-macros`. TeX a math add-on cannot parse stays as its TeX source, marked `t-error`, with the reason in the browser console; `luccet build --math` reports it as a `math.error` warning.
+- **`:::macros`** holds TeX definitions, one per line: `\gdef\R{\mathbb{R}}`. Every macros block is read before any formula is translated, so its macros work in every formula of the note, wherever the block stands; it may sit inside other blocks. It renders as a hidden `div.t-macros`. A definition that does not work is `tex.macro`, at its name.
 - **`:::meta`** sets the page's metadata with `key: value` lines, and renders nothing.
   - A key starts with an ASCII letter, continues with letters, digits, `_ . : -`, and does not end in `:`. The separator is the first colon followed by a space, so `title: Maps: a survey` works. A line without it, an indented line or a bad key is `meta.malformed`. Blank lines are ignored.
   - A value is plain text, right-trimmed; nothing in it is Luccet.

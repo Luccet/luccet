@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Luccet</title><link rel="icon" href="docs/favicon.ico"><link rel="apple-touch-icon" href="docs/apple-touch-icon.png"><script src="luccet.js" data-use="docs/docs.js docs/docs.css addons/katex.js addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Luccet</title><link rel="icon" href="docs/favicon.ico"><link rel="apple-touch-icon" href="docs/apple-touch-icon.png"><script src="luccet.js" data-use="docs/docs.js docs/docs.css addons/copy.js"></script>
 
 :::meta
 description: Luccet is a document format with the full power of HTML, CSS and JavaScript and none of HTML's verbosity: one file that renders itself in the browser.
@@ -40,7 +40,7 @@ Every example on these pages is live: it shows the source, the result, the HTML 
 
 ### Math {#tour-math}
 
-TeX between dollars, typeset by KaTeX. A display formula with an id is numbered, and `@id` refers to it.
+TeX between dollars, which Luccet turns into MathML itself: there is nothing to load. A display formula with an id is numbered, and `@id` refers to it. [Math](docs/math.html#top) lists the TeX a formula can use.
 
 ```luccet {.live}
 The roots of $ax^2 + bx + c = 0$ are
@@ -173,12 +173,13 @@ Then read [the Guide](docs/guide.html#top), which goes from the first line to vo
 | [Guide](docs/guide.html#top) | a complete tutorial, from the first line to schemas, publishing and the editor |
 | [Syntax: blocks](docs/syntax-blocks.html#top) | the eight rules, attributes, and every block construct |
 | [Syntax: inline](docs/syntax-inline.html#top) | every inline construct, the ambiguity rules, escapes |
+| [Math](docs/math.html#top) | the TeX a formula can use, macros, environments, fonts and browsers |
 | [Elements and output](docs/elements.html#top) | how names become elements, titles and labels, numbering, references, ids, figures, raw HTML, metadata |
 | [Vocabulary and behaviour](docs/schema.html#top) | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, styling, themes |
-| [Add-ons](docs/addons.html#top) | the add-ons that come with Luccet: math, code highlighting, Mermaid diagrams, search, a list of notes |
+| [Add-ons](docs/addons.html#top) | the add-ons that come with Luccet: code highlighting, Mermaid diagrams, search, a list of notes |
 | [Diagnostics](docs/diagnostics.html#top) | every diagnostic: when it fires, what happens to the content, the fix |
 | [Command line and editors](docs/tools.html#top) | `luccet new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`; editor setup; a skill for coding agents |
-| [Publishing](docs/publishing.html#top) | hosting, `luccet build`, CSP, KaTeX and offline use, browsers, trust |
+| [Publishing](docs/publishing.html#top) | hosting, `luccet build`, CSP, offline use, browsers, trust |
 | [JavaScript API](docs/api.html#top) | `luccet.*`, the AST, the runtime lifecycle, events, config |
 
 ## Examples {#examples}
@@ -202,7 +203,7 @@ Complete notes, each declaring its own vocabulary in a few lines at the top. Ope
 - **The command line:** its commands, options, exit codes and the shape of its `--json` output.
 - **The files `luccet index` writes:** read by their `format` number, which changes only in a major release.
 
-A minor release may add constructs, options, members, commands, fields in JSON output and in index files (a reader ignores the fields it does not know), and diagnostics at warning or info severity. Not covered: the wording of the command line's messages and of console lines, and what the libraries the add-ons load (KaTeX, Mermaid, highlight.js, Temml) draw. Pin a release (`@v2.0.0`) to be sure; `@2.0` follows the fixes of a series. `@2` follows every release of a major, which keeps every note rendering the same; the [changelog](https://github.com/Luccet/luccet/blob/main/CHANGELOG.md) says what each release changed.
+A minor release may add constructs, options, members, commands, fields in JSON output and in index files (a reader ignores the fields it does not know), and diagnostics at warning or info severity. Not covered: the wording of the command line's messages and of console lines, and what the libraries the add-ons load (Mermaid, highlight.js) draw. Pin a release (`@v2.0.0`) to be sure; `@2.0` follows the fixes of a series. `@2` follows every release of a major, which keeps every note rendering the same; the [changelog](https://github.com/Luccet/luccet/blob/main/CHANGELOG.md) says what each release changed.
 
 **Deprecation.** Something that is to go is marked deprecated in the changelog and on its page, and keeps working, with a diagnostic or a console line that names its replacement, until the next major release, which may remove it. Nothing described on these pages is deprecated today.
 

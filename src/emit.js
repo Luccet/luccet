@@ -26,6 +26,7 @@
 const { decode } = require('./entities');
 const { isReservedName } = require('./scan');
 const { pick } = require('./schema');
+const tex = require('./tex');
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
 const SLOT = { details: 'summary', figure: 'figcaption', table: 'caption', fieldset: 'legend' }; // each tag's own title slot
@@ -91,6 +92,7 @@ let work = null; // the stack of pending nodes and strings
 let positions = true;
 let safe = false;
 let cssom = false;
+let mathml = true; // opts.math !== 'tex': formulas as MathML
 let say = null; // the emitter's own words, in the note's label language (WORDS)
 let prefix = ''; // opts.idPrefix: before every id and fragment link, so an untrusted root cannot clash with the page's ids
 let section = false; // true once the footnote section is being written
@@ -164,8 +166,10 @@ function atom(n) {
       return '<br>\n';
     case 'inlineCode':
       return `<code${attrs(a)}>${esc(n.value || '')}</code>`;
-    case 'inlineMath':
-      return (a ? `<span${attrs(a, 't-math', '', pos(n))}>` : `<span class="t-math"${pos(n)}>`) + esc(n.value || '') + '</span>';
+    case 'inlineMath': {
+      const f = formula(n, false);
+      return `<span${attrs(a, f.cls, '', pos(n) + f.attrs)}>${f.body}</span>`;
+    }
     case 'image':
       return image(n, a);
     case 'footnoteReference':
@@ -256,6 +260,7 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
+  mathml = !(opts && opts.math === 'tex');
   say = words((opts && opts.lang) || (ast && ast.data && ast.data.luccet && ast.data.luccet.lang) || '', opts && opts.strings && typeof opts.strings === 'object' ? opts.strings : null);
   prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
@@ -494,7 +499,22 @@ function math(n, a) {
   const t = luccet(n);
   if (t.unclosed) return void write(`<div${attrs(a, 't-eq t-error', '', pos(n))}>${esc(t.source != null ? t.source : n.value || '')}</div>\n`);
   const no = t.text ? `<span class="t-eqno">${esc(String(t.text))}</span>` : '';
-  write(`<div${attrs(a, 't-eq')}><span class="t-math" data-display${pos(n)}>${esc(n.value || '')}</span>${no}</div>\n`);
+  const f = formula(n, true);
+  write(`<div${attrs(a, 't-eq')}><span class="${f.cls}" data-display${pos(n)}${f.attrs}>${f.body}</span>${no}</div>\n`);
+}
+
+// A formula's class, attributes and content: its MathML, from the math
+// transform (or translated here, for a tree that has not been through it),
+// with its TeX in data-tex; its TeX as text with {math: 'tex'}, and marked
+// t-error when it does not translate.
+function formula(n, display) {
+  const v = n.value || '';
+  if (!mathml) return { cls: 't-math', attrs: '', body: esc(v) };
+  const t = luccet(n);
+  let m = t.mathml;
+  if (typeof m !== 'string' && !t.texError) m = tex.render(v, { display }).mathml;
+  const data = ` data-tex="${escValue(v)}"`;
+  return m ? { cls: 't-math', attrs: data, body: m } : { cls: 't-math t-error', attrs: data, body: esc(v) };
 }
 
 // A pipe table: `thead` from the first row unless headerless, `tbody` unless

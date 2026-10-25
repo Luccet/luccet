@@ -171,7 +171,7 @@ On a display formula the braces go after the closing `$$`; on the opening line t
 
 ## Math
 
-TeX between dollars. The engine leaves each formula as its TeX source and renders nothing; load a math add-on in `:::use` or `data-use` to typeset it — `addons/katex.js` (KaTeX) or `addons/mathml.js` (native MathML). Inside math everything is TeX; outside it, a backslash before a letter is just a backslash.
+TeX between dollars. The engine turns each formula into MathML itself, which the browser lays out: nothing to load, no network. Inside math everything is TeX (LaTeX's commands with the AMS symbols and environments); outside it, a backslash before a letter is just a backslash.
 
 ```luccet
 Inline $\sum_{i=1}^n x_i$, a price of $5 left alone, and $`]0,1[` verbatim.
@@ -189,7 +189,9 @@ For $x \in \R$, @eq-pythagoras holds.
 
 - A `$` pair is math only when it looks like math: the opener followed by a non-space, the closer after a non-space and not before a digit. Prices need no escaping; escape one with `\$` when it shares a sentence with a formula (`math.suspect-price`).
 - Display math: `$$` lines, no blank line inside (`math.unclosed`). An id after the closing `$$` numbers the equation; `@id` reads "(1)".
-- Without a math add-on, formulas show as their TeX source (like a code fence with no `addons/code.js`). Load one to typeset them; for offline use point it at a local copy: `addons/katex.js?base=vendor/katex`.
+- A formula whose TeX does not translate shows as its TeX and gets a `tex.*` diagnostic at the command at fault (`tex.unknown` for a typo, with the command meant as the hint). `luccet check` reports them, so check after writing math.
+- Not in Luccet's math: `\label`, `\ref`, `\tag` (number with an id after the closing `$$`, refer with `@id`), `\href`, `\includegraphics`, `\ce`, and the numbered environments `align`, `equation`, `gather` (use `aligned` or `gathered` inside `$$`, or `align*`).
+- `\gdef` in a formula defines a macro for the formulas after it; definitions for the whole note go in `:::macros`.
 - `addons/copy.js` puts a copy button on every fence (`{data-copy=false}` on one leaves it out); `addons/lightbox.js` opens a figure's image full size in a dialog (`?images=all` for every image; `{data-lightbox=false}` leaves one alone). Both are behaviours: nothing changes in the markup or under `luccet check`.
 - `addons/cite.js` cites sources: a `:::bibliography` block holds BibTeX or CSL-JSON entries, `@key` cites one and reads `[1]` (`{style=author-year}` on the block: `(Knuth, 1984)`), and the block lists the cited entries, formatted. Keys must be ids `@` reaches (`knuth84`, not `knuth:84`). `window.LUCCET.bib` in a head script shares one bibliography across notes.
 - `addons/search.js` gives a `::search` leaf: a box that searches the notes the page links to (`::search{from=index.html}` for another page's links), indexed in the browser, each hit linking to its heading or block. Load the notes' vocabulary add-on on that page too. `luccet search QUERY [PATH…]` is the same search on files, printing `FILE:LINE:` and the entry's label; use it to find where a topic is treated before editing. `luccet index [PATH…]` writes `notes.json` (a catalogue: each note's path, title, description, date, headings, links), `search.json` (the index) and `glossary.json` (the terms the notes define) beside the notes; `addons/notes.js` gives `::notes`, a list drawn from the catalogue, and `::search{index=search.json}` reads the index instead of fetching the notes. In a git repository only tracked notes are indexed. Write the files again when notes change (a pre-commit hook); `luccet index --check` exits 1 when they are stale.

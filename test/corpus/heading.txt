@@ -286,6 +286,7 @@ The slug is built from the plain text of the rendered inline content, so a link 
 ## heading/slug-plain-text
 
 spec: syntax-blocks#slugs syntax-inline#raw-inline-html syntax-inline#entities
+options: math=tex
 
 The plain text the slug is built from: tags dropped, entities decoded, math as its TeX, footnote references ignored. From the source the id would be `caf-eacute-b-bold-b-t-n`; with the footnote number it would end in `-1`.
 

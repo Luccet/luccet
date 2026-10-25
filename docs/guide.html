@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: A complete tutorial for Luccet, from the first line of a note to vocabularies, styling, diagnostics, the command line and publishing, with live examples throughout.
@@ -46,11 +46,11 @@ The script tag must be a plain one. With `async`, `defer` or `type="module"`, `l
 
 ### Writing and opening a note {#opening}
 
-1. Download [`luccet.js`](../luccet.js), and [`addons/katex.js`](../addons/katex.js) for the math (keep it in an `addons/` subfolder), and put them in a folder.
+1. Download [`luccet.js`](../luccet.js) and put it in a folder.
 2. Next to it, create `hello.html` with this content:
 
    ```html
-   <!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="addons/katex.js"></script>
+   <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
    # Hello
 
@@ -71,14 +71,14 @@ and a formula, $e^{i\pi} + 1 = 0$.
 When you open a note from disk, a small panel in the corner lists any problems Luccet found, with their line numbers. Readers of a published note do not see it. [Diagnostics and the panel](#diagnostics) explains it.
 
 :::note
-The engine renders no math itself: it leaves each formula as its TeX. The `addons/katex.js` in `data-use` above typesets it with KaTeX, loaded from a CDN (jsDelivr); drop the add-on and the formula stays as `$e^{i\pi} + 1 = 0$`. See [Add-ons](addons.html#katex) for the math add-ons, and [Publishing](publishing.html#katex) for a copy of your own.
+The formula needs nothing more: Luccet turns its TeX into MathML itself, and the browser lays it out. There is no add-on to load and no network to reach, so the note works from disk. [Math](math.html#top) lists the TeX a formula can use.
 :::
 
 ### What happens when the file opens {#how-it-works}
 
 - **The head.** Everything before the `luccet.js` tag, the doctype and charset on its line included, is ordinary HTML that the browser reads first: a `<title>`, `<html lang>`, icons, stylesheets. Luccet keeps it, and adds only what a `:::meta` block sets (see [Metadata](#metadata)) and a few defaults, such as a viewport.
 - **The note.** Everything after the line is the note. `luccet.js` takes it as text, so the browser never sees it as HTML.
-- **Rendering.** Luccet parses the note, works out ids, numbers and references, writes HTML, and puts it in the page inside `<main class="luccet">`. Scripts in the note then run, in order. If a [math add-on](addons.html#katex) is loaded, it typesets the formulas; otherwise each stays as its TeX.
+- **Rendering.** Luccet parses the note, works out ids, numbers and references, turns each formula into MathML, writes HTML, and puts it in the page inside `<main class="luccet">`. Scripts in the note then run, in order.
 - **The same everywhere.** The command line and the editor use the same engine on the same file, so what they report is what the browser renders.
 
 You never need to write the line by hand: `luccet new` writes it, with the right path to `luccet.js` (see [The workflow](#workflow)).
@@ -182,7 +182,7 @@ Everything this guide teaches, on one screen.
 | Emphasis, strong | `*em*`, `**strong**` | `<em>`, `<strong>` |
 | Strikethrough, highlight | `~~gone~~`, `==key==` | `<del>`, `<mark>` |
 | Code span | `` `code` `` | `<code>` |
-| Inline math | `$x^2$`, or `` $`]0,1[` `` for awkward TeX | `span.t-math`, typeset by a [math add-on](addons.html#katex) |
+| Inline math | `$x^2$`, or `` $`]0,1[` `` for awkward TeX | `span.t-math` holding a `<math>` element |
 | Heading | `## Title {#id}` | `<h2 id="id">`, with an id made from the text when you give none |
 | Link | `[text](https://x.org "Title")` | `<a href>` |
 | Image | `![alt text](photo.jpg){width=50%}` | `<img>` |
@@ -639,7 +639,7 @@ x = 1;
 
 ## Math {#math}
 
-Math is written in TeX between dollars. The engine parses it but renders nothing itself: each formula is left as its TeX, the way a code fence stays plain without [`code.js`](addons.html#code). To typeset it, load a [math add-on](addons.html#katex) in `data-use` — `addons/katex.js` for KaTeX, or `addons/mathml.js` for native MathML. Inside math, everything is TeX: Luccet's marks mean nothing there (rule 4).
+Math is written in TeX between dollars. Luccet turns each formula into MathML itself, and the browser lays it out with a math font: nothing needs to be loaded. Inside math, everything is TeX: Luccet's marks mean nothing there (rule 4). A formula whose TeX does not translate is shown as its TeX, with a [`tex.*` diagnostic](diagnostics.html#tex) at the command at fault. The commands, environments and macros a formula can use are on [Math](math.html#top).
 
 ### Inline math {#inline-math}
 
@@ -722,7 +722,7 @@ By @eq-rn and @eq-euler, …
 ```
 
 - **Only formulas with an id** are numbered, in document order. Inline math is never numbered.
-- **Attributes go after the closer.** On the opening `$$` line, braces are TeX: below, `{.wide}` is typeset as part of the formula, and Luccet reports an error.
+- **Attributes go after the closer.** On the opening `$$` line, braces are TeX: below, `{.wide}` becomes part of the formula, and Luccet reports an error.
 
 ```luccet {.live expect="math.opener-tail"}
 $$ {.wide}
@@ -743,7 +743,7 @@ A `:::macros` block defines TeX macros for every formula in the note. Its body i
 For every $x \in \R^n$, $\norm{x} \ge 0$.
 ```
 
-All macro blocks are read before any formula is typeset, so a macro works anywhere in the note. The block itself is hidden.
+A `:::macros` block applies to every formula in the note, wherever it stands, so a macro works anywhere in the note. The block itself is hidden. `\newcommand`, macros with optional arguments, and macros defined inside a formula are on [Math](math.html#macros).
 
 **Reference:** [inline math](syntax-inline.html#inline-math), [verbatim math](syntax-inline.html#verbatim-math), [display math](syntax-blocks.html#display-math), [macros](syntax-blocks.html#raw-body), [numbering](elements.html#numbering).
 
@@ -1632,7 +1632,7 @@ When an add-on and the note's own `window.LUCCET.schema` declare the same name, 
 
 ### Behaviour: `luccet.define` {#define}
 
-`luccet.define(name, fn)` runs `fn(element)` once on every element whose `data-t` is `name`, after the note is rendered and before math is typeset. It is how a name gets behaviour: a chart, a copy button, a quiz. Call it from a script in the note, or give the schema entry a `dom` function.
+`luccet.define(name, fn)` runs `fn(element)` once on every element whose `data-t` is `name`, after the note is rendered. It is how a name gets behaviour: a chart, a copy button, a quiz. Call it from a script in the note, or give the schema entry a `dom` function.
 
 ```luccet
 ::clock
@@ -1648,7 +1648,7 @@ luccet.define('clock', (el) => {
 
 - **Scripts in a note** run after it is rendered, in order, so they find the elements Luccet made. `document.write` and `DOMContentLoaded` listeners do not work in them; Luccet reports both.
 - **Key on `data-t`**, never on the tag: `:::chart` is a `div` today and may be a `section` tomorrow.
-- **Events.** `luccet.on('ready', fn)` runs after math is typeset; `luccet.on('math', fn)` after each round of typesetting.
+- **Events.** `luccet.on('ready', fn)` runs once the note is fully rendered; `luccet.on('math', fn)` after each render, once its formulas are in place.
 
 **Reference:** [schemas](schema.html#schema), [fields](schema.html#fields), [`window.LUCCET`](schema.html#window-luccet), [add-ons](schema.html#addons), [behaviours](schema.html#behaviours), [`luccet.define`](api.html#define), [the demo vocabulary](schema.html#demo-schema).
 
@@ -1764,7 +1764,7 @@ The aside and the formula are never closed.
 - **The command line.** `luccet check` prints them as `file:line:col: severity code: message`.
 - **The editor.** The language server reports them as you type.
 
-A few problems only the browser can see, such as an add-on that failed to load (`addon.failed`). They join the same list. A [math add-on](addons.html#katex) reports a formula it cannot parse to the console, not as a diagnostic, as the other add-ons do.
+A few problems only the browser can see, such as an add-on that failed to load (`addon.failed`). They join the same list. A formula whose TeX does not translate is not one of them: its `tex.*` diagnostic comes from the engine, so the command line and the editor report it too.
 
 **Reference:** [every diagnostic](diagnostics.html#top), [severity](diagnostics.html#severity), [the console and the panel](diagnostics.html#console-and-panel).
 
@@ -1825,7 +1825,7 @@ Turn off automatic line wrapping for notes, and never run an HTML formatter such
 luccet build notes/linear-maps.html -o site/
 ```
 
-It writes a page that is already rendered: the HTML is in the file, so it shows at once, and search engines read it without running scripts. The page still loads `luccet.js`, which runs behaviours, and it carries the note's source too; its math is typeset at view time only if the note's `data-use` includes a [math add-on](addons.html#katex). `--math=katex` (or `--math=mathml`) typesets the math at build time instead, when the `katex` (or `temml`) package is installed.
+It writes a page that is already rendered: the HTML is in the file, so it shows at once, and search engines read it without running scripts. The page still loads `luccet.js`, which runs behaviours, and it carries the note's source too. Its formulas are in the HTML as MathML, like the rest of the note.
 
 - **Where it writes.** Without `-o`, to standard output. `-o site/`, with a trailing `/` or naming an existing folder, writes `site/linear-maps.html`, creating the folder. Any other `-o` is the output file, and missing folders on its path are created.
 - **Relative paths** are kept as written, so build into a folder where `luccet.js`, images and add-ons resolve the same way.
@@ -1839,16 +1839,16 @@ A note is a static file. Publishing it means putting it, with `luccet.js` and wh
 1. **Keep paths relative.** Upload the note with `luccet.js`, add-ons and images in the same places relative to it.
 2. **Any static host works**, GitHub Pages included. There is no server code.
 3. **Or build it.** `luccet build` makes a page that shows its content before scripts run, which suits search engines and slow connections.
-4. **Math.** Load a [math add-on](addons.html#katex) in `:::use` or `data-use` to typeset formulas; `addons/katex.js` fetches KaTeX from a CDN. For offline use, point the add-on at a copy you host with `?base=`, or pre-render with `luccet build --math`.
+4. **Math needs nothing.** Luccet writes formulas as MathML itself, so a note with math works offline and under a strict policy, with no library to host or allow.
 5. **Content Security Policy.** Under a strict policy, link `luccet.css` from the head, so that Luccet does not need to inline its styles; the CSP section has the details.
 6. **Trust.** A note is a web page: its scripts and raw HTML run with the page's rights. Open notes you trust.
 
-**Reference:** [publishing](publishing.html#top): [hosting](publishing.html#hosting), [GitHub Pages](publishing.html#github-pages), [building](publishing.html#build), [CSP](publishing.html#csp), [KaTeX](publishing.html#katex), [offline](publishing.html#offline), [browsers](publishing.html#browsers), [trust](publishing.html#trust), [when it does not render](publishing.html#troubleshooting).
+**Reference:** [publishing](publishing.html#top): [hosting](publishing.html#hosting), [GitHub Pages](publishing.html#github-pages), [building](publishing.html#build), [CSP](publishing.html#csp), [math](publishing.html#katex), [offline](publishing.html#offline), [browsers](publishing.html#browsers), [trust](publishing.html#trust), [when it does not render](publishing.html#troubleshooting).
 
 ## Where next {#next}
 
 - **The examples** are complete notes, each declaring its own vocabulary: [a lecture](../examples/lecture.html), [a cheat sheet](../examples/cheatsheet.html), [media](../examples/media.html), [code](../examples/code.html), [a page layout](../examples/layout.html). Open their source next to the result.
-- **The reference** covers every rule and edge case: [blocks](syntax-blocks.html#top), [inline](syntax-inline.html#top), [elements and output](elements.html#top).
+- **The reference** covers every rule and edge case: [blocks](syntax-blocks.html#top), [inline](syntax-inline.html#top), [math](math.html#top), [elements and output](elements.html#top).
 - **Vocabulary** in depth: [schemas, add-ons and behaviours](schema.html#top).
 - **Every diagnostic**, with its fix: [diagnostics](diagnostics.html#top).
 - **Scripting** a note: [the JavaScript API](api.html#top).

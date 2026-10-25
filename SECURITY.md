@@ -7,7 +7,7 @@ Luccet renders documents with the full power of HTML, CSS and JavaScript, and a 
 - **The add-ons in `addons/`**: their options and the files they read (`search.json`, `notes.json`, `glossary.json`) must not let a page or a catalogue do more than the documentation says.
 - **The engine on hostile input**: a note that crashes or hangs the engine, the tools or the editor.
 
-Out of scope: what a note's own scripts do on their own page, and the libraries the add-ons load (KaTeX, Mermaid, highlight.js, Temml), which have their own policies; a vulnerability in one of them is fixed here by moving the pinned version.
+Out of scope: what a note's own scripts do on their own page, and the libraries the add-ons load (Mermaid, highlight.js), which have their own policies; a vulnerability in one of them is fixed here by moving the pinned version.
 
 ## Reporting
 

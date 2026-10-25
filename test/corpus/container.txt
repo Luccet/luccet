@@ -24,6 +24,7 @@ Body.
 ## container/schema-theorem
 
 spec: syntax-blocks#container elements#output-contract
+options: math=tex
 
 The first container example, with the fixture schema: a `<section>` whose title starts with the real-text label.
 
@@ -81,6 +82,7 @@ Text.
 ## container/title-math-atom
 
 spec: syntax-blocks#container
+options: math=tex
 
 The container-title example: math spans are atoms in a title, so `[See $f[x]$]` works.
 

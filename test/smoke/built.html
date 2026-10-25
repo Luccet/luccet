@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/test/smoke/built-addon.js /test/smoke/built-addon.css /addons/katex.js"></script>
+<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/test/smoke/built-addon.js /test/smoke/built-addon.css"></script>
 :::meta
 title: Smoke: a built page
 lang: en
@@ -7,7 +7,7 @@ lang: en
 <script>
   window.__log = [`script luccet=${typeof luccet}`];
   window.__script = (window.__script || 0) + 1;
-  luccet.define('box', (el) => { el.dataset.define = 'yes'; window.__log.push(`define katex=${document.querySelectorAll('main.luccet .t-math .katex').length}`); });
+  luccet.define('box', (el) => { el.dataset.define = 'yes'; window.__log.push(`define math=${document.querySelectorAll('main.luccet .t-math > math').length}`); });
   luccet.on('render', () => window.__log.push('render'));
   luccet.on('math', (root) => window.__log.push(`math ${root.localName}`));
   luccet.on('ready', () => window.__log.push('ready'));

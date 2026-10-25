@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Diagnostics · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Diagnostics · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: Every diagnostic Luccet reports: its severity, what triggers it, where it points, what happens to the content, the engine's message and hint, and the fix, each with a live example.
@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 54 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, `math.error` from `luccet build --math`, `diagram.error` from `luccet build --diagrams`, and `output.limit` from the emitter, wherever it runs.
+The first 62 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, `diagram.error` from `luccet build --diagrams`, and `output.limit` from the emitter, wherever it runs.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -50,6 +50,14 @@ The first 54 codes come from the parser and the transforms, so `luccet.check`, `
 | [`math.unclosed-inline`](#math-unclosed-inline) | warning | A `$` followed by TeX never closes. |
 | [`math.bracket`](#math-bracket) | warning | An interval in French notation is not math. |
 | [`math.suspect-price`](#math-suspect-price) | warning | A formula starts with a digit and holds words. |
+| [`tex.unknown`](#tex-unknown) | error | A formula uses a command Luccet does not know. |
+| [`tex.unsupported`](#tex-unsupported) | error | A formula uses a LaTeX command Luccet does not do. |
+| [`tex.unbalanced`](#tex-unbalanced) | error | A brace, `\left` or `\begin` in a formula is never closed, or closes nothing. |
+| [`tex.argument`](#tex-argument) | error | A command in a formula is missing an argument, or has one it cannot read. |
+| [`tex.script`](#tex-script) | error | A second superscript or subscript on the same base. |
+| [`tex.misplaced`](#tex-misplaced) | error | Something in a formula stands where it cannot: `&` or `\\` outside an environment. |
+| [`tex.macro`](#tex-macro) | error | A macro definition does not work. |
+| [`tex.limit`](#tex-limit) | error | A formula's macros expand without end, or its groups nest too deep. |
 | [`attr.malformed`](#attr-malformed) | warning | An attribute group does not parse, or a reserved key has a bad value. |
 | [`attributes.orphan`](#attributes-orphan) | warning | An attribute line has no block to attach to. |
 | [`attributes.raw`](#attributes-raw) | warning | An attribute line before raw HTML. |
@@ -87,7 +95,6 @@ The first 54 codes come from the parser and the transforms, so `luccet.check`, `
 | [`script.document-write`](#script-document-write) | error | A note script called `document.write`. |
 | [`script.domcontentloaded`](#script-domcontentloaded) | error | A note script listens for `DOMContentLoaded`. |
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
-| [`math.error`](#math-error) | warning | `luccet build --math` cannot pre-render a formula. |
 | [`diagram.error`](#diagram-error) | warning | `luccet build --diagrams` cannot draw a diagram. |
 | [`output.limit`](#output-limit) | error | The note's HTML is longer than the emitter's budget and was cut short. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
@@ -132,7 +139,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)): each code 
 | `warning` | kept | Everything you wrote reaches the page, as text or with an attribute not applied, which is probably not what you meant. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 | `info` | hint | The page is what you meant. | [`footnote.unused`](#footnote-unused): a definition nothing refers to is still shown, after the others. |
 
-The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 54 parser and transform codes, 12 are errors, 37 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling`, `math.error` and `diagram.error` are warnings.
+The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 62 parser and transform codes, 20 are errors, 37 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `output.limit` is an error, `addon.remote` is an info, and `link.dangling` and `diagram.error` are warnings.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -1028,7 +1035,7 @@ A Box<A> holds a Vec<T>.
 
 ## Math {#math}
 
-These concern [display math](syntax-blocks.html#display-math), [inline math](syntax-inline.html#inline-math) and [verbatim math](syntax-inline.html#verbatim-math). A formula a [math add-on](addons.html#katex) cannot parse is a console warning, not a diagnostic; `luccet build --math` reports one it cannot pre-render as [`math.error`](#math-error).
+These concern [display math](syntax-blocks.html#display-math), [inline math](syntax-inline.html#inline-math) and [verbatim math](syntax-inline.html#verbatim-math): where a formula starts and ends. The TeX inside a formula has codes of its own, [`tex.*`](#tex).
 
 ### `math.unclosed` {#math-unclosed}
 
@@ -1073,7 +1080,7 @@ A note.
 
 The [third likely mistake](#three-mistakes) shows the blank-line case.
 
-**Related.** [`math.closer-tail`](#math-closer-tail), [`math.opener-tail`](#math-opener-tail), [`math.inline-display`](#math-inline-display), [`math.error`](#math-error).
+**Related.** [`math.closer-tail`](#math-closer-tail), [`math.opener-tail`](#math-opener-tail), [`math.inline-display`](#math-inline-display).
 
 ### `math.opener-tail` {#math-opener-tail}
 
@@ -1081,10 +1088,10 @@ The [third likely mistake](#three-mistakes) shows the blank-line case.
 
 - **Trigger.** A multi-line `$$` whose opening line holds, after `$$`, a strong group starting with `#` or `.`.
 - **Position.** The group.
-- **Content.** The group is not attributes: it stays in the TeX, as its first line. The equation gets no id and no number. In the browser, a group with a `#` makes KaTeX reject the formula ([`math.error`](#math-error)); a group of classes is typeset as letters.
+- **Content.** The group is not attributes: it stays in the TeX, as its first line. The equation gets no id and no number. A group with a `#` makes the formula [`tex.misplaced`](#tex-misplaced) as well, so it is shown as its TeX; a group of classes is TeX letters, shown in the formula.
 - **Hint.** Attributes go after the closing `$$`.
 
-```luccet {.live expect="math.opener-tail"}
+```luccet {.live expect="math.opener-tail tex.misplaced"}
 $$ {#eq-pythagoras}
 a^2 + b^2 = c^2
 $$
@@ -1095,6 +1102,8 @@ The engine reports `math.opener-tail` (error) at 1:4:
 - **Message:** ``a group on the opening `$$` line is TeX, not attributes``
 - **Hint:** `` attributes go after the closing `$$`: `$$ {#eq}` ``
 
+and, for the `#` in the TeX, [`tex.misplaced`](#tex-misplaced) (error) at 1:5.
+
 **Fix.** Move the group after the closing `$$`:
 
 ```luccet {.live}
@@ -1103,7 +1112,7 @@ a^2 + b^2 = c^2
 $$ {#eq-pythagoras}
 ```
 
-**Related.** [`math.closer-tail`](#math-closer-tail), [`attributes.orphan`](#attributes-orphan).
+**Related.** [`math.closer-tail`](#math-closer-tail), [`attributes.orphan`](#attributes-orphan), [`tex.misplaced`](#tex-misplaced).
 
 ### `math.closer-tail` {#math-closer-tail}
 
@@ -1248,7 +1257,7 @@ The interval $`]0,1[` is open.
 
 - **Trigger.** An inline-math span whose opener is followed by a digit, and that holds a run of three or more ASCII letters preceded by whitespace, which is neither a TeX control word nor inside a braced argument that directly follows a control word: `\text{…}`, `\mbox{…}`, `\operatorname{…}`, both arguments of `\frac{…}{…}`, and so on. It catches a price that found a later `$`.
 - **Position.** The opening `$`.
-- **Content.** Math, as written: the span is typeset.
+- **Content.** Math, as written: the span is a formula.
 
 ```luccet {.live expect="math.suspect-price"}
 Costs $5 then x$ more.
@@ -1272,6 +1281,232 @@ Pay $5 \text{ per item}$, or $3 \frac{apples}{day}$.
 ```
 
 **Related.** [`math.unclosed-inline`](#math-unclosed-inline), [`math.bracket`](#math-bracket).
+
+## Inside a formula {#tex}
+
+Luccet turns each formula's TeX into MathML itself ([Math](math.html)). When a formula's TeX does not translate, the formula is shown as its TeX, marked as an error, and one of these codes points at the command at fault: the first problem in the formula, at its line and column. The rest of the note is not affected.
+
+### `tex.unknown` {#tex-unknown}
+
+**Error.** A formula uses a command Luccet does not know.
+
+- **Trigger.** A command that is not one of Luccet's ([the commands](math.html#commands)), not a macro of the note's and not a known LaTeX command Luccet leaves out (that is [`tex.unsupported`](#tex-unsupported)). Usually a typo.
+- **Position.** The command.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.unknown"}
+The angle is $\thetha$.
+```
+
+The engine reports `tex.unknown` (error) at 1:15:
+
+- **Message:** `\thetha is not a command Luccet knows`
+- **Hint:** ``did you mean `\theta`? Or define it in a :::macros block``
+
+**Fix.** Correct the spelling, or define the command as a [macro](math.html#macros):
+
+```luccet {.live}
+The angle is $\theta$.
+```
+
+**Related.** [`tex.unsupported`](#tex-unsupported), [`tex.macro`](#tex-macro).
+
+### `tex.unsupported` {#tex-unsupported}
+
+**Error.** A formula uses a LaTeX command that Luccet does not do.
+
+- **Trigger.** A command Luccet knows of and leaves out ([what is left out](math.html#unsupported)): equation tags and labels, which Luccet does its own way; links, images and HTML attributes, which a formula never writes; chemistry; and a few rare commands.
+- **Position.** The command.
+- **Content.** Changed: the formula is shown as its TeX.
+
+````luccet {.live expect="tex.unsupported"}
+$$
+E = mc^2 \tag{1}
+$$
+````
+
+The engine reports `tex.unsupported` (error) at 2:10:
+
+- **Message:** `\tag is not supported`
+- **Hint:** ``number and refer to equations the Luccet way: an id after the closing `$$`, as `$$ {#eq-name}`, and `@eq-name` in the text``
+
+**Fix.** Follow the hint. For an equation number, give the equation an id:
+
+````luccet {.live}
+$$
+E = mc^2
+$$ {#eq-energy}
+
+By @eq-energy, mass is energy.
+````
+
+**Related.** [`tex.unknown`](#tex-unknown), [equation numbers](elements.html#numbering).
+
+### `tex.unbalanced` {#tex-unbalanced}
+
+**Error.** A brace, a `\left` or a `\begin` in a formula is never closed, or something closes what was never opened.
+
+- **Trigger.** A `{` without its `}`, or a `}` that closes nothing; `\left` without `\right`, or `\right` without `\left`; `\begin{…}` without its `\end{…}`, or ending with another environment's `\end`.
+- **Position.** The opener that is never closed, or the closer that closes nothing.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.unbalanced"}
+Half of it is $\frac{a}{b$.
+```
+
+The engine reports `tex.unbalanced` (error) at 1:24:
+
+- **Message:** ``this `{` is never closed``
+- **Hint:** ``add the `}` that closes it``
+
+**Fix.** Close it:
+
+```luccet {.live}
+Half of it is $\frac{a}{b}$.
+```
+
+**Related.** [`tex.argument`](#tex-argument).
+
+### `tex.argument` {#tex-argument}
+
+**Error.** A command in a formula is missing an argument, or has one it cannot read.
+
+- **Trigger.** A command that takes arguments and the formula ends, or a group closes, before them (`\frac{1}`); a colour that is not a CSS colour name or a hex colour; a length without a unit; a delimiter after `\left` that is not one; an `array` column that is not `l`, `c`, `r` or `|`.
+- **Position.** The command.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.argument"}
+A ratio $\frac{1}$ alone.
+```
+
+The engine reports `tex.argument` (error) at 1:10:
+
+- **Message:** `the denominator of \frac is missing`
+- **Hint:** ``give it in braces, as `{…}` ``
+
+**Fix.** Give every argument, each in braces:
+
+```luccet {.live}
+A ratio $\frac{1}{2}$ alone.
+```
+
+**Related.** [`tex.unbalanced`](#tex-unbalanced).
+
+### `tex.script` {#tex-script}
+
+**Error.** A base has a second superscript, a second subscript, or a prime after its superscript.
+
+- **Trigger.** `x^a^b`, `x_a_b`, `f^2'`: TeX gives a base one superscript and one subscript.
+- **Position.** The second `^` or `_`, or the prime.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.script"}
+Not $x^2^3$ but this.
+```
+
+The engine reports `tex.script` (error) at 1:9:
+
+- **Message:** `a second superscript`
+- **Hint:** ``write `x^{ab}` for one superscript, or `{x^a}^b` for a superscript on a superscript``
+
+**Fix.** Group what you mean:
+
+```luccet {.live}
+Not $x^{23}$ but $\left(x^2\right)^3$.
+```
+
+**Related.** [scripts and primes](math.html#scripts).
+
+### `tex.misplaced` {#tex-misplaced}
+
+**Error.** Something in a formula stands where it cannot.
+
+- **Trigger.** `&` or `\\` outside an environment; `#` outside a macro definition; `$` inside a formula; `\middle` outside `\left` … `\right`; `\limits` after something that is not an operator; a text-only command such as `\textbackslash` in math; `^` or `_` in `\text{…}`; an environment for display math, such as `align*`, in an inline formula.
+- **Position.** What is misplaced.
+- **Content.** Changed: the formula is shown as its TeX.
+
+````luccet {.live expect="tex.misplaced"}
+$$
+a &= b \\
+  &= c
+$$
+````
+
+The engine reports `tex.misplaced` (error) at 2:3:
+
+- **Message:** `` `&` outside an environment ``
+- **Hint:** ``to align lines, put them in `\begin{aligned}` … `\end{aligned}`; for an ampersand write `\&` ``
+
+**Fix.** Put aligned lines in `aligned`, and write a literal `&` as `\&`:
+
+````luccet {.live}
+$$
+\begin{aligned}
+a &= b \\
+  &= c
+\end{aligned}
+$$
+````
+
+**Related.** [environments](math.html#environments).
+
+### `tex.macro` {#tex-macro}
+
+**Error.** A macro definition does not work.
+
+- **Trigger.** `\newcommand` for a command that already exists (use `\renewcommand`), or `\renewcommand` for one that does not; a definition with no name or no body; `#3` in a macro of two parameters; `\def` with delimited parameters; a page macro in `window.LUCCET.macros` that is not a name and a body.
+- **Position.** The macro's name, in the `:::macros` block or the formula that defines it.
+- **Content.** Changed: the definition is not made, and the formulas that use it fail or use the command's own meaning.
+
+````luccet {.live expect="tex.macro"}
+:::macros
+\newcommand{\sin}{s}
+:::
+
+Then $\sin x$.
+````
+
+The engine reports `tex.macro` (error) at 2:13:
+
+- **Message:** `in this :::macros block, \sin is already defined`
+- **Hint:** `use \renewcommand to redefine it`
+
+**Fix.** Choose a new name, or redefine the command on purpose with `\renewcommand`:
+
+````luccet {.live}
+:::macros
+\newcommand{\sn}{\operatorname{sn}}
+:::
+
+Then $\sn x$.
+````
+
+**Related.** [macros](math.html#macros), [`tex.limit`](#tex-limit).
+
+### `tex.limit` {#tex-limit}
+
+**Error.** A formula's macros expand without end, or its groups nest too deep.
+
+- **Trigger.** Macros expanded more than 10,000 times in one formula, or grown past 200,000 tokens, as a macro that uses itself does; groups nested more than 100 deep.
+- **Position.** The macro that went over the limit, or the group.
+- **Content.** Changed: the formula is shown as its TeX. The limit keeps the page from hanging.
+
+````luccet {.live expect="tex.limit"}
+:::macros
+\gdef\again{\again}
+:::
+
+Then $\again$.
+````
+
+The engine reports `tex.limit` (error) at 5:7:
+
+- **Message:** `macros were expanded more than 10000 times in this formula`
+- **Hint:** `a macro that uses itself never ends: check its definition`
+
+**Fix.** Give the macro a body that ends.
+
+**Related.** [`tex.macro`](#tex-macro).
 
 ## Attributes {#attributes}
 
@@ -2259,7 +2494,7 @@ These concern how a name becomes an element: [names](elements.html#names), [allo
 Some text first.
 
 :::use
-addons/katex.js
+addons/code.js
 :::
 ```
 
@@ -2272,7 +2507,7 @@ The engine reports `use.late` (error) at 3:1:
 
 ```luccet {.live}
 :::use
-addons/katex.js
+addons/code.js
 :::
 
 Some text first.
@@ -2651,7 +2886,7 @@ The engine reports `ref.unreferenceable` (warning) at 1:12:
 
 The browser reports these while it renders a note, after parsing. A live example cannot produce them, so their examples below are plain source. All four are errors. Each appears in the console, in the panel when it shows, and in `luccet.diagnostics`, and each is passed to `luccet.on('diagnostic', fn)` ([the lifecycle](api.html#lifecycle)).
 
-The engine renders no math itself, so a formula a [math add-on](addons.html#katex) cannot parse, or a library the add-on cannot load, is reported by that add-on to the console, not as a diagnostic — as the Mermaid and code add-ons report their own failures. The one math code that remains is [`math.error`](#math-error), a `luccet build --math` build warning.
+A formula that does not translate is not among them: the engine translates the math, so its [`tex.*`](#tex) codes come from the parser and the transforms, and `luccet check` and your editor report them too. A library an add-on cannot load is reported by that add-on to the console, not as a diagnostic, as the Mermaid and code add-ons do.
 
 ### `addon.failed` {#addon-failed}
 
@@ -2813,26 +3048,6 @@ The panel shows:
 
 ## Command line and editors {#tools-codes}
 
-### `math.error` {#math-error}
-
-**Warning.** `luccet build --math` cannot pre-render a formula.
-
-- **Trigger.** With `--math=katex` (KaTeX) or `--math=mathml` (Temml), the pre-renderer rejects the TeX of an inline or display formula, or of a `:::macros` block ([pre-rendered math](tools.html#build-katex)). Luccet passes TeX to the library unchanged, so this is a TeX error, not a Luccet one.
-- **Position.** The formula's start, from its element's `data-pos`: the `$` of inline math, the line of a display block's opening `$$`, or a `:::macros` block's opener.
-- **Content.** The formula is left as its TeX in the built page; the build pre-renders every other formula and still writes the page. It renders at view time only if the note's `data-use` loads a [math add-on](addons.html#katex).
-- **Where.** `luccet build` only. At runtime the engine renders no math, so a math add-on reports a formula it cannot parse to the console instead ([Runtime](#runtime)).
-
-```sh
-$ luccet build notes/bad.html --math=katex
-notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so luccet.js will: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \frac{a}
-```
-
-A `:::macros` block that does not parse reads `the :::macros block does not parse: ` followed by the library's message. With `--math=mathml`, Temml's message reads `Temml cannot render this formula, so it stays as its TeX source: ` and the reason.
-
-**Fix.** Correct the TeX, such as `$\frac{a}{b}$`, or leave the formula to a math add-on in the browser.
-
-**Related.** [`math.opener-tail`](#math-opener-tail), [`addon.failed`](#addon-failed).
-
 ### `diagram.error` {#diagram-error}
 
 **Warning.** `luccet build --diagrams` cannot draw a diagram.
@@ -2851,7 +3066,7 @@ A fence that was not drawn in time reads `this diagram was not drawn in time, so
 
 **Fix.** Correct the diagram, or leave it to the add-on in the browser.
 
-**Related.** [`math.error`](#math-error), [`addon.failed`](#addon-failed).
+**Related.** [`addon.failed`](#addon-failed).
 
 ### `output.limit` {#output-limit}
 

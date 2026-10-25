@@ -42,7 +42,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: node_modules/.cache/luccet-smoke
-          key: luccet-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+          key: luccet-smoke-${{ hashFiles('addons/code.js', 'addons/mermaid.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright

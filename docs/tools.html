@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Command line and editors · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Command line and editors · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: The luccet command line (new, check, parse, build, mv, corpus), the language server, its luccet/outline notification and the language module editors can embed, editor setup for Neovim, VS Code and Helix, a skill for coding agents, and the note-detection rule editors share.
@@ -531,18 +531,17 @@ The node types and their fields are on [The AST](api.html#ast).
 
 ## luccet build {#build}
 
-`luccet build` turns a note into a static page: the same HTML the browser would mount, already in the file. The page still loads `luccet.js`, which adds what HTML alone cannot: behaviours, math, the diagnostics panel, copy and print handling. When to use it, and when not to, is on [Publishing](publishing.html#build).
+`luccet build` turns a note into a static page: the same HTML the browser would mount, already in the file. The page still loads `luccet.js`, which adds what HTML alone cannot: behaviours, the diagnostics panel, copy and print handling. Its formulas are already MathML, like the rest of the HTML. When to use it, and when not to, is on [Publishing](publishing.html#build).
 
 :::syntax[luccet build]
 ```sh
-luccet build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]
+luccet build FILE… [-o OUT] [--diagrams] [--json] [--no-scripts]
 ```
 :::
 
 | Option | What it does |
 |---|---|
 | `-o OUT`, `--output=OUT` | Where to write the page. Without it, or with `-o -`, the page goes to stdout. When `OUT` ends with `/`, or is an existing folder, the page is written into that folder under the note's file name, and the folder is created if needed. Any other `OUT` is the page's file name, and missing folders on its path are created. `OUT` may not be the note itself. |
-| `--math katex|mathml` | Pre-renders the math: `katex` to typeset HTML with the `katex` package, `mathml` to native MathML with the `temml` package. `--katex` is short for `--math katex`. See [pre-rendered math](#build-katex). |
 | `--diagrams` | Draws the `mermaid` fences into the page, in a headless Chromium through the `playwright` package. See [diagrams drawn ahead](#build-diagrams). It opens the note in that browser, where its head scripts and add-ons run, so it cannot be combined with `--no-scripts`. |
 | `--json` | Prints one JSON object on stdout instead of the page: see [--json](#build-json). |
 | `--no-scripts` | Builds without running the note's head scripts and add-ons ([Running a note's code](#sandbox)): the page still loads `luccet.js`, but the note's own vocabulary is not applied to the pre-rendered HTML. Refused together with `--diagrams`, which runs them in a browser. |
@@ -580,16 +579,16 @@ luccet build: wrote dist/maps.html; 2 formulas
   ```sh
   luccet build: the add-on https://cdn.example/remote.js is not loaded under node, so the page uses its names without its schema
   ```
-- **Not a note**, `-o` naming the note itself, a missing file: exit 2.
-- The last line says how many formulas the page has, and with `--math` how many were pre-rendered, and as what.
+- **Not a note**, `-o` naming the note itself, a missing file: exit 2. So is `--math` or `--katex`, from Luccet 1: since 2.0 every formula is MathML, with nothing to pre-render ([math on a built page](#build-katex)).
+- The last line says how many formulas the page has.
 
 ### --json {#build-json}
 
-`--json` prints one object on stdout, and an array of them, one per note, for several notes: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, `prerendered`, `engine`: `"katex"`, `"mathml"` or `null`), `warnings` (the `luccet build:` notes, as strings), `diagnostics` (the note's, as [`luccet check --json`](#check-json) gives them, `math.error` among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
+`--json` prints one object on stdout, and an array of them, one per note, for several notes: `file`, `out` (the page's path, or `null` without `-o`), `math` (`total`, the number of formulas), `warnings` (the `luccet build:` notes, as strings), `diagnostics` (the note's, as [`luccet check --json`](#check-json) gives them, a formula's [`tex.*`](diagnostics.html#tex) among them), and, without `-o`, `html`, the page itself. With `-o` the page is written as usual. The lines still go to stderr, so a tool reads one JSON document and a person still sees what happened:
 
 ```sh
 $ luccet build notes/maps.html --json | jq '{out, math, warnings, diagnostics: (.diagnostics | length)}'
-{ "out": null, "math": { "total": 2, "prerendered": 0, "engine": null }, "warnings": [], "diagnostics": 1 }
+{ "out": null, "math": { "total": 2 }, "warnings": [], "diagnostics": 1 }
 ```
 
 ### The built page {#built-page}
@@ -609,7 +608,7 @@ The page `luccet build` writes has these parts, in order. This is `dist/maps.htm
 <meta name="color-scheme" content="light dark">
 <script data-built src="../luccet.js" data-use="theorems.js"></script><script src="theorems.js"></script>
 <main class="luccet"><h1 id="linear-maps">Linear maps</h1>
-<section id="rn" class="t-block theorem" data-t="theorem" data-pos="9:1"><div class="t-title"><span class="t-label">Theorem 1</span> Rank–nullity</div><p>For <span class="t-math" data-pos="10:5">f : V \to W</span>, …</p>
+<section id="rn" class="t-block theorem" data-t="theorem" data-pos="9:1"><div class="t-title"><span class="t-label">Theorem 1</span> Rank–nullity</div><p>For <span class="t-math" data-pos="10:5" data-tex="f : V \to W"><math><mi>f</mi>…</math></span>, …</p>
 </section>
 <p>See <a class="t-ref" href="#rn">Theorem 1</a> and @nowhere.</p>
 </main>
@@ -628,12 +627,11 @@ title: Linear maps
    ```
 2. **`:::meta`, written statically**, as the browser would write it at mount: `<title>`; `lang` and `dir` on `<html>` (into its tag, or a new `<html>` tag after the doctype); a `<meta name>` for every other key. A key the head already sets is left alone. Then a viewport meta and a `color-scheme` meta, unless the head has them.
 3. **Luccet's stylesheets**, in the order the runtime uses, placed before the head's first stylesheet of your own, so yours win:
-   - KaTeX's CSS, when math was pre-rendered;
    - the base: luccet.css inlined as `<style id="luccet-style">`. If the head links `luccet.css` (or the `data-css` URL), that link is the base and stays where it is; `data-css` without such a link becomes a `<link>`;
    - each CSS add-on of `data-use` and of the `:::use` block, as a `<link>`, not inlined, so its relative `url()`s keep working;
    - with `data-nonce`, each of them carries the nonce, and so do the script add-on tags. The `luccet.js` tag is kept as written: give it a `nonce` yourself if your policy needs one.
-4. **The `luccet.js` tag**, as written plus `data-built` (always just `data-built`, with no value). When the note has a [`:::use` block](syntax-blocks.html#use), its entries are merged into the tag's `data-use`, after the tag's own: the block emits nothing, and `luccet.js` on a built page reads the tag alone. Anything after the tag on its line, such as a [guard](#guarded), is dropped. Then each script add-on, as a static `<script src>` tag, in order. Both run before the body is parsed, so the note's own scripts find `luccet` and the add-ons' globals, as after a mount. A formula the build did not pre-render typesets at view time only if `data-use` lists a [math add-on](addons.html#katex).
-5. **`<main class="luccet">`** holding the emitted HTML, exactly what `luccet.toHTML` returns for the note, with its vocabulary and head. So the page has its layout before any script runs.
+4. **The `luccet.js` tag**, as written plus `data-built` (always just `data-built`, with no value). When the note has a [`:::use` block](syntax-blocks.html#use), its entries are merged into the tag's `data-use`, after the tag's own: the block emits nothing, and `luccet.js` on a built page reads the tag alone. Anything after the tag on its line, such as a [guard](#guarded), is dropped. Then each script add-on, as a static `<script src>` tag, in order. Both run before the body is parsed, so the note's own scripts find `luccet` and the add-ons' globals, as after a mount.
+5. **`<main class="luccet">`** holding the emitted HTML, exactly what `luccet.toHTML` returns for the note, with its vocabulary and head, its formulas as MathML. So the page has its layout before any script runs.
 6. **The note's source**, in `<script type="text/luccet" id="luccet-source" data-line="N">`, where `N` is the number of file lines before the note. See [The source kept](#build-source).
 7. **The diagnostics**, when there are any, in `<script type="application/json" id="luccet-diagnostics">`: the parse and transform diagnostics, at note positions, as JSON with each `<` written `\u003c`.
 
@@ -645,58 +643,27 @@ The page keeps the note so that `luccet.js` can position problems it finds on th
 
 Script contents cannot hold `</script` or `<!--`, so the build adds one backslash after the `<` of each, and of each such run already escaped: `</script` becomes `<\/script`, `<\/script` becomes `<\\/script`, and so on. Removing one backslash after each `<` gives the note back exactly. `luccet.js` does that on the page, and `cli/build.js` exports it as `decodeSource`.
 
-### Pre-rendered math {#build-katex}
+### Math on a built page {#build-katex}
 
-`--math` renders the formulas at build time, so the page shows its math without loading a typesetting script. `--math katex` (or just `--katex`) uses KaTeX; `--math mathml` uses Temml for native MathML ([below](#build-mathml)). Both are opt-in, so the output never depends on what happens to be installed.
+The engine writes each formula as MathML, so a built page holds its math like the rest of its HTML: it shows with scripts off, and fetches no script, stylesheet or font for it. Each formula is a `span.t-math` with its TeX in `data-tex`, for copying; formulas in a `::toc` entry are MathML too. The MathML carries no `style` attributes, and its rules are in luccet.css, so it adds nothing a strict [Content-Security-Policy](publishing.html#csp-built) blocks. The browser lays it out with the reader's math font ([fonts and browsers](math.html#browsers)).
 
-```sh
-$ luccet build notes/maps.html --katex -o dist/
-…
-luccet build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as HTML
-```
-
-- **Left to the browser without it.** Without `--math`, formulas are kept as TeX. The engine renders no math itself, so they typeset at view time only when the note's `data-use` loads a [math add-on](addons.html#katex); otherwise they stay as TeX.
-- **The package.** `katex` is not a dependency of Luccet. The build loads it from where Node would find it for `luccet-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder. Install it with `npm install katex` in one of those. When it cannot be loaded, the build says so and leaves the formulas to `luccet.js`:
+- **A formula whose TeX does not translate** is written as its TeX, marked `t-error`, and its [`tex.*` diagnostic](diagnostics.html#tex) is printed and stored in the page with the note's others.
+- **`--math` and `--katex`**, which pre-rendered with KaTeX or Temml in Luccet 1, are gone: the build refuses them, with exit 2.
 
   ```sh
-  luccet build: the katex package cannot be required (npm install katex); formulas are left to luccet.js
+  $ luccet build notes/maps.html --katex
+  luccet build: --katex is gone: since 2.0 every formula is MathML, written by the engine, with nothing to pre-render
+  usage: luccet build FILE… [-o OUT] [--diagrams] [--json] [--no-scripts]
   ```
-- **As the add-on does it.** Every `:::macros` body is read first, into one table of macros, then each formula is rendered with errors thrown. Other KaTeX options are KaTeX's defaults: `window.LUCCET.use.katex` is not read by the build.
-- **A formula KaTeX rejects** is left as TeX, and the build prints a `math.error` warning:
+- **`data-katex`** on the tag is not read since 2.0; the build says so with a warning:
 
   ```sh
-  notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so luccet.js will: KaTeX parse error: Expected '\right', got 'EOF' at end of input: \left( x
-  luccet build: wrote the page; 2 formulas, 1 pre-rendered
+  luccet build: data-katex on the luccet.js tag is not read since 2.0, when math became built in: remove it
   ```
-- **`data-katex`** on the tag is not read since 2.0: the build says so with a warning. Name KaTeX's folder with `?base=` on the add-on instead.
-- **The output.** Each pre-rendered `span.t-math` gets `data-tex` (its TeX, for copying) and KaTeX's HTML and MathML. Formulas in a `::toc` entry are pre-rendered too.
-- **The stylesheet.** The page links `katex.min.css` from jsDelivr at the installed package's version, with a Subresource Integrity hash computed from the package's own copy (for KaTeX 0.19.0, the same hash the [`katex.js` add-on](addons.html#katex) pins). When the note gives the add-on a folder, `addons/katex.js?base=BASE` in `data-use` or `:::use`, it links `BASE/katex.min.css` instead, with no hash, as the add-on would.
-- **Runtime fallback.** The built tag is always just `data-built`. A formula left as TeX renders at view time only if `data-use` lists a math add-on; a page whose formulas were all pre-rendered loads no KaTeX library, even if it lists the add-on — the add-on finds them typeset and fetches nothing, not even for `:::macros`.
-
-:::warning
-Pre-rendered KaTeX output carries `style` attributes. A page served with a strict Content-Security-Policy blocks them, and the math loses its layout. For strict policies, `--math mathml` ([below](#build-mathml)) is a better fit. See [Publishing: CSP](publishing.html#csp).
-:::
-
-### MathML, self-contained {#build-mathml}
-
-With `--math mathml`, formulas are rendered to native MathML with [Temml](addons.html#mathml), and since the engine renders no math itself, a published note shows its math with no script, no stylesheet and no font to fetch.
-
-```sh
-$ luccet build notes/maps.html --math mathml -o dist/
-…
-luccet build: wrote dist/maps.html; 2 formulas, 2 pre-rendered as MathML
-```
-
-- **The package.** `temml` is not a dependency of Luccet; the build finds it as it finds `katex` (above). When it cannot be loaded, the build says so and leaves the formulas to `luccet.js`.
-- **Self-contained.** The build inlines Temml's small stylesheet as `<style id="luccet-temml-style">`, with its one font embedded as a `data:` URL, so the page fetches nothing for its math. Native MathML is drawn with the browser's math fonts.
-- **No math script.** The MathML is in the page, and the engine renders no math itself, so the page loads no typesetting library. (Leave a math add-on out of `data-use`; the pre-rendered formulas need none.)
-- **The output.** Each pre-rendered `span.t-math` gets `data-tex` (its TeX, for copying) and a `<math>` element whose TeX is kept in an `<annotation>`. Formulas in a `::toc` entry are pre-rendered too.
-- **A formula Temml rejects** stays as its TeX source — the engine renders no math — and the build prints a `math.error` warning.
-- **A strict CSP.** The inlined stylesheet carries the page's [`data-nonce`](publishing.html#csp), so it applies under a policy without `'unsafe-inline'`, and native MathML needs little more; display math keeps a single `style="display:block math"` that such a policy blocks, which the stylesheet already covers. So the math renders where pre-rendered KaTeX would not.
 
 ### Diagrams drawn ahead {#build-diagrams}
 
-`--diagrams` draws the note's [`mermaid` fences](addons.html#mermaid) at build time, so the page shows its diagrams without loading Mermaid, with scripts off, and in print. Opt-in, like `--math`.
+`--diagrams` draws the note's [`mermaid` fences](addons.html#mermaid) at build time, so the page shows its diagrams without loading Mermaid, with scripts off, and in print. It is opt-in, so the output never depends on what happens to be installed.
 
 ```sh
 $ luccet build notes/flow.html --diagrams -o dist/
@@ -705,7 +672,7 @@ luccet build: wrote dist/flow.html; 0 formulas; 3 diagrams, 3 drawn ahead with M
 ```
 
 - **How.** The build opens the note itself in a headless Chromium and lets the [Mermaid add-on](addons.html#mermaid) draw, so the drawings are exactly the browser's: the page's palette, the print copy, the ids. The note's `luccet.js` and add-ons must resolve from the note's folder, as they do when the note is opened in a browser. The page is read in the light scheme and in the dark one: a theme that follows the system gives each diagram two copies, a theme with one palette gives one; a print copy comes with them.
-- **The browser.** `playwright` is not a dependency of Luccet. The build loads it as it loads `katex`: from where Node finds it for `luccet-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder; its Chromium must be installed (`npm install playwright && npx playwright install chromium`). Without it the build says so and leaves the diagrams to the page.
+- **The browser.** `playwright` is not a dependency of Luccet. The build loads it from where Node finds it for `luccet-cli.js` (including `NODE_PATH`), then from the note's folder, then from the current folder; its Chromium must be installed (`npm install playwright && npx playwright install chromium`). Without it the build says so and leaves the diagrams to the page.
 - **Mermaid.** The pinned version is handed to the page from the add-on's `?base=` folder when the note names one ([luccet vendor](#vendor)), else from a `mermaid` package Node can find, else from the copy `tools/mermaid.js` keeps under `node_modules/.cache`. Failing those, the page fetches it from jsDelivr as it would for a reader, which needs the network. The summary says where it came from.
 - **The output.** Each drawn fence becomes the add-on's element, `<div class="t-mermaid">`, with the fence's id and `data-pos`: the copies as `<svg class="t-mermaid-screen t-mermaid-light">` and `t-mermaid-dark` (or `t-mermaid-screen` alone for one palette), the print copy as `t-mermaid-print`, each marked with its palette in `data-palette`, then the fence, hidden. A small stylesheet, `<style id="luccet-mermaid-style">`, shows the copy for the reader's scheme and the print copy in print. A listing keeps its figure and caption.
 - **On the page**, the add-on adopts the drawings: it shows the copy for the palette in effect and asks for Mermaid only for a palette that has no copy, such as a theme a page script switches in and announces with [`luccet:theme`](addons.html#mermaid-colours); then it draws afresh and the kept copies go. A page whose diagrams were all drawn loads no Mermaid.
@@ -721,8 +688,8 @@ A drawn diagram carries `style` attributes and `<style>` elements, as Mermaid wr
 
 `luccet.js` sees `data-built` on its own tag and skips what a note needs: it does not capture the file, mount, or re-create the note's scripts. Instead:
 
-- **At once**, it reads its configuration from the tag and `window.LUCCET`, adopts the stylesheets in the head as its own (so `luccet.style` sheets of an add-on land in that add-on's place), and starts noting add-on scripts that fail to load or throw while they run. It requests no math library itself; a [math add-on](addons.html#katex) in `data-use` does, when it meets a formula the build left as TeX, and the [Mermaid add-on](addons.html#mermaid) asks for Mermaid only for a fence the build did not draw ([--diagrams](#build-diagrams)).
-- **When the page is parsed**, it applies `window.LUCCET.schema`, reads the source and its `data-line`, loads the build's diagnostics, adds an `addon.failed` for each script add-on that failed to load or threw, then runs the behaviours, fires `render` (a math add-on typesets the formulas the build did not pre-render), fires `math`, scrolls to the URL's fragment, prints the console group (whose first line says "a built page") and fires `ready`.
+- **At once**, it reads its configuration from the tag and `window.LUCCET`, adopts the stylesheets in the head as its own (so `luccet.style` sheets of an add-on land in that add-on's place), and starts noting add-on scripts that fail to load or throw while they run. The formulas are already MathML, so nothing is fetched for math, and the [Mermaid add-on](addons.html#mermaid) asks for Mermaid only for a fence the build did not draw ([--diagrams](#build-diagrams)).
+- **When the page is parsed**, it applies `window.LUCCET.schema`, reads the source and its `data-line`, loads the build's diagnostics, adds an `addon.failed` for each script add-on that failed to load or threw, then runs the behaviours, fires `render`, fires `math`, scrolls to the URL's fragment, prints the console group (whose first line says "a built page") and fires `ready`.
 - Copy, print and the opening of `<details>` behave as on a note.
 
 How a built page differs from a note:
@@ -958,44 +925,43 @@ In a workflow, `luccet index --check` fails the build when the files are stale. 
 
 ## luccet vendor {#vendor}
 
-`luccet vendor` writes the local copies that the add-ons' `?base=` option takes ([a copy of your own](addons.html#katex-loading)), from the packages the add-ons pin, for notes that must work offline or under a policy that allows no CDN.
+`luccet vendor` writes the local copies that the `?base=` option of the [code highlighting](addons.html#code-loading) and [Mermaid](addons.html#mermaid-loading) add-ons takes, from the packages the add-ons pin, for notes that must work offline or under a policy that allows no CDN. Math needs no copy: the engine writes it as MathML, with nothing to fetch ([Math](math.html#top)).
 
 :::syntax[luccet vendor]
 ```sh
-luccet vendor DIR [--katex] [--code] [--mermaid] [--mathml]
+luccet vendor DIR [--code] [--mermaid]
 ```
 :::
 
 ```sh
-$ luccet vendor vendor --katex --mathml
-vendor/katex/fonts/KaTeX_AMS-Regular.ttf
+$ luccet vendor vendor
+vendor/highlight/highlight.min.js
+vendor/highlight/languages/1c.min.js
 …
-vendor/katex/katex.min.css
-vendor/katex/katex.min.js
-vendor/temml/Temml-Local.css
-vendor/temml/Temml.woff2
-vendor/temml/temml.min.js
-luccet vendor: katex 0.19.0 → vendor/katex (62 files); load it with addons/katex.js?base=vendor/katex
-luccet vendor: mathml 0.14.0 → vendor/temml (3 files); load it with addons/mathml.js?base=vendor/temml
-luccet vendor: 2 packages, 65 files, 1.5 MB; a ?base= resolves from the note's folder, so write the path from there
+vendor/highlight/languages/zephir.min.js
+vendor/mermaid/mermaid.min.js
+luccet vendor: code 11.12.0 → vendor/highlight (194 files); load it with addons/code.js?base=vendor/highlight
+luccet vendor: mermaid 12.1.0 → vendor/mermaid (1 file); load it with addons/mermaid.js?base=vendor/mermaid
+luccet vendor: 2 packages, 195 files, 6.4 MB; a ?base= resolves from the note's folder, so write the path from there
 ```
+
+The files written go to stdout, one per line; the summary goes to stderr.
 
 | Option | What it does |
 |---|---|
 | `DIR` | The folder to write into, created if missing; each library gets a folder of its own under it. |
-| `--katex`, `--code`, `--mermaid`, `--mathml` | Which libraries: KaTeX for [`katex.js`](addons.html#katex), highlight.js for [`code.js`](addons.html#code), Mermaid for [`mermaid.js`](addons.html#mermaid), Temml for [`mathml.js`](addons.html#mathml). Without a flag, all four. |
+| `--code`, `--mermaid` | Which libraries: highlight.js for [`code.js`](addons.html#code), Mermaid for [`mermaid.js`](addons.html#mermaid). Without a flag, both. |
 
 | Folder | Files | Load it with |
 |---|---|---|
-| `DIR/katex/` | `katex.min.js`, `katex.min.css`, `fonts/` | `addons/katex.js?base=DIR/katex` |
 | `DIR/highlight/` | `highlight.min.js`, `languages/` | `addons/code.js?base=DIR/highlight` |
 | `DIR/mermaid/` | `mermaid.min.js` | `addons/mermaid.js?base=DIR/mermaid` |
-| `DIR/temml/` | `temml.min.js`, `Temml-Local.css`, `Temml.woff2` | `addons/mathml.js?base=DIR/temml` |
 
 - **The versions** are the ones the add-ons pin, read from their tables, so a copy is the file the add-on would fetch from jsDelivr, byte for byte: the add-on's SRI hash matches it, though a `?base=` copy is loaded without one.
 - **The packages** are downloaded from the npm registry once, checked against the registry's hash, into `node_modules/.cache/luccet-smoke/` beside `luccet.js` (the cache the test suite shares), and copied from there. Offline with an empty cache, the library is reported as not fetched and the exit code is 1; the others are still written.
 - **The paths.** The `?base=` the summary prints is `DIR` as you gave it; a note in another folder writes the path from its own folder, as for any relative URL.
 - **Files already there** are overwritten. Nothing else in `DIR` is touched.
+- **`--katex` and `--mathml`**, from Luccet 1, are gone, since math needs no copy: each is now an unknown option, a usage error with exit 2.
 
 ## luccet corpus {#corpus}
 

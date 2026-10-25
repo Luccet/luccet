@@ -30,12 +30,12 @@ const SYNOPSIS = {
   new: 'luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
   check: 'luccet check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'luccet parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'luccet build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]',
+  build: 'luccet build FILE… [-o OUT] [--diagrams] [--json] [--no-scripts]',
   mv: 'luccet mv FROM… TO [--root=DIR] [--dry-run] [--json]',
   search: 'luccet search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'luccet index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
   corpus: 'luccet corpus PATH… [--out=DIR]',
-  vendor: 'luccet vendor DIR [--katex] [--code] [--mermaid] [--mathml]',
+  vendor: 'luccet vendor DIR [--code] [--mermaid]',
   lsp: 'luccet lsp [--stdio]',
 };
 
@@ -61,9 +61,7 @@ const usage = () =>
       Write a static, pre-rendered page (to stdout without -o) that still
       loads luccet.js. Several FILEs, or a folder, need -o DIR: each note's
       page goes into DIR, under its name, or under its path in the folder
-      given. --math katex pre-renders formulas with the katex
-      package (--katex is the same), --math mathml renders native MathML
-      with the temml package and turns KaTeX off. --diagrams draws the
+      given. Formulas are MathML, as the engine writes them. --diagrams draws the
       mermaid fences ahead, in a headless Chromium (the playwright package).
       --json prints one object instead (the page in it without -o).
       --no-scripts builds without running the note's own code.
@@ -104,10 +102,10 @@ const usage = () =>
       --out writes DIR/docs-PAGE.txt.
   ${SYNOPSIS.vendor}
       Write local copies of the libraries the add-ons load from jsDelivr —
-      KaTeX, highlight.js, Mermaid, Temml — in the layout their ?base= option
-      takes, under DIR/katex, DIR/highlight, DIR/mermaid and DIR/temml, from
-      the pinned packages (downloaded once, checked against the registry's
-      hash). Without a flag, all four. For offline notes and strict policies.
+      highlight.js, Mermaid — in the layout their ?base= option takes, under
+      DIR/highlight and DIR/mermaid, from the pinned packages (downloaded
+      once, checked against the registry's hash). Without a flag, both. For
+      offline notes and strict policies. Math needs nothing: it is built in.
   ${SYNOPSIS.lsp}
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
@@ -765,8 +763,7 @@ function parse(args) {
 async function buildPage(args) {
   const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, diagrams: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
-  const math = o.math || (o.katex ? 'katex' : null);
-  if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
+  if (o.math !== undefined || o.katex) throw new UsageError(`${o.katex ? '--katex' : '--math'} is gone: since 2.0 every formula is MathML, written by the engine, with nothing to pre-render`);
   // --diagrams opens the note in a browser, where its head scripts and add-ons run: there is no drawing without running its code.
   if (o.diagrams && o['no-scripts']) throw new UsageError('--diagrams opens the note in a browser, which runs its code; drop --no-scripts, or build without --diagrams');
   if (!positionals.length) throw new UsageError('FILE is missing');
@@ -779,7 +776,7 @@ async function buildPage(args) {
   };
   let out = o.output === undefined || o.output === '-' ? null : o.output;
   if (out !== null && !out) throw new UsageError('-o is empty');
-  if (positionals.length > 1 || (stat(positionals[0]) || { isDirectory: () => false }).isDirectory()) return buildMany(positionals, out, o, math);
+  if (positionals.length > 1 || (stat(positionals[0]) || { isDirectory: () => false }).isDirectory()) return buildMany(positionals, out, o);
   const file = positionals[0];
   let into = null; // the directory to create before writing
   let asDir = false;
@@ -790,7 +787,7 @@ async function buildPage(args) {
     if (asDir) out = path.join(out, path.basename(file));
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
-  const json = await buildOne(file, out, into, o, math, { named: true, urls: true });
+  const json = await buildOne(file, out, into, o, { named: true, urls: true });
   if (out && !asDir && !path.extname(out)) {
     const w = `${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`;
     json.warnings.push(clean(w));
@@ -804,7 +801,7 @@ async function buildPage(args) {
 // every output path checked before anything is written (two notes onto one
 // page, or a page onto its note, stop the run). Pages already in DIR, when
 // DIR is inside a folder given, are not notes to build.
-async function buildMany(positionals, dir, o, math) {
+async function buildMany(positionals, dir, o) {
   if (!dir) throw new UsageError('several notes, or a folder, need -o DIR');
   let st = null;
   try {
@@ -843,7 +840,7 @@ async function buildMany(positionals, dir, o, math) {
   const built = [];
   let left = 0;
   for (const j of jobs) {
-    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, math, { named: j.named, urls: false });
+    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, { named: j.named, urls: false });
     if (json) built.push(json);
     else left++;
   }
@@ -857,10 +854,10 @@ async function buildMany(positionals, dir, o, math) {
 // its warnings and diagnostics on stderr: the --json object, or null for a
 // file found in a folder that is not a note (a named one is an error).
 // `urls`: say when the page's relative URLs resolve from another folder.
-async function buildOne(file, out, into, o, math, { named, urls }) {
+async function buildOne(file, out, into, o, { named, urls }) {
   const shown = slash(file); // paths printed, and in --json, with forward slashes on every platform
   const text = read(file, 'build');
-  const r = build(text, file, { math, noScripts: o['no-scripts'], diagrams: !!o.diagrams });
+  const r = build(text, file, { noScripts: o['no-scripts'], diagrams: !!o.diagrams });
   if (!r) {
     if (!named) return null;
     throw new UsageError(`${shown} is not a note (${notNote(text)})`, false);
@@ -870,7 +867,7 @@ async function buildOne(file, out, into, o, math, { named, urls }) {
   // --json: the warnings and diagnostics in one object on stdout, with the
   // page when no -o takes it; the summary and the warnings go to stderr too.
   const warnings = [];
-  const diagnostics = [...r.diagnostics, ...r.failures.map((f) => ({ severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) })), ...(dg ? dg.failures : [])];
+  const diagnostics = [...r.diagnostics, ...(dg ? dg.failures : [])];
   const said = (w) => {
     warnings.push(clean(w));
     warn(`luccet build: ${clean(w)}`);
@@ -894,8 +891,8 @@ async function buildOne(file, out, into, o, math, { named, urls }) {
   }
   const m = r.math;
   const drawn = dg ? `; ${plural(dg.total, 'diagram')}${dg.total ? `, ${dg.drawn} drawn ahead${dg.drawn ? ` with Mermaid from ${dg.from}` : ''}` : ''}` : '';
-  warn(`luccet build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}${drawn}`);
-  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+  warn(`luccet build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${drawn}`);
+  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
   if (!out) json.html = r.html;
   return json;
 }
@@ -1099,10 +1096,8 @@ function corpus(args) {
 // once into the cache, checked against the registry's hash): the files to
 // copy, as [from, to] relative to the package folder and to DIR/FOLDER.
 const VENDOR = {
-  katex: { flag: 'katex', addon: 'katex.js', folder: 'katex', tool: 'katex', root: 'dist', files: [['katex.min.js'], ['katex.min.css'], ['fonts']] },
   code: { flag: 'code', addon: 'code.js', folder: 'highlight', tool: 'hljs', root: '', files: [['highlight.min.js'], ['languages']] },
   mermaid: { flag: 'mermaid', addon: 'mermaid.js', folder: 'mermaid', tool: 'mermaid', root: 'dist', files: [['mermaid.min.js']] },
-  mathml: { flag: 'mathml', addon: 'mathml.js', folder: 'temml', tool: 'temml', root: 'dist', files: [['temml.min.js'], ['Temml-Local.css'], ['Temml.woff2']] },
 };
 
 // The version an add-on pins, from its table.
@@ -1113,7 +1108,7 @@ function pinned(addon) {
 }
 
 async function vendor(args) {
-  const { values: o, positionals } = options(args, { katex: { type: 'boolean' }, code: { type: 'boolean' }, mermaid: { type: 'boolean' }, mathml: { type: 'boolean' } });
+  const { values: o, positionals } = options(args, { code: { type: 'boolean' }, mermaid: { type: 'boolean' } });
   if (o.help) return help('vendor');
   if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one DIR' : 'DIR is missing');
   const dir = positionals[0];

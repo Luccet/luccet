@@ -12,12 +12,13 @@ The documentation is a set of Luccet notes. Every page is a `.html` file whose f
 | `docs/guide.html` | Guide | a complete tutorial, from the first line to schemas, publishing and the editor |
 | `docs/syntax-blocks.html` | Syntax: blocks | the eight rules, lexical conventions, attributes, every block construct |
 | `docs/syntax-inline.html` | Syntax: inline | every inline construct, the ambiguity rules, escapes, the residual cases |
+| `docs/math.html` | Math | the TeX a formula can use (the symbol table is drawn by docs.js from `luccet.tex.symbols`), macros, environments, what is left out, fonts and browsers, the KaTeX add-on, the `tex.*` diagnostics |
 | `docs/elements.html` | Elements and output | how names become elements, the output contract, titles and labels, numbering, references, ids, figures, table captions, raw HTML, metadata |
 | `docs/schema.html` | Vocabulary and behaviour | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, transforms, styling, themes, labels in other languages |
-| `docs/addons.html` | Add-ons | the add-ons in `addons/`: code highlighting, Mermaid diagrams, KaTeX, MathML, search, a list of notes |
+| `docs/addons.html` | Add-ons | the add-ons in `addons/`: code highlighting, Mermaid diagrams, copy buttons, a lightbox, citations, search, a list of notes, a glossary |
 | `docs/diagnostics.html` | Diagnostics | every diagnostic: when it fires, what happens to the content, an example, the fix |
 | `docs/tools.html` | Command line and editors | `luccet new/check/parse/build/mv/search/index/corpus/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
-| `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `luccet build`, CSP, KaTeX and offline use, browsers, trust, "When it does not render" |
+| `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `luccet build`, CSP, math and KaTeX, offline use, browsers, trust, "When it does not render" |
 | `docs/api.html` | JavaScript API | `luccet.*`, options, the AST and `data.luccet`, the transformed AST, the runtime lifecycle, events, config |
 | `examples/*.html` | Examples | complete notes, each declaring its own vocabulary |
 
@@ -37,7 +38,7 @@ description: Every block-level construct of Luccet: paragraphs, headings, fences
 ::toc
 ```
 
-- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/katex.js` and `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/…`). Examples load `../luccet.js` and `../docs/docs.css`, for the site's look (not docs.js: an example is a note as a reader would write it), and declare their own vocabulary and styles (below).
+- **Paths.** Pages in `docs/` load `../luccet.js`, and `docs.js` and `docs.css` from `docs/`, then `../addons/copy.js`. `index.html` loads the same from the root (`luccet.js`, `docs/docs.js`, `docs/docs.css`, `addons/copy.js`). Math needs nothing: the engine writes it as MathML. Examples load `../luccet.js` and `../docs/docs.css`, for the site's look (not docs.js: an example is a note as a reader would write it), and declare their own vocabulary and styles (below).
 - **The page's own markup.**
   - `::site-nav` is the site navigation, drawn by docs.js, with the mark before the home link.
   - `::logo` puts the mark, small, before the text of the heading that follows it (the home page's title), or shows it alone when no heading follows. docs.js draws it with `docs/luccet.png`, a gold emblem on a navy disc, on light and dark themes alike; the README shows the same file. The pages' favicon is `docs/favicon.ico` (16, 32 and 48 px), with `docs/apple-touch-icon.png` for a phone's home screen.
@@ -49,7 +50,8 @@ description: Every block-level construct of Luccet: paragraphs, headings, fences
   - `site-nav` and `logo`;
   - the callouts `note`, `tip`, `warning` and `important`;
   - `figure`, `table` and `code` with counters;
-  - `kbd`, `syntax` (a construct's spelling, shown as a summary box).
+  - `kbd`, `syntax` (a construct's spelling, shown as a summary box);
+  - `tex-symbols`, the Math page's table of symbol commands.
 
   Use nothing else without adding it to docs.js.
 

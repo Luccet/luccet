@@ -113,6 +113,7 @@ x
 ## fence/title-math-skipped
 
 spec: syntax-blocks#fence syntax-inline#inline-math
+options: math=tex
 
 Math inside the title is skipped when matching brackets, so the `]` inside `$f]$` does not end the title.
 

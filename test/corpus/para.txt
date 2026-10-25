@@ -6,6 +6,7 @@ The per-row interrupt cases are in block.txt.
 ## para/spec-example
 
 spec: syntax-blocks#paragraph
+options: math=tex
 
 The paragraph example: consecutive lines that start nothing else are one paragraph, joined by a soft break.
 

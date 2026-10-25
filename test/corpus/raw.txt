@@ -49,6 +49,7 @@ See @m and @s.
 ## raw/macros-verbatim-body
 
 spec: syntax-blocks#macros syntax-blocks#lines
+options: math=tex
 
 Nothing inside a macros body is Luccet: a blank line, a `#` line and an opener line are content, and the body is escaped on output.
 
@@ -90,6 +91,7 @@ spec: syntax-blocks#macros syntax-blocks#closer
 ## raw/macros-unclosed-swallows
 
 spec: syntax-blocks#macros syntax-blocks#closer
+options: math=tex
 
 Without an exact closer the body runs to the end of the note, swallowing the heading and paragraph after it; the opener gets `block.unclosed`.
 

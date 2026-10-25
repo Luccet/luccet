@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>JavaScript API · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: The luccet object in node and in the browser: parse, transform, emit, toHTML, check, visit, outline, the schema registry, the runtime API and its events, luccet.config, the lifecycle, and the AST with its data.luccet fields.
@@ -28,6 +28,7 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`luccet.visit(tree, type, fn)`](#visit) | engine | walks a tree | works |
 | [`luccet.outline(ast)`](#outline) | engine | the editor digest | works |
 | [`luccet.search`](#search) | engine | entries, an index and a ranked query over notes; a note's description for a catalogue | works |
+| [`luccet.tex(source, opts)`](#tex) | engine | one formula's TeX → MathML; the symbol commands | works |
 | [`luccet.schema`](#registry) | engine | the vocabulary, as plain data | works |
 | [`luccet.block`, `luccet.leaf`, `luccet.inline`](#registry) | engine | declare a name | works |
 | [`luccet.transforms`](#luccet-transforms) | engine | the transform order | works |
@@ -119,6 +120,8 @@ source ──parse──▶ AST + diagnostics ──transform──▶ transform
 | `schema` | `parse`, `transform`, `toHTML`, `check` | the registry, [`luccet.schema`](#registry) | the vocabulary `{block, leaf, inline}`. It replaces the registry for that call; it is not merged with it. `strict: true` in it turns on `name.unknown` |
 | `head` | `parse`, `transform`, `toHTML`, `check` | `''` | the preserved head, as a string: everything before the luccet.js line. `parse` checks `:::meta` against it, and `transform` reads its `<title>` and `<html lang>` |
 | `lang` | `transform`, `toHTML`, `check` | none | the language that picks a label from a `{lang: label}` map |
+| `macros` | `transform`, `toHTML`, `check` | none | TeX macros for every formula, `{'\\R': '\\mathbb{R}'}`, before the note's own `:::macros` ([macros](math.html#macros)) |
+| `math` | `transform`, `emit`, `toHTML`, `check` | MathML | `'tex'` writes each formula as its TeX instead of MathML, for a renderer of your own, and translates nothing, so no `tex.*` diagnostic is reported ([Math](math.html#katex)) |
 | `maxDepth` | `parse`, `toHTML`, `check` | `64` | how deep blocks may nest |
 | `positions` | `emit`, `toHTML` | `true` | writes `data-pos="line:col"` on elements |
 | `safe` | `emit`, `toHTML`, `render` | `false` | for untrusted source: escapes raw HTML, neutralises dangerous elements, and drops risky attributes and URLs; in `render` it also skips the note's scripts and behaviours |
@@ -199,7 +202,7 @@ luccet.transform(name, fn, { before | after }) → remove
 
 With an AST, `luccet.transform` runs the transforms on it; with a name, it [registers a transform](#registering-a-transform).
 
-**Running the transforms.** They change the tree in place and return the same object. Their diagnostics go into `ast.data.luccet.diagnostics`, sorted. They read `opts.schema`, `opts.head` and `opts.lang`.
+**Running the transforms.** They change the tree in place and return the same object. Their diagnostics go into `ast.data.luccet.diagnostics`, sorted. They read `opts.schema`, `opts.head`, `opts.lang`, `opts.macros` and `opts.math`.
 
 ```js
 const { ast } = luccet.parse('# Kernel\n\nSee @kernel.');
@@ -210,7 +213,7 @@ ast.children[1].children[1];
 // → { type: 'ref', id: 'kernel', data: { luccet: { resolved: true } },
 //     children: [ { type: 'text', value: 'Kernel' } ] }
 ast.data;
-// → { luccet: { diagnostics: [], transformed: true, footnotes: [],
+// → { luccet: { diagnostics: [], transformed: true, lang: '', footnotes: [],
 //     ids: { kernel: { kind: 'heading', explicit: false, line: 1, column: 1 } },
 //     meta: { title: 'Kernel' } } }
 ```
@@ -223,15 +226,16 @@ The built-in transforms run in this order, which [`luccet.transforms`](#luccet-t
 
 | # | Transform | What it does |
 |---|---|---|
-| 1 | `figures` | a paragraph holding only an image with an id becomes a `figure` container ([figures](elements.html#figures)) |
-| 2 | `tables` | a container whose element is `table` merges with its one pipe table ([table captions](elements.html#table-caption)) |
-| 3 | `attributes` | resolves each name to an element and its title slot; schema `class` and `attrs`; reserved keys; `cols`; fence keys |
-| 4 | `footnotes` | numbers footnotes by first reference; their `fn-` and `fnref-` ids |
-| 5 | `ids` | the id registry: Luccet's own ids, then duplicate and invalid ids, then heading slugs |
-| 6 | `numbering` | counters, labels such as "Theorem 1", equation numbers |
-| 7 | `refs` | the text of each reference; dangling references and fragment links |
-| 8 | `toc` | fills each table-of-contents leaf from the headings |
-| 9 | `meta` | the title fallback: the first level-1 heading, when neither the head nor `:::meta` sets a title |
+| 1 | `math` | translates each formula's TeX to MathML, with the macros; a formula that does not translate gets a [`tex.*`](diagnostics.html#tex) diagnostic ([Math](#math-nodes)) |
+| 2 | `figures` | a paragraph holding only an image with an id becomes a `figure` container ([figures](elements.html#figures)) |
+| 3 | `tables` | a container whose element is `table` merges with its one pipe table ([table captions](elements.html#table-caption)) |
+| 4 | `attributes` | resolves each name to an element and its title slot; schema `class` and `attrs`; reserved keys; `cols`; fence keys |
+| 5 | `footnotes` | numbers footnotes by first reference; their `fn-` and `fnref-` ids |
+| 6 | `ids` | the id registry: Luccet's own ids, then duplicate and invalid ids, then heading slugs |
+| 7 | `numbering` | counters, labels such as "Theorem 1", equation numbers |
+| 8 | `refs` | the text of each reference; dangling references and fragment links |
+| 9 | `toc` | fills each table-of-contents leaf from the headings |
+| 10 | `meta` | the title fallback: the first level-1 heading, when neither the head nor `:::meta` sets a title |
 
 **The label language** is `opts.lang`, then the `lang` of `:::meta`, then the `lang` of the head's `<html>` tag. It picks an entry from a label map such as `{en: 'Lemma', fr: 'Lemme'}`. [Labels in other languages](schema.html#languages) gives the matching rules.
 
@@ -249,7 +253,7 @@ const off = luccet.transform('todo', (ast, ctx) => {
 }, { before: 'ids' });
 
 luccet.transforms;
-// → ['figures', 'tables', 'attributes', 'footnotes', 'todo',
+// → ['math', 'figures', 'tables', 'attributes', 'footnotes', 'todo',
 //    'ids', 'numbering', 'refs', 'toc', 'meta']
 luccet.check('Ship it. TODO: tests.');
 // → [{ code: 'note.todo', severity: 'info', message: 'a TODO is left in the text',
@@ -258,7 +262,7 @@ luccet.check('Ship it. TODO: tests.');
 //      hint: 'finish it, then remove the TODO' }]
 off();
 luccet.transforms;
-// → ['figures', 'tables', 'attributes', 'footnotes',
+// → ['math', 'figures', 'tables', 'attributes', 'footnotes',
 //    'ids', 'numbering', 'refs', 'toc', 'meta']
 ```
 
@@ -304,7 +308,7 @@ An add-on's transforms run wherever the note is processed. In the browser they r
 
 :::syntax
 ```js
-luccet.emit(ast, { positions = true, safe = false, maxOutput = 67108864, idPrefix = '' }) → string
+luccet.emit(ast, { positions = true, safe = false, math, maxOutput = 67108864, idPrefix = '' }) → string
 ```
 :::
 
@@ -330,7 +334,20 @@ luccet.emit(ast, { positions: false });
 //   + '<p>See <a class="t-ref" href="#kernel">Kernel</a>.</p>\n</div>\n'
 ```
 
-**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line, and `luccet build --math` uses it to position a [`math.error`](diagnostics.html#math-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
+**`positions`** (default `true`) writes `data-pos="line:col"`, the start of the node in the note, on fences, display and inline math, containers, leaves, inline elements and cells. The runtime reads it to map an element back to its note line, and `luccet build --diagrams` uses it to position a [`diagram.error`](diagnostics.html#diagram-error). `positions: false` leaves it out, for output that does not change when lines move, as in the conformance corpus.
+
+**`math`** (default: MathML) decides how a formula is written. By default it is `span.t-math` holding the `<math>` element the `math` transform wrote ([Math](#math-nodes)), with its TeX in `data-tex`; a formula that does not translate is its TeX as text, in `span.t-math.t-error`. A formula the transform did not translate, in a parse AST or a tree transformed with `math: 'tex'`, is translated here, without the note's macros. `math: 'tex'` writes each formula as its TeX, as text, with no `data-tex`, for a renderer of your own ([output](elements.html#math-output)):
+
+```js
+const { ast } = luccet.parse('Area $\\pi r^2$.');
+luccet.transform(ast);
+
+luccet.emit(ast, { positions: false });
+// → '<p>Area <span class="t-math" data-tex="\\pi r^2"><math><mi>π</mi>'
+//   + '<msup><mi>r</mi><mn>2</mn></msup></math></span>.</p>\n'
+luccet.emit(ast, { positions: false, math: 'tex' });
+// → '<p>Area <span class="t-math">\\pi r^2</span>.</p>\n'
+```
 
 **`safe`** (default `false`) is the [raw HTML scoping](elements.html#safe):
 
@@ -376,7 +393,7 @@ luccet.transform(ast, opts);
 const html = luccet.emit(ast, opts);
 ```
 
-It takes every option: `schema`, `head`, `lang` and `maxDepth` for the first two steps, `positions` and `safe` for the emitter. Diagnostics are not returned; [`luccet.check`](#check) gives them.
+It takes every option: `schema`, `head`, `lang`, `macros` and `maxDepth` for the first two steps, `positions` and `safe` for the emitter, and `math` for both. Diagnostics are not returned; [`luccet.check`](#check) gives them.
 
 ```js
 const schema = {
@@ -401,12 +418,20 @@ luccet.toHTML(src, { schema, head: '<html lang="fr-CA">', positions: false });
 **What the string holds.** It is the body of the note. The runtime puts it inside `<main class="luccet">`, and `luccet build` does the same in a static page. It leaves out:
 
 - **the head:** `:::meta` writes nothing into the body. Its keys are in `ast.data.luccet.meta`, and the runtime and `luccet build` write them into the head. `:::use` writes nothing either: its entries are in `ast.data.luccet.use`, add-ons the runtime loads and `luccet build` writes as tags;
-- **typeset math:** a formula is its TeX inside `span.t-math`; the engine renders no math, so a [math add-on](addons.html#katex) typesets it in the browser (or `luccet build --math` pre-renders it);
 - **behaviours:** `luccet.define` and schema `dom` functions run on the DOM, in the browser.
 
 ```js
 luccet.toHTML(':::meta\ntitle: T\nauthor: me\n:::\n\nHi.');   // → '<p>Hi.</p>\n'
 luccet.toHTML('');                                             // → ''
+```
+
+The math is in it: each formula is MathML, which the browser lays out with nothing to load ([Math](math.html)). `macros` gives macros for every formula, as `window.LUCCET.macros` does on a page:
+
+```js
+luccet.toHTML('$\\R^n$', { positions: false, macros: { '\\R': '\\mathbb{R}' } });
+// → '<p><span class="t-math" data-tex="\\R^n"><math><msup><mi>ℝ</mi><mi>n</mi></msup></math></span></p>\n'
+luccet.toHTML('$\\R^n$', { positions: false, math: 'tex' });
+// → '<p><span class="t-math">\\R^n</span></p>\n'
 ```
 
 ### `luccet.check` {#check}
@@ -598,6 +623,44 @@ luccet.glossary.uses(ast);
 - **`key(text)`** and **`slug(text)`** are the folding and the id, for an add-on that links a use to a glossary page's entry.
 - **`format`** is the number of `glossary.json`'s format, 1, as [`luccet.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](addons.html#glossary) takes a file of its format whatever version wrote it.
 
+### `luccet.tex` {#tex}
+
+:::syntax
+```js
+luccet.tex(source, { display = false, macros }) → { mathml } | { error }
+luccet.tex.symbols → [[name, char, class], …]
+```
+:::
+
+Translates one formula's TeX to MathML, as the `math` transform does for each formula of a note ([Math](math.html)): for an editor's preview, a tool of your own, or a formula outside a note.
+
+```js
+luccet.tex('\\frac{a}{b}');
+// → { mathml: '<math><mfrac><mi>a</mi><mi>b</mi></mfrac></math>' }
+luccet.tex('\\sum_a^b', { display: true });
+// → { mathml: '<math display="block"><munderover>…</munderover></math>' }
+luccet.tex('\\R^n', { macros: { '\\R': '\\mathbb{R}' } });
+// → { mathml: '<math><msup><mi>ℝ</mi><mi>n</mi></msup></math>' }
+luccet.tex('\\thetha');
+// → { error: { code: 'tex.unknown', at: 0, end: 7,
+//      message: '\\thetha is not a command Luccet knows',
+//      hint: 'did you mean `\\theta`? Or define it in a :::macros block' } }
+```
+
+- **`source`** is the TeX alone, without its dollars.
+- **`display`** lays it out as display math: `<math display="block">`, with a big operator's limits above and below it.
+- **`macros`** are macros for this call, `{'\\name': 'body'}`, in the shape of [`window.LUCCET.macros`](#config): the backslash may be left out, and a macro takes as many arguments as the highest `#n` in its body. A key that is not a command name, or a value that is not a string, is ignored here; in a note it is [`tex.macro`](diagnostics.html#tex-macro). Each call starts from these alone: a `\gdef` in one formula does not reach the next call.
+- **`mathml`** is the `<math>` element, as a string: what the emitter writes inside `span.t-math`.
+- **`error`** is the first problem in the formula. `code` is one of the [`tex.*` codes](diagnostics.html#tex), `message` and `hint` are the diagnostic's, and `at` and `end` are the offsets in `source` of the command at fault, `end` exclusive. In a note, the same problem is a diagnostic at that command's line and column.
+- **Pure.** The same result in node and in every browser, with nothing to load.
+
+`luccet.tex.symbols` lists the symbol commands, for an editor's completion or a table such as the one on the [Math page](math.html#symbols). Each entry is `[name, char, class]`: the command without its backslash, its character, and its class in TeX's spacing, one of `mi` (an ordinary symbol, written as `<mi>`), `ord` (an ordinary one written as `<mo>`: a bar or a slash, which `\left` can stretch), `bin`, `rel`, `open`, `close`, `punct`, `inner`, `op` (a big operator, its limits above and below in display math) and `opn` (its limits beside). The array and its entries are frozen.
+
+```js
+luccet.tex.symbols.find(([name]) => name === 'le');    // → ['le', '≤', 'rel']
+luccet.tex.symbols.find(([name]) => name === 'int');   // → ['int', '∫', 'opn']
+```
+
 ### The registry {#registry}
 
 :::syntax
@@ -661,16 +724,16 @@ Under node the entry is stored all the same, `css` and `dom` included, but neith
 
 #### `luccet.transforms` {#luccet-transforms}
 
-A new array, on each read, of the transform names in the order they run: the nine built-in ones and any you [registered](#registering-a-transform).
+A new array, on each read, of the transform names in the order they run: the ten built-in ones and any you [registered](#registering-a-transform).
 
 ```js
 luccet.transforms;
-// → ['figures', 'tables', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']
+// → ['math', 'figures', 'tables', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']
 ```
 
 #### `luccet.css` {#luccet-css}
 
-The base stylesheet, as a string: colours as `--t-*` custom properties for light and dark, the typography, and the rules for Luccet's classes (`t-block`, `t-title`, `t-math` …). The file `luccet.css` holds the same rules after a two-line header comment. The runtime inserts it as `<style id="luccet-style">` unless the head links `luccet.css` or the tag names one with `data-css` ([CSP](publishing.html#csp)).
+The base stylesheet, as a string: colours and font stacks as `--t-*` custom properties for light and dark, the math fonts in `--t-math` among them ([custom properties](schema.html#custom-properties)), the rules for Luccet's classes (`t-block`, `t-title`, `t-math` …), and the few the engine's MathML needs. The file `luccet.css` holds the same rules after a two-line header comment. The runtime inserts it as `<style id="luccet-style">` unless the head links `luccet.css` or the tag names one with `data-css` ([CSP](publishing.html#csp)).
 
 ```js
 luccet.css.slice(0, 26);   // → ':root {\n  color-scheme: li'
@@ -682,7 +745,7 @@ The version of this luccet.js, as a string: `'2.0.0'`. A script can check it to 
 
 ## The runtime {#runtime}
 
-The runtime is the browser half: it renders the note in the page, runs behaviours, and reports what went wrong; a [math add-on](addons.html#katex) in `data-use` typesets the math, as the engine renders none itself. [The lifecycle](#lifecycle) gives the order of everything it does. Its API is on the same object as the engine.
+The runtime is the browser half: it renders the note in the page, runs behaviours, and reports what went wrong. [The lifecycle](#lifecycle) gives the order of everything it does. Its API is on the same object as the engine.
 
 ### `luccet.define` and `luccet.undefine` {#define}
 
@@ -723,7 +786,7 @@ luccet.define('chart', (el) => {
 - **Several per name.** `define` is additive: every function registered for a name runs, in registration order.
 - **Schema `dom` first.** A schema entry's `dom` function runs on the element before the `define` functions. For a `t-block` element the runtime looks the name up among containers first, then leaves, then inline elements; for any other element, leaves, then inline elements, then containers. So a fence finds a container entry named `code`.
 - **Document order.** Elements are visited in document order, and each gets all its functions before the next element.
-- **Before math.** Behaviours run after the note's scripts and before the [`render`](#on) event, and math is typeset after them. A formula is still its TeX source, in `span.t-math` with a `data-tex` attribute. A behaviour that needs typeset math listens for [`math`](#on).
+- **Math is there.** Behaviours run after the note's scripts and before the [`render`](#on) event. The formulas are already MathML: each `span.t-math` holds its `<math>`, with its TeX in `data-tex`. An add-on that renders math itself does it after them, in a `render` listener, so a behaviour that needs its output listens for [`math`](#on).
 - **Late definitions.** A function defined after the behaviours ran is applied at once to the matching elements already rendered.
 - **Errors.** An exception in `fn` is caught and logged as "luccet: the "NAME" behaviour failed"; the other behaviours still run.
 - **The remover** that `define` returns removes that one function: elements rendered later do not get it.
@@ -744,14 +807,15 @@ Listens for one of the runtime's four events. There are no others.
 
 | Event | When | `fn` gets |
 |---|---|---|
-| `render` | the note is in the page, its scripts have run and its behaviours have run; math is not typeset yet | the root, `main.luccet`, and `{ safe }`: true for a root rendered with `safe` |
-| `math` | the formulas in view are typeset; again for a `<details>`, after the formulas inside it are typeset when it opens | the root, or the `<details>` element, and `{ safe }` |
-| `ready` | everything is done, once: math, the scroll to the URL's fragment, the console group | the root, `main.luccet` |
+| `render` | the note is in the page, its scripts have run and its behaviours have run; its formulas are MathML already | the root, `main.luccet`, and `{ safe }`: true for a root rendered with `safe` |
+| `math` | right after the `render` listeners have settled: the formulas are final, also those an add-on renders itself | the root, and `{ safe }` |
+| `ready` | everything is done, once: `math`, the scroll to the URL's fragment, the console group | the root, `main.luccet` |
 | `diagnostic` | the runtime reports a problem of its own: a failed add-on, a note script's `document.write` … Never for the diagnostics of the parse and the transforms, a throwing transform's `addon.failed` included | the [diagnostic](#check) |
 
 `render` and `math` fire again for each [`luccet.render`](#render) call, with that call's root. `ready` fires once per page.
 
-- **`render` is awaited before `math`.** A `render` listener may return a promise; the runtime awaits all `render` listeners (which run concurrently) before it fires `math`. A [math add-on](addons.html#katex) typesets the formulas in its `render` listener and returns a promise, which is why `math` still means "the formulas are typeset". A synchronous listener is not held up by an async one.
+- **`render` is awaited before `math`.** A `render` listener may return a promise; the runtime awaits all `render` listeners (which run concurrently) before it fires `math`. A synchronous listener is not held up by an async one.
+- **An add-on that renders math itself,** such as the [KaTeX add-on](math.html#katex), sets `luccet.config.math = 'tex'` when it loads, so each formula reaches the page as its TeX, and renders the formulas in its `render` listener, returning a promise. That is why `math` means "the formulas are final", whoever rendered them.
 
 For a note with one behaviour, a listener on each event logs:
 
@@ -781,9 +845,9 @@ luccet.render(root = main.luccet, source?, { safe = false, idPrefix = '', script
 
 Renders, or re-renders, a root element.
 
-- **Without a source**, it runs behaviours on the elements under `root` that have not had them, and typesets the formulas not yet typeset. A second call changes nothing. It fires `render` and `math` with `root`.
-- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head and `luccet.config.lang`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without a source. What the previous render's scripts registered on `luccet.define`, `luccet.on` and `luccet.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.luccet`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
-- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument, and the math add-ons that come with Luccet typeset such a root with KaTeX's `trust` off whatever the page sets, with a copy of the macro table, ignoring its `:::macros`. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
+- **Without a source**, it runs behaviours on the elements under `root` that have not had them. A second call changes nothing. It fires `render` and `math` with `root`.
+- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head, `luccet.config.lang`, `luccet.config.macros` and `luccet.config.math`, so its formulas are MathML, with the page's macros and its own `:::macros`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without a source. What the previous render's scripts registered on `luccet.define`, `luccet.on` and `luccet.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.luccet`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
+- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument. Its formulas are translated as any note's: no TeX command writes a link, an attribute or a request ([what is left out](math.html#unsupported)), and its `:::macros` reach only its own formulas. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
 - **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
 - **The page's own root.** When `root` is the page's `main.luccet`, the new diagnostics replace those in [`luccet.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `luccet.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
 - **`root`** defaults to the page's `main.luccet`. Anything other than an element rejects the Promise with `TypeError: luccet.render(root, source): root must be an element`.
@@ -805,9 +869,9 @@ input.addEventListener('input', async () => {
 
 A page that is not a note can load luccet.js in any way the runtime does not start from: `defer`, `async`, a module, or a script it inserts itself. Then `luccet.render(element, source)` renders a note into any element of the page.
 
-- **Styles.** The runtime adds no stylesheet. Link `luccet.css` yourself, and give the element the class `luccet`: most of its rules apply inside `.luccet`. Its `html` and `body` rules (colours, font, margins) style the whole page, so leave them to your own CSS where they clash.
-- **Configuration.** `window.LUCCET` and `data-*` are not read, so [`luccet.config`](#config) stays `{use: {}}`. Set what you need on it before the first render that needs it: `luccet.config.lang` for labels, and `luccet.config.use.katex` for the [KaTeX add-on's options](addons.html#katex) before the first render with math.
-- **Math.** The engine renders no math. To typeset it, load a math add-on script yourself — `addons/katex.js` or `addons/mathml.js` — which registers a `render` listener and reads its options from `luccet.config.use.katex`. Without one, each formula stays as its TeX.
+- **Styles.** The runtime adds no stylesheet. Link `luccet.css` yourself, and give the element the class `luccet`: most of its rules apply inside `.luccet`, the math font among them. Its `html` and `body` rules (colours, font, margins) style the whole page, so leave them to your own CSS where they clash.
+- **Configuration.** `window.LUCCET` and `data-*` are not read, so [`luccet.config`](#config) stays `{use: {}}`. Set what you need on it before the first render that needs it: `luccet.config.lang` for labels, `luccet.config.macros` for macros every rendered note shares.
+- **Math** needs nothing more: each formula is MathML in the HTML `luccet.render` writes, laid out by the browser ([Math](math.html#browsers)). `luccet.config.math = 'tex'` writes the TeX instead, for a renderer of your own in a `render` listener.
 - **`luccet.ready`** never settles, and `luccet.diagnostics` stays empty: use the diagnostics `luccet.render` resolves to, and listen for [`diagnostic`](#on) for the ones found later, such as a note script's `document.write`.
 
 ```html
@@ -836,7 +900,7 @@ A Promise that resolves, with no value, right after the `ready` listeners have r
 
 ```js
 await luccet.ready;
-document.querySelectorAll('main.luccet .t-math .katex').length;   // the typeset formulas
+document.querySelectorAll('main.luccet .t-math > math').length;   // the formulas, as MathML
 ```
 
 It never settles under node, nor on a page where the runtime did not start ([When nothing starts](#no-start)).
@@ -847,8 +911,8 @@ The page's diagnostics, in one array that stays the same object for the life of 
 
 - **At mount** it holds, sorted by position:
   - the runtime diagnostics found before the mount, at line 0, which therefore come first: [`doc.quirks`](diagnostics.html#doc-quirks), and [`addon.failed`](diagnostics.html#addon-failed) for an add-on that did not load or threw while it ran;
-  - the note's parse and transform diagnostics, as [`luccet.check`](#check) returns them, including `addon.failed` for a registered transform that threw.
-- **Later** runtime diagnostics are appended as they happen: [`script.document-write`](diagnostics.html#script-document-write) and [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) while the note's scripts run. (The engine renders no math, so a math add-on reports a formula it cannot typeset to the console, not here.) They concern the page's note: one about an element that another `luccet.render(root, source)` call rendered only fires the event. Each diagnostic the runtime reports itself, early or late, also fires the [`diagnostic`](#on) event; those of the parse and the transforms do not.
+  - the note's parse and transform diagnostics, as [`luccet.check`](#check) returns them, including `addon.failed` for a registered transform that threw, and a [`tex.*`](diagnostics.html#tex) code for each formula that does not translate.
+- **Later** runtime diagnostics are appended as they happen: [`script.document-write`](diagnostics.html#script-document-write) and [`script.domcontentloaded`](diagnostics.html#script-domcontentloaded) while the note's scripts run. They concern the page's note: one about an element that another `luccet.render(root, source)` call rendered only fires the event. Each diagnostic the runtime reports itself, early or late, also fires the [`diagnostic`](#on) event; those of the parse and the transforms do not.
 - **`luccet.render(main, source)`** replaces the contents with the new note's diagnostics, keeping the line-0 ones.
 - **On a built page** it holds the build's diagnostics, read from the page, then an `addon.failed` for each add-on script that failed to load or threw while it ran.
 
@@ -874,8 +938,8 @@ The runtime's configuration: `window.LUCCET` merged with the `data-*` attributes
 
 ```html
 <!doctype html><meta charset="utf-8">
-<script>window.LUCCET = { use: { katex: { macros: { '\\R': '\\mathbb{R}' } } }, lang: 'en' }</script>
-<script src="luccet.js" data-use="addons/katex.js theorems.js?labels=de theme.min.css?dark"
+<script>window.LUCCET = { use: { lightbox: { images: 'all' } }, macros: { '\\R': '\\mathbb{R}' }, lang: 'en' }</script>
+<script src="luccet.js" data-use="addons/lightbox.js theorems.js?labels=de theme.min.css?dark"
         data-nonce="abc"></script>
 ```
 
@@ -883,9 +947,8 @@ On that page, once luccet.js has started:
 
 ```js
 luccet.config;
-// → { use: { katex: { macros: { '\\R': '\\mathbb{R}' } },
-//            theorems: { labels: 'de' }, theme: { dark: '' } },
-//     lang: 'en', nonce: 'abc', diagnostics: false, quiet: false }
+// → { use: { lightbox: { images: 'all' }, theorems: { labels: 'de' }, theme: { dark: '' } },
+//     macros: { '\\R': '\\mathbb{R}' }, lang: 'en', nonce: 'abc', diagnostics: false, quiet: false }
 ```
 
 - **When.** `luccet.config` is filled once, when luccet.js starts. So `window.LUCCET` must be set by a script in the head, before the luccet.js line; setting it later does nothing.
@@ -896,10 +959,12 @@ luccet.config;
 
 | `window.LUCCET` | Attribute | `luccet.config` | Value |
 |---|---|---|---|
-| `use` | `data-use` | `use` | the add-ons' options, a math add-on's among them (`use.katex` for [`katex.js`](addons.html#katex)). Each add-on entry's query string, in `data-use` or `:::use`, goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.LUCCET.use[NAME]` key of the same name |
+| `use` | `data-use` | `use` | the add-ons' options. Each add-on entry's query string, in `data-use` or `:::use`, goes to `use[NAME]`, where NAME is the file name without `.min` and `.js`, `.mjs` or `.css`: `theorems.js?labels=de` gives `use.theorems.labels === 'de'`, and a key without a value is `''`. The query wins over a `window.LUCCET.use[NAME]` key of the same name |
 | `schema` | | `schema` | the note's own vocabulary, `{block, leaf, inline}` in the registry's shape, applied at mount after the add-ons ([`window.LUCCET.schema`](schema.html#window-luccet)). Its `strict` sets `luccet.schema.strict`, over an add-on's |
 | `css` | `data-css` | `css` | a stylesheet to use as the base instead of the inline one ([CSP](publishing.html#csp)) |
 | `nonce` | `data-nonce` | `nonce` | a CSP nonce, set on every `style`, `link` and `script` Luccet adds, and on the note's re-created scripts |
+| `math` | `data-math` | `math` | `'tex'` writes each formula as its TeX instead of MathML, as Luccet 1 did, for an add-on that renders math itself ([KaTeX instead](math.html#katex)). Any other value, or none, means MathML |
+| `macros` | | `macros` | TeX macros for every note on the page, `{'\\R': '\\mathbb{R}'}`: the name, its backslash optional, and the body, which takes as many arguments as its highest `#n`. They come before the note's `:::macros` blocks, which may redefine them ([macros](math.html#macros)); one that is not a command name with a string body is [`tex.macro`](diagnostics.html#tex-macro), at line 1 |
 | `lang` | `data-lang` | `lang` | the label language. After mount, when nothing set it, it is the `lang` of `<html>` (which `:::meta` may have set). The command line picks labels in the same order: `data-lang`, `window.LUCCET.lang`, the `lang` of `:::meta`, then `<html lang>` |
 | `diagnostics` | `data-diagnostics` | `diagnostics` | true shows the panel everywhere, not only on `file:` and `localhost` |
 | `quiet` | `data-quiet` | `quiet` | true hides the panel everywhere; it wins over `diagnostics` |
@@ -907,8 +972,6 @@ luccet.config;
 | any other key | | the same key | copied as it is |
 
 **`data-use`** is also how add-ons are loaded. Its value is a list of URLs, separated by spaces, resolved against the page; a [`:::use` block](syntax-blocks.html#use) at the top of the note lists more, one or more per line, loaded after the tag's. An entry ending in `.css` (before its query) is a stylesheet, linked in its place in the [cascade](#style); any other is a script. Scripts are fetched in parallel and run in the order listed, and the note mounts only once every entry has loaded or failed.
-
-**KaTeX options.** The [`katex.js` add-on](addons.html#katex) reads `luccet.config.use.katex` and passes every key except `displayMode` and `throwOnError` to KaTeX: `macros`, `trust`, `strict`, `output`, `leqno` and the rest. `throwOnError` is always true, so a formula KaTeX rejects keeps its TeX, and the add-on warns in the console rather than reporting a diagnostic. `macros` is copied into one table that every formula shares; the `:::macros` blocks of the note are defined into it first. A copy of KaTeX of your own is `addons/katex.js?base=URL`, not a config key.
 
 Two other attributes belong to the tag but not to `luccet.config`. `data-built` marks a page written by `luccet build` (always just `data-built`, with no value; [A built page](#built-page)). `src` must name a file called `luccet.js` for editors and the command line to [detect the note](tools.html#detection).
 
@@ -935,7 +998,7 @@ Luccet keeps its sheets together in the head, in this order:
 2. each `data-use` entry, in its order: a CSS add-on's link, or the sheets a script add-on adds with `luccet.style` while it runs;
 3. every other `luccet.style` sheet, such as one added by a note script.
 
-The group sits before the head's first stylesheet of your own, so your head CSS wins over Luccet's at equal specificity, and a theme listed after another add-on wins over it. A [math add-on](addons.html#katex) appends its library's stylesheet (KaTeX's or Temml's) to the head on its own, outside this group.
+The group sits before the head's first stylesheet of your own, so your head CSS wins over Luccet's at equal specificity, and a theme listed after another add-on wins over it.
 
 ```js
 // my-addon.js
@@ -979,7 +1042,7 @@ What the runtime does, in order, from the moment luccet.js runs to `ready`:
 ```
 capture → config → add-ons (fetched in parallel, run in order) → DOMContentLoaded
 → window.LUCCET.schema → parse → transform → emit → mount → note <script>s in order
-→ behaviours → 'render' → math in time slices → 'math' → fragment scroll → console → 'ready'
+→ behaviours → 'render' → 'math' → fragment scroll → console → 'ready'
 ```
 
 ### Capture {#capture}
@@ -997,13 +1060,13 @@ luccet.js runs from its `<script src>` tag while the HTML parser is still readin
    - CSS add-ons and `data-css` become links;
    - the base stylesheet goes in, so the empty page already has its colours.
 
-   The engine requests no KaTeX itself: a [math add-on](addons.html#katex) in `data-use` fetches its library when it meets the first formula.
+   Math loads nothing: the engine writes each formula as MathML, which the browser lays out in a math font `luccet.css` names ([fonts and browsers](math.html#browsers)).
 5. **Waiting.** The runtime waits for `DOMContentLoaded`, which means the whole note has arrived, and for each add-on to load or fail, with `aria-busy` on the document meanwhile. An add-on still loading 12 seconds after the note arrived (`luccet.config.addonTimeout`, in milliseconds) is given up: the note mounts without it, with [`addon.failed`](diagnostics.html#addon-failed) saying it did not load in time, and after 2 seconds the console says what is still awaited. An add-on that fails to load is `addon.failed` too, and so is a script add-on that throws while it runs: the note still mounts, with whatever the add-on registered before the error. An add-on listed more than once (`data-use` and `:::use`) loads once.
 
 ### Mount {#mount}
 
 1. **The note's vocabulary.** The entries of `window.LUCCET.schema` are declared with `luccet.block`, `luccet.leaf` and `luccet.inline`, after the add-ons declared theirs: the note's own entry wins for a name both declare. A bad entry is a console warning.
-2. **The engine.** Parse, transform and emit, with the head, `luccet.config.lang` and the `cssom` option. If the engine throws, which is a bug, the note is shown as escaped source in `<pre class="t-error">`, with one `console.error`.
+2. **The engine.** Parse, transform and emit, with the head, `luccet.config.lang`, `luccet.config.macros`, `luccet.config.math` and the `cssom` option. The transform turns each formula into MathML. If the engine throws, which is a bug, the note is shown as escaped source in `<pre class="t-error">`, with one `console.error`.
 3. **The head.** `:::meta` is written into the existing head; a key the head already sets is left alone. `luccet.config.lang` falls back to the `lang` of `<html>`. A viewport meta is added if there is none.
 4. **The DOM.** The HTML is parsed through a `<template>` as `<main class="luccet">…</main>`, which replaces the body's content. There is one emitter: the DOM is built from its string, never by a second renderer.
 5. **Presentation.** Column alignments and grid columns are set through the CSSOM. Each `<video>` gets its `poster` attribute set again, which Chromium needs to load a poster parsed in a `<template>`.
@@ -1019,15 +1082,14 @@ luccet.js runs from its `<script src>` tag while the HTML parser is still readin
    - a type that is not JavaScript, a module, an import map or speculation rules is a data block, and stays inert.
 
    While they run, `document.write` writes nothing ([`script.document-write`](diagnostics.html#script-document-write)), and a `DOMContentLoaded` listener is not registered ([`script.domcontentloaded`](diagnostics.html#script-domcontentloaded)): that event is over, and it is not fired again. Use `luccet.on('ready', fn)`, or run the code directly.
-2. **Behaviours.** A fence with line numbers and a `start` gets its first number; then each element with `data-t` gets its schema `dom` and its [`luccet.define`](#define) functions, in document order. A formula is still its TeX, in `span.t-math`.
-3. **`render`** fires with `main.luccet`. A listener may return a promise; the runtime awaits all `render` listeners before it fires `math`, which is how a math add-on's typesetting completes first.
-4. **Math.** A [math add-on](addons.html#katex) loaded in `data-use` typesets the formulas in its `render` listener: it saves each formula's TeX to `data-tex`, then KaTeX (or Temml) typesets the visible ones in slices of about 10 ms, so the page stays responsive and the first paint is typeset. Formulas inside a closed `<details>` wait until it opens. A note with more than 100 formulas holds its top-level blocks with `content-visibility: auto` until they come near the viewport. A formula the add-on cannot parse keeps its TeX and the add-on warns in the console. Without a math add-on, every formula stays as its TeX.
-5. **`math`** fires with `main.luccet`, after the `render` listeners have resolved.
-6. **The fragment.** If the URL has a `#id`, its target's closed `<details>` ancestors are opened, and it is scrolled into view.
-7. **The console group** is printed: "luccet: N problems".
-8. **`ready`** fires with `main.luccet`, and then [`luccet.ready`](#ready) resolves.
+2. **Behaviours.** A fence with line numbers and a `start` gets its first number; then each element with `data-t` gets its schema `dom` and its [`luccet.define`](#define) functions, in document order. A formula is already MathML, in `span.t-math`.
+3. **`render`** fires with `main.luccet`. A listener may return a promise; the runtime awaits all `render` listeners before it fires `math`, which is how an add-on that renders math itself (with `luccet.config.math = 'tex'`) finishes first.
+4. **`math`** fires with `main.luccet`, after the `render` listeners have resolved.
+5. **The fragment.** If the URL has a `#id`, its target's closed `<details>` ancestors are opened, and it is scrolled into view.
+6. **The console group** is printed: "luccet: N problems".
+7. **`ready`** fires with `main.luccet`, and then [`luccet.ready`](#ready) resolves.
 
-After `ready`, opening a `<details>` typesets its formulas and fires `math` with it. Printing first opens every `details.t-block` and typesets what is pending. Copying a selection that holds typeset formulas copies each as its TeX, `$tex$` or `$$tex$$`.
+After `ready`, printing first opens every `details.t-block`, and closes them again afterwards. Copying a selection that holds formulas copies each as its TeX, `$tex$` or `$$tex$$`, from its `data-tex`.
 
 ### A built page {#built-page}
 
@@ -1038,12 +1100,12 @@ After `ready`, opening a `<details>` typesets its formulas and fires `math` with
    1. `window.LUCCET.schema`;
    2. the note's source, so the source can be read back, and the number of file lines before it, for the panel;
    3. the build's diagnostics, then an `addon.failed` for each add-on script that failed to load or threw, into `luccet.diagnostics` and the panel;
-   4. behaviours, `render`, a math add-on's typesetting of the formulas the build did not pre-render, `math`, the fragment, the console group (whose first line says "a built page"), `ready`.
+   4. behaviours, `render`, `math`, the fragment, the console group (whose first line says "a built page"), `ready`.
 
 The differences from a note:
 
 - The note's scripts are real scripts the browser runs while it parses the page. `luccet` and the add-ons are already defined, `document.write` writes, and `DOMContentLoaded` listeners run. Nothing is intercepted or reported.
-- A page whose formulas were all pre-rendered (`luccet build --math`) loads no math library, even if it still lists the add-on: the add-on finds them typeset and fetches nothing. A built note whose math was not pre-rendered shows it at view time only if its `data-use` loads a math add-on.
+- Its formulas are in the HTML as the MathML the build wrote, so they show before luccet.js runs, and without it.
 - A CSS add-on that fails to load is not reported; the browser's console shows it.
 - If luccet.js itself fails to load, the content still shows with its styles, but the add-ons, and any note script that calls `luccet`, throw.
 
@@ -1057,6 +1119,8 @@ The runtime does nothing, and `luccet.ready` never settles, when:
 - the browser ignores the `document.write`, so the note holder is never created.
 
 In each case the engine and [`luccet.render`](#render-into-your-page) still work.
+
+It does not start in a browser older than the support floor either: Chrome and Edge 109, Firefox 78 or Safari 14, which have what the runtime needs, MathML layout among it ([browsers](publishing.html#browsers)). The page then shows a line saying the browser is too old, followed by the note as its source, and the console says the same.
 
 ## The AST {#ast}
 
@@ -1091,13 +1155,14 @@ See @kernel and $\dim V$.
        {"type": "ref", "id": "kernel", "data": {"luccet": {"resolved": true}},
         "children": [{"type": "text", "value": "Kernel"}]},
        {"type": "text", "value": " and "},
-       {"type": "inlineMath", "value": "\\dim V"},
+       {"type": "inlineMath", "value": "\\dim V",
+        "data": {"luccet": {"texAt": [{…}], "mathml": "<math><mi>dim</mi>…</math>"}}},
        {"type": "text", "value": "."}]}],
    "data": {"luccet": {"colons": 3, "namePosition": {…}, "idPosition": {…},
                      "tag": "section", "slot": "div",
                      "counter": "theorem", "number": 1, "text": "Theorem 1"}},
    "attributes": {"id": "rn", "class": "big"}}],
- "data": {"luccet": {"diagnostics": [], "transformed": true, "footnotes": [],
+ "data": {"luccet": {"diagnostics": [], "transformed": true, "lang": "", "footnotes": [],
                    "ids": {"kernel": {"kind": "heading", "explicit": true, "line": 1, "column": 12},
                            "rn": {"kind": "theorem", "explicit": true, "line": 3, "column": 26}}}}}
 ```
@@ -1211,14 +1276,14 @@ Any node may also have `attributes`, `data` and `position`. The rest of this sec
  "data": {"luccet": {"idPosition": {…}, "title": [{"type": "text", "value": "Fibonacci"}]}}}
 ```
 
-**Math.** Display math is `math`; the `#id` of its `$$` closer is in `attributes`. Inline and verbatim math are `inlineMath`, and a strong group glued after one is its `attributes`.
+**Math.** Display math is `math`; the `#id` of its `$$` closer is in `attributes`. Inline and verbatim math are `inlineMath`, and a strong group glued after one is its `attributes`. `value` is the TeX, and `data.luccet.texAt` says where each of its lines starts in the note ([data.luccet](#data-luccet)).
 
 ```json
 // $$
 // a^2
 // $$ {#eq-a}
 {"type": "math", "value": "a^2", "attributes": {"id": "eq-a"},
- "data": {"luccet": {"idPosition": {…}}}}
+ "data": {"luccet": {"idPosition": {…}, "texAt": [{"line": 2, "column": 1, "offset": 3}]}}}
 
 // $x${#e-x}
 {"type": "inlineMath", "value": "x", "attributes": {"id": "e-x"},
@@ -1336,6 +1401,7 @@ The parser records under `data.luccet` what it knows that mdast has no field for
 | `kind` | `html` | `'comment'`, `'rawtext'`, `'oneline'`, `'generic'` or `'fence'` for a block; `'inline'` for a tag in text |
 | `unclosed` | `html`, `math` | `true` on an unclosed comment or raw-text block, and on an unclosed `$$`. Each is shown as source |
 | `source` | `math` | for an unclosed `$$`, the text shown as source |
+| `texAt` | `math`, `inlineMath` | where each line of the formula's TeX starts in the note, `[{line, column, offset}]`, one entry per line of `value`. The `math` transform places a [`tex.*`](diagnostics.html#tex) diagnostic with it, at the command at fault |
 | `headerless` | `table` | `true` on a table that starts with its delimiter row |
 | `entity` | `text` | an entity's spelling, such as `'&nbsp;'`; `value` is the decoded text |
 | `caption` | `image` | the bracket content, as inline nodes |
@@ -1354,7 +1420,9 @@ Two things are not marked: a fence that runs to the end unclosed, and a generic 
 ```js
 const { ast } = luccet.parse('$$\nx\n\ntext');
 ast.children[0];
-// → { type: 'math', value: 'x', data: { luccet: { unclosed: true, source: '$$\nx' } }, position: {…} }
+// → { type: 'math', value: 'x',
+//     data: { luccet: { texAt: [ { line: 2, column: 1, offset: 3 } ], unclosed: true, source: '$$\nx' } },
+//     position: {…} }
 ```
 
 ### The transformed AST {#transformed-ast}
@@ -1450,6 +1518,30 @@ $$
 $$ {#eq-rn}
 
 By @rn and @eq-rn.
+```
+
+#### Math {#math-nodes}
+
+The `math` transform, the first, translates every formula, `math` and `inlineMath` alike:
+
+| Field | Value |
+|---|---|
+| `data.luccet.mathml` | the formula as MathML: its `<math>` element, as a string, which the emitter writes inside `span.t-math` |
+| `data.luccet.texError` | `true` on a formula whose TeX does not translate. It has no `mathml`, its [`tex.*`](diagnostics.html#tex) diagnostic is in `ast.data.luccet.diagnostics`, and the emitter writes its TeX as text, in `span.t-math.t-error` |
+
+- **In document order, with the macros.** The table starts with `opts.macros`, then takes the definitions of every `:::macros` block, wherever it stands; a `\gdef` in a formula reaches the formulas after it ([macros](math.html#macros)).
+- **First,** so a formula keeps its MathML wherever a later transform copies it, into a reference's text or a toc entry.
+- **Left alone:** an unclosed `$$`, and every formula under `math: 'tex'`, which gets neither field and no diagnostic.
+
+```js
+const { ast } = luccet.parse('$x^2$ and $\\frac{a}$');
+luccet.transform(ast);
+ast.children[0].children.map((n) => n.data && n.data.luccet);
+// → [ { texAt: [ … ], mathml: '<math><msup><mi>x</mi><mn>2</mn></msup></math>' },
+//     undefined,
+//     { texAt: [ … ], texError: true } ]
+ast.data.luccet.diagnostics.map((d) => `${d.position.start.column} ${d.code}: ${d.message}`);
+// → ['12 tex.argument: the denominator of \\frac is missing']
 ```
 
 #### Fences {#fences}
@@ -1566,4 +1658,4 @@ See @nowhere.
 
 The runtime counts the file line of the luccet.js tag from what the HTML parser kept of the head. It is exact for the canonical first line and for line breaks between head elements. But the HTML parser drops the line break after `<!doctype html>`, `<html …>` and `<head>`, so a head that puts them on lines of their own gives file lines that are too low, by one for each.
 
-**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`luccet.emit`](#emit)). It is how a browser maps an element back to its note line, and how `luccet build --math` positions a [`math.error`](diagnostics.html#math-error).
+**`data-pos`.** The emitter writes the start of a node as `data-pos="line:col"` on fences, math, named elements and cells ([`luccet.emit`](#emit)). It is how a browser maps an element back to its note line, and how `luccet build --diagrams` positions a [`diagram.error`](diagnostics.html#diagram-error).

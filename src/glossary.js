@@ -36,7 +36,7 @@ const slug = (text) => `glossary-${key(text).replace(/[^\p{L}\p{M}\p{N}]+/gu, '-
 
 // A deep copy without positions (`position`, and the `…Position` spans the
 // transforms keep), so a definition travels light and emits the same.
-const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'position' || /Position$/.test(k) ? undefined : v)));
+const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'position' || k === 'texAt' || /Position$/.test(k) ? undefined : v)));
 
 const entry = (term, id, node, how, nodes) => ({ term, key: key(term), slug: slug(term), id, line: node.position ? node.position.start.line : 0, how, definition: strip(nodes) });
 const isTitle = (k) => k && k.type === 'paragraph' && k.data && k.data.directiveLabel;

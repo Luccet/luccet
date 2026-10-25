@@ -41,14 +41,13 @@ The panel shows on pages opened from `file:`, `localhost`, `127.0.0.1` or `[::1]
 
 | Codes | Reported by |
 |---|---|
-| The 53 engine codes, `block.unclosed` to `ref.unreferenceable` below | `luccet check`, the language server, `luccet build`, the browser |
+| The 62 engine codes, `block.unclosed` to `ref.unreferenceable` below | `luccet check`, the language server, `luccet build`, the browser |
 | `doc.quirks`, `script.document-write`, `script.domcontentloaded` | the browser's panel only |
 | `addon.failed` | the browser, `luccet check` and the language server |
-| `math.error` | `luccet build --math` only (a warning); a math add-on also logs a formula it rejects to the browser console, but it is not a panel diagnostic |
 | `output.limit` | the browser and `luccet build`, which emit; not `luccet check` |
 | `head.script`, `addon.remote`, `link.missing`, `link.dangling` | `luccet check` and the language server only |
 
-So a clean `luccet check` does not prove that every formula typesets, that the file starts with `<!doctype html>`, or that note scripts behave. Check those by eye, or ask the user to open the note in a browser and read the panel. `luccet build --math=katex` or `--math=mathml` (with the `katex` or `temml` package installed) reports the formulas it cannot pre-render as `math.error` warnings.
+So a clean `luccet check` does not prove that the file starts with `<!doctype html>`, or that note scripts behave. Check those by eye, or ask the user to open the note in a browser and read the panel. It does prove that every formula translates: a formula's problems are engine codes (`tex.*`).
 
 ## Blocks
 
@@ -216,7 +215,7 @@ Make it <B>bold</B>. Put <div> here.
 
 ## Math
 
-Display math (`$$` lines), inline `$…$` and verbatim `` $`…` ``. For TeX a math add-on cannot typeset, see `math.error`.
+Display math (`$$` lines), inline `$…$` and verbatim `` $`…` ``: Luccet's delimiters. For the TeX inside a formula, see the `tex.*` codes below.
 
 ### `math.unclosed` · error
 
@@ -232,10 +231,10 @@ a^2 + b^2 = c^2
 
 ### `math.opener-tail` · error
 
-A group such as `{#eq}` on the opening `$$` line is TeX, not attributes: the equation gets no id or number, and with a `#` in it a math add-on cannot typeset it either, so it stays as its TeX source marked `t-error`.
+A group such as `{#eq}` on the opening `$$` line is TeX, not attributes: the equation gets no id or number, and the `#` in it is not TeX either (`tex.misplaced`), so the formula stays as its TeX source marked `t-error`.
 **Fix:** move the group after the closing `$$`.
 
-```luccet expect="math.opener-tail"
+```luccet expect="math.opener-tail tex.misplaced"
 $$ {#eq-pythagoras}
 a^2 + b^2 = c^2
 $$
@@ -286,6 +285,94 @@ A formula starts with a digit and holds a word of three or more letters outside 
 
 ```luccet expect="math.suspect-price"
 Costs $5 then x$ more.
+```
+
+## Inside a formula
+
+Luccet turns each formula's TeX into MathML itself. A formula whose TeX does not translate is shown as its TeX, marked `t-error`, with one of these codes at the command at fault: the first problem in it. All are errors.
+
+### `tex.unknown` · error
+
+A command Luccet does not know, usually a typo; the hint names the nearest known command.
+**Fix:** correct the spelling, or define the command in a `:::macros` block.
+
+```luccet expect="tex.unknown"
+The angle is $\thetha$.
+```
+
+### `tex.unsupported` · error
+
+A LaTeX command Luccet leaves out: `\label`, `\ref`, `\eqref`, `\tag` (Luccet numbers equations itself), `\href`, `\url`, `\includegraphics`, `\html…` (a formula writes no link, image or attribute), `\ce` (chemistry), the numbered environments `align`, `equation`, `gather`, `multline`, and a few rare commands.
+**Fix:** follow the hint: an id after the closing `$$` numbers an equation and `@id` refers to it; `aligned` or `gathered` inside `$$` (or `align*`) for lines.
+
+```luccet expect="tex.unsupported"
+$$
+E = mc^2 \tag{1}
+$$
+```
+
+### `tex.unbalanced` · error
+
+A `{`, `\left` or `\begin{…}` never closed, or a `}`, `\right` or `\end{…}` with nothing to close.
+**Fix:** close what is open, at the place the message names.
+
+```luccet expect="tex.unbalanced"
+Half of it is $\frac{a}{b$.
+```
+
+### `tex.argument` · error
+
+A command missing an argument (`\frac{1}`), or with one it cannot read: a colour that is not a CSS name or hex, a length without a unit, a delimiter after `\left` that is not one, an `array` column other than `l`, `c`, `r`, `|`.
+**Fix:** give every argument in braces.
+
+```luccet expect="tex.argument"
+A ratio $\frac{1}$ alone.
+```
+
+### `tex.script` · error
+
+A second superscript or subscript on one base (`x^2^3`), or a prime after a superscript.
+**Fix:** group them: `x^{23}`, or `{x^2}^3`.
+
+```luccet expect="tex.script"
+Not $x^2^3$ but this.
+```
+
+### `tex.misplaced` · error
+
+Something where it cannot stand: `&` or `\\` outside an environment, `#` outside a macro definition, `\middle` outside `\left…\right`, `\limits` after a non-operator, `^` in `\text{…}`, `align*` in inline math.
+**Fix:** align lines inside `\begin{aligned}` … `\end{aligned}`; write a literal `&` as `\&`.
+
+```luccet expect="tex.misplaced"
+$$
+a &= b
+$$
+```
+
+### `tex.macro` · error
+
+A definition that does not work: `\newcommand` for a command that exists (use `\renewcommand`), `#3` in a macro of two parameters, delimited `\def` parameters, a page macro in `window.LUCCET.macros` that is not a name and a body.
+**Fix:** choose another name, or redefine on purpose with `\renewcommand`.
+
+```luccet expect="tex.macro"
+:::macros
+\newcommand{\sin}{s}
+:::
+
+Then $\sin x$.
+```
+
+### `tex.limit` · error
+
+Macros that expand without end (10,000 expansions in one formula), or groups nested more than 100 deep. The limit keeps the page from hanging.
+**Fix:** give the macro a body that ends.
+
+```luccet expect="tex.limit"
+:::macros
+\gdef\again{\again}
+:::
+
+Then $\again$.
 ```
 
 ## Attributes
@@ -598,7 +685,7 @@ A `:::use` block after any content, or inside a block, quote, list item or footn
 Text.
 
 :::use
-addons/katex.js
+addons/code.js
 :::
 ```
 
@@ -712,10 +799,6 @@ A `<script>` in the note body calls `addEventListener('DOMContentLoaded', …)` 
 
 The file does not start with `<!doctype html>`, so the browser renders it in quirks mode, where the layout and some add-ons misbehave. `luccet check` does not report it (`luccet build` adds the doctype, with a warning), so check the first line yourself.
 **Fix:** start the file with the canonical first line, keeping your `src` and `data-use`: `<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>`.
-
-### Math failures are not panel diagnostics
-
-The engine renders no math itself; a math add-on (`addons/katex.js` or `addons/mathml.js`) typesets each formula. A formula the add-on cannot parse stays as its TeX source, marked `t-error`, with the reason in the browser console — not in the panel. If the add-on's library (KaTeX, Temml) never loads, every formula stays as its TeX source and the add-on logs one console warning. There is no runtime diagnostic for either: the old `katex.unavailable` code no longer exists (it went when math moved into the add-ons), and `math.error` is now only a `luccet build --math` warning (and the add-on's console message). Nothing in the note's text is wrong when a formula stays as TeX because the library did not load: do not rewrite formulas for it.
 
 ## Command line and editor only
 

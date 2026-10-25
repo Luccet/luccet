@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: blocks · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: Every block-level construct of Luccet: paragraphs, headings, fences, raw HTML, math, quotes, lists, tables, containers, cells, leaves, footnotes, attribute lines.
@@ -1681,7 +1681,7 @@ $$ e^{i\pi} + 1 = 0 $$
 By @eq-rn, the dimensions add up.
 ```
 
-The runtime typesets the TeX with KaTeX in the browser (see [KaTeX](publishing.html#katex)).
+The engine translates the TeX to MathML, which the browser lays out, centred on its own line. The TeX a formula can use is on the [Math](math.html) page.
 
 ### The opener {#math-opener}
 
@@ -1710,9 +1710,9 @@ $$ x $$ is not display math when text follows.
 
 On the opener and closer lines `\$` is skipped as a pair, so in `5\$$$` the closing `$$` is the last two dollars and the TeX keeps `\$`.
 
-**Attributes on the opener are an error.** A rest that is exactly a strong group starting with `#` or `.` gets [`math.opener-tail`](diagnostics.html#math-opener-tail) (error), "attributes go after the closing `$$`". It stays in the TeX, where KaTeX shows it as an error, and the equation gets no id:
+**Attributes on the opener are an error.** A rest that is exactly a strong group starting with `#` or `.` gets [`math.opener-tail`](diagnostics.html#math-opener-tail) (error), "attributes go after the closing `$$`". It stays in the TeX, as its first line, and the equation gets no id. There a `#` is [`tex.misplaced`](diagnostics.html#tex-misplaced), so the formula is shown as its TeX:
 
-```luccet {.live expect="math.opener-tail"}
+```luccet {.live expect="math.opener-tail tex.misplaced"}
 $$ {#eq-wrong}
 x^2
 $$
@@ -1805,7 +1805,7 @@ Inside a quote or list item, the error block holds the lines without their prefi
 ### Numbering and output {#math-numbering}
 
 - An equation is numbered only if it has an id, in document order, on the counter `equation`. `@eq-rn` renders `(1)`.
-- The output is `div.t-eq` (classes: `t-eq`, then the author's), holding `span.t-math[data-display]`, then `span.t-eqno` when numbered.
+- The output is `div.t-eq` (classes: `t-eq`, then the author's), holding `span.t-math[data-display]`, with the TeX in `data-tex` and the MathML, `<math display="block">`, inside, then `span.t-eqno` when numbered ([output](elements.html#math-output)).
 - An id may come from the closer or from an [attribute line](#attribute-line) before the opener. A class does not number the equation.
 
 ```luccet {.live}
@@ -1827,17 +1827,18 @@ $$
 
 ### Content {#math-content}
 
-- The TeX is verbatim: nothing inside is Luccet, so `@eq-a`, `*em*` and `[l](u)` are TeX. It is HTML-escaped and otherwise unchanged.
+- The TeX is verbatim: nothing inside is Luccet, so `@eq-a`, `*em*` and `[l](u)` are TeX. It is written to `data-tex` HTML-escaped and otherwise unchanged, and translated to MathML.
 - Inside an indented body, TeX lines lose up to the opener's indentation, as fence content does.
-- Macros defined in a [`:::macros` block](#raw-body) apply to every formula.
+- Macros defined in a [`:::macros` block](#macros) apply to every formula.
+- TeX that does not translate is shown as its TeX, marked `t-error`, with a [`tex.*`](diagnostics.html#tex) diagnostic at the command at fault ([Math](math.html#errors)).
 
 ```luccet {.live}
 $$
-@eq-a *em* a < b & c
+@eq-a *em* [l](u) a < b \& c
 $$
 ```
 
-**Diagnostics.** [`math.unclosed`](diagnostics.html#math-unclosed), [`math.opener-tail`](diagnostics.html#math-opener-tail), [`math.closer-tail`](diagnostics.html#math-closer-tail), [`math.inline-display`](diagnostics.html#math-inline-display). At runtime, TeX that KaTeX cannot parse gets [`math.error`](diagnostics.html#math-error).
+**Diagnostics.** [`math.unclosed`](diagnostics.html#math-unclosed), [`math.opener-tail`](diagnostics.html#math-opener-tail), [`math.closer-tail`](diagnostics.html#math-closer-tail), [`math.inline-display`](diagnostics.html#math-inline-display). Inside the TeX, the [`tex.*`](diagnostics.html#tex) codes.
 
 **Escape.** `\$$` at the start of the line is text: the escaped `$` is not a dollar, and the next `$` is followed by a space, so nothing opens.
 
@@ -3016,7 +3017,7 @@ Text for a behaviour to read.
 
 **Ending.** A raw body ends only at a bare closer (`:::`, any colon count) or at `:::/` plus its own name (`:::/macros`, `:::/mermaid`), indented or not, with trailing whitespace ignored. Any other closer line inside it is content, and so is an opener line, a blank line, a heading, `:::end`: nothing else is structural inside it.
 
-```luccet {.live}
+```luccet {.live expect="tex.misplaced"}
 :::macros
 \gdef\R{\mathbb{R}}
 
@@ -3027,7 +3028,7 @@ Text for a behaviour to read.
 After the block, $\R$ is defined.
 ```
 
-Above, `:::aside` and `:::/aside` are content of the macros block, and the bare `:::` closes it.
+Above, `# not a heading`, `:::aside` and `:::/aside` are content of the macros block, and the bare `:::` closes it. Being TeX, the `#` line gets [`tex.misplaced`](diagnostics.html#tex-misplaced): a `#` stands for an argument, inside a definition.
 
 - Without its closer, a raw body runs to the end of the note, swallowing what follows, and the opener gets [`block.unclosed`](diagnostics.html#block-unclosed) (error).
 - Inside a quote or list item, it receives each line after the prefixes are stripped, and closes as unclosed when a prefix fails.
@@ -3043,13 +3044,15 @@ x
 
 ### `:::macros` {#macros}
 
-- The body is TeX macro definitions, such as `\gdef\R{\mathbb{R}}`.
-- All macros blocks are evaluated before any math, in document order, into one KaTeX macro table that every formula shares.
+- The body is TeX macro definitions, such as `\gdef\R{\mathbb{R}}`, `\newcommand{\abs}[1]{\left| #1 \right|}` or `\DeclareMathOperator{\Tr}{Tr}` ([macros](math.html#macros)).
+- Its definitions apply to every formula in the note, wherever the block stands, before it or after it. The blocks are read in document order, so a later one can redefine what an earlier one defined, after the page's own macros, `window.LUCCET.macros` ([Configuration](api.html#config)). A `\gdef` inside a formula, by contrast, reaches only the formulas after it.
+- It may sit inside other containers; it still applies to the whole note.
 - It is emitted as `<div class="t-macros" hidden>`, holding the escaped TeX. Its id, classes and other keys go on that `div`.
-- It may sit inside other containers.
-- A body KaTeX cannot parse gets [`math.error`](diagnostics.html#math-error) at runtime.
+- A definition that does not translate gets a [`tex.*`](diagnostics.html#tex) diagnostic at the command at fault, such as [`tex.unbalanced`](diagnostics.html#tex-unbalanced) for a `{` never closed.
 
 ```luccet {.live}
+For $v \in \R^n$, the block below defines `\R`.
+
 :::macros{#defs .shared}
 \gdef\R{\mathbb{R}}
 :::
@@ -3087,7 +3090,7 @@ The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 
 ```luccet {.live}
 :::use
-addons/katex.js
+addons/mermaid.js
 themes/nord.css addons/code.js?base=vendor/highlight
 :::
 
@@ -3098,7 +3101,7 @@ The add-ons load; the block renders nothing here.
 Some text first.
 
 :::use
-addons/katex.js
+addons/code.js
 :::
 ```
 
@@ -3118,4 +3121,4 @@ graph TD
 
 Indentation in the body is kept as written, even inside an indented container. A schema entry can make a name's body raw without `{raw}`: see [Fields](schema.html#fields).
 
-**Diagnostics.** [`block.unclosed`](diagnostics.html#block-unclosed), [`block.stray-closer`](diagnostics.html#block-stray-closer), [`meta.nested`](diagnostics.html#meta-nested), [`attr.malformed`](diagnostics.html#attr-malformed) (attributes on `:::meta`), [`math.error`](diagnostics.html#math-error).
+**Diagnostics.** [`block.unclosed`](diagnostics.html#block-unclosed), [`block.stray-closer`](diagnostics.html#block-stray-closer), [`meta.nested`](diagnostics.html#meta-nested), [`attr.malformed`](diagnostics.html#attr-malformed) (attributes on `:::meta`), the [`tex.*`](diagnostics.html#tex) codes (a definition in `:::macros` that does not translate).

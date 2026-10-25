@@ -5,15 +5,17 @@ title: Smoke: the :::use block
 :::
 
 :::use
-/addons/katex.js
+/addons/copy.js
 /test/smoke/themes/nord.css
 :::
 
 # Smoke: add-ons from a leading :::use block
 
-Inline $x^2$ and display:
+A fence, which the copy add-on the block loads gives a button:
 
-$$ a^2 + b^2 = c^2 $$
+```js
+const answer = 42;
+```
 
 :::use
 /addons/code.js

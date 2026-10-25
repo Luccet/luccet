@@ -84,6 +84,7 @@ The @kernel- and image-based views.
 ## inline/ref-forms
 
 spec: syntax-inline#reference elements#references syntax-blocks#merging-and-emission
+options: math=tex
 
 A reference renders the target's text: the label for a counted block, `(n)` for an equation; `{ref=…}` selects label, number, title or full, and the reserved key is not emitted.
 
@@ -310,6 +311,7 @@ Entities are atoms: `&#42;` is not a delimiter and `&#91;` is not a bracket, and
 ## inline/atom-math-hides-emphasis
 
 spec: syntax-inline#algorithm syntax-inline#escapes
+options: math=tex
 
 Math is an atom: the `*` inside it is TeX, and the emphasis wraps the whole span.
 
@@ -782,6 +784,7 @@ spec: syntax-inline#ambiguity syntax-inline#escape syntax-inline#span
 ## inline/multiplication-fixes
 
 spec: syntax-inline#residual-emphasis syntax-inline#emphasis syntax-inline#escape
+options: math=tex
 
 The two documented fixes for `2*3*4`: escaped stars, or math.
 

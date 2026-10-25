@@ -3,16 +3,16 @@
 // luccet.js captures the rest of the file as the note and renders it in place,
 // in this order (docs/api.html#lifecycle):
 //
-//   config → capture (one document.write) → add-ons, base CSS and KaTeX
+//   config → capture (one document.write) → add-ons and base CSS
 //   requested → wait for DOMContentLoaded and every add-on →
 //   window.LUCCET.schema → parse → transform → emit → mount → note scripts in
 //   order → line numbers, behaviours → 'render' → 'math' → fragment scroll →
 //   console group → 'ready'
 //
-// The engine leaves each formula as its TeX; a math add-on (addons/katex.js or
-// addons/mathml.js) renders them in a 'render' listener, which the engine
-// awaits before it fires 'math'. Code that needs the rendered math listens for
-// 'math'.
+// The engine writes each formula as MathML (src/tex.js). An add-on that
+// typesets math itself (KaTeX's) sets config.math = 'tex', gets the TeX, and
+// renders it in a 'render' listener, which the runtime awaits before it fires
+// 'math'. Code that needs the rendered math listens for 'math'.
 //
 // A page written by `luccet build` (its luccet.js tag has data-built) starts at
 // the behaviours instead: its main.luccet is in the HTML, and its scripts and
@@ -35,8 +35,7 @@ const { sortDiagnostics } = require('./diag');
 const { scanUse } = require('./use');
 
 // The runtime's own diagnostic codes, all errors: each loses or changes what
-// the reader sees. (Math is rendered by an add-on now — addons/katex.js or
-// addons/mathml.js — which reports its own failures to the console.)
+// the reader sees. (A formula's problems are the engine's tex.* codes.)
 const SEVERITY = {
   'addon.failed': 'error',
   'script.document-write': 'error',
@@ -152,8 +151,8 @@ function fire(event, arg, info) {
 
 // Like fire, but awaits the listeners' return values. They run concurrently,
 // so a synchronous listener (one logging the event, say) is not held up by an
-// async one. The lifecycle awaits 'render' this way: a math add-on renders the
-// formulas there, so 'math' fires only once they are typeset.
+// async one. The lifecycle awaits 'render' this way: an add-on that typesets
+// math itself (KaTeX's) does it there, so 'math' fires once that is done.
 async function fireAsync(event, arg, info) {
   await Promise.all(
     listeners[event].slice().map(async (fn) => {
@@ -380,8 +379,9 @@ function rebuildPanel() {
 // ---------------------------------------------------------------- capture
 
 // What the runtime needs of the browser: replaceChildren, CSS.escape and
-// `:is()` (Chrome 86, Firefox 78, Safari 14), nonce as a property, and
-// MutationObserver.
+// `:is()` (Chrome 86, Firefox 78, Safari 14), nonce as a property,
+// MutationObserver, and MathML layout, which MathMLElement stands for
+// (Chrome 109; Firefox 71, Safari 13.1): formulas are MathML.
 function supported() {
   try {
     return (
@@ -392,7 +392,8 @@ function supported() {
       typeof CSS.supports === 'function' &&
       !!document.querySelector(':is(html)') && // throws where :is() is unknown; CSS.supports('selector()') came later than :is() itself
 
-      'nonce' in HTMLScriptElement.prototype
+      'nonce' in HTMLScriptElement.prototype &&
+      typeof MathMLElement === 'function'
     );
   } catch {
     return false;
@@ -410,9 +411,9 @@ function start() {
   // The support floor (docs/publishing.html#browsers): without these the
   // runtime would fail half-way, so the note is shown as its source instead.
   if (!supported()) {
-    console.warn('luccet: this browser lacks what luccet.js needs (Chrome 86, Firefox 78, Safari 14 or newer); the note is shown as its source');
+    console.warn('luccet: this browser lacks what luccet.js needs (Chrome 109, Firefox 78, Safari 14 or newer); the note is shown as its source');
     try {
-      document.write('<p>This browser is too old for luccet.js (it needs Chrome 86, Firefox 78, Safari 14 or newer); the note follows as its source.</p><plaintext>');
+      document.write('<p>This browser is too old for luccet.js (it needs Chrome 109, Firefox 78, Safari 14 or newer); the note follows as its source.</p><plaintext>');
     } catch {}
     return;
   }
@@ -575,6 +576,7 @@ function readConfig(script) {
     script.removeAttribute('data-nonce');
   } else if (script.nonce) config.nonce = script.nonce;
   if (attr('data-lang') !== null) config.lang = attr('data-lang');
+  if (attr('data-math') !== null) config.math = attr('data-math');
   config.diagnostics = flag('data-diagnostics', config.diagnostics);
   config.quiet = flag('data-quiet', config.quiet);
   const addons = [];
@@ -689,7 +691,7 @@ function linesBefore() {
 
 // ---------------------------------------------------------------- the head
 
-// Luccet's sheets go in the head in this order: KaTeX, the base, each add-on
+// Luccet's sheets go in the head in this order: the base, each add-on
 // (its link, or the luccet.style sheets it adds) in data-use order, then other
 // luccet.style sheets. The group sits before the head's first author
 // stylesheet, so the author's head CSS wins; a head link to luccet.css is the
@@ -800,7 +802,7 @@ function writeMeta(m) {
 
 // parse → transform → emit, with every diagnostic in document order.
 function compile(source, safe, idPrefix) {
-  const opts = { head: page ? page.head : '', lang: config.lang || undefined };
+  const opts = { head: page ? page.head : '', lang: config.lang || undefined, math: config.math === 'tex' ? 'tex' : undefined, macros: config.macros };
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
   return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: sortDiagnostics(parsed.concat(ast.data.luccet.diagnostics)) };
@@ -851,8 +853,7 @@ function posters(root) {
 // default; 0 never holds) is the note size from which a mount holds: from
 // about 20 KB a held note paints sooner, in Chromium at normal speed and on a
 // CPU four times slower, and from 30 KB by a margin over what the hold costs
-// the mount. The math add-ons hold the same way on their own account while
-// formulas wait.
+// the mount.
 const HOLD_OVER = 30000;
 const held = new Map(); // block -> [content-visibility, contain-intrinsic-block-size] as they were
 let watcher = null;
@@ -957,7 +958,7 @@ function reveal() {
   const target = document.getElementById(id);
   if (!target) return;
   for (let d = target.parentElement && target.parentElement.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
-    if (!d.open) d.open = true; // a math add-on typesets a formula it reveals (toggle)
+    if (!d.open) d.open = true;
   }
   target.scrollIntoView();
 }
@@ -970,9 +971,9 @@ function reveal() {
 // add-ons as static tags after luccet.js (cli/build.js). The browser has run
 // the note's scripts by DOMContentLoaded, so there is no capture, mount or
 // script re-creation: config now, then at DOMContentLoaded the diagnostics
-// and the panel, behaviours, a math add-on's rendering, the fragment and
-// 'ready'. A built page carries no math itself unless an add-on was loaded or
-// `luccet build --math` pre-rendered the formulas into it.
+// and the panel, behaviours, the 'render' listeners (where an add-on that
+// typesets math itself works), the fragment and 'ready'. Its formulas are
+// the engine's MathML, written by the build.
 function startBuilt(script) {
   built = true;
   const addons = readConfig(script);
@@ -1142,8 +1143,9 @@ async function process(root, safe) {
   presentation(root);
   lineNumbers(root);
   if (!safe) behaviours(root);
-  // A math add-on renders the formulas in its 'render' listener; the listener
-  // is awaited, so a listener on 'math' sees them typeset. Both get {safe}.
+  // The formulas are MathML already; an add-on that typesets math itself does
+  // it in a 'render' listener, which is awaited, so a listener on 'math' sees
+  // the formulas done. Both get {safe}.
   const info = { safe: !!safe };
   await fireAsync('render', root, info);
   fire('math', root, info);
@@ -1198,9 +1200,9 @@ function lineNumbers(root) {
 
 // ---------------------------------------------------------------- page handlers
 
-// Copy: a formula a math add-on rendered is copied as its TeX, $tex$ or
-// $$tex$$ (from data-tex), in text/plain and text/html. A formula left as its
-// TeX source (no add-on) copies as its text, which is the TeX, by itself.
+// Copy: a rendered formula (the engine's MathML, or an add-on's) is copied as
+// its TeX, $tex$ or $$tex$$ (from data-tex), in text/plain and text/html. A
+// formula left as its TeX copies as its text, which is the TeX, by itself.
 function onCopy(e) {
   const sel = document.getSelection();
   if (!sel || sel.isCollapsed || !sel.rangeCount || !e.clipboardData) return;
@@ -1235,8 +1237,7 @@ function onCopy(e) {
 }
 
 // Print: every details.t-block opens (and closes again afterwards), so its
-// content prints. A math add-on typesets what is still pending on beforeprint,
-// as the print layout is taken right after.
+// content prints.
 let printOpened = [];
 function onBeforePrint() {
   releaseAll();

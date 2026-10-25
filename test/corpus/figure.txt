@@ -137,6 +137,7 @@ An image without an id is always just an image in its paragraph, with or without
 ## figure/implicit-caption-inline
 
 spec: elements#figures
+options: math=tex
 
 The caption is the bracket text as inline content, markup and math included.
 

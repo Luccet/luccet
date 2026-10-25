@@ -17,7 +17,7 @@
 //   /gen/a11y/luccet.html a note with every construct (a11yNote), for axe
 //   /gen/fragment.html   two closed <details> below the fold (fragment tests)
 //   /gen/built.html      test/smoke/built.html through `luccet build`;
-//                        built-katex.html with --katex; guarded.html and
+//                        guarded.html and
 //                        guarded-fr.html from `luccet new` (--lang=fr); built-own-schema.html,
 //                        built-note-config.html, built-addon-throws.html
 //                        built-poster.html and built-cite.html are
@@ -41,15 +41,15 @@
 //   examples/            examples name but the repository lacks get the same
 //                        stand-ins, listed in that page's report
 //
-// KaTeX is served from a local copy: requests for cdn.jsdelivr.net/npm/
-// katex@X.Y.Z/dist/… are answered from node_modules/.cache/luccet-smoke/,
-// filled once from the npm registry (tarball checked against its sha512) for
-// the version the page asks for. The bytes are the ones jsDelivr serves, so
-// SRI still applies, and runs are deterministic and work offline after the
-// first. highlight.js, for addons/code.js, and Mermaid, for
-// addons/mermaid.js, are served the same way from the copies tools/hljs.js
-// and tools/mermaid.js keep there. --live-cdn uses the real CDN instead; so
-// does any request the cache cannot answer.
+// Math needs nothing from the network: the engine writes MathML itself.
+// highlight.js, for addons/code.js, and Mermaid, for addons/mermaid.js, are
+// served from local copies: requests for cdn.jsdelivr.net/npm/… are answered
+// from node_modules/.cache/luccet-smoke/, which tools/hljs.js and
+// tools/mermaid.js fill once from the npm registry (tarball checked against
+// its sha512) for the version the add-on asks for. The bytes are the ones
+// jsDelivr serves, so SRI still applies, and runs are deterministic and work
+// offline after the first. --live-cdn uses the real CDN instead; so does any
+// request the cache cannot answer.
 //
 // Each test has a timeout (30 s unless it says otherwise). A test can skip
 // itself with a reason (a missing tool); skips are reported, not failed.
@@ -164,11 +164,10 @@ function staticHandler(cdnOrigin) {
     // Local copies of highlight.js and Mermaid, for the add-ons' ?base=.
     if (url.startsWith('/vendor/highlightjs/')) file = path.join(CACHE, `highlightjs-${HLJS_VERSION}`, path.normalize(url.slice('/vendor/highlightjs/'.length)));
     if (url.startsWith('/vendor/mermaid/')) file = path.join(CACHE, `mermaid-${MERMAID_VERSION}`, 'dist', path.normalize(url.slice('/vendor/mermaid/'.length)));
-    if (url.startsWith('/vendor/temml/')) file = path.join(CACHE, `temml-${TEMML_VERSION}`, 'dist', path.normalize(url.slice('/vendor/temml/'.length)));
     // The search fixtures with the files `luccet index` writes beside them.
     if (url.startsWith('/gen/indexed/')) file = path.join(indexedDir(), path.normalize(url.slice('/gen/indexed/'.length)));
     if (url.startsWith('/gen/glossary/')) file = path.join(indexedDir('glossary'), path.normalize(url.slice('/gen/glossary/'.length)));
-    // A sample's add-ons (addons/katex.js …) resolve to the repository's, as luccet.js does.
+    // A sample's add-ons (addons/code.js …) resolve to the repository's, as luccet.js does.
     if (url.startsWith('/test/samples/addons/')) file = path.join(ROOT, 'addons', path.normalize(url.slice('/test/samples/addons/'.length)));
     // A folder's address is its index.html, as GitHub Pages and most servers serve it; a page without its extension is the page.
     if (url.endsWith('/') && fs.existsSync(path.join(file, 'index.html'))) file = path.join(file, 'index.html');
@@ -216,12 +215,13 @@ const pad = (kb) => '/*' + 'x'.repeat(kb * 1024) + '*/\n';
 // A 4,000-formula note in the core vocabulary: 80 sections, each a heading
 // with one formula and seven blocks of seven formulas (a title, three inline,
 // one display, two inline), two of the seven blocks being closed <details>
-// (1,120 formulas, 28 %). 3,440 inline and 560 display. The note script
-// records when 'render' and 'math' fire.
+// (1,120 formulas, 28 %). 3,440 inline and 560 display. No add-on: the
+// engine writes the MathML. The note script records when 'render' and
+// 'math' fire.
 function mathNote(sections = 80) {
   const kinds = ['theorem', 'definition', 'lemma', 'example', 'details', 'details', 'remark'];
   const out = [
-    '<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/addons/katex.js"></script>',
+    '<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>',
     '',
     '<script>',
     "  window.__t = { script: performance.now() };",
@@ -287,7 +287,7 @@ function codeNote(fences = 300) {
 function fragmentNote() {
   const filler = Array.from({ length: 40 }, (_, i) => `Filler paragraph ${i + 1}, to put what follows below the fold.`).join('\n\n');
   return [
-    '<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/addons/katex.js"></script>',
+    '<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>',
     '',
     '# Smoke: fragment targets',
     '',
@@ -302,7 +302,7 @@ function fragmentNote() {
     '',
     filler,
     '',
-    ':::details[Closed, with math to typeset on toggle]{#fold}',
+    ':::details[Closed, with math]{#fold}',
     'Inline $e^{i\\pi} + 1 = 0$ and display:',
     '',
     '$$ \\sum_{n=1}^\\infty \\frac{1}{n^2} = \\frac{\\pi^2}{6} $$',
@@ -313,9 +313,11 @@ function fragmentNote() {
 
 // A leading `:::use` block, then enough prose that the file arrives in many
 // chunks on a slow network: the runtime must find the block in the first.
+// luccet.js is a blocking script that downloads alongside the note, so the
+// note is made 2.5 times its size: it is still arriving when luccet.js runs.
 function useLongNote() {
-  const filler = Array.from({ length: 2500 }, (_, i) => `Paragraph ${i + 1}: enough prose to make the file arrive in many network chunks on Slow 3G, so that the leading block is read long before the end.`).join('\n\n');
-  return ['<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>', '', ':::use', '/addons/katex.js', ':::', '', '# Smoke: a long note with a leading :::use', '', 'A formula $x^2$ near the top.', '', filler, ''].join('\n');
+  const filler = Array.from({ length: Math.ceil((2.5 * fs.statSync(LUCCET_JS).size) / 143) }, (_, i) =>`Paragraph ${i + 1}: enough prose to make the file arrive in many network chunks on Slow 3G, so that the leading block is read long before the end.`).join('\n\n');
+  return ['<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>', '', ':::use', '/addons/copy.js', ':::', '', '# Smoke: a long note with a leading :::use', '', 'A formula $x^2$ near the top.', '', filler, ''].join('\n');
 }
 
 // A catalogue and an index as luccet index never writes them: entries whose
@@ -409,8 +411,8 @@ function longNote(bytes = 1000000) {
 }
 
 // A note with every construct the emitter writes, under luccet.css, with a
-// language and a title, for an axe run. (The themes are checked in
-// github.com/Luccet/themes.)
+// language and a title, for an axe run; its formulas are the engine's
+// MathML. (The themes are checked in github.com/Luccet/themes.)
 function a11yNote() {
   // The copy and lightbox add-ons too, so their controls are checked.
   const use = ' data-use="/addons/copy.js /addons/lightbox.js"';
@@ -468,8 +470,6 @@ const GENERATED = {
   'long100kb.html': () => ['text/html', longNote(100000)],
   'fragment.html': () => ['text/html', fragmentNote()],
   'built.html': () => ['text/html', cliPage('built')],
-  'built-katex.html': () => ['text/html', cliPage('built-katex')],
-  'built-mathml.html': () => ['text/html', cliPage('built-mathml')],
   'use-long.html': () => ['text/html', useLongNote()],
   'built-missing.html': () => ['text/html', cliPage('built-missing')],
   'built-own-schema.html': () => ['text/html', cliPage('built-own-schema')],
@@ -486,11 +486,8 @@ const GENERATED = {
 // ---- pages written by the command line
 
 // `luccet build` and `luccet new` (its guard), run once per page; a test's setup
-// calls cliPage first, so a failure fails that test. built-katex.html
-// pre-renders with the local KaTeX copy (below) as the `katex` package, on
-// NODE_PATH: the setup awaits katexDist first.
+// calls cliPage first, so a failure fails that test.
 const CLI = path.join(ROOT, 'luccet-cli.js');
-const KATEX_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8'))[1];
 const GUARDED_NOTE = '# Smoke: a guarded note\n\nRendered by luccet.js, or shown as its source when luccet.js does not load.\n';
 const cliPages = new Map();
 
@@ -512,8 +509,8 @@ function indexedDir(name = 'search') {
 function cliPage(name) {
   if (cliPages.has(name)) return cliPages.get(name);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-smoke-cli-'));
-  const cli = (args, env) => {
-    const r = spawnSync(process.execPath, [CLI, ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '', ...env } });
+  const cli = (args) => {
+    const r = spawnSync(process.execPath, [CLI, ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
     if (r.status !== 0) throw new Error(`luccet ${args.join(' ')} exited ${r.status}: ${r.stderr.trim()}`);
     return r.stdout;
   };
@@ -525,13 +522,6 @@ function cliPage(name) {
       const file = path.join(tmp, 'missing.html');
       fs.writeFileSync(file, '<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/test/smoke/missing-addon.js /test/smoke/missing-addon.css"></script>\n# Smoke: a built page whose add-ons are missing\n');
       html = cli(['build', file]);
-    } else if (name === 'built-katex') {
-      const pkg = path.join(tmp, 'node_modules', 'katex');
-      fs.mkdirSync(pkg, { recursive: true });
-      fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'katex', version: KATEX_VERSION, main: 'dist/katex.js' }));
-      fs.symlinkSync(path.join(CACHE, `katex-${KATEX_VERSION}`, 'dist'), path.join(pkg, 'dist'), 'dir');
-      html = cli(['build', 'test/smoke/built.html', '--katex'], { NODE_PATH: path.join(tmp, 'node_modules') });
-      if (!/<script data-built src=/.test(html)) throw new Error('luccet build --katex left formulas to luccet.js');
     } else if (name === 'built-diagrams') {
       // A note next to the real luccet.js and add-ons, since a browser runs
       // them; the page's URLs are then made the server's.
@@ -547,13 +537,6 @@ function cliPage(name) {
       if (r.status !== 0) throw new Error(`luccet build --diagrams exited ${r.status}: ${r.stderr.trim()}`);
       html = r.stdout.replace('src="luccet.js"', 'src="/luccet.js"').replace(/(src|data-use)="addons\/mermaid\.js"/g, '$1="/addons/mermaid.js"');
       if (!/<svg[^>]*class="t-mermaid-screen t-mermaid-light"/.test(html)) cliPages.set('built-diagrams:why', (r.stderr.match(/luccet build: (.*(?:could not be drawn|cannot be required).*)/) || [, r.stderr.trim()])[1]);
-    } else if (name === 'built-mathml') {
-      const pkg = path.join(tmp, 'node_modules', 'temml');
-      fs.mkdirSync(pkg, { recursive: true });
-      fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'temml', version: TEMML_VERSION, main: 'dist/temml.cjs' }));
-      fs.symlinkSync(path.join(CACHE, `temml-${TEMML_VERSION}`, 'dist'), path.join(pkg, 'dist'), 'dir');
-      html = cli(['build', 'test/smoke/built.html', '--math=mathml'], { NODE_PATH: path.join(tmp, 'node_modules') });
-      if (!/<math\b/.test(html)) throw new Error('luccet build --math=mathml did not pre-render MathML');
     } else {
       const file = path.join(tmp, `${name}.html`);
       cli(['new', file, '--luccet=/luccet.js', ...(name === 'guarded-fr' ? ['--lang=fr', '--title=Une note gardée'] : [])]);
@@ -566,16 +549,14 @@ function cliPage(name) {
   }
 }
 
-// ---- KaTeX, highlight.js and Mermaid from local copies
+// ---- highlight.js and Mermaid from local copies
 
 const npm = require('../tools/npm');
 const CACHE = npm.CACHE;
-const KATEX_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@(\d+\.\d+\.\d+)\/(dist\/[^?#]+)/;
 const HLJS_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@highlightjs\/cdn-assets@(\d+\.\d+\.\d+)\/([^?#]+)/;
 const HLJS_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8'))[1];
 const MERMAID_URL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@(\d+\.\d+\.\d+)\/([^?#]+)/;
 const MERMAID_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mermaid.js'), 'utf8'))[1];
-const TEMML_VERSION = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(ROOT, 'addons', 'mathml.js'), 'utf8'))[1];
 const AXE_VERSION = '4.14.0'; // axe-core, for the accessibility test; cached like the add-ons' libraries
 
 // A package's folder in node_modules/.cache/luccet-smoke/, filled once
@@ -592,15 +573,13 @@ function cached(label, packageDir, version) {
     );
   return dirs.get(`${label}@${version}`);
 }
-// katex-X.Y.Z/dist/; highlightjs-X.Y.Z/, the package (tools/hljs.js);
-// mermaid-X.Y.Z/dist/mermaid.min.js (tools/mermaid.js).
-const katexDist = (v) => cached('KaTeX', (version) => npm.packageDir('katex', version, { folder: `katex-${version}`, keep: ['dist/'], has: 'dist/katex.min.js' }), v);
+// highlightjs-X.Y.Z/, the package (tools/hljs.js); mermaid-X.Y.Z/dist/
+// mermaid.min.js (tools/mermaid.js).
 const hljsDir = (v) => cached('highlight.js', require('../tools/hljs').packageDir, v);
 const mermaidDir = (v) => cached('Mermaid', require('../tools/mermaid').packageDir, v);
-const temmlDir = (v) => cached('Temml', require('../tools/temml').packageDir, v);
 const axeDir = (v) => cached('axe-core', (version) => npm.packageDir('axe-core', version, { folder: `axe-core-${version}`, keep: ['axe.min.js'], has: 'axe.min.js' }), v);
 
-// Answers a package's CDN requests from its copy, as routeKatex below does KaTeX's.
+// Answers a package's CDN requests from its copy.
 async function routeCached(context, re, dirOf) {
   await context.route(
     (url) => re.test(url.href),
@@ -616,44 +595,15 @@ async function routeCached(context, re, dirOf) {
   );
 }
 
-// Answers KaTeX requests from the cache. ctx.cdnDelay(bytes), when set,
-// holds each response back as a throttled network would: CDP throttling
-// does not apply to responses fulfilled by a route (measured: 12 ms instead
-// of 1.4 s for 50 KB at 400 kbit/s), so the waterfall test sets it.
-async function routeKatex(context, ctx) {
-  await context.route(
-    (url) => KATEX_URL.test(url.href),
-    async (route) => {
-      const [, version, rel] = KATEX_URL.exec(route.request().url());
-      const dir = await katexDist(version);
-      const file = dir && path.join(dir, path.normalize(rel));
-      if (!file || !file.startsWith(dir + path.sep) || !fs.existsSync(file)) return route.continue();
-      const body = fs.readFileSync(file);
-      if (ctx.cdnDelay) await new Promise((r) => setTimeout(r, ctx.cdnDelay(body.length)));
-      await route
-        .fulfill({
-          status: 200,
-          body,
-          headers: {
-            'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
-            'Access-Control-Allow-Origin': '*',
-            'Timing-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=31536000, immutable',
-          },
-        })
-        .catch(() => {}); // the context closed while we waited
-    },
-  );
-}
-
 // ---- measurement helpers
 
 // Slow 3G: 400 kbit/s each way, 400 ms round trip.
 const SLOW_3G = { latency: 400, bytesPerSecond: (400 * 1000) / 8 };
 const STAGE_TOL = 25; // ms
 
-// Serial stages: a page loads in three, HTML → luccet.js → add-ons ∥ KaTeX (the add-ons are named by luccet.js, so they follow it)
-// preload → mount. The document is stage 1.
+// Serial stages: a page loads in three, HTML → luccet.js → add-ons (the
+// add-ons are named by luccet.js, so they follow it; it preloads them) →
+// mount. Math adds none. The document is stage 1.
 // Every other request is one stage later than the latest-staged request that
 // had already finished when it started, and at least stage 2, since
 // everything is discovered from the document's bytes:
@@ -700,13 +650,14 @@ async function pdfText(page) {
   }
 }
 
-// Every formula outside a closed <details> rendered by KaTeX ('ready' comes
-// after 'math'; closed details render on toggle).
+// Every formula is the engine's MathML from the mount on, closed <details>
+// included: a .t-math whose child is <math>, with its TeX in data-tex. One
+// that does not translate is its TeX, with t-error (and a tex.* diagnostic).
 const MATH_STATE = () => {
   const all = [...document.querySelectorAll('main.luccet .t-math')];
-  const shown = all.filter((e) => !e.closest('details:not([open])'));
-  const rendered = shown.filter((e) => e.querySelector('.katex'));
-  return { all: all.length, shown: shown.length, rendered: rendered.length, firstMissing: (shown.find((e) => !e.querySelector('.katex')) || {}).outerHTML };
+  const ok = (e) => e.hasAttribute('data-tex') && e.firstElementChild && e.firstElementChild.localName === 'math' && !e.classList.contains('t-error');
+  const rendered = all.filter(ok);
+  return { all: all.length, rendered: rendered.length, errors: all.filter((e) => e.classList.contains('t-error')).length, closed: all.filter((e) => e.closest('details:not([open])')).length, firstMissing: (all.find((e) => !ok(e)) || {}).outerHTML };
 };
 
 // Formulas under node, for the sample-notes test.
@@ -751,8 +702,10 @@ function docPages() {
 const DOCS_STATE = () => {
   const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
   const outs = [...document.querySelectorAll('.docs-live-out')];
-  // docs.js typesets an example's math itself: .docs-math until then, .t-math after
-  const math = outs.flatMap((o) => [...o.querySelectorAll('.t-math, .docs-math')]);
+  // An example's formulas are the engine's MathML, translated with its own macros.
+  const math = outs.flatMap((o) => [...o.querySelectorAll('.t-math')]);
+  const mathml = (m) => !!m.querySelector(':scope > math');
+  const example = (e) => e.closest('.docs-live');
   const panel = document.querySelector('.t-diagnostics');
   const listed = (window.luccetDocs ? window.luccetDocs.pages.concat(window.luccetDocs.examples) : []).some(([p]) => location.pathname.endsWith(`/${p}`) || (p === 'index.html' && location.pathname.endsWith('/')));
   return {
@@ -767,11 +720,13 @@ const DOCS_STATE = () => {
     mismatched: [...document.querySelectorAll('.docs-live-mismatch .docs-live-problem')].map((p) => p.textContent),
     scripts: document.querySelectorAll('.docs-live-out script').length,
     math: math.length,
-    // typeset, or rejected by KaTeX: the TeX stays, with t-error (an example
-    // may show a formula KaTeX refuses; it is listed in the example)
-    typeset: math.filter((m) => m.querySelector('.katex') || m.classList.contains('t-error')).length,
+    // MathML, or a formula that does not translate: its TeX, with t-error
+    // (an example may show one; its tex.* diagnostic is in the example)
+    typeset: math.filter((m) => mathml(m) || m.classList.contains('t-error')).length,
     rejected: math.filter((m) => m.classList.contains('t-error')).length,
-    untypeset: (math.find((m) => !m.querySelector('.katex') && !m.classList.contains('t-error')) || {}).outerHTML,
+    untypeset: (math.find((m) => !mathml(m) && !m.classList.contains('t-error')) || {}).outerHTML,
+    // a t-error formula whose example lists no tex.* diagnostic
+    unexplained: (math.find((m) => m.classList.contains('t-error') && !example(m).querySelector('.docs-live-diagnostics .docs-diag[data-code^="tex."]')) || {}).outerHTML,
     duplicates: [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))],
     diagnostics: (window.luccet.diagnostics || []).map((d) => `${d.code} at ${d.position && d.position.start ? `${d.position.start.line}:${d.position.start.column}` : 'the head'}: ${d.message}`),
     panel: !!panel && panel.getClientRects().length > 0,
@@ -779,55 +734,56 @@ const DOCS_STATE = () => {
 };
 
 // Each example's :::macros are its own: a formula that uses a macro its
-// example defines typesets; one that uses a macro only another example
-// defines does not; and none reaches the page's macro table, probed through
-// the runtime itself (luccet.render on formulas that use them; run last, as
-// the probe's failures are the page's diagnostics).
+// example defines translates; one that uses a macro only another example
+// defines does not; and none reaches the page's macros, probed through the
+// runtime itself (luccet.render of formulas that use them, with the page's
+// :::macros before them; run last, as the probe's failures are the page's
+// diagnostics). A command the engine knows (luccet.tex) is not a macro.
 const MACRO_STATE = async () => {
-  const K = window.katex;
-  if (!K) return { skipped: 'KaTeX did not load' };
+  const T = window.luccet;
+  if (!T || typeof T.tex !== 'function') return { skipped: 'no luccet.tex' };
   const names = (tex) => [...tex.matchAll(/\\(?:(?:re|provide)?newcommand\*?\s*\{?\s*|[gex]?def\s*)(\\[A-Za-z]+)/g)].map((m) => m[1]);
   const builtin = (n) => {
-    try {
-      K.renderToString(n, { throwOnError: true });
-      return true;
-    } catch {
-      return false;
-    }
+    const r = T.tex(n);
+    return !(r.error && r.error.code === 'tex.unknown');
   };
+  const mathml = (f) => !!f.querySelector(':scope > math') && !f.classList.contains('t-error');
   const uses = (tex, n) => new RegExp(`${n.replace(/\\/g, '\\\\')}(?![A-Za-z])`).test(tex);
   const widgets = [...document.querySelectorAll('.docs-live')];
-  const defs = widgets.map((w) => new Set([...w.querySelectorAll('.docs-live-out .docs-macros')].flatMap((m) => names(m.textContent)).filter((n) => !builtin(n))));
-  const broken = widgets.map((w) => [...w.querySelectorAll('.docs-diag[data-code="math.error"] .docs-msg')].some((m) => /:::macros block does not parse/.test(m.textContent)));
+  const defs = widgets.map((w) => new Set([...w.querySelectorAll('.docs-live-out .t-macros')].flatMap((m) => names(m.textContent)).filter((n) => !builtin(n))));
+  // an example that shows a tex.* diagnostic (a :::macros that does not
+  // translate, a macro that never ends): its macros may fail on purpose
+  const broken = widgets.map((w) => !!w.querySelector('.docs-live-diagnostics .docs-diag[data-code^="tex."]'));
   const problems = [];
   let used = 0;
   let foreign = 0;
   widgets.forEach((w, i) => {
-    for (const f of w.querySelectorAll('.docs-live-out .t-math, .docs-live-out .docs-math')) {
+    for (const f of w.querySelectorAll('.docs-live-out .t-math')) {
       const tex = f.getAttribute('data-tex') || '';
       for (const n of defs[i]) {
         if (!uses(tex, n)) continue;
         used++;
-        if (!broken[i] && !f.querySelector('.katex')) problems.push(`example ${i + 1}: ${n}, from its own :::macros, does not typeset in ${tex}`);
+        if (!broken[i] && !mathml(f)) problems.push(`example ${i + 1}: ${n}, from its own :::macros, does not translate in ${tex}`);
       }
       widgets.forEach((_, j) => {
         if (j === i) return;
         for (const n of defs[j]) {
           if (defs[i].has(n) || !uses(tex, n)) continue;
           foreign++;
-          if (f.querySelector('.katex')) problems.push(`example ${i + 1} typesets ${n}, which only example ${j + 1} defines`);
+          if (mathml(f)) problems.push(`example ${i + 1} translates ${n}, which only example ${j + 1} defines`);
         }
       });
     }
   });
-  const own = new Set([...document.querySelectorAll('main.luccet .t-macros')].flatMap((m) => names(m.textContent)));
+  const pageMacros = [...document.querySelectorAll('main.luccet .t-macros')].filter((m) => !m.closest('.docs-live'));
+  const own = new Set(pageMacros.flatMap((m) => names(m.textContent)));
   const probe = [...new Set(defs.flatMap((d) => [...d]))].filter((n) => !own.has(n));
   if (probe.length) {
     const div = document.createElement('div');
-    for (const n of probe) div.append(Object.assign(document.createElement('span'), { className: 't-math', textContent: n }));
     document.querySelector('main.luccet').append(div);
-    await window.luccet.render(div);
-    [...div.children].forEach((f, k) => f.querySelector('.katex') && problems.push(`${probe[k]}, from an example's :::macros, reached the page's macros`));
+    const src = pageMacros.map((m) => `:::macros\n${m.textContent}\n:::\n\n`).join('') + probe.map((n) => `$${n}$`).join('\n\n') + '\n';
+    await T.render(div, src);
+    [...div.querySelectorAll('.t-math')].forEach((f, k) => mathml(f) && problems.push(`${probe[k]}, from an example's :::macros, reached the page's macros`));
     div.remove();
   }
   return { problems, defined: defs.reduce((a, d) => a + d.size, 0), used, foreign, probed: probe.length };
@@ -852,7 +808,8 @@ async function checkDocsPage(page, { docs, want }) {
   if (s.failed.length) problems.push(`${s.failed.length} example(s) failed: ${s.failed[0]}`);
   if (s.mismatched.length) problems.push(`${s.mismatched.length} example(s) do not match their expect: ${s.mismatched[0]}`);
   if (s.scripts) problems.push(`${s.scripts} <script> element(s) left in example results`);
-  if (s.typeset !== s.math) problems.push(`${s.math - s.typeset} of ${s.math} formulas in example results not typeset; first: ${String(s.untypeset).slice(0, 160)}`);
+  if (s.typeset !== s.math) problems.push(`${s.math - s.typeset} of ${s.math} formulas in example results neither MathML nor marked t-error; first: ${String(s.untypeset).slice(0, 160)}`);
+  if (s.unexplained) problems.push(`a formula in an example's result does not translate, and the example lists no tex.* diagnostic: ${String(s.unexplained).slice(0, 160)}`);
   if (s.duplicates.length) problems.push(`duplicate ids: ${s.duplicates.slice(0, 5).join(', ')}`);
   if (s.diagnostics.length) problems.push(`luccet.diagnostics has ${s.diagnostics.length}, expected none: ${s.diagnostics[0]}`);
   if (s.panel) problems.push('the diagnostics panel shows');
@@ -867,15 +824,15 @@ const DOC_TESTS = (() => {
   const examples = require('../cli/examples');
   const pages = docPages();
   const tests = pages.map((p) => ({
-    name: `docs: ${p.rel} renders with zero console errors${p.docs ? ', a site nav and a toc' : ''}; every live example has a result; math in results is typeset`,
+    name: `docs: ${p.rel} renders with zero console errors${p.docs ? ', a site nav and a toc' : ''}; every live example has a result; formulas in results are MathML`,
     url: `/${p.rel}`,
     offline: true,
     async check(page, ctx) {
       const x = examples.extract(p.text, p.file);
       const want = x ? x.examples.length : 0;
       const s = await checkDocsPage(page, { docs: p.docs, want });
-      ctx.note(`${want} live example(s), ${s.math} formula(s) in their results${s.rejected ? ` (${s.rejected} rejected by KaTeX)` : ''}${p.docs ? `, ${s.nav} site links` : ''}`);
-      if (s.macros.defined) ctx.note(`${s.macros.defined} macro(s) defined in examples: ${s.macros.used} use(s) typeset, ${s.macros.foreign} use(s) from other examples refused, ${s.macros.probed} kept from the page`);
+      ctx.note(`${want} live example(s), ${s.math} formula(s) in their results${s.rejected ? ` (${s.rejected} that do not translate, with their tex.* diagnostics in the example)` : ''}${p.docs ? `, ${s.nav} site links` : ''}`);
+      if (s.macros.defined) ctx.note(`${s.macros.defined} macro(s) defined in examples: ${s.macros.used} use(s) translated, ${s.macros.foreign} use(s) from other examples refused, ${s.macros.probed} kept from the page`);
       const stood = [...(docStandIns.get(`/${p.rel}`) || [])].map((u) => path.posix.relative(path.posix.dirname(`/${p.rel}`), u));
       if (stood.length) ctx.note(`stand-ins for ${stood.length} missing file(s) its examples name: ${stood.sort().join(', ')}`);
     },
@@ -929,7 +886,7 @@ const DOC_TESTS = (() => {
           ids: [...out[0].querySelectorAll('[id]')].map((e) => e.id).sort(),
           hrefs: [...out[0].querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href')).sort(),
           bare: !!document.getElementById('k') || !!document.getElementById('fn-a'),
-          math: out[0].querySelectorAll('.t-math .katex').length + out[2].querySelectorAll('.t-math .katex').length,
+          math: out[0].querySelectorAll('.t-math[data-tex] > math').length + out[2].querySelectorAll('.t-math[data-tex] > math').length,
           ref: (out[2].querySelector('a.t-ref') || {}).textContent,
           refHref: (out[2].querySelector('a.t-ref') || {}).getAttribute?.('href'),
           diag: [...document.querySelectorAll('.docs-live')[1].querySelectorAll('.docs-diags a')].map((a) => a.getAttribute('href')),
@@ -938,12 +895,12 @@ const DOC_TESTS = (() => {
           luccet: document.querySelectorAll('code.docs-luccet .tk-mark, code.docs-luccet .tk-name, code.docs-luccet .tk-attr, code.docs-luccet .tk-math').length,
           html: (document.querySelector('.docs-live-html') || {}).textContent || '',
           // the math examples: 6 defines \RR and uses it, 7 uses it without, 8 has a bad :::macros and a bad formula
-          own: [...out[5].querySelectorAll('.t-math, .docs-math')].map((f) => `${f.className}${f.querySelector('.katex') ? ' katex' : ''} ${f.getAttribute('data-tex').trim()}`),
-          macrosHidden: getComputedStyle(out[5].querySelector('.docs-macros')).display,
-          runtimeMacros: document.querySelectorAll('.docs-live-out .t-macros').length,
-          other: [...out[6].querySelectorAll('.t-math, .docs-math')].map((f) => `${f.className}${f.querySelector('.katex') ? ' katex' : ''}`),
+          own: [...out[5].querySelectorAll('.t-math')].map((f) => `${f.className}${f.querySelector(':scope > math') ? ' mathml' : ''} ${f.getAttribute('data-tex').trim()}`),
+          display: !!out[5].querySelector('.t-math[data-display] > math[display="block"]'),
+          macrosHidden: getComputedStyle(out[5].querySelector('.t-macros')).display,
+          other: [...out[6].querySelectorAll('.t-math')].map((f) => `${f.className}${f.querySelector(':scope > math') ? ' mathml' : ''} ${f.textContent}`),
           codes: [5, 6, 7].map((i) => [...document.querySelectorAll('.docs-live')[i].querySelectorAll('.docs-diag')].map((d) => `${d.dataset.code} ${d.querySelector('.docs-pos').textContent}`)),
-          errorLink: (document.querySelectorAll('.docs-live')[7].querySelector('.docs-diag[data-code="math.error"] a') || {}).getAttribute?.('href'),
+          errorLink: (document.querySelectorAll('.docs-live')[7].querySelector('.docs-diag[data-code="tex.unknown"] a') || {}).getAttribute?.('href'),
           label: (document.querySelectorAll('.docs-live')[7].querySelector('.docs-live-diagnostics .docs-live-label') || {}).textContent,
           logo: (document.querySelector('nav.site-nav .docs-nav-logo') || {}).getAttribute?.('src'),
         };
@@ -958,20 +915,20 @@ const DOC_TESTS = (() => {
       if (JSON.stringify(r.ids) !== JSON.stringify(ids)) problems.push(`result ids ${JSON.stringify(r.ids)}, expected ${JSON.stringify(ids)}`);
       if (JSON.stringify(r.hrefs) !== JSON.stringify(['#ex1-fn-a', '#ex1-fnref-a', '#ex1-k'])) problems.push(`result fragment links ${JSON.stringify(r.hrefs)}`);
       if (r.bare) problems.push('an unprefixed example id is in the page');
-      if (r.math !== 3) problems.push(`${r.math} typeset formulas in results 1 and 3, expected 3`);
+      if (r.math !== 3) problems.push(`${r.math} MathML formulas in results 1 and 3, expected 3`);
       if (r.ref !== 'Theorem 1' || r.refHref !== '#ex3-rn') problems.push(`the demo-schema reference reads ${JSON.stringify(r.ref)} → ${r.refHref}`);
       if (JSON.stringify(r.diag) !== JSON.stringify(['../../docs/diagnostics.html#block-unclosed', '../../docs/diagnostics.html#attr-malformed'])) problems.push(`diagnostic links ${JSON.stringify(r.diag)}`);
       if (!r.titled) problems.push('the titled example lost its figure and caption');
       if (r.nav !== '../../docs/guide.html') problems.push(`the site nav's first link is ${r.nav}, expected ../../docs/guide.html`);
       if (r.luccet < 10) problems.push(`only ${r.luccet} highlighted Luccet tokens`);
       if (!/^<p>A <em>short<\/em> example/.test(r.html) || !/\n<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes">\n {2}<ol>\n {4}<li id="fn-a">/.test(r.html)) problems.push(`the HTML pane: ${JSON.stringify(r.html.slice(0, 300))}`);
-      const own = ['t-math katex f\\colon \\RR \\to \\RR', 't-math katex \\RR^2'];
-      if (JSON.stringify(r.own) !== JSON.stringify(own)) problems.push(`the example's own macro: ${JSON.stringify(r.own)}, expected ${JSON.stringify(own)} (typeset .t-math with data-tex, for copy)`);
-      if (r.macrosHidden !== 'none' || r.runtimeMacros) problems.push(`:::macros in a result: display ${r.macrosHidden}, ${r.runtimeMacros} left as .t-macros for the runtime`);
-      if (JSON.stringify(r.other) !== JSON.stringify(['docs-math t-error'])) problems.push(`another example's macro: ${JSON.stringify(r.other)}, expected one formula KaTeX rejects`);
-      const codes = [[], ['math.error 1:28'], ['math.error 1:1', 'math.error 5:26']];
+      const own = ['t-math mathml f\\colon \\RR \\to \\RR', 't-math mathml \\RR^2'];
+      if (JSON.stringify(r.own) !== JSON.stringify(own) || !r.display) problems.push(`the example's own macro: ${JSON.stringify(r.own)}, display MathML ${r.display}; expected ${JSON.stringify(own)} (MathML in a .t-math with data-tex, for copy), the display one math[display=block]`);
+      if (r.macrosHidden !== 'none') problems.push(`:::macros in a result: display ${r.macrosHidden}, expected hidden`);
+      if (JSON.stringify(r.other) !== JSON.stringify(['t-math t-error \\RR'])) problems.push(`another example's macro: ${JSON.stringify(r.other)}, expected one formula that does not translate, shown as its TeX`);
+      const codes = [[], ['tex.unknown 1:29'], ['tex.unbalanced 2:12', 'tex.unknown 5:37']];
       if (JSON.stringify(r.codes) !== JSON.stringify(codes)) problems.push(`the examples' diagnostics ${JSON.stringify(r.codes)}, expected ${JSON.stringify(codes)}`);
-      if (r.errorLink !== '../../docs/diagnostics.html#math-error' || r.label !== 'Diagnostics (2)') problems.push(`math.error in the example: ${r.errorLink}, ${r.label}`);
+      if (r.errorLink !== '../../docs/diagnostics.html#tex-unknown' || r.label !== 'Diagnostics (2)') problems.push(`tex.unknown in the example: ${r.errorLink}, ${r.label}`);
       if (r.logo !== '../../docs/luccet.png') problems.push(`the site nav's mark is ${r.logo}, expected ../../docs/luccet.png`);
       if (problems.length) throw new Error(problems.join(' | '));
     },
@@ -988,17 +945,19 @@ const DOC_TESTS = (() => {
 // (reported, not run). Optional: `timeout` (whole test), `readyTimeout`,
 // `waitUntil` for page.goto, `init` (an init script), `setup(context, page,
 // ctx)` before navigation, `offline` (stub every request to another origin
-// except KaTeX), `allowConsole` (a RegExp for the console errors the test
+// except highlight.js's and Mermaid's), `allowConsole` (a RegExp for the console errors the test
 // provokes), `expectConsoleErrors` (allow any), `context` (browser context
 // options), `noTern` (the page runs without luccet.js: no wait for luccet.ready).
 const TESTS = [
   {
-    name: 'basic note mounts in place, math renders, refs resolve',
+    name: "basic note mounts in place, its formulas are the engine's MathML, refs resolve",
     url: '/test/smoke/basic.html',
     async check(page) {
       await expect(page, () => document.compatMode === 'CSS1Compat', 'standards mode');
       await expect(page, () => !!document.querySelector('main.luccet h1#top'), 'main.luccet with the heading');
-      await expect(page, () => !!document.querySelector('.t-math .katex'), 'KaTeX output');
+      await expect(page, () => document.querySelector('main.luccet p .t-math[data-tex="x^2 + 1"]:not([data-display]) > math:not([display])'), 'the inline formula as MathML, its TeX in data-tex');
+      await expect(page, () => document.querySelector('main.luccet #eq-int .t-math[data-display][data-tex] > math[display="block"]'), 'the display formula as math[display=block]');
+      await expect(page, () => document.querySelectorAll('main.luccet .t-math[data-tex] > math').length === 2 && !document.querySelector('main.luccet .t-error'), 'both formulas MathML, none t-error');
       await expect(page, () => document.querySelector('a.t-ref[href="#eq-int"]')?.textContent === '(1)', 'ref text "(1)"');
       await expect(page, () => document.characterSet === 'UTF-8', 'UTF-8');
     },
@@ -1006,7 +965,7 @@ const TESTS = [
   {
     // luccet.render(el, untrusted, {safe:true}): the note's scripts do not run,
     // raw HTML is escaped, dangerous elements are neutralised, risky
-    // attributes and URLs are dropped — but math still typesets.
+    // attributes and URLs are dropped — but math still translates.
     name: 'luccet.render with safe: untrusted source runs nothing and is scrubbed',
     url: '/test/smoke/basic.html',
     async check(page) {
@@ -1028,7 +987,7 @@ const TESTS = [
         await luccet.render(box, src, { safe: true });
       });
       // Give any (wrongly) created script a chance to run.
-      await expect(page, () => document.querySelector('#untrusted .katex'), 'math still typeset under safe');
+      await expect(page, () => document.querySelector('#untrusted .t-math[data-tex="x^2"] > math'), 'math still MathML under safe');
       await expect(page, () => window.__ran === false, 'no script ran: raw <script> escaped, onclick dropped');
       await expect(page, () => !document.querySelector('#untrusted iframe') && !document.querySelector('#untrusted script'), 'no iframe and no script element');
       await expect(page, () => !!document.querySelector('#untrusted [data-t="iframe"]')?.matches('div'), 'the ::iframe became a div');
@@ -1061,16 +1020,114 @@ const TESTS = [
     },
   },
   {
-    name: 'a KaTeX error keeps the TeX, marked t-error, with a console warning',
-    url: '/test/smoke/katex-error.html',
-    allowConsole: /KaTeX cannot typeset|ParseError/i,
+    name: 'a formula that does not translate keeps its TeX, marked t-error, with its tex.* diagnostic in luccet.diagnostics and the panel',
+    url: '/test/smoke/tex-error.html',
     async check(page, ctx) {
-      await expect(
-        page,
-        () => [...document.querySelectorAll('.t-math')].some((e) => e.dataset.tex === '\\frac{1}{' && e.classList.contains('t-error') && e.textContent.trim() !== ''),
-        'the failing formula keeps visible source, marked t-error',
-      );
-      if (!ctx.console.some((m) => m.type === 'warning' && /KaTeX cannot typeset/.test(m.text))) throw new Error(`no KaTeX error warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      const r = await page.evaluate(() => ({
+        math: [...document.querySelectorAll('main.luccet .t-math')].map((e) => ({ tex: e.dataset.tex, text: e.textContent, error: e.classList.contains('t-error'), mathml: !!e.querySelector('math'), display: e.hasAttribute('data-display'), eq: !!e.closest('div.t-eq') })),
+        panel: (document.querySelector('.t-diagnostics') || {}).textContent || '',
+      }));
+      const want = [
+        { tex: '\\frac{1}{', text: '\\frac{1}{', error: true, mathml: false, display: false, eq: false },
+        { tex: 'x', text: 'x', error: false, mathml: true, display: false, eq: false },
+        { tex: '\\frac{a}{', text: '\\frac{a}{', error: true, mathml: false, display: true, eq: true },
+        { tex: '\\notacommand + 1', text: '\\notacommand + 1', error: true, mathml: false, display: false, eq: false },
+      ];
+      if (JSON.stringify(r.math) !== JSON.stringify(want)) throw new Error(`formulas ${JSON.stringify(r.math)}, expected ${JSON.stringify(want)}`);
+      // At the command at fault (note lines: line 1 follows the luccet.js line).
+      const codes = ctx.diagnostics.map((d) => `${d.severity} ${d.code} ${d.position.start.line}:${d.position.start.column}`);
+      const wantCodes = ['error tex.unbalanced 4:16', 'error tex.unbalanced 7:9', 'error tex.unknown 10:11'];
+      if (JSON.stringify(codes) !== JSON.stringify(wantCodes)) throw new Error(`luccet.diagnostics ${JSON.stringify(codes)}, expected ${JSON.stringify(wantCodes)}`);
+      for (const w of ['tex.unbalanced', 'tex.unknown', '\\notacommand']) if (!r.panel.includes(w)) throw new Error(`the panel lacks ${w}: ${JSON.stringify(r.panel.slice(0, 300))}`);
+    },
+  },
+  {
+    // Each construct as the browser lays out the engine's MathML, in the
+    // math font luccet.css names (--t-math): boxes that are not empty, and
+    // the geometry the construct is for. Brackets stretch only in a font with
+    // OpenType's math table (docs/math.html#browsers): without one installed
+    // the stretch is not checked, and the report says so.
+    name: "math: the engine's MathML lays out",
+    url: '/test/smoke/math.html',
+    async check(page, ctx) {
+      await page.evaluate(() => document.fonts.ready);
+      const r = await page.evaluate(() => {
+        const rect = (e) => {
+          const b = e.getBoundingClientRect();
+          return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height };
+        };
+        // An element's content: the union of its children's boxes, empty ones left out.
+        const content = (e) => {
+          const boxes = [...e.children].map(rect).filter((b) => b.w > 0 || b.h > 0);
+          if (!boxes.length) return rect(e);
+          const u = { l: Math.min(...boxes.map((b) => b.l)), r: Math.max(...boxes.map((b) => b.r)), t: Math.min(...boxes.map((b) => b.t)), b: Math.max(...boxes.map((b) => b.b)) };
+          return { ...u, w: u.r - u.l, h: u.b - u.t };
+        };
+        // The first family of the math font stack that is installed: a
+        // string set in it measures unlike the same string in the fallback.
+        const font = (() => {
+          const probe = document.createElement('span');
+          probe.style.cssText = 'position:absolute;visibility:hidden;font-size:72px;white-space:nowrap';
+          probe.textContent = '∑∫(xyzWQ)⎛⎞';
+          document.body.append(probe);
+          const width = (family) => ((probe.style.fontFamily = family), probe.getBoundingClientRect().width);
+          const families = getComputedStyle(document.querySelector('main.luccet math')).fontFamily.split(',').map((f) => f.trim().replace(/^["']|["']$/g, '')).filter((f) => f && f !== 'math');
+          const found = families.find((f) => ['monospace', 'serif'].some((g) => width(`"${f}", ${g}`) !== width(g)));
+          probe.remove();
+          return found || null;
+        })();
+        const inline = [...document.querySelectorAll('main.luccet p .t-math > math')];
+        const eq = (id) => document.querySelector(`#${id} .t-math[data-display] > math[display="block"]`);
+        const frac = inline[0].querySelector('mfrac');
+        const sqrt = inline[1].querySelector('msqrt');
+        const scripts = inline[2].querySelector('msubsup');
+        const sum = eq('eq-sum').querySelector('munderover');
+        const mos = [...eq('eq-fence').querySelectorAll('mo')].filter((m) => m.textContent === '(');
+        const plain = mos.find((m) => m.getAttribute('stretchy') === 'false');
+        const stretched = mos.find((m) => m.getAttribute('stretchy') === 'true');
+        return {
+          font,
+          formulas: [...document.querySelectorAll('main.luccet .t-math')].map((e) => (e.firstElementChild && e.firstElementChild.localName === 'math' ? rect(e.firstElementChild) : null)),
+          frac: { num: rect(frac.children[0]), den: rect(frac.children[1]) },
+          sqrt: { all: rect(sqrt), base: content(sqrt) },
+          scripts: { base: rect(scripts.children[0]), sub: rect(scripts.children[1]), sup: rect(scripts.children[2]) },
+          sum: { op: rect(sum.children[0]), under: rect(sum.children[1]), over: rect(sum.children[2]) },
+          paren: { plain: rect(plain), stretched: rect(stretched), inner: rect(stretched.nextElementSibling) },
+          matrix: [...eq('eq-matrix').querySelectorAll('mtable > mtr > mtd')].map(rect),
+          aligned: [...eq('eq-aligned').querySelectorAll('mtable.t-align > mtr')].map((tr) => [...tr.children].map(content)),
+        };
+      });
+      const px = (x) => Math.round(x * 10) / 10;
+      const problems = [];
+      const empty = (b) => !b || !(b.w > 0 && b.h > 0);
+      if (r.formulas.length !== 7 || r.formulas.some(empty)) problems.push(`formula boxes ${JSON.stringify(r.formulas.map((b) => b && `${px(b.w)}×${px(b.h)}`))}, expected 7 MathML formulas, none empty`);
+      const { num, den } = r.frac;
+      if (empty(num) || empty(den) || !(num.b <= den.t + 1)) problems.push(`the fraction: numerator ${JSON.stringify(num)}, denominator ${JSON.stringify(den)}, expected the numerator above`);
+      const { all, base } = r.sqrt;
+      if (empty(base) || !(all.w > base.w + 2) || !(all.h >= base.h)) problems.push(`the root: ${px(all.w)}×${px(all.h)} around ${px(base.w)}×${px(base.h)}, expected the radical sign to add to it`);
+      const s = r.scripts;
+      if (empty(s.sub) || empty(s.sup) || !(s.sup.t < s.sub.t - 1) || !(s.sub.l >= s.base.r - 1 && s.sup.l >= s.base.r - 1)) problems.push(`the scripts: base ${JSON.stringify(s.base)}, sub ${JSON.stringify(s.sub)}, sup ${JSON.stringify(s.sup)}, expected both right of the base, the superscript higher`);
+      const { op, under, over } = r.sum;
+      const centre = (b) => (b.l + b.r) / 2;
+      if (empty(op) || empty(under) || empty(over) || !(under.t >= op.b - 1) || !(over.b <= op.t + 1) || !(centre(under) > op.l && centre(under) < op.r && centre(over) > op.l && centre(over) < op.r)) problems.push(`the big operator's limits: operator ${JSON.stringify(op)}, under ${JSON.stringify(under)}, over ${JSON.stringify(over)}, expected them below and above it`);
+      const { plain, stretched, inner } = r.paren;
+      if (empty(plain) || empty(stretched)) problems.push(`the parentheses: plain ${JSON.stringify(plain)}, stretched ${JSON.stringify(stretched)}`);
+      else if (r.font) {
+        if (!(stretched.h > plain.h * 1.5)) problems.push(`the \\left( is ${px(stretched.h)} px high around a fraction ${px(inner.h)} px high, a plain ( ${px(plain.h)} px: it did not stretch (in ${r.font})`);
+      } else ctx.note(`no font of the math stack (--t-math) is installed: the stretch is not checked (\\left( ${px(stretched.h)} px, plain ${px(plain.h)} px)`);
+      const m = r.matrix;
+      const near = (a, b) => Math.abs(a - b) <= 1;
+      if (m.length !== 4 || m.some(empty) || !near(m[0].t, m[1].t) || !near(m[2].t, m[3].t) || !(m[2].t >= m[0].b - 1) || !(m[1].l >= m[0].r - 1) || !(m[3].l >= m[2].r - 1)) problems.push(`the matrix cells ${JSON.stringify(m.map((b) => [px(b.l), px(b.t), px(b.w), px(b.h)]))}, expected two rows of two`);
+      const a = r.aligned;
+      if (a.length !== 2 || a.some((row) => row.length !== 2 || row.some(empty))) problems.push(`aligned: ${JSON.stringify(a)}, expected two rows of two cells`);
+      else {
+        if (!near(a[0][0].r, a[1][0].r)) problems.push(`aligned: the first column's right edges ${px(a[0][0].r)} and ${px(a[1][0].r)}, expected equal within a pixel (right-aligned)`);
+        if (!(a[1][0].l > a[0][0].l + 5)) problems.push(`aligned: the first column's left edges ${px(a[0][0].l)} and ${px(a[1][0].l)}: "x + y + z" and "w" start together, so the column is not right-aligned`);
+        if (!near(a[0][1].l, a[1][1].l)) problems.push(`aligned: the equals signs start at ${px(a[0][1].l)} and ${px(a[1][1].l)}, expected equal within a pixel`);
+      }
+      if (ctx.diagnostics.length) problems.push(`diagnostics ${JSON.stringify(ctx.diagnostics.map((d) => d.code))}`);
+      ctx.note(`math font: ${r.font || 'none of --t-math'}; \\left( ${px(stretched.h)} px high, a plain ( ${px(plain.h)} px`);
+      if (problems.length) throw new Error(problems.join(' | '));
     },
   },
   {
@@ -1091,23 +1148,24 @@ const TESTS = [
     },
   },
   {
-    name: 'no doctype: mounts with doc.quirks, math as source',
+    name: 'no doctype: mounts with doc.quirks, its formula MathML all the same',
     url: '/test/smoke/no-doctype.html',
     expectConsoleErrors: true,
     async check(page, ctx) {
       await expect(page, () => !!document.querySelector('main.luccet h1'), 'mounted');
+      await expect(page, () => !!document.querySelector('main.luccet .t-math[data-tex="x"] > math'), 'the formula as MathML');
       if (!ctx.diagnostics.some((d) => d.code === 'doc.quirks')) throw new Error('no doc.quirks diagnostic');
     },
   },
   // ---- runtime behaviour (docs/api.html#lifecycle)
   {
-    // KaTeX is loaded by the page's head, so it is present before the
-    // behaviours run: the order must hold even then.
-    name: "lifecycle: behaviours once per element before math; 'render', 'math', 'ready'; luccet.render() again changes nothing",
+    // The formulas are MathML from the mount on: the behaviours, 'render'
+    // and 'math' all see the three of them, and the events keep their order.
+    name: "lifecycle: behaviours once per element, then 'render', 'math', 'ready'; formulas are MathML when 'render' fires; luccet.render() again changes nothing",
     url: '/test/smoke/lifecycle.html',
     async check(page, ctx) {
       await expect(page, () => window.__log && window.__log.includes('ready-promise'), 'the lifecycle log to reach luccet.ready');
-      const want = ['define p1 katex=0', 'define p2 katex=0', 'render katex=0', 'math main katex=3', 'ready', 'ready-promise'];
+      const want = ['define p1 math=3', 'define p2 math=3', 'render math=3', 'math main math=3', 'ready', 'ready-promise'];
       const log = await page.evaluate(() => window.__log.slice());
       if (JSON.stringify(log) !== JSON.stringify(want)) throw new Error(`lifecycle ${JSON.stringify(log)}, expected ${JSON.stringify(want)}`);
       const html = await page.evaluate(() => document.querySelector('main.luccet').innerHTML);
@@ -1119,11 +1177,11 @@ const TESTS = [
       const after = await page.evaluate(() => ({
         html: document.querySelector('main.luccet').innerHTML,
         log: window.__log.slice(),
-        katex: [...document.querySelectorAll('main.luccet .t-math')].map((e) => e.querySelectorAll('.katex').length),
+        math: [...document.querySelectorAll('main.luccet .t-math')].map((e) => e.querySelectorAll('math').length),
       }));
       const ran = after.log.filter((l) => l.startsWith('define'));
       if (ran.length !== 2) throw new Error(`behaviours ran ${ran.length} times after luccet.render() twice, expected 2: ${JSON.stringify(ran)}`);
-      if (after.katex.join() !== '1,1,1') throw new Error(`.katex per formula after luccet.render() twice: ${after.katex.join(', ')}`);
+      if (after.math.join() !== '1,1,1') throw new Error(`<math> per formula after luccet.render() twice: ${after.math.join(', ')}`);
       if (after.html !== html) throw new Error('luccet.render() with no source changed main.luccet');
       ctx.note(`events from the two extra luccet.render() calls: ${after.log.slice(want.length).join(', ') || 'none'}`);
     },
@@ -1158,7 +1216,7 @@ const TESTS = [
     allowConsole: /Failed to load resource|Loading failed for the <script>|MIME type/,
     async check(page, ctx) {
       await expect(page, () => !!document.querySelector('main.luccet h1'), 'mounted');
-      await expect(page, () => !!document.querySelector('main.luccet .t-math .katex'), 'math rendered');
+      await expect(page, () => !!document.querySelector('main.luccet .t-math > math'), 'math as MathML');
       const failed = ctx.diagnostics.filter((d) => d.code === 'addon.failed');
       for (const file of ['missing-addon.js', 'missing-addon.css']) {
         if (!failed.some((d) => d.message.includes(file))) throw new Error(`no addon.failed naming ${file}; got ${JSON.stringify(failed.map((d) => d.message))}`);
@@ -1166,36 +1224,25 @@ const TESTS = [
     },
   },
   {
-    name: 'KaTeX that fails to load leaves math as its source, with a warning',
-    url: '/test/smoke/katex-unavailable.html',
-    allowConsole: /Failed to load resource|Loading failed for the <script>|MIME type|katex/i,
-    async setup(context) {
-      // Registered after the KaTeX cache route, so it wins.
-      await context.route((url) => /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@/.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
+    // The engine writes the MathML and the browser lays it out in a font it
+    // has: math loads no script, stylesheet or font. Every request is
+    // recorded, and any to another origin is refused, as offline.
+    name: "math makes no network request: nothing beyond the page, luccet.js and the page's add-on, offline, and every formula MathML",
+    url: '/test/smoke/math-requests.html',
+    async setup(context, page, ctx) {
+      ctx.requests = [];
+      page.on('request', (r) => ctx.requests.push(r.url()));
+      await context.route((url) => url.origin !== ctx.origin, (route) => route.abort());
     },
     async check(page, ctx) {
-      const math = await page.evaluate(() => [...document.querySelectorAll('main.luccet .t-math')].map((e) => ({ text: e.textContent, katex: !!e.querySelector('.katex') })));
-      if (math.length !== 1 || math[0].katex || math[0].text !== 'x^2 + 1') throw new Error(`math ${JSON.stringify(math)}, expected its source "x^2 + 1"`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /KaTeX did not load/.test(m.text))) throw new Error(`no "KaTeX did not load" warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-    },
-  },
-  {
-    name: 'no math add-on: no KaTeX is requested, and math stays as its source',
-    url: '/test/smoke/katex-none.html',
-    async setup(_context, page, ctx) {
-      ctx.katexRequests = [];
-      page.on('request', (r) => r.resourceType() !== 'document' && /katex/i.test(r.url()) && ctx.katexRequests.push(r.url()));
-    },
-    async check(page, ctx) {
+      await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(500);
-      if (ctx.katexRequests.length) throw new Error(`KaTeX requested: ${ctx.katexRequests.join(', ')}`);
-      const r = await page.evaluate(() => ({
-        tags: document.querySelectorAll('link[href*="katex" i], script[src*="katex" i]').length,
-        math: [...document.querySelectorAll('main.luccet .t-math')].map((e) => ({ text: e.textContent, katex: !!e.querySelector('.katex') })),
-      }));
-      if (r.tags) throw new Error(`${r.tags} KaTeX <link>/<script> in the page`);
-      if (r.math.length !== 1 || r.math[0].katex || r.math[0].text !== 'x^2 + 1') throw new Error(`math ${JSON.stringify(r.math)}, expected its source "x^2 + 1"`);
-      if (ctx.diagnostics.some((d) => d.code === 'katex.unavailable')) throw new Error('katex.unavailable reported, though KaTeX is off');
+      const m = await page.evaluate(MATH_STATE);
+      if (m.all !== 6 || m.rendered !== 6) throw new Error(`${m.rendered} of ${m.all} formulas MathML, expected 6 of 6; first other: ${String(m.firstMissing).slice(0, 160)}`);
+      const urls = [...new Set(ctx.requests.map((u) => (u.startsWith(ctx.origin) ? u.slice(ctx.origin.length) : u)))].filter((u) => u !== '/favicon.ico').sort();
+      const want = ['/addons/copy.js', '/luccet.js', '/test/smoke/math-requests.html'];
+      if (JSON.stringify(urls) !== JSON.stringify(want)) throw new Error(`requests ${JSON.stringify(urls)}, expected the page, luccet.js and its add-on alone`);
+      if (ctx.diagnostics.length) throw new Error(`diagnostics ${JSON.stringify(ctx.diagnostics.map((d) => d.code))}`);
     },
   },
   {
@@ -1224,31 +1271,32 @@ const TESTS = [
     async check(page) {
       const r = await page.evaluate(() => {
         const rect = document.getElementById('deep').getBoundingClientRect();
-        return { box: document.getElementById('box').open, fold: document.getElementById('fold').open, top: rect.top, bottom: rect.bottom, vh: innerHeight, y: scrollY, math: !!document.querySelector('#box .t-math .katex') };
+        const f = document.querySelector('#box .t-math > math');
+        const box = f && f.getBoundingClientRect();
+        return { box: document.getElementById('box').open, fold: document.getElementById('fold').open, top: rect.top, bottom: rect.bottom, vh: innerHeight, y: scrollY, math: !!box && box.width > 0 && box.height > 0 };
       });
       if (!r.box) throw new Error('the <details> holding #deep is still closed');
       if (r.y <= 0) throw new Error('the page did not scroll');
       if (r.top < -20 || r.bottom > r.vh + 20) throw new Error(`#deep is out of view: top ${Math.round(r.top)}, bottom ${Math.round(r.bottom)}, viewport ${r.vh}`);
       if (r.fold) throw new Error('the other <details> opened too');
-      if (!r.math) throw new Error('the formula beside the target was not typeset');
+      if (!r.math) throw new Error('the formula beside the target is not MathML laid out');
     },
   },
   {
-    name: 'math in a closed <details> is typeset when it opens',
+    name: 'formulas in a closed <details> are MathML already, and lay out when it opens',
     url: '/gen/fragment.html',
     async check(page) {
-      const before = await page.evaluate(() => ({ n: document.querySelectorAll('#fold .t-math').length, typeset: document.querySelectorAll('#fold .t-math .katex, #box .t-math .katex').length, open: document.getElementById('fold').open }));
-      if (before.n !== 2 || before.typeset || before.open) throw new Error(`before the toggle: ${JSON.stringify(before)}, expected 2 formulas, none typeset, closed`);
+      const before = await page.evaluate(() => ({ n: document.querySelectorAll('#fold .t-math').length, mathml: document.querySelectorAll('#fold .t-math[data-tex] > math, #box .t-math[data-tex] > math').length, open: document.getElementById('fold').open || document.getElementById('box').open }));
+      if (before.n !== 2 || before.mathml !== 3 || before.open) throw new Error(`before the toggle: ${JSON.stringify(before)}, expected 2 formulas in #fold, all 3 in the closed <details> MathML, both closed`);
       await page.evaluate(() => (document.getElementById('fold').open = true));
-      await expect(page, () => document.querySelectorAll('#fold .t-math .katex').length === 2, 'both formulas in the opened <details> typeset');
-      if (await page.evaluate(() => document.querySelectorAll('#box .t-math .katex').length)) throw new Error('math in the other, still closed <details> was typeset too');
+      await expect(page, () => [...document.querySelectorAll('#fold .t-math > math')].every((m) => m.getBoundingClientRect().width > 0 && m.getBoundingClientRect().height > 0), 'both formulas in the opened <details> laid out');
     },
   },
   {
     name: 'a second luccet.js tag does not mount twice',
     url: '/test/smoke/reentry.html',
     async check(page, ctx) {
-      await expect(page, () => !!document.querySelector('main.luccet .t-math .katex'), 'math rendered');
+      await expect(page, () => document.querySelectorAll('main.luccet .t-math > math').length === 1, 'the formula as MathML, once');
       const r = await page.evaluate(() => ({ mains: document.querySelectorAll('main.luccet').length, h1: document.querySelectorAll('h1').length, once: document.querySelectorAll('#once').length, same: !!window.__first && window.luccet === window.__first }));
       if (r.mains !== 1 || r.h1 !== 1 || r.once !== 1) throw new Error(`${r.mains} main.luccet, ${r.h1} h1, ${r.once} #once; expected one of each`);
       if (!r.same) throw new Error('window.luccet is no longer the first copy');
@@ -1546,7 +1594,7 @@ const TESTS = [
     name: 'strict CSP with data-nonce: aligned table cells and a cols grid, no violations',
     url: '/csp-nonce/test/smoke/csp-layout.html',
     async check(page) {
-      await expect(page, () => !!document.querySelector('main.luccet .t-math .katex'), 'math rendered under the CSP');
+      await expect(page, () => !!document.querySelector('main.luccet .t-math > math'), 'math as MathML under the CSP');
       await page.waitForTimeout(200);
       const r = await page.evaluate(() => {
         const grid = document.querySelector('main.luccet .t-cols');
@@ -1578,21 +1626,16 @@ const TESTS = [
   // The five sample notes (test/samples/), as written:
   // luccet.js by a relative URL, no add-ons.
   ...['lecture', 'cheatsheet', 'media', 'code', 'layout'].map((name) => ({
-    name: `sample ${name}.html: mounts, math renders, no console errors`,
+    name: `sample ${name}.html: mounts, its formulas are MathML, no console errors`,
     url: `/test/samples/${name}.html`,
     offline: true,
     async check(page, ctx) {
       await expect(page, () => !!document.querySelector('main.luccet h1'), 'main.luccet with its h1');
       const expected = mathCountUnderNode(path.join(SAMPLES, `${name}.html`));
-      await expect(page, (n) => document.querySelectorAll('main.luccet .t-math').length >= Math.min(n || 0, 1), `the note's formulas in main.luccet (${expected} under node)`, 8000, expected);
-      try {
-        await page.waitForFunction(`(${MATH_STATE})().rendered === (${MATH_STATE})().shown`, null, { timeout: 8000 });
-      } catch {
-        const m = await page.evaluate(MATH_STATE);
-        throw new Error(`${m.shown - m.rendered} of ${m.shown} formulas outside closed <details> not rendered by KaTeX; first: ${String(m.firstMissing).slice(0, 160)}`);
-      }
       const m = await page.evaluate(MATH_STATE);
-      ctx.note(m.all ? `${m.all} formula(s) (${expected} under node), ${m.rendered} typeset, ${m.all - m.shown} in closed <details>` : `no math (${expected} formulas under node)`);
+      if (expected != null && m.all !== expected) throw new Error(`${m.all} formulas in main.luccet, ${expected} under node`);
+      if (m.rendered !== m.all) throw new Error(`${m.all - m.rendered} of ${m.all} formulas not MathML (${m.errors} t-error); first: ${String(m.firstMissing).slice(0, 160)}`);
+      ctx.note(m.all ? `${m.all} formula(s), all MathML, ${m.closed} of them in closed <details>` : 'no math');
     },
   })),
 
@@ -1619,7 +1662,7 @@ const TESTS = [
     async check(page, ctx) {
       const INLINE = 'a^2 + b^2 = c^2';
       const DISPLAY = '\\int_0^1 x\\,dx = \\tfrac12';
-      await expect(page, () => document.querySelectorAll('main.luccet .t-math .katex').length === 2, 'both formulas rendered by KaTeX');
+      await expect(page, () => document.querySelectorAll('main.luccet .t-math[data-tex] > math').length === 2, 'both formulas as MathML');
       const tex = await page.evaluate(() => [...document.querySelectorAll('main.luccet .t-math')].map((e) => e.dataset.tex));
       if (tex[0] !== INLINE || tex[1] !== DISPLAY) throw new Error(`data-tex ${JSON.stringify(tex)}, expected ${JSON.stringify([INLINE, DISPLAY])}`);
       // Select from the paragraph before the inline formula to the one after
@@ -1661,14 +1704,15 @@ const TESTS = [
         for (const want of [`Pythagoras: $${INLINE}$ for every right triangle.`, `$$${DISPLAY}$$`, 'The end of the selection.']) {
           if (!plain.includes(want)) throw new Error(`text/plain on ${where} lacks ${JSON.stringify(want)}: ${show}`);
         }
-        // KaTeX's own text (HTML glyphs, MathML tokens, the annotation) must
-        // be replaced, not kept beside the TeX.
+        // The MathML's own text (its tokens: "a2+b2=c2", "∫") must be
+        // replaced, not kept beside the TeX.
         if (plain.split(INLINE).length !== 2) throw new Error(`text/plain on ${where} holds the inline TeX ${plain.split(INLINE).length - 1} times: ${show}`);
-        if (/a2\+b2=c2|∫/.test(plain.replace(/\s/g, ''))) throw new Error(`text/plain on ${where} keeps KaTeX's rendered text: ${show}`);
+        if (/a2\+b2=c2|∫/.test(plain.replace(/\s/g, ''))) throw new Error(`text/plain on ${where} keeps the MathML's text: ${show}`);
         // The handler rewrites both flavours, text/plain and text/html.
         if (!html) throw new Error(`no text/html on ${where}`);
         const htmlText = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
-        if (/class="[^"]*\bkatex\b/.test(html)) throw new Error(`text/html on ${where} keeps KaTeX markup`);
+        if (/<(?:math|mi|mn|mo|mrow|msup|msubsup|mfrac)\b/i.test(html)) throw new Error(`text/html on ${where} keeps MathML markup`);
+        if (/a2\+b2=c2|∫/.test(htmlText.replace(/\s/g, ''))) throw new Error(`text/html on ${where} keeps the MathML's text: ${JSON.stringify(htmlText.slice(0, 240))}`);
         for (const want of [`$${INLINE}$`, `$$${DISPLAY}$$`]) {
           if (!htmlText.includes(want)) throw new Error(`text/html on ${where} lacks ${JSON.stringify(want)}: ${JSON.stringify(htmlText.slice(0, 240))}`);
         }
@@ -1682,35 +1726,26 @@ const TESTS = [
     browsers: ['chromium'],
     async check(page, ctx) {
       if (!hasMutool()) ctx.skip('mutool not found; install MuPDF (mupdf-tools) to extract PDF text');
-      await expect(page, () => !!document.querySelector('main.luccet .t-math .katex'), 'the formula rendered by KaTeX');
+      await expect(page, () => !!document.querySelector('main.luccet .t-math > math'), 'the formula as MathML');
       await page.evaluate(() => document.fonts.ready);
       // `7 \times 6 = 42` has only upright glyphs on one baseline, so its
-      // text is the same in KaTeX's HTML and MathML layers ("7×6=42") and
-      // has no sub/superscript parts, which stay displaced even when fixed.
-      // The MathML layer is clipped and absolutely positioned: if Chromium
-      // ever prints its text it lands after the page's prose, as scattered
-      // HTML glyphs do. So the check is that one copy sits between the words
-      // around it, and a control proves the check can fail.
-      const inPlace = (text) => /Theproduct(?:7×6=42){1,2}istheanswer/.test(text.replace(/[\s\u200b]+/g, ''));
+      // text reads "7×6=42" and has no sub/superscript parts, which a PDF's
+      // text order may set apart. The MathML is laid out inline, in the
+      // line, so its text must sit, once, between the words around it.
+      const inPlace = (text) => /Theproduct7×6=42istheanswer/.test(text.replace(/[\s\u200b]+/g, ''));
       const text = await pdfText(page);
       if (!inPlace(text)) throw new Error(`the formula left its sentence in the PDF text: ${JSON.stringify(text.replace(/\s+/g, ' ').trim().slice(0, 200))}`);
-      // KaTeX positions .katex (0.19) and its bases (.base; .katex-base in 0.19) relatively.
-      await page.addStyleTag({ content: '@media print { .katex, .katex .base, .katex .katex-base { position: relative !important; } }' });
-      const control = await pdfText(page);
-      if (inPlace(control)) throw new Error("control: with KaTeX's relative positioning restored the formula still reads in place, so this test no longer detects scattering");
-      ctx.note(`PDF text: ${JSON.stringify(text.replace(/\s+/g, ' ').trim().slice(0, 90))}; control scattered as expected`);
+      ctx.note(`PDF text: ${JSON.stringify(text.replace(/\s+/g, ' ').trim().slice(0, 90))}`);
     },
   },
   {
-    // Throttling: CDP Network.emulateNetworkConditions for the local server;
-    // the KaTeX route holds its responses back by the same latency and rate
-    // (see routeKatex). Mount is when main.luccet enters the document. Stages
-    // are defined at assignStages. KaTeX's fonts are a fourth wave, found
-    // through katex.min.css once math is typeset, which is after mount; mount
-    // does not wait for them, so the budget counts only requests started
-    // before mount. The report lists them all. Also checked: luccet.js and the
-    // add-ons (the math add-on among them) start before mount, KaTeX after it,
-    // and nothing is fetched twice (a preload the page did not reuse).
+    // Throttling: CDP Network.emulateNetworkConditions for the local server.
+    // Mount is when main.luccet enters the document. Stages are defined at
+    // assignStages; the budget counts only requests started before mount. The
+    // report lists them all. Also checked: luccet.js and the add-ons start
+    // before mount; the math, MathML from the engine, asks for nothing, so
+    // nothing is requested after mount; and nothing is fetched twice (a
+    // preload the page did not reuse).
     name: 'Slow-3G waterfall: at most 3 serial stages before mount',
     url: '/test/smoke/waterfall.html',
     browsers: ['chromium'],
@@ -1738,12 +1773,11 @@ const TESTS = [
       cdp.on('Network.loadingFailed', (e) => requests.has(e.requestId) && Object.assign(requests.get(e.requestId), { end: e.timestamp, failed: e.errorText }));
       await cdp.send('Network.enable');
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: SLOW_3G.latency, downloadThroughput: SLOW_3G.bytesPerSecond, uploadThroughput: SLOW_3G.bytesPerSecond });
-      ctx.cdnDelay = (bytes) => SLOW_3G.latency + (bytes / SLOW_3G.bytesPerSecond) * 1000;
     },
     async check(page, ctx) {
-      await expect(page, () => !!document.querySelector('main.luccet .t-math .katex'), 'math rendered', 60000);
+      await expect(page, () => !!document.querySelector('main.luccet .t-math[data-tex] > math'), 'the formula as MathML', 60000);
       if ((await page.evaluate(() => window.__addon)) !== 1) throw new Error('the JS add-on did not run exactly once');
-      // Let late requests (fonts) finish, for the report.
+      // Let late requests, were there any, finish, for the report.
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(1500);
       const all = [...ctx.requests.values()].filter((r) => !/\/favicon\.ico$/.test(r.url));
@@ -1762,14 +1796,13 @@ const TESTS = [
       }
       ctx.note(`  mount at ${at(mount)} s; "+" = requested after mount (not counted); stage tolerance ${STAGE_TOL} ms`);
       const before = ordered.filter((r) => r.start < mount);
-      // luccet.js and the add-ons (the math add-on among them) are preloaded at
-      // capture; KaTeX loads later, when the math add-on runs after mount.
-      const want = [/\/luccet\.js$/, /\/gen\/addon\.js$/, /\/gen\/addon\.css$/, /\/addons\/katex\.js$/];
+      // luccet.js and the add-ons are preloaded at capture.
+      const want = [/\/luccet\.js$/, /\/gen\/addon\.js$/, /\/gen\/addon\.css$/];
       for (const re of want) {
         if (!before.some((r) => re.test(r.url))) throw new Error(`nothing matching ${re} was requested before mount (luccet.js and the add-ons are preloaded at capture)`);
       }
       const after = ordered.filter((r) => r.start >= mount);
-      if (!after.some((r) => /katex@[^/]+\/dist\/katex(\.min)?\.js$/.test(r.url))) throw new Error('KaTeX was not requested after mount (the math add-on loads it when it runs)');
+      if (after.length) throw new Error(`requested after mount: ${after.map((r) => short(r.url)).join(', ')} (math needs nothing: no script, stylesheet or font)`);
       const seen = new Map();
       for (const r of all) seen.set(r.url, (seen.get(r.url) || 0) + 1);
       const twice = [...seen].filter(([, n]) => n > 1).map(([u]) => short(u));
@@ -1777,9 +1810,7 @@ const TESTS = [
       const failed = all.filter((r) => r.failed);
       if (failed.length) throw new Error(`failed requests: ${failed.map((r) => `${short(r.url)} (${r.failed})`).join(', ')}`);
       const stages = Math.max(...before.map((r) => r.stage));
-      const late = ordered.filter((r) => r.start >= mount);
-      const fonts = late.filter((r) => /katex@[^/]+\/dist\/fonts\//.test(r.url));
-      ctx.note(`  ${stages} serial stages before mount; after mount ${late.length} request(s)${late.length ? ` up to stage ${Math.max(...late.map((r) => r.stage))}` : ''}, ${fonts.length} of them KaTeX fonts (not counted: mount does not wait for them)`);
+      ctx.note(`  ${stages} serial stages before mount; none after it`);
       if (stages > 3) throw new Error(`${stages} serial stages before mount, budget 3 (see the waterfall below)`);
     },
   },
@@ -1939,15 +1970,15 @@ const TESTS = [
     },
   },
   {
-    // Parse+transform+emit+mount is one synchronous task by design, and the
-    // browser lays the whole note out in the frame that follows
-    // it; the first math slice shares that task when KaTeX is ready (the
-    // first paint is typeset). The mount frame is the long animation frame
-    // (LoAF) holding 'render', or without LoAF the long task holding it.
-    // The budget is for what comes after: no long task (> 50 ms, the Long
-    // Tasks API threshold) from the end of the mount frame until 'math', plus
-    // a settling window for the last slice's layout. Both are reported.
-    name: 'no math task over 50 ms on the 4,000-formula note',
+    // Parse+transform (the TeX translated to MathML there)+emit+mount is one
+    // synchronous task by design, and the browser lays the whole note out,
+    // MathML included, in the frame that follows it: the first paint shows
+    // the math. No add-on. The mount frame is the long animation frame (LoAF)
+    // holding 'render', or without LoAF the long task holding it. The budget
+    // is for what comes after: no long task (> 50 ms, the Long Tasks API
+    // threshold) from the end of the mount frame until 'math', plus a
+    // settling window. Both are reported.
+    name: 'the 4,000-formula note: every formula MathML at mount, and no long task over 50 ms after it',
     url: '/gen/math4000.html',
     timeout: 120000,
     readyTimeout: 60000,
@@ -1979,7 +2010,7 @@ const TESTS = [
       await page.evaluate((ms) => new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(r)), ms)), SETTLE);
       const m = await page.evaluate(MATH_STATE);
       if (m.all !== 4000) throw new Error(`${m.all} formulas in the note, expected 4,000`);
-      if (m.rendered !== m.shown) throw new Error(`${m.shown - m.rendered} of ${m.shown} formulas outside closed <details> not rendered`);
+      if (m.rendered !== m.all) throw new Error(`${m.all - m.rendered} of ${m.all} formulas not MathML; first: ${String(m.firstMissing).slice(0, 160)}`);
       const { t, lt, loaf } = await page.evaluate(() => ({ t: window.__t, lt: window.__lt, loaf: window.__loaf }));
       if (t.render == null) throw new Error("'render' never fired");
       const end = (e) => e.start + e.duration;
@@ -1988,21 +2019,21 @@ const TESTS = [
       const frame = loaf.find((f) => f.start <= t.render + 1 && t.render <= end(f) + 1);
       const mountEnd = frame ? end(frame) : mountTask ? end(mountTask) : t.render;
       const inMount = lt.filter((e) => e.start < mountEnd && end(e) > t.render - 1);
-      const math = lt.filter((e) => !inMount.includes(e) && end(e) > t.render && e.start <= t.math + SETTLE);
+      const after = lt.filter((e) => !inMount.includes(e) && end(e) > t.render && e.start <= t.math + SETTLE);
       ctx.note(`mount task (parse+transform+emit+mount, to 'render'): ${mountTask ? `${ms(mountTask.duration)} at ${ms(mountTask.start)}, ${ms(end(mountTask) - t.render)} of it after 'render'` : 'under 50 ms'}`);
       if (frame) ctx.note(`mount frame (LoAF): ${ms(frame.duration)} at ${ms(frame.start)}, of which style, layout and paint ${ms(frame.layout)}; its long tasks: ${inMount.map((e) => `${ms(e.start)}+${ms(e.duration)}`).join(', ') || 'none'}`);
-      ctx.note(`'render' at ${ms(t.render)}, 'math' at ${ms(t.math)}: ${ms(t.math - t.render)} of math; ${m.all} formulas, ${m.rendered} typeset, ${m.all - m.shown} left for closed <details>`);
-      ctx.note(`long tasks during math: ${math.length ? math.map((e) => `${ms(e.start)}+${ms(e.duration)}`).join(', ') : 'none'}`);
-      if (math.length) {
-        const frames = loaf.filter((f) => f.start >= mountEnd - 1 && math.some((e) => f.start < end(e) && e.start < end(f)));
+      ctx.note(`'render' at ${ms(t.render)}, 'math' at ${ms(t.math)}; ${m.all} formulas, all MathML, ${m.closed} of them in closed <details>`);
+      ctx.note(`long tasks after the mount: ${after.length ? after.map((e) => `${ms(e.start)}+${ms(e.duration)}`).join(', ') : 'none'}`);
+      if (after.length) {
+        const frames = loaf.filter((f) => f.start >= mountEnd - 1 && after.some((e) => f.start < end(e) && e.start < end(f)));
         if (frames.length) ctx.note(`their frames (LoAF): ${frames.map((f) => `${ms(f.start)}+${ms(f.duration)} = style, layout and paint ${ms(f.layout)} + ${f.scripts || 'no script'}`).join('; ')}`);
-        throw new Error(`${math.length} long task(s) during math rendering, longest ${ms(Math.max(...math.map((e) => e.duration)))} (budget: none over 50 ms)`);
+        throw new Error(`${after.length} long task(s) after the mount, longest ${ms(Math.max(...after.map((e) => e.duration)))} (budget: none over 50 ms)`);
       }
     },
   },
   {
-    // code.js colours fences in slices of 10 ms, one per frame, as katex.js
-    // typesets: no long task (> 50 ms) from the end of the mount frame until
+    // code.js colours fences in slices of 10 ms, one per frame: no long
+    // task (> 50 ms) from the end of the mount frame until
     // every fence is coloured, plus a settling window.
     name: 'code add-on: no task over 50 ms colouring the 300-fence note, and every fence coloured',
     url: '/gen/code300.html',
@@ -2147,6 +2178,7 @@ const TESTS = [
           label: box && box.querySelector('.t-label').textContent,
           ref: (document.querySelector('main.luccet a.t-ref[href="#b1"]') || {}).textContent,
           math: document.querySelectorAll('main.luccet .t-math').length,
+          mathml: [...document.querySelectorAll('main.luccet .t-math[data-tex] > math')].filter((m) => m.getBoundingClientRect().width > 0).length,
           source: !!document.querySelector('script[type="text/luccet"]#luccet-source'),
           title: document.title,
           lang: document.documentElement.lang,
@@ -2155,7 +2187,7 @@ const TESTS = [
           panel: !!document.querySelector('.t-diagnostics'),
         };
       });
-      const want = { luccet: 'undefined', h1: 'Smoke: a built page', label: 'Box 1', ref: 'Box 1', math: 2, source: true, title: 'Smoke: a built page', lang: 'en', border: 'solid', panel: false };
+      const want = { luccet: 'undefined', h1: 'Smoke: a built page', label: 'Box 1', ref: 'Box 1', math: 2, mathml: 2, source: true, title: 'Smoke: a built page', lang: 'en', border: 'solid', panel: false };
       const got = { ...r };
       delete got.wrap;
       if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`page ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
@@ -2169,7 +2201,7 @@ const TESTS = [
       cliPage('built');
     },
     async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('main.luccet .t-math .katex').length === 2, 'both formulas typeset by luccet.js');
+      await expect(page, () => document.querySelectorAll('main.luccet .t-math[data-tex] > math').length === 2, 'both formulas MathML');
       const r = await page.evaluate(() => ({
         log: window.__log,
         scripts: window.__script,
@@ -2180,7 +2212,7 @@ const TESTS = [
         panel: (document.querySelector('.t-diagnostics') || {}).textContent || '',
         sheets: [...document.head.querySelectorAll('style, link[rel="stylesheet"]')].map((e) => (e.id === 'luccet-style' ? 'base' : e.href ? e.href.replace(/^.*\//, '') : /aside\.box/.test(e.textContent) ? 'luccet.style' : 'other')),
       }));
-      const want = ['script luccet=object', 'define katex=0', 'render', 'math main', 'ready'];
+      const want = ['script luccet=object', 'define math=2', 'render', 'math main', 'ready'];
       if (JSON.stringify(r.log) !== JSON.stringify(want)) throw new Error(`lifecycle ${JSON.stringify(r.log)}, expected ${JSON.stringify(want)}`);
       if (r.scripts !== 1 || r.mains !== 1) throw new Error(`the note script ran ${r.scripts} time(s), ${r.mains} main.luccet; expected 1 and 1`);
       if (r.dom !== 'yes' || r.define !== 'yes') throw new Error(`behaviours: the add-on's dom ${r.dom}, luccet.define ${r.define}`);
@@ -2262,92 +2294,32 @@ const TESTS = [
     },
   },
   {
-    name: "luccet build --katex: math pre-rendered, KaTeX's script never requested",
-    url: '/gen/built-katex.html',
+    // The build writes the engine's MathML into the HTML, so the formulas are
+    // there before any script runs, and nothing is fetched for them (no
+    // --math or --katex any more: test/cli.js has the usage errors).
+    name: 'luccet build: formulas are MathML in the HTML, and no math asset is requested',
+    url: '/gen/built.html',
     async setup(_context, page, ctx) {
-      if (!(await katexDist(KATEX_VERSION))) ctx.skip(`no local copy of KaTeX ${KATEX_VERSION} to pre-render with`);
-      cliPage('built-katex');
-      ctx.katexScripts = [];
-      // KaTeX's library (katex.min.js), not the add-on script (addons/katex.js).
-      page.on('request', (q) => /katex\.min\.js(?:[?#]|$)|\/katex@[^/]+\/dist\/katex\.js/.test(q.url()) && ctx.katexScripts.push(q.url()));
+      cliPage('built');
+      ctx.requests = [];
+      page.on('request', (q) => ctx.requests.push(q.url()));
     },
     async check(page, ctx) {
-      const r = await page.evaluate(() => ({
-        log: window.__log,
-        katex: document.querySelectorAll('main.luccet .t-math .katex').length,
-        mathml: document.querySelectorAll('main.luccet .t-math math').length,
-        tex: [...document.querySelectorAll('main.luccet .t-math')].map((e) => e.dataset.tex),
-        css: [...document.querySelectorAll('link[rel="stylesheet"]')].filter((l) => /katex/.test(l.href) && l.sheet).length,
-      }));
-      const want = ['script luccet=object', 'define katex=2', 'render', 'math main', 'ready'];
-      if (JSON.stringify(r.log) !== JSON.stringify(want)) throw new Error(`lifecycle ${JSON.stringify(r.log)}, expected ${JSON.stringify(want)}`);
-      if (r.katex !== 2 || r.mathml !== 2) throw new Error(`${r.katex} .katex and ${r.mathml} <math> in main.luccet, expected 2 of each`);
-      if (r.tex.join(' | ') !== 'a^2 + b^2 = c^2 | \\int_0^1 x\\,dx = \\tfrac12') throw new Error(`data-tex ${JSON.stringify(r.tex)}`);
-      if (!r.css) throw new Error("KaTeX's stylesheet did not load");
+      const raw = cliPage('built');
+      const inHTML = [...raw.matchAll(/<span class="t-math"( data-display)? data-pos="[^"]*" data-tex="([^"]*)"><math( display="block")?>/g)].map((m) => `${m[1] ? 'display' : 'inline'} ${m[3] ? 'block' : 'inline'} ${m[2]}`);
+      const wantHTML = ['inline inline a^2 + b^2 = c^2', 'display block \\int_0^1 x\\,dx = \\tfrac12'];
+      if (JSON.stringify(inHTML) !== JSON.stringify(wantHTML)) throw new Error(`formulas in the built HTML ${JSON.stringify(inHTML)}, expected ${JSON.stringify(wantHTML)}`);
+      if (/katex|temml/i.test(raw)) throw new Error('the built HTML names KaTeX or Temml');
+      await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(300);
-      if (ctx.katexScripts.length) throw new Error(`KaTeX's script was requested: ${ctx.katexScripts.join(', ')}`);
-    },
-  },
-  {
-    name: 'addons/mathml.js: formulas render as native MathML with Temml, KaTeX never requested',
-    url: '/test/smoke/mathml.html',
-    timeout: 60000,
-    async setup(_context, page, ctx) {
-      if (!(await temmlDir(TEMML_VERSION))) ctx.skip(`no local copy of Temml ${TEMML_VERSION}`);
-      ctx.katexReqs = [];
-      page.on('request', (q) => /katex/i.test(q.url()) && ctx.katexReqs.push(q.url()));
-    },
-    async check(page, ctx) {
-      await page.waitForFunction(() => document.querySelectorAll('.t-math math').length >= 3, null, { timeout: 40000 });
-      const r = await page.evaluate(() => ({
-        maths: document.querySelectorAll('.t-math math').length,
-        katex: document.querySelectorAll('.t-math .katex').length,
-        annotations: document.querySelectorAll('.t-math annotation').length,
-        tex: [...document.querySelectorAll('.t-math')].map((e) => e.dataset.tex),
-        scripts: [...document.querySelectorAll('script[src*="temml.min.js"]')].map((e) => ({ src: new URL(e.src).pathname, sri: !!e.integrity })),
+      const r = await page.evaluate(() => [...document.querySelectorAll('main.luccet .t-math[data-tex] > math')].map((m) => {
+        const box = m.getBoundingClientRect();
+        return `${m.getAttribute('display') || 'inline'} ${box.width > 0 && box.height > 0 ? 'laid out' : 'empty'}`;
       }));
-      if (r.maths !== 3 || r.katex !== 0) throw new Error(`${r.maths} <math>, ${r.katex} .katex (expected 3, 0)`);
-      if (r.tex.join(' | ') !== 'x \\in \\RR | \\sum_{i=1}^{n} x_i^2 | \\frac{a}{b} = \\RR^n') throw new Error(`data-tex ${JSON.stringify(r.tex)}`);
-      if (r.annotations !== 3) throw new Error(`${r.annotations} annotations, expected 3 (the TeX kept for copy)`);
-      if (JSON.stringify(r.scripts) !== JSON.stringify([{ src: '/vendor/temml/temml.min.js', sri: false }])) throw new Error(`scripts ${JSON.stringify(r.scripts)}`);
-      await page.waitForTimeout(200);
-      if (ctx.katexReqs.length) throw new Error(`KaTeX was requested: ${ctx.katexReqs.join(', ')}`);
-    },
-  },
-  {
-    name: 'addons/mathml.js: a note with no math fetches neither Temml nor its stylesheet',
-    url: '/test/smoke/mathml-none.html',
-    async check(page) {
-      await page.waitForTimeout(400);
-      const r = await page.evaluate(() => ({ scripts: document.querySelectorAll('script[src*="temml.min.js"]').length, links: document.querySelectorAll('link[href*="Temml-Local"]').length, }));
-      if (r.scripts || r.links) throw new Error(`${r.scripts} Temml script(s) and ${r.links} stylesheet(s) on a note with no math`);
-    },
-  },
-  {
-    name: 'luccet build --math=mathml: native MathML, self-contained, no math asset fetched',
-    url: '/gen/built-mathml.html',
-    async setup(_context, page, ctx) {
-      if (!(await temmlDir(TEMML_VERSION))) ctx.skip(`no local copy of Temml ${TEMML_VERSION} to pre-render with`);
-      cliPage('built-mathml');
-      ctx.ext = [];
-      // A math library (katex.min.js / temml.min.js, or a CDN katex@/temml@
-      // path) or any non-local asset. The add-on scripts (addons/*.js) are
-      // local and harmless — a MathML page's formulas are already rendered.
-      page.on('request', (q) => {
-        const u = q.url();
-        if (/katex\.min|temml\.min|\/(?:katex|temml)@/i.test(u) || !/^http:\/\/(?:localhost|127\.0\.0\.1)/.test(u)) ctx.ext.push(u.replace(/^https?:\/\/[^/]+/, ''));
-      });
-    },
-    async check(page, ctx) {
-      const r = await page.evaluate(() => ({
-        mathml: document.querySelectorAll('main.luccet .t-math math').length,
-        katex: document.querySelectorAll('main.luccet .t-math .katex').length,
-        tex: [...document.querySelectorAll('main.luccet .t-math')].map((e) => e.dataset.tex),
-      }));
-      if (r.mathml !== 2 || r.katex !== 0) throw new Error(`${r.mathml} <math>, ${r.katex} .katex (expected 2, 0)`);
-      if (r.tex.join(' | ') !== 'a^2 + b^2 = c^2 | \\int_0^1 x\\,dx = \\tfrac12') throw new Error(`data-tex ${JSON.stringify(r.tex)}`);
-      await page.waitForTimeout(200);
-      if (ctx.ext.length) throw new Error(`fetched external or math assets: ${ctx.ext.join(', ')}`);
+      if (r.join() !== 'inline laid out,block laid out') throw new Error(`MathML in main.luccet: ${JSON.stringify(r)}`);
+      const urls = [...new Set(ctx.requests.map((u) => (u.startsWith(ctx.origin) ? u.slice(ctx.origin.length) : u)))].filter((u) => u !== '/favicon.ico').sort();
+      const want = ['/gen/built.html', '/luccet.js', '/test/smoke/built-addon.css', '/test/smoke/built-addon.js'];
+      if (JSON.stringify(urls) !== JSON.stringify(want)) throw new Error(`requests ${JSON.stringify(urls)}, expected the page, luccet.js and its two add-ons alone`);
     },
   },
   {
@@ -2358,7 +2330,7 @@ const TESTS = [
       page.on('request', (q) => /\/addons\/|\/themes\//.test(q.url()) && ctx.reqs.push(q.url().replace(/^https?:\/\/[^/]+/, '')));
     },
     async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('main.luccet .t-math .katex').length === 2, 'both formulas typeset by the KaTeX the block loads');
+      await expect(page, () => !!document.querySelector('main.luccet pre > button.t-copy'), "the copy button the block's add-on gives the fence");
       const r = await page.evaluate(() => ({
         useDivs: document.querySelectorAll('[data-t="use"]').length,
         nord: [...document.styleSheets].some((s) => /\/themes\/nord\.css/.test(s.href || '')),
@@ -2366,7 +2338,7 @@ const TESTS = [
       }));
       if (r.useDivs) throw new Error(`${r.useDivs} :::use elements in the page, expected none`);
       if (!r.nord) throw new Error('the theme the block lists did not load');
-      if (JSON.stringify(r.cfg) !== JSON.stringify(['katex', 'nord'])) throw new Error(`config.use ${JSON.stringify(r.cfg)}, expected katex and nord only`);
+      if (JSON.stringify(r.cfg) !== JSON.stringify(['copy', 'nord'])) throw new Error(`config.use ${JSON.stringify(r.cfg)}, expected copy and nord only`);
       await page.waitForTimeout(200);
       if (ctx.reqs.some((u) => /code\.js/.test(u))) throw new Error("the late block's add-on was requested");
       if (!ctx.diagnostics.some((d) => d.code === 'use.late')) throw new Error('no use.late for the late block');
@@ -2382,15 +2354,15 @@ const TESTS = [
       const cdp = await context.newCDPSession(page);
       await cdp.send('Network.enable');
       await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: SLOW_3G.latency, downloadThroughput: SLOW_3G.bytesPerSecond, uploadThroughput: SLOW_3G.bytesPerSecond });
-      ctx.katexAt = null;
-      page.on('request', (q) => /\/addons\/katex\.js/.test(q.url()) && ctx.katexAt === null && (ctx.katexAt = Date.now()));
+      ctx.addonAt = null;
+      page.on('request', (q) => /\/addons\/copy\.js/.test(q.url()) && ctx.addonAt === null && (ctx.addonAt = Date.now()));
     },
     async check(page, ctx) {
-      await expect(page, () => !!document.querySelector('main.luccet .t-math .katex'), 'math typeset', 60000);
-      const dcl = await page.evaluate(() => performance.timeOrigin + performance.getEntriesByType('navigation')[0].domContentLoadedEventStart);
-      if (ctx.katexAt === null) throw new Error('the add-on was never requested');
-      ctx.note(`  addons/katex.js requested ${Math.round(dcl - ctx.katexAt)} ms before DOMContentLoaded`);
-      if (ctx.katexAt >= dcl) throw new Error(`the add-on was requested only at DOMContentLoaded (${Math.round(ctx.katexAt - dcl)} ms after): the streaming scan did not fire early`);
+      await expect(page, () => !!document.querySelector('main.luccet h1'), 'the note mounted', 60000);
+      const { origin, dcl } = await page.evaluate(() => ({ origin: performance.timeOrigin, dcl: performance.timeOrigin + performance.getEntriesByType('navigation')[0].domContentLoadedEventStart }));
+      if (ctx.addonAt === null) throw new Error('the add-on was never requested');
+      ctx.note(`  addons/copy.js requested at ${Math.round(ctx.addonAt - origin)} ms, ${Math.round(dcl - ctx.addonAt)} ms before DOMContentLoaded (${Math.round(dcl - origin)} ms)`);
+      if (ctx.addonAt >= dcl) throw new Error(`the add-on was requested only at DOMContentLoaded (${Math.round(ctx.addonAt - dcl)} ms after): the streaming scan did not fire early`);
     },
   },
   {
@@ -2615,19 +2587,19 @@ const TESTS = [
     },
   },
   {
-    name: 'glossary add-on: ::glossary lists the terms luccet index gathered, by key, each linked to its definition, the definition rendered with its links led back to its note and its math typeset; in= keeps a folder; a missing file and a file of another format say so; :term links to the entry',
+    name: 'glossary add-on: ::glossary lists the terms luccet index gathered, by key, each linked to its definition, the definition rendered with its links led back to its note and its math MathML; in= keeps a folder; a missing file and a file of another format say so; :term links to the entry',
     url: '/gen/glossary/glossary.html',
     allowConsole: /Failed to load resource/,
     async check(page, ctx) {
-      await expect(page, () => document.querySelectorAll('.t-glossary').length === 4 && [...document.querySelectorAll('.t-glossary')].every((n) => n.querySelector('.t-glossary-list, .t-glossary-status')) && document.querySelectorAll('#list .katex').length >= 3, 'the four lists to settle and the math to typeset');
+      await expect(page, () => document.querySelectorAll('.t-glossary').length === 4 && [...document.querySelectorAll('.t-glossary')].every((n) => n.querySelector('.t-glossary-list, .t-glossary-status')) && document.querySelectorAll('#list .t-math > math').length >= 3, 'the four lists to settle, the math MathML');
       const r = await page.evaluate(() => {
         const rel = (h) => (h || '').replace(/^.*\/gen\/glossary\//, '');
         const list = (id) => ({
           entries: [...document.querySelectorAll(`#${id} dt`)].map((dt) => [dt.id, dt.textContent, rel(dt.querySelector('a').getAttribute('href')), dt.nextElementSibling.querySelector('.t-glossary-source a').textContent, dt.nextElementSibling.querySelector('p').textContent.replace(/\s+/g, ' ').trim()]),
           links: [...document.querySelectorAll(`#${id} dd a`)].map((a) => rel(a.getAttribute('href'))),
           status: (document.querySelector(`#${id} .t-glossary-status`) || {}).textContent || '',
-          katex: document.querySelectorAll(`#${id} .katex`).length,
-          math: [...document.querySelectorAll(`#${id} .t-math`)].filter((m) => !m.querySelector('.katex')).length,
+          mathml: document.querySelectorAll(`#${id} .t-math[data-tex] > math`).length,
+          math: [...document.querySelectorAll(`#${id} .t-math`)].filter((m) => !m.querySelector(':scope > math')).length,
         });
         return { list: list('list'), sub: list('sub'), missing: list('missing'), old: list('old'), uses: [...document.querySelectorAll('.term > a')].map((a) => [a.textContent, rel(a.getAttribute('href'))]), label: document.querySelector('#list').getAttribute('aria-label'), tag: document.querySelector('#list .t-glossary-list').tagName };
       });
@@ -2642,7 +2614,7 @@ const TESTS = [
       if (got.length !== 4) throw new Error(`${got.length} entries: ${JSON.stringify(got)}`);
       if (!/^A truism is a claim so obviously true/.test(got[2][4]) || !/see the glossary and/.test(got[2][4])) throw new Error(`the truism's definition: ${JSON.stringify(got[2][4])}`);
       for (const l of ['defs.html#ker', 'glossary.html', 'sub/more.txt']) if (!r.list.links.includes(l)) throw new Error(`the definitions' links ${JSON.stringify(r.list.links)} lack ${l}: a fragment, a relative link and a link from a subfolder, led back to their notes`);
-      if (r.list.katex < 3 || r.list.math) throw new Error(`${r.list.katex} formulas typeset, ${r.list.math} not: the page's math add-on typesets the definitions`);
+      if (r.list.mathml < 3 || r.list.math) throw new Error(`${r.list.mathml} formulas MathML, ${r.list.math} not: the definitions' formulas are the engine's MathML`);
       if (r.sub.entries.map((e) => e[1]).join() !== 'widget') throw new Error(`in=sub/: ${JSON.stringify(r.sub.entries)}`);
       if (!/could not be loaded \(missing\.json\)/.test(r.missing.status)) throw new Error(`the missing file: ${JSON.stringify(r.missing)}`);
       if (r.old.status !== 'The glossary was written by luccet 0.5.0; run luccet index again.') throw new Error(`the 0.x file: ${JSON.stringify(r.old)}`);
@@ -2782,23 +2754,6 @@ const TESTS = [
     },
   },
   {
-    // KaTeX reads a string 'false' as true, so the add-on must make it a
-    // boolean; with trust off, KaTeX shows an untrusted command's name in its
-    // error colour instead of making the link.
-    name: 'katex add-on: ?trust=false on the add-on reads as false, so \\href is shown as unsupported and no javascript: link is made',
-    url: '/test/smoke/katex-trust.html',
-    async check(page) {
-      await expect(page, () => document.querySelectorAll('main.luccet .t-math .katex').length === 2, 'both formulas typeset');
-      const r = await page.evaluate(() => ({
-        math: [...document.querySelectorAll('main.luccet .t-math')].map((e) => ({ error: e.classList.contains('t-error'), shown: e.querySelector('.katex-html').textContent, anchors: e.querySelectorAll('a').length })),
-        links: [...document.querySelectorAll('main.luccet a')].map((a) => a.getAttribute('href')),
-      }));
-      if (r.math[0].error || r.math[0].anchors || !/\\href/.test(r.math[0].shown) || /javascript/.test(r.math[0].shown)) throw new Error(`the \\href formula ${JSON.stringify(r.math[0])}, expected the command's name shown as unsupported, no link`);
-      if (r.math[1].error || r.math[1].shown.trim() !== 'y2') throw new Error(`the plain formula ${JSON.stringify(r.math[1])}, expected it typeset`);
-      if (r.links.length) throw new Error(`links in the note: ${JSON.stringify(r.links)}, expected none`);
-    },
-  },
-  {
     name: 'mermaid add-on: ?securityLevel=loose on the add-on does not loosen it: strict, and a click with a javascript: URL makes no such link',
     url: '/test/smoke/mermaid-loose.html',
     timeout: 60000,
@@ -2859,22 +2814,6 @@ const TESTS = [
     },
   },
   {
-    name: "katex add-on: a stylesheet that fails to load leaves math as its source, with a warning, instead of typesetting it unstyled",
-    url: '/test/smoke/katex-unavailable.html',
-    allowConsole: /Failed to load resource|katex\.min\.css|stylesheet/i,
-    async setup(context) {
-      // Registered after the KaTeX cache route, so it wins: the stylesheet alone is refused.
-      await context.route((url) => /^https:\/\/cdn\.jsdelivr\.net\/npm\/katex@[^/]+\/dist\/katex\.min\.css/.test(url.href), (route) => route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'text/plain', body: 'not found' }));
-    },
-    async check(page, ctx) {
-      await expect(page, () => window.katex && typeof window.katex.render === 'function', 'KaTeX itself to have loaded');
-      await page.waitForTimeout(300);
-      const math = await page.evaluate(() => [...document.querySelectorAll('main.luccet .t-math')].map((e) => ({ text: e.textContent, katex: !!e.querySelector('.katex') })));
-      if (math.length !== 1 || math[0].katex || math[0].text !== 'x^2 + 1') throw new Error(`math ${JSON.stringify(math)}, expected its source "x^2 + 1"`);
-      if (!ctx.console.some((m) => m.type === 'warning' && /stylesheet did not load/.test(m.text))) throw new Error(`no "stylesheet did not load" warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
-    },
-  },
-  {
     // A root rendered with safe stays untrusted: a luccet.define registered
     // later, a later render of it without a source, and a render of the page
     // root that holds it run no behaviour on it; a trusted source rendered
@@ -2914,49 +2853,29 @@ const TESTS = [
     },
   },
   {
-    name: 'safe roots: KaTeX typesets them with trust off whatever the page sets, and a \\gdef or :::macros in them reaches no other formula',
-    url: '/test/smoke/katex-safe.html',
-    async check(page) {
-      await expect(page, () => document.querySelector('main.luccet .t-math a[href="https://example.org/"]'), "the page's own \\href, trusted");
-      const r = await page.evaluate(async () => {
-        const box = document.createElement('div');
-        box.className = 'luccet';
-        document.body.append(box);
-        await luccet.render(box, ':::macros\n\\gdef\\evil{E}\n:::\n\n$\\href{javascript:alert(1)}{z}$ and $\\gdef\\worse{W}\\worse$.\n', { safe: true });
-        const own = document.createElement('div');
-        own.className = 'luccet';
-        document.body.append(own);
-        await luccet.render(own, 'Trusted again: $\\evil$ and $\\worse$.\n');
-        return {
-          typeset: box.querySelectorAll('.t-math .katex').length,
-          anchors: box.querySelectorAll('a').length,
-          shown: box.querySelector('.t-math .katex-html').textContent,
-          after: [...own.querySelectorAll('.t-math')].map((e) => (e.classList.contains('t-error') ? 'error' : e.textContent.replace(/\s+/g, ''))),
-        };
-      });
-      if (r.typeset !== 2 || r.anchors || !/\\href/.test(r.shown)) throw new Error(`the untrusted box ${JSON.stringify(r)}: expected both formulas typeset, \\href shown as unsupported, no link`);
-      if (r.after.join() !== 'error,error') throw new Error(`the page's formulas after the box: ${JSON.stringify(r.after)}, expected both undefined (nothing leaked)`);
-    },
-  },
-  {
-    name: 'safe roots: Temml typesets them with a copy of the macro table, and their :::macros define nothing for the page',
-    url: '/test/smoke/mathml.html',
-    async setup(_context, _page, ctx) {
-      if (!(await temmlDir(TEMML_VERSION))) ctx.skip(`no local copy of Temml ${TEMML_VERSION}`);
-    },
+    // Each luccet.render has its own macro table: a \gdef or a :::macros in
+    // a root rendered with safe defines nothing for any formula outside it,
+    // and a formula there still translates. \href is no command of the
+    // engine's (tex.unsupported): no link is ever made from a formula.
+    name: 'safe roots: formulas translate under safe, and a \\gdef or :::macros in a safe root reaches no formula outside it',
+    url: '/test/smoke/basic.html',
     async check(page) {
       const r = await page.evaluate(async () => {
         const box = document.createElement('div');
         box.className = 'luccet';
         document.body.append(box);
-        await luccet.render(box, ':::macros\n\\gdef\\evil{E}\n:::\n\n$\\gdef\\worse{W}\\worse$\n', { safe: true });
+        const boxDiags = await luccet.render(box, ':::macros\n\\gdef\\evil{E}\n:::\n\n$\\gdef\\worse{W}\\worse$, $\\evil$ and $\\href{javascript:alert(1)}{z}$.\n', { safe: true });
         const own = document.createElement('div');
         own.className = 'luccet';
         document.body.append(own);
-        await luccet.render(own, '$\\evil$ and $\\worse$\n');
-        return { typeset: box.querySelectorAll('.t-math math').length, after: [...own.querySelectorAll('.t-math')].map((e) => (e.classList.contains('t-error') ? 'error' : 'ok')) };
+        const ownDiags = await luccet.render(own, 'Trusted, after the box: $\\evil$ and $\\worse$.\n');
+        const state = (root) => [...root.querySelectorAll('.t-math')].map((e) => (e.classList.contains('t-error') ? `error ${e.textContent}` : e.querySelector(':scope > math') ? `mathml ${e.querySelector('math').textContent}` : `other ${e.outerHTML}`));
+        return { box: state(box), anchors: box.querySelectorAll('a').length, own: state(own), boxCodes: (boxDiags || []).map((d) => d.code), ownCodes: (ownDiags || []).map((d) => d.code) };
       });
-      if (r.typeset !== 1 || r.after.join() !== 'error,error') throw new Error(`${JSON.stringify(r)}: expected the box's formula typeset and both of the page's undefined`);
+      const box = ['mathml W', 'mathml E', 'error \\href{javascript:alert(1)}{z}'];
+      if (JSON.stringify(r.box) !== JSON.stringify(box) || r.anchors) throw new Error(`the safe box ${JSON.stringify(r)}: expected ${JSON.stringify(box)} (its own macros at work, \\href refused), no link`);
+      if (JSON.stringify(r.own) !== JSON.stringify(['error \\evil', 'error \\worse'])) throw new Error(`the formulas rendered after the box: ${JSON.stringify(r.own)}, expected both unknown (nothing leaked)`);
+      if (r.boxCodes.join() !== 'tex.unsupported' || r.ownCodes.join() !== 'tex.unknown,tex.unknown') throw new Error(`the renders' diagnostics: box ${JSON.stringify(r.boxCodes)}, after it ${JSON.stringify(r.ownCodes)}`);
     },
   },
   // ---- runtime robustness (the remediation plan's Phase 3)
@@ -3041,23 +2960,27 @@ const TESTS = [
       if (failed.length !== 1 || !/\/nope\/luccet\.css \(data-css\) did not load/.test(failed[0].message)) throw new Error(`addon.failed: ${JSON.stringify(failed.map((d) => d.message))}`);
     },
   },
-  {
-    // The support floor: a browser without what the runtime needs gets the
-    // source, readable, with a line that says why, instead of a half-rendered
-    // page and an uncaught error.
-    name: 'a browser below the support floor is shown the source with a message, and no error',
+  // The support floor: a browser without what the runtime needs gets the
+  // source, readable, with a line that says why, instead of a half-rendered
+  // page and an uncaught error. Simulated by taking one of its needs away:
+  // replaceChildren (Chrome 86), or MathMLElement, which stands for MathML
+  // layout (Chrome 109), as the formulas are MathML.
+  ...[
+    ['Element.prototype.replaceChildren', () => delete Element.prototype.replaceChildren],
+    ['MathMLElement', () => delete window.MathMLElement],
+  ].map(([what, init]) => ({
+    name: `a browser below the support floor (no ${what}) is shown the source with a message, and no error`,
     url: '/test/smoke/basic.html',
     noTern: true,
-    init: () => {
-      delete Element.prototype.replaceChildren;
-    },
+    init,
     async check(page, ctx) {
       await page.waitForLoadState('load');
-      const r = await page.evaluate(() => ({ plaintext: !!document.querySelector('plaintext'), main: !!document.querySelector('main.luccet'), message: /too old for luccet\.js/.test(document.body.textContent), source: /Smoke: basic/.test(document.querySelector('plaintext') ? document.querySelector('plaintext').textContent : '') }));
+      const r = await page.evaluate(() => ({ gone: typeof window.MathMLElement !== 'function' || typeof Element.prototype.replaceChildren !== 'function', plaintext: !!document.querySelector('plaintext'), main: !!document.querySelector('main.luccet'), message: /too old for luccet\.js \(it needs Chrome 109, Firefox 78, Safari 14 or newer\)/.test(document.body.textContent), source: /Smoke: basic/.test(document.querySelector('plaintext') ? document.querySelector('plaintext').textContent : '') }));
+      if (!r.gone) throw new Error(`${what} is still there: the simulation did not take`);
       if (!r.plaintext || r.main || !r.message || !r.source) throw new Error(JSON.stringify(r));
-      if (!ctx.console.some((m) => m.type === 'warning' && /lacks what luccet\.js needs/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
+      if (!ctx.console.some((m) => m.type === 'warning' && /lacks what luccet\.js needs \(Chrome 109/.test(m.text))) throw new Error(`no warning; console: ${JSON.stringify(ctx.console.slice(0, 5))}`);
     },
-  },
+  })),
 ];
 
 async function expect(page, fn, what, timeout = 8000, arg) {
@@ -3094,8 +3017,8 @@ async function runTest(browser, origin, t) {
     },
   };
   const run = (async () => {
-    if (!LIVE_CDN) await routeKatex(context, ctx), await routeCached(context, HLJS_URL, hljsDir), await routeCached(context, MERMAID_URL, mermaidDir);
-    if (t.offline) await context.route((url) => url.origin !== origin && ![KATEX_URL, HLJS_URL, MERMAID_URL].some((re) => re.test(url.href)), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
+    if (!LIVE_CDN) await routeCached(context, HLJS_URL, hljsDir), await routeCached(context, MERMAID_URL, mermaidDir);
+    if (t.offline) await context.route((url) => url.origin !== origin && ![HLJS_URL, MERMAID_URL].some((re) => re.test(url.href)), (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stub</title>' }));
     const page = await context.newPage();
     page.on('console', (m) => {
       ctx.console.push({ type: m.type(), text: m.text() });

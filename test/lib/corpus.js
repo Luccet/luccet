@@ -9,7 +9,7 @@ const path = require('path');
 
 const ID = /^[a-z][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
 const KINDS = new Set(['luccet', 'luccet js', 'html', 'html head', 'json ast', 'json transformed', 'json diagnostics', 'diagnostics']);
-const OPTIONS = new Set(['schema=fixture', 'schema=none', 'schema=extended', 'strict', 'safe', 'diagnostics=any', 'diagnostics=partial', 'escaped', 'noeol']);
+const OPTIONS = new Set(['schema=fixture', 'schema=none', 'schema=extended', 'strict', 'safe', 'diagnostics=any', 'diagnostics=partial', 'escaped', 'noeol', 'math=tex']);
 const SEVERITY = { error: 'error', warning: 'warning', info: 'info', E: 'error', W: 'warning', I: 'info' };
 
 class CorpusError extends Error {

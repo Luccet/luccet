@@ -19,6 +19,8 @@
 //   fences          lines, start, hl (displayed line numbers), hlText;
 //                   slot and text when titled (a listing)
 //   display math    text, the equation number "(1)"
+//   math            mathml, the formula as MathML; texError when it has none
+//                   (math: 'tex' writes the TeX for every formula)
 //   refs            resolved; a resolved ref's children are its text
 //   footnote refs   resolved, number, id, target
 //   footnote defs   id, backref; dropped when a duplicate
@@ -34,6 +36,7 @@
 const { SEVERITY, sortDiagnostics } = require('./diag');
 const { isReservedName, put } = require('./scan'); // put: `__proto__` is an ordinary attribute name
 const S = require('./schema');
+const tex = require('./tex');
 
 const IDENT_FULL = /^[\p{L}_][\p{L}\p{M}\p{N}_-]*$/u; // a whole id that @ can reach
 const ORIGIN = { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } };
@@ -1036,14 +1039,79 @@ function meta(ast, ctx) {
   if (title) (rt.meta || (rt.meta = Object.create(null))).title = title;
 }
 
+// ---------------------------------------------------------------- math
+
+// TeX to MathML (src/tex.js, docs/math.html): every formula, in document
+// order, with the note's macros: the page's (opts.macros), then every
+// :::macros block, wherever it stands. A \gdef in a formula reaches the
+// formulas after it. A formula that does not translate keeps its TeX, and
+// its diagnostic points at the command at fault.
+function math(ast, ctx) {
+  if (ctx.opts.math === 'tex') return;
+  const formulas = [];
+  const blocks = [];
+  walk(ast, (n) => {
+    if (n.type === 'inlineMath' || (n.type === 'math' && !peek(n).unclosed)) formulas.push(n);
+    else if (n.type === 'containerDirective' && n.name === 'macros' && typeof n.value === 'string') blocks.push(n);
+    else if (n.type === 'text') return false;
+  });
+  if (!formulas.length && !blocks.length) return;
+  const table = tex.table(ctx.opts.macros);
+  for (const name of table.problems) ctx.report('tex.macro', null, `the page's macro ${name} is not a TeX command name with a TeX body`, 'give window.LUCCET.macros as {"\\name": "body"}');
+  for (const b of blocks) {
+    const e = tex.define(table, b.value);
+    if (e) ctx.report(e.code, blockPosition(b, e), `in this :::macros block, ${e.message}`, e.hint);
+  }
+  for (const n of formulas) {
+    const r = tex.render(n.value || '', { display: n.type === 'math', macros: table });
+    if (r.mathml) set(n, { mathml: r.mathml });
+    else {
+      set(n, { texError: true });
+      ctx.report(r.error.code, texPosition(n, r.error), r.error.message, r.error.hint);
+    }
+  }
+}
+
+// Where an error at offsets [at, end) of a formula's TeX is in the note:
+// texAt holds where each of its lines starts (the parser's).
+function texPosition(n, e) {
+  const v = n.value || '';
+  const lines = peek(n).texAt;
+  const before = v.slice(0, e.at);
+  let k = 0;
+  for (let i = before.indexOf('\n'); i >= 0; i = before.indexOf('\n', i + 1)) k++;
+  const base = Array.isArray(lines) ? lines[k] : null;
+  if (!base) return n.position || null;
+  const col = e.at - (before.lastIndexOf('\n') + 1);
+  const eol = v.indexOf('\n', e.at);
+  const len = Math.max(1, Math.min(e.end, eol < 0 ? v.length : eol) - e.at);
+  const start = { line: base.line, column: base.column + col, offset: base.offset + col };
+  return { start, end: { line: base.line, column: start.column + len, offset: start.offset + len } };
+}
+// The same in a :::macros block, whose body starts on the line after its
+// opener, at the opener's column.
+function blockPosition(b, e) {
+  if (!b.position) return null;
+  const v = b.value;
+  const before = v.slice(0, e.at);
+  let k = 0;
+  for (let i = before.indexOf('\n'); i >= 0; i = before.indexOf('\n', i + 1)) k++;
+  const col = e.at - (before.lastIndexOf('\n') + 1);
+  const line = b.position.start.line + 1 + k;
+  const column = b.position.start.column + col;
+  return { start: { line, column, offset: 0 }, end: { line, column: column + Math.max(1, e.end - e.at), offset: 0 } };
+}
+
 // ---------------------------------------------------------------- the pipeline
 
-// The order: figures and the table merge before `attributes`, which resolves
-// the nodes they make; footnote ids before the other ids.
-const BUILTIN = { figures, tables, attributes, footnotes, ids, numbering, refs, toc, meta };
+// The order: math first, so a formula keeps its MathML wherever a later
+// transform moves or copies it; figures and the table merge before
+// `attributes`, which resolves the nodes they make; footnote ids before the
+// other ids.
+const BUILTIN = { math, figures, tables, attributes, footnotes, ids, numbering, refs, toc, meta };
 const order = Object.keys(BUILTIN);
 const custom = new Map();
-const KEEPS = new Set(['attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']); // leave the index valid
+const KEEPS = new Set(['math', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']); // leave the index valid
 
 function run(ast, opts) {
   const d = ast.data || (ast.data = {});

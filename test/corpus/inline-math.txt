@@ -12,6 +12,7 @@ Positions: `math.inline-display`, `math.unclosed-inline` and `math.bracket` are 
 ## inline-math/spelling
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 The inline-math spelling example: the content is raw TeX, so `_`, `^` and `*` inside it are not Luccet.
 
@@ -40,6 +41,7 @@ costs $5 and $10
 ## inline-math/price-then-math
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Outcome table: in `costs $5 and $x$` the first `$` fails on the candidate before `x`, which then gets its own chance and opens.
 
@@ -54,6 +56,7 @@ costs $5 and $x$
 ## inline-math/paren-dollar-usd
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Outcome table: in `$100 ($USD) and $x$` the bracket clause rejects the candidate after `(`, `$USD` fails on the whitespace before the next dollar, and `$x$` is math.
 
@@ -101,6 +104,7 @@ Outcome table: `| Price ($) | Amount ($) |` has two text cells, because `$)` can
 ## inline-math/nth-st-nd
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Outcome table: there is no digit clause on the opener, so ordinals glued to a closer are math.
 
@@ -171,6 +175,7 @@ a $x$2 b
 ## inline-math/escaped-dollar-inside
 
 spec: syntax-inline#inline-math syntax-inline#escapes
+options: math=tex
 
 Outcome table: `$\$$-valued` is math `\$`; the closer search skips the `\$` pair, and the TeX keeps it.
 
@@ -185,6 +190,7 @@ $\$$-valued
 ## inline-math/one-line-break
 
 spec: syntax-inline#inline-math syntax-blocks#paragraph
+options: math=tex
 
 Outcome table: one line break between opener and closer is allowed; the soft break stays in the TeX as `\n`.
 
@@ -223,6 +229,7 @@ c$</p>
 ## inline-math/glued-to-words
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Outcome table: `x$y$z` is `x`, math `y`, `z`, as in Pandoc; nothing tests the character before the opener or the letter after the closer.
 
@@ -431,6 +438,7 @@ $f{$
 ## inline-math/closer-after-escaped-bracket
 
 spec: syntax-inline#inline-math syntax-inline#escapes
+options: math=tex
 
 The closer clause rejects only an unescaped `(`, `[` or `{`; after `\{`, `\[` or `\(` the dollar closes.
 
@@ -495,6 +503,7 @@ $x $ y$
 ## inline-math/candidate-reopens
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 A rejected candidate gets its own chance to open: `$a ` is text and `$b$` is math.
 
@@ -551,6 +560,7 @@ $x\$
 ## inline-math/backslash-pair-skipping
 
 spec: syntax-inline#inline-math syntax-inline#escapes
+options: math=tex
 
 The closer search skips `\x` pairs from the left, so in `a\\$` the `\\` is a pair and the following dollar closes.
 
@@ -565,6 +575,7 @@ $a\\$ and $b$
 ## inline-math/escaped-dollar-not-adjacent
 
 spec: syntax-inline#inline-math syntax-inline#escape
+options: math=tex
 
 An escaped `$` is not a dollar, so the `$` after `\$` is not adjacent to one and may open.
 
@@ -579,6 +590,7 @@ An escaped `$` is not a dollar, so the `$` after `\$` is not adjacent to one and
 ## inline-math/two-alphabets
 
 spec: syntax-blocks#r4 syntax-inline#escape
+options: math=tex
 
 The same `\alpha` is TeX inside math and a literal backslash and letters outside it.
 
@@ -607,6 +619,7 @@ x^2 + y_1 & {z}
 ## inline-math/atom-star
 
 spec: syntax-inline#inline-math syntax-inline#algorithm syntax-inline#emphasis
+options: math=tex
 
 Math is an atom: the `*` in `$a*b$` and `$c*d$` cannot pair into emphasis across the two spans.
 
@@ -621,6 +634,7 @@ $a*b$ and $c*d$
 ## inline-math/atom-inside-emphasis
 
 spec: syntax-inline#inline-math syntax-inline#algorithm syntax-inline#emphasis
+options: math=tex
 
 Emphasis around math pairs its own delimiters and does not see the `*` inside the span.
 
@@ -635,6 +649,7 @@ Emphasis around math pairs its own delimiters and does not see the `*` inside th
 ## inline-math/atom-at
 
 spec: syntax-inline#inline-math syntax-inline#algorithm syntax-inline#reference
+options: math=tex
 
 `@` inside math is TeX, not a reference, so there is no `ref.dangling`.
 
@@ -649,6 +664,7 @@ $@eq-x$
 ## inline-math/atom-brackets
 
 spec: syntax-inline#inline-math syntax-inline#algorithm syntax-inline#links syntax-inline#span
+options: math=tex
 
 Brackets inside math are not links or spans.
 
@@ -663,6 +679,7 @@ $[a](b)$ and $[c]{.d}$
 ## inline-math/atom-lt
 
 spec: syntax-inline#inline-math syntax-inline#raw-inline-html
+options: math=tex
 
 A tag-shaped `<b>` inside math is TeX: escaped, never raw HTML.
 
@@ -677,6 +694,7 @@ $a<b>c$
 ## inline-math/atom-amp
 
 spec: syntax-inline#inline-math syntax-inline#entities
+options: math=tex
 
 `&` inside math is escaped, and an entity inside math is not passed through.
 
@@ -691,6 +709,7 @@ $a & b$ and $c &amp; d$
 ## inline-math/pipe-inside-math-in-table
 
 spec: syntax-inline#inline-math syntax-blocks#tables
+options: math=tex
 
 Math is an atom for the row splitter: `$|x|$` is one cell.
 
@@ -710,6 +729,7 @@ Math is an atom for the row splitter: `$|x|$` is one cell.
 ## inline-math/math-spans-pipe-in-row
 
 spec: syntax-inline#residual-pipe syntax-blocks#tables syntax-inline#inline-math
+options: math=tex
 
 Residual case: `$a | b$` in a row is one math span, so the pipe inside it does not split the cell.
 
@@ -729,6 +749,7 @@ Residual case: `$a | b$` in a row is one math span, so the pipe inside it does n
 ## inline-math/math-in-container-title
 
 spec: syntax-inline#inline-math syntax-blocks#container
+options: math=tex
 
 In a container title math is an atom, so the `]` inside `$f[x]$` does not end the title.
 
@@ -745,6 +766,7 @@ Body.
 ## inline-math/glued-strong-group
 
 spec: syntax-inline#inline-math syntax-blocks#positions elements#ids
+options: math=tex
 
 A strong group glued after the closing `$` binds to the math span. Inline math with an id is never numbered: there is no `span.t-eqno` and no `equation` count.
 
@@ -763,6 +785,7 @@ $x${#e}
 ## inline-math/glued-weak-group-text
 
 spec: syntax-inline#inline-math syntax-blocks#positions syntax-blocks#strong-and-weak
+options: math=tex
 
 After math only a strong group binds: `$f${x}` is math `f` followed by the text `{x}`, with no diagnostic.
 
@@ -777,6 +800,7 @@ $f${x}
 ## inline-math/spaced-group-text
 
 spec: syntax-inline#inline-math syntax-blocks#positions
+options: math=tex
 
 A group separated from the math by a space is not glued and stays text.
 
@@ -791,6 +815,7 @@ $x$ {#e}
 ## inline-math/suspect-price
 
 spec: syntax-inline#inline-math syntax-inline#residual-dollars diagnostics#math-suspect-price
+options: math=tex
 
 `$5 then x$` is math (Pandoc's residue), flagged with `math.suspect-price` at the opener: the opener is followed by a digit and the span holds `then`, a run of letters after a space.
 
@@ -809,6 +834,7 @@ $5 then x$
 ## inline-math/suspect-price-us
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 The second inline-math example: `costs $10 at peak hours (US$)` closes at `US$`, and `peak` and `hours` make it suspect.
 
@@ -827,6 +853,7 @@ costs $10 at peak hours (US$)
 ## inline-math/suspect-price-control-word
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 A TeX control word is not a suspect run: `$3 \times 10^{8}$` gets no warning.
 
@@ -841,6 +868,7 @@ $3 \times 10^{8}$
 ## inline-math/suspect-price-text-content
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 `\text{…}` content is not a suspect run, even when its words follow spaces.
 
@@ -855,6 +883,7 @@ $5 \text{ per unit}$
 ## inline-math/suspect-price-control-word-arguments
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Every braced argument that follows a control word is exempt, whitespace and one line break allowed before each, not only the first: `$5 \frac{ abc}{ def}$` gets no warning. Words after the arguments still count.
 
@@ -878,6 +907,7 @@ $5 \frac{a}{b} then x$
 ## inline-math/suspect-price-letter-opener
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Only a span whose opener is followed by a digit is checked: `$x then y$` gets no warning.
 
@@ -892,6 +922,7 @@ $x then y$
 ## inline-math/suspect-price-short-run
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 A run of fewer than three letters is not suspect: `$5 kg$` gets no warning.
 
@@ -906,6 +937,7 @@ $5 kg$
 ## inline-math/suspect-price-textrm
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 Words after spaces inside `\textrm{…}` in a digit-opened span are not suspect: `math.suspect-price` exempts the argument of any TeX control word, not only `\text`.
 
@@ -923,6 +955,7 @@ $5 \textrm{ per unit}$
 ## inline-math/suspect-price-any-control-word
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 The exemption covers the argument of any control word: `\mbox{…}` and `\operatorname{…}` arguments are not suspect runs, while a run outside every argument still is.
 
@@ -941,6 +974,7 @@ $3 \mbox{ per unit}$, $2 \operatorname{ max cost}$ and $5 then x$
 ## inline-math/paren-us-residual
 
 spec: syntax-inline#residual-dollars syntax-inline#ambiguity syntax-inline#inline-math
+options: math=tex
 
 Residual case: `$100 (US$)` is math, closing at `US$`; under the `math.suspect-price` rule it is not suspect (`US` is two letters, after `(`).
 
@@ -957,6 +991,7 @@ $100 (US$)
 ## inline-math/price-dash-math-residual
 
 spec: syntax-inline#residual-dollars syntax-inline#ambiguity syntax-inline#inline-math
+options: math=tex
 
 Residual case: `$5-$x$` is math `5-` (the candidate is preceded by `-` and followed by `x`), then text `x$`; it is not suspect.
 
@@ -1049,6 +1084,7 @@ $]0,1[
 ## inline-math/brackets-allowed-positions
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 `[` after the opener and `]` or `)` before the closer are not in the bracket clause, so closed and half-open intervals are math.
 
@@ -1082,6 +1118,7 @@ see $$E=mc^2$$ here
 ## inline-math/inline-display-then-math
 
 spec: syntax-inline#inline-display syntax-inline#inline-math
+options: math=tex
 
 A mid-line `$$` does not disturb inline math later in the paragraph.
 
@@ -1100,6 +1137,7 @@ a $$ b $x$
 ## inline-math/verbatim-form
 
 spec: syntax-inline#verbatim-math syntax-inline#residual-dollars
+options: math=tex
 
 Verbatim math `` $`…` `` is always math, with no price or bracket rules: the escape hatch for `\$` and for `]0,1[`.
 
@@ -1114,6 +1152,7 @@ Write $`\$5 + \$10` or $`]0,1[`.
 ## inline-math/verbatim-double-backticks
 
 spec: syntax-inline#verbatim-math
+options: math=tex
 
 A run of n backticks after `$` closes at the next run of exactly n, so a double run can hold a single backtick.
 
@@ -1128,6 +1167,7 @@ $``a`b``
 ## inline-math/verbatim-atom
 
 spec: syntax-inline#verbatim-math syntax-inline#algorithm
+options: math=tex
 
 Verbatim math is an atom: no emphasis and no reference inside it.
 
@@ -1200,6 +1240,7 @@ Left to right, the first atom wins: a code span that starts first protects the d
 ## inline-math/math-first
 
 spec: syntax-inline#algorithm syntax-inline#inline-math
+options: math=tex
 
 Left to right, math that opens first takes a backtick into its TeX; the candidate closer search sees only dollars and `\x` pairs.
 

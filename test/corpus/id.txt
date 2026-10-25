@@ -223,6 +223,7 @@ Heading ids and container ids share one registry; an explicit heading id is a fi
 ## id/duplicate-math-and-code
 
 spec: elements#ids syntax-blocks#display-math syntax-inline#code-span
+options: math=tex
 
 A `$$` closer id and a code-span id share the registry; the equation keeps the id (and so its number), the code span loses it.
 

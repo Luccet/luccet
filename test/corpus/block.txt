@@ -263,6 +263,7 @@ Some prose about CSS:
 ## block/interrupt-display-math
 
 spec: syntax-blocks#line-algorithm syntax-blocks#display-math
+options: math=tex
 
 Row 13: a `$$` line interrupts a paragraph.
 

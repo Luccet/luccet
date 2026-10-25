@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Elements and output · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Elements and output · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: How Luccet turns names into HTML elements, and the shape of a note's output: the allowlists, reserved names, the output contract, titles and labels, table captions, figures, numbering, references, ids, raw HTML, safe rendering and metadata.
@@ -352,7 +352,7 @@ A :title[x] here.
 
 Some reserved names keep rules of their own:
 
-- **`:::meta`** is the metadata block ([Metadata](#metadata)), and **`:::macros`** holds KaTeX macros ([raw bodies](syntax-blocks.html#raw-body)). They are core blocks, not elements. `meta` is reserved as a leaf or inline name; `macros` is a core name only as a container, so `::macros` is an ordinary `div.macros`.
+- **`:::meta`** is the metadata block ([Metadata](#metadata)), and **`:::macros`** holds TeX macros ([`:::macros`](syntax-blocks.html#macros), [macros](math.html#macros)). They are core blocks, not elements. `meta` is reserved as a leaf or inline name; `macros` is a core name only as a container, so `::macros` is an ordinary `div.macros`.
 - **`:::script`, `:::style` and `:::html`** get a verbatim body, shown as escaped text in `<pre class="t-error">`, never run, with `name.reserved` and a hint naming the HTML spelling: a raw `<script>` or `<style>` block, or a ```` ```=html ```` fence.
 - **`:::end`** acts as a bare closer, with `name.reserved` and the hint "write `:::` or `:::/name`".
 - **Attributes on a core block.** `:::macros`, `:::script`, `:::style` and `:::html` put their id, classes and other attributes on the element they emit (`div.t-macros`, `pre.t-error`), and the id is registered like any other. `:::meta` emits nothing, so its id, classes and keys get [`attr.malformed`](diagnostics.html#attr-malformed) (W) and are dropped; its id is not registered. `tag=` on any core block is `attr.malformed` too ([Step 1](#step-tag)).
@@ -509,6 +509,32 @@ Right.
 
 `cols` itself is on the [blocks page](syntax-blocks.html#cells).
 
+### Math {#math-output}
+
+```html
+<span id="…" class="t-math …classes" data-tex="TeX"><math>…</math></span>
+<div id="…" class="t-eq …classes"><span class="t-math" data-display data-tex="TeX"><math display="block">…</math></span><span class="t-eqno">(1)</span></div>
+```
+
+- **Inline math** is a `span.t-math` holding a `<math>` element: the engine translates the TeX to MathML itself ([Math](math.html)). The TeX, as written, is in `data-tex`, which is what copying the formula copies, between dollars.
+- **Display math** is a `div.t-eq` holding a `span.t-math[data-display]`, whose `<math>` has `display="block"`, then the `span.t-eqno` of a numbered equation. The author's id and classes go on the `div`; on inline math, on the `span`.
+- **A formula that does not translate** is its TeX, as text, in `span.t-math.t-error`, still with `data-tex`, and gets a [`tex.*`](diagnostics.html#tex) diagnostic. An unclosed `$$` is a `div.t-eq.t-error` holding its source ([`math.unclosed`](diagnostics.html#math-unclosed)).
+- **With `math: 'tex'`** ([API](api.html#tohtml)), every formula is its TeX, as text, in a `span.t-math` with no `data-tex`, for a renderer of your own.
+
+```luccet {.live}
+Euler: $e^{i\pi} + 1 = 0${.big}, and
+
+$$
+\int_0^1 x\,dx = \frac{1}{2}
+$$ {#eq-half}
+```
+
+```luccet {.live expect="tex.unknown"}
+The angle $\thetha$ is a typo.
+```
+
+What a formula can say is on the [Math](math.html) page; how to write one in a note, on [inline math](syntax-inline.html#inline-math) and [display math](syntax-blocks.html#display-math).
+
 ### The table of contents {#toc-output}
 
 A leaf whose schema entry has `transform: 'toc'` is filled with the note's headings: `ol > li > a`, with a nested `ol` for each deeper level, inside the leaf's element (`nav` in the demo schema). The range of levels is the leaf's `depth=`, else the schema's `depth`, else `2-3`. A single `depth=N` keeps the levels from the range's lower bound to N. A toc with no headings to list emits nothing at all.
@@ -554,7 +580,7 @@ Luccet writes `data-pos="line:col"`, the source position of the element, on:
 - the `div.t-macros` of `:::macros`;
 - the `pre.t-error` of a reserved container or of an unclosed comment or raw-text block, and the `div.t-eq.t-error` of an unclosed equation.
 
-Headings, paragraphs, lists, pipe tables, links, images and code spans have none. Lines are note lines: line 1 is the line after the `luccet.js` line, and columns count from 1. The runtime uses `data-pos` to position the diagnostics it finds after mount, such as [`math.error`](diagnostics.html#math-error). The examples on this page leave it out; a note in the browser has it. With the demo schema, this note:
+Headings, paragraphs, lists, pipe tables, links, images and code spans have none. Lines are note lines: line 1 is the line after the `luccet.js` line, and columns count from 1. The runtime uses `data-pos` to map an element back to its note line, and `luccet build --diagrams` to position a [`diagram.error`](diagnostics.html#diagram-error). The examples on this page leave it out; a note in the browser has it. With the demo schema, this note:
 
 ````luccet
 :::theorem
@@ -569,7 +595,7 @@ x
 becomes:
 
 ```html
-<section class="t-block theorem" data-t="theorem" data-pos="1:1"><div class="t-title"><span class="t-label">Theorem 1</span></div><p>Press <kbd class="kbd" data-t="kbd" data-pos="2:7">S</kbd> for <span class="t-math" data-pos="2:19">x</span>.</p>
+<section class="t-block theorem" data-t="theorem" data-pos="1:1"><div class="t-title"><span class="t-label">Theorem 1</span></div><p>Press <kbd class="kbd" data-t="kbd" data-pos="2:7">S</kbd> for <span class="t-math" data-pos="2:19" data-tex="x"><math><mi>x</mi></math></span>.</p>
 </section>
 <pre data-t="code" data-pos="5:1"><code class="language-js">x</code></pre>
 ```
@@ -606,7 +632,7 @@ Luccet's own classes, all reserved to it:
 | `t-fnref`, `t-fnback`, `t-footnotes` | footnote references, back links and the footnote section |
 | `t-task` | a task-list item |
 | `t-line`, `t-hl` | a fence's numbered and highlighted lines |
-| `t-error` | content shown as an error: opener junk, unclosed raw HTML, an unclosed equation, a reserved container, a formula KaTeX rejects |
+| `t-error` | content shown as an error: opener junk, unclosed raw HTML, an unclosed equation, a reserved container, a formula whose TeX does not translate |
 | `t-macros` | the hidden `:::macros` body |
 
 ### Accessibility {#accessibility}
@@ -1460,7 +1486,9 @@ renders under `safe: true` as:
 
 `id`, `class`, `data-*` and the other attributes are kept, and every Luccet construct renders as usual. The `::iframe` became an inert `<div>`, so its `src` no longer loads.
 
-That list is the whole contract: `safe` escapes, neutralises and drops what is named above, in the browser also keeps the root's scripts from running and its behaviours from ever applying, and has the math add-ons that come with Luccet typeset the root with trust off and a private macro table. It does not sandbox the page's own code, and it does not limit what the untrusted text may cost to parse beyond the engine's own limits ([`nesting.limit`](diagnostics.html#nesting-limit), [`output.limit`](diagnostics.html#output-limit)).
+Math needs nothing of `safe`: no TeX command writes a link, an HTML attribute or a request ([what is left out](math.html#unsupported)), so a formula's MathML is the same with `safe` and without, and a root's `:::macros` reach only its own formulas.
+
+That list is the whole contract: `safe` escapes, neutralises and drops what is named above, and in the browser also keeps the root's scripts from running and its behaviours from ever applying. It does not sandbox the page's own code, and it does not limit what the untrusted text may cost to parse beyond the engine's own limits ([`nesting.limit`](diagnostics.html#nesting-limit), [`output.limit`](diagnostics.html#output-limit)).
 
 ## Metadata {#metadata}
 

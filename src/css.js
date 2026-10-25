@@ -3,7 +3,8 @@
 // published as luccet.css. It is functional only: a note looks like plain HTML,
 // as the browser draws it (light or dark, by the reader's system), and this
 // adds what Luccet's own constructs need to work: line numbers and highlighted
-// lines, grids, an equation's number at its end, the end mark, task lists,
+// lines, grids, math (a math font, and what Chromium's MathML leaves to CSS),
+// an equation's number at its end, the end mark, task lists,
 // scrolling where content would overflow, visible errors and the diagnostics
 // panel, math and code isolated as LTR in an RTL note, and print without
 // clipping. The look (a reading column, type, a palette) is a theme's
@@ -19,6 +20,7 @@ const css = `:root {
   --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
   --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
   --t-sans: system-ui, sans-serif; --t-mono: monospace;
+  --t-math: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Libertinus Math", "TeX Gyre Termes Math", "DejaVu Math TeX Gyre", "Noto Sans Math", math;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -64,7 +66,44 @@ html { background: var(--t-bg); color: var(--t-fg); }
 .t-cell { min-inline-size: 0; }
 @media (max-width: 36rem) { .t-cols { grid-template-columns: minmax(0, 1fr); } }
 
-/* Math: display equations scroll rather than overflow; the number sits at the end. */
+/* Math (src/tex.js) is MathML, laid out by the browser in a math font, one with OpenType's math
+   table, which stretches brackets and roots and sizes big operators: --t-math names the common ones
+   before the browser's own, which on Linux is often not one. Chromium's MathML leaves table alignment,
+   boxes and strikes to CSS; a negative space is a negative margin, in TeX's mu. */
+.luccet math { font-family: var(--t-math); }
+.luccet mtd { padding: .5ex .4em; }
+.luccet mtable.t-align > mtr > mtd { padding-block: .25em; }
+.luccet mtable.t-align > mtr > mtd:nth-child(odd) { text-align: right; text-align: -webkit-right; padding-inline-end: 0; }
+.luccet mtable.t-align > mtr > mtd:nth-child(even) { text-align: left; text-align: -webkit-left; padding-inline-start: 0; }
+.luccet mtable.t-align > mtr > mtd:nth-child(even):not(:last-child) { padding-inline-end: 2em; }
+.luccet mtable.t-cases > mtr > mtd { text-align: left; text-align: -webkit-left; padding-inline: 0 1em; }
+.luccet mtable.t-substack > mtr > mtd { padding: 0; }
+.luccet mtd.t-left { text-align: left; text-align: -webkit-left; }
+.luccet mtd.t-right { text-align: right; text-align: -webkit-right; }
+.luccet mtd.t-vline { border-inline-start: .06em solid; }
+.luccet mtd.t-vline-end { border-inline-end: .06em solid; }
+.luccet mtr.t-hline > mtd { border-block-start: .06em solid; }
+.luccet mtr.t-hline-end > mtd { border-block-end: .06em solid; }
+.luccet mrow.t-boxed { border: .06em solid; padding: .2em .3em; }
+.luccet mrow.t-overline { border-block-start: .06em solid; padding-block-start: .1em; }
+.luccet mrow.t-underline { border-block-end: .06em solid; padding-block-end: .1em; }
+.luccet mrow.t-colorbox { padding-inline: .3em; }
+.luccet mrow:is(.t-cancel, .t-bcancel, .t-xcancel) { padding-inline: .1em; background-repeat: no-repeat; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.luccet mrow.t-cancel { background-image: linear-gradient(to top right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)); }
+.luccet mrow.t-bcancel { background-image: linear-gradient(to bottom right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)); }
+.luccet mrow.t-xcancel { background-image: linear-gradient(to top right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)), linear-gradient(to bottom right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)); }
+.luccet mtext.t-bold { font-weight: bold; }
+.luccet mtext.t-italic { font-style: italic; }
+.luccet mtext.t-mono { font-family: var(--t-mono); }
+.luccet mtext.t-sans { font-family: var(--t-sans); }
+.luccet mspace.t-n1 { margin-inline-start: -.0556em; }
+.luccet mspace.t-n3 { margin-inline-start: -.1667em; }
+.luccet mspace.t-n4 { margin-inline-start: -.2222em; }
+.luccet mspace.t-n5 { margin-inline-start: -.2778em; }
+.luccet mspace.t-n9 { margin-inline-start: -.5em; }
+.luccet mspace.t-n18 { margin-inline-start: -1em; }
+
+/* Display equations scroll rather than overflow; the number sits at the end. */
 .t-eq { display: flex; align-items: center; gap: 1rem; overflow-x: auto; overflow-y: hidden; }
 .t-eq > .t-math { flex: 1; text-align: center; min-inline-size: 0; }
 .t-eqno { white-space: nowrap; }
@@ -106,6 +145,7 @@ html { background: var(--t-bg); color: var(--t-fg); }
   }
   .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
   .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mrow:is(.t-cancel, .t-bcancel, .t-xcancel) { forced-color-adjust: none; }
 }
 
 @media print {

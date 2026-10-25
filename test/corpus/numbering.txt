@@ -143,6 +143,7 @@ A.
 ## numbering/equations-need-id
 
 spec: elements#numbering syntax-blocks#display-math
+options: math=tex
 
 Only equations with an id are numbered, on the counter `equation`, in document order.
 
@@ -605,6 +606,7 @@ By @def-ker.
 ## numbering/ref-equation
 
 spec: elements#references syntax-blocks#display-math
+options: math=tex
 
 The default text for an equation is `({n})`.
 
@@ -622,6 +624,7 @@ By @eq-e.
 ## numbering/ref-heading-inline-content
 
 spec: elements#references syntax-inline#reference
+options: math=tex
 
 A reference to a heading reads the heading's inline content, markup and math included.
 
@@ -783,6 +786,7 @@ See @thm-rn{ref=full}.
 ## numbering/ref-select-number-equation
 
 spec: elements#references
+options: math=tex
 
 `ref=number` on an equation gives the bare number, without the parentheses of its default text.
 

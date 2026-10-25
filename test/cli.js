@@ -3,9 +3,6 @@
 // The command line: `node luccet-cli.js` new, check, parse, build, mv, search,
 // index and corpus, spawned in a temporary directory, and the note-detection regex against
 // test/fixtures/detect.json. Zero dependencies.
-// `build --katex` is tested when the smoke tests' KaTeX copy exists
-// (node_modules/.cache/luccet-smoke/katex-*/dist), through a `katex` package
-// on NODE_PATH; otherwise that part is skipped and says so.
 //
 //   node test/cli.js [--filter=TEXT]
 'use strict';
@@ -22,12 +19,6 @@ const CLI = path.join(ROOT, 'luccet-cli.js');
 const luccet = require(path.join(ROOT, 'luccet.js'));
 const { DETECT, detect, split } = require(path.join(ROOT, 'cli', 'note.js'));
 const { decodeSource } = require(path.join(ROOT, 'cli', 'build.js'));
-// KaTeX's pinned version and SRI hashes live in the add-on's table now.
-const KATEX = (() => {
-  const src = fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8');
-  const g = (k) => (new RegExp(`${k}: '([^']+)'`).exec(src) || [])[1];
-  return { version: g('version'), js: g('js'), css: g('css') };
-})();
 const FILTER = (process.argv.find((a) => a.startsWith('--filter=')) || '').slice(9);
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-cli-'));
@@ -707,7 +698,7 @@ test('build --json, mv --json, index --json: one object on stdout, the lines on 
   let r = run(['build', 'j/a.html', '--json']);
   exits(r, 0, 'build --json');
   let j = JSON.parse(r.out);
-  eq([j.file, j.out, j.math, j.warnings], ['j/a.html', null, { total: 1, prerendered: 0, engine: null }, []], 'the object');
+  eq([j.file, j.out, j.math, j.warnings], ['j/a.html', null, { total: 1 }, []], 'the object');
   eq(j.diagnostics.map((d) => [d.file, d.code, d.severity, d.filePosition.start.line]), [['j/a.html', 'ref.dangling', 'warning', 4]], 'the diagnostics as check --json gives them');
   ok(/<!doctype html>/i.test(j.html) && /data-built/.test(j.html), 'the page is in html');
   r = run(['build', 'j/a.html', '-o', 'j/dist/', '--json']);
@@ -786,23 +777,18 @@ test('index: a date that is not YYYY-MM-DD is written as it is and said on stder
 // layout ?base= takes. The packages come from the cache the smoke suite
 // fills (node_modules/.cache/luccet-smoke), else the registry; offline with an
 // empty cache, the test is skipped.
-test('vendor: Temml and KaTeX in the layout ?base= takes; the base lines; usage errors', () => {
-  const r = run(['vendor', 'vend', '--mathml']);
+test('vendor: highlight.js in the layout ?base= takes; the base lines; usage errors; math needs nothing', () => {
+  const r = run(['vendor', 'vend', '--code']);
   if (r.code === 1 && /could not be fetched/.test(r.err)) throw new Skip(`the package is not cached and could not be fetched: ${r.err.trim().split('\n')[0]}`);
-  exits(r, 0, 'vendor --mathml');
-  for (const f of ['vend/temml/temml.min.js', 'vend/temml/Temml-Local.css', 'vend/temml/Temml.woff2']) ok(fs.existsSync(at(f)), `${f} written`);
-  ok(!fs.existsSync(at('vend/katex')), 'only what was asked for');
-  eq(r.out.trim().split('\n'), ['vend/temml/Temml-Local.css', 'vend/temml/Temml.woff2', 'vend/temml/temml.min.js'].sort((a, b) => (a < b ? -1 : 1)).length === 3 ? r.out.trim().split('\n') : [], 'the files listed on stdout');
-  ok(/^luccet vendor: mathml 0\.\d+\.\d+ → vend\/temml \(3 files\); load it with addons\/mathml\.js\?base=vend\/temml$/m.test(r.err), `the base line: ${r.err}`);
-  ok(/^luccet vendor: 1 package, 3 files, [\d.]+ MB; a \?base= resolves from the note's folder/m.test(r.err), `the summary: ${r.err}`);
-  const k = run(['vendor', 'vend', '--katex']);
-  if (k.code === 1 && /could not be fetched/.test(k.err)) throw new Skip('KaTeX is not cached and could not be fetched');
-  exits(k, 0, 'vendor --katex');
-  ok(fs.existsSync(at('vend/katex/katex.min.js')) && fs.existsSync(at('vend/katex/katex.min.css')) && fs.readdirSync(at('vend/katex/fonts')).some((f) => f.endsWith('.woff2')), 'KaTeX with its fonts');
-  ok(/load it with addons\/katex\.js\?base=vend\/katex$/m.test(k.err), k.err);
-  // The copies are the pinned package's bytes: the add-on's own hash matches katex.min.js.
-  const sri = `sha384-${require('crypto').createHash('sha384').update(fs.readFileSync(at('vend/katex/katex.min.js'))).digest('base64')}`;
-  ok(fs.readFileSync(path.join(ROOT, 'addons', 'katex.js'), 'utf8').includes(sri), 'katex.min.js is the file the add-on pins');
+  exits(r, 0, 'vendor --code');
+  ok(fs.existsSync(at('vend/highlight/highlight.min.js')) && fs.readdirSync(at('vend/highlight/languages')).some((f) => f.endsWith('.min.js')), 'highlight.js with its languages');
+  ok(!fs.existsSync(at('vend/mermaid')), 'only what was asked for');
+  ok(/^luccet vendor: code 11\.\d+\.\d+ → vend\/highlight \(\d+ files\); load it with addons\/code\.js\?base=vend\/highlight$/m.test(r.err), `the base line: ${r.err}`);
+  ok(/^luccet vendor: 1 package, \d+ files, [\d.]+ MB; a \?base= resolves from the note's folder/m.test(r.err), `the summary: ${r.err}`);
+  // The copies are the pinned package's bytes: the add-on's own hash matches highlight.min.js.
+  const sri = `sha384-${require('crypto').createHash('sha384').update(fs.readFileSync(at('vend/highlight/highlight.min.js'))).digest('base64')}`;
+  ok(fs.readFileSync(path.join(ROOT, 'addons', 'code.js'), 'utf8').includes(sri), 'highlight.min.js is the file the add-on pins');
+  for (const flag of ['--katex', '--mathml']) exits(run(['vendor', 'vend', flag]), 2, `${flag}: math is built in`);
   exits(run(['vendor']), 2, 'DIR missing');
   exits(run(['vendor', 'a', 'b']), 2, 'two DIRs');
   write('vend/file.txt', 'x', { luccet: false });
@@ -1385,49 +1371,41 @@ test('build: the head wins over :::meta, a head link to luccet.css is the base, 
   ok(!/has no/.test(run(['build', 'h/m.html']).err), 'no warning when both are there');
 });
 
-test('build --katex: formulas pre-rendered to HTML and MathML, with data-tex and KaTeX CSS under SRI', () => {
-  const cache = path.join(ROOT, 'node_modules', '.cache', 'luccet-smoke');
-  const version = fs.existsSync(cache) && fs.readdirSync(cache).find((d) => /^katex-\d/.test(d) && fs.existsSync(path.join(cache, d, 'dist', 'katex.js')));
-  // Without the package, --katex leaves the formulas to luccet.js and says why.
+test('build: formulas are the engine\'s MathML, with data-tex and the note\'s macros; tex.* on stderr; --math and --katex refused', () => {
   write('k/n.html', `${FIRST}<script src="luccet.js"></script>\n:::macros\n\\newcommand{\\RR}{\\mathbb{R}}\n:::\n\n# Top $x^2$\n\nInline $x \\in \\RR$ and display:\n\n$$ \\sum_{i=1}^n i $$\n`);
-  const without = run(['build', 'k/n.html', '--katex']);
-  exits(without, 0, 'build --katex without katex');
-  ok(/the katex package cannot be required/.test(without.err) && !/class="katex"/.test(without.out), 'no pre-rendering');
-  if (!version) throw new Skip('no KaTeX in node_modules/.cache/luccet-smoke (run the smoke tests once)');
-  const pkg = at('kx', 'node_modules', 'katex');
-  fs.mkdirSync(pkg, { recursive: true });
-  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'katex', version: version.slice(6), main: 'dist/katex.js' }));
-  try {
-    fs.symlinkSync(path.join(cache, version, 'dist'), path.join(pkg, 'dist'), 'dir');
-  } catch {
-    fs.cpSync(path.join(cache, version, 'dist'), path.join(pkg, 'dist'), { recursive: true });
-  }
-  const env = { NODE_PATH: at('kx', 'node_modules') };
-  const r = run(['build', 'k/n.html', '--katex'], { env });
-  exits(r, 0, 'build --katex');
-  ok(/3 formulas, 3 pre-rendered/.test(r.err), `summary: ${r.err}`);
+  const r = run(['build', 'k/n.html']);
+  exits(r, 0, 'build');
+  ok(/; 3 formulas$/m.test(r.err), `summary: ${r.err}`);
   const p = pageParts(r.out);
-  const spans = [...p.main.matchAll(/<span class="t-math"( data-display)? data-pos="[^"]*" data-tex="([^"]*)"><span class="katex(-display)?">/g)].map((m) => m[2]);
-  eq(spans, ['x^2', 'x \\in \\RR', '\\sum_{i=1}^n i'], 'pre-rendered formulas and their data-tex');
-  ok((p.main.match(/<math xmlns=/g) || []).length === 3 && /class="katex-html"/.test(p.main), 'HTML and MathML');
-  if (version === 'katex-0.19.0') ok(p.head.includes(`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" integrity="${KATEX.css}" crossorigin="anonymous">\n<style id="luccet-style">`), "KaTeX's CSS with the runtime's SRI, before luccet.css");
-  ok(/<script data-built src="luccet\.js">/.test(r.out), 'data-built with no formulas left');
-  // A formula KaTeX rejects is left to luccet.js, which then needs KaTeX.
+  const spans = [...p.main.matchAll(/<span class="t-math"( data-display)? data-pos="[^"]*" data-tex="([^"]*)"><math/g)].map((m) => m[2]);
+  eq(spans, ['x^2', 'x \\in \\RR', '\\sum_{i=1}^n i'], 'the formulas as MathML, their TeX in data-tex');
+  ok(p.main.includes('<mi>ℝ</mi>') && p.main.includes('<math display="block">'), "the note's macro, and display math");
+  ok(!/katex/i.test(r.out), 'no KaTeX anywhere');
+  // A formula that does not translate keeps its TeX, and its diagnostic is on stderr and in the page.
   write('k/bad.html', `${FIRST}<script src="luccet.js"></script>\nGood $x$, bad $\\left( x$.\n`);
-  const bad = run(['build', 'k/bad.html', '--katex'], { env });
-  ok(/k\/bad\.html:2:15: warning math\.error: KaTeX cannot typeset this formula/.test(bad.err), `stderr: ${bad.err}`);
-  ok(/<script data-built src="luccet\.js">/.test(bad.out) && /data-pos="1:15">\\left\( x<\/span>/.test(bad.out), 'the bad formula left as TeX (rendered only if the note loads a math add-on)');
-  // The stylesheet comes from the folder the note gives the add-on (?base=, in
-  // data-use or :::use), as the page's would; data-katex is not read since 2.0.
-  write('k/base.html', `${FIRST}<script src="luccet.js" data-use="addons/katex.js?base=vendor/katex/"></script>\nA $x$.\n`);
-  const based = run(['build', 'k/base.html', '--katex'], { env });
-  ok(/<link rel="stylesheet" href="vendor\/katex\/katex\.min\.css">/.test(pageParts(based.out).head), `?base= in data-use: ${pageParts(based.out).head}`);
-  write('k/use.html', `${FIRST}<script src="luccet.js"></script>\n:::use\naddons/katex.min.js?base=lib/k&strict=false\n:::\n\nA $x$.\n`);
-  ok(/<link rel="stylesheet" href="lib\/k\/katex\.min\.css">/.test(run(['build', 'k/use.html', '--katex'], { env }).out), '?base= in :::use, on katex.min.js among other options');
+  const bad = run(['build', 'k/bad.html']);
+  ok(/k\/bad\.html:2:16: error tex\.unbalanced: `\\left` without its `\\right`/.test(bad.err), `stderr: ${bad.err}`);
+  ok(/class="t-math t-error" data-pos="1:15" data-tex="\\left\( x">\\left\( x<\/span>/.test(bad.out) && /"code":"tex\.unbalanced"/.test(bad.out), 'the formula as its TeX, the diagnostic in the page');
+  for (const flag of [['--katex'], ['--math', 'katex'], ['--math=mathml']]) {
+    const x = run(['build', 'k/n.html', ...flag]);
+    exits(x, 2, flag.join(' '));
+    ok(/is gone: since 2\.0 every formula is MathML/.test(x.err), `${flag.join(' ')}: ${x.err}`);
+  }
   write('k/old.html', `${FIRST}<script src="luccet.js" data-katex="vendor/katex"></script>\nA $x$.\n`);
-  const old = run(['build', 'k/old.html', '--katex'], { env });
-  ok(/data-katex on the luccet\.js tag is not read since 2\.0: name KaTeX's folder with \?base= on addons\/katex\.js/.test(old.err), `data-katex warned about: ${old.err}`);
-  ok(/1 formula, 1 pre-rendered/.test(old.err) && /href="https:\/\/cdn\.jsdelivr\.net\/npm\/katex@/.test(old.out), 'data-katex ignored: pre-rendered, the stylesheet from jsDelivr');
+  ok(/data-katex on the luccet\.js tag is not read since 2\.0, when math became built in: remove it/.test(run(['build', 'k/old.html']).err), 'data-katex warned about');
+});
+
+test("check and build read the page's math: window.LUCCET.macros, data-math, and an add-on that sets luccet.config.math", () => {
+  write('pm/luccet.js', '');
+  write('pm/a.html', `${FIRST}<script>window.LUCCET = { macros: { "\\\\RR": "\\\\mathbb{R}" } };</script><script src="luccet.js"></script>\nIn $\\RR^n$ and $\\foo$.\n`);
+  const a = run(['check', 'pm/a.html']);
+  ok(/pm\/a\.html:2:17: error tex\.unknown: \\foo/.test(a.out) && !/\\RR/.test(a.out), `the page's macro is known, \\foo is not: ${a.out}`);
+  write('pm/b.html', `${FIRST}<script src="luccet.js" data-math="tex"></script>\nIn $\\foo$.\n`);
+  exits(run(['check', 'pm/b.html']), 0, 'data-math="tex": the TeX is not translated, so not judged');
+  write('pm/k.js', 'luccet.config.math = "tex";\n');
+  write('pm/c.html', `${FIRST}<script src="luccet.js" data-use="k.js"></script>\nIn $\\foo$.\n`);
+  exits(run(['check', 'pm/c.html']), 0, "an add-on's config.math = 'tex'");
+  ok(/<span class="t-math" data-pos="1:4">\\foo<\/span>/.test(run(['build', 'pm/c.html']).out), 'built with the TeX, for the add-on to typeset');
 });
 
 // `build --diagrams` draws the mermaid fences in a headless Chromium: tested
@@ -1493,47 +1471,6 @@ test('build --diagrams: mermaid fences drawn ahead with light, dark and print co
   // Without --diagrams nothing of this is written.
   const plain = run(['build', 'dg/n.html']);
   ok(!/luccet-mermaid-style|<svg/.test(plain.out), 'no drawing without the flag');
-});
-
-test('build --math=mathml: formulas pre-rendered to native MathML with Temml, self-contained', () => {
-  const cache = path.join(ROOT, 'node_modules', '.cache', 'luccet-smoke');
-  const version = fs.existsSync(cache) && fs.readdirSync(cache).find((d) => /^temml-\d/.test(d) && fs.existsSync(path.join(cache, d, 'dist', 'temml.cjs')));
-  write('m/n.html', `${FIRST}<script src="luccet.js"></script>\n:::macros\n\\newcommand{\\RR}{\\mathbb{R}}\n:::\n\n# Top $x^2$\n\nInline $x \\in \\RR$ and display:\n\n$$ \\sum_{i=1}^n i $$\n`);
-  // Without the package, --math=mathml leaves the formulas to luccet.js and says why.
-  const without = run(['build', 'm/n.html', '--math=mathml']);
-  exits(without, 0, 'build --math=mathml without temml');
-  ok(/the temml package cannot be required/.test(without.err) && !/<math/.test(without.out), 'no pre-rendering');
-  // A bad engine name is a usage error.
-  const bogus = run(['build', 'm/n.html', '--math=latex']);
-  exits(bogus, 2, '--math=latex');
-  ok(/--math must be katex or mathml/.test(bogus.err), `usage: ${bogus.err}`);
-  if (!version) throw new Skip('no Temml in node_modules/.cache/luccet-smoke (run the smoke tests once)');
-  const pkg = at('tx', 'node_modules', 'temml');
-  fs.mkdirSync(pkg, { recursive: true });
-  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'temml', version: version.slice(6), main: 'dist/temml.cjs' }));
-  try {
-    fs.symlinkSync(path.join(cache, version, 'dist'), path.join(pkg, 'dist'), 'dir');
-  } catch {
-    fs.cpSync(path.join(cache, version, 'dist'), path.join(pkg, 'dist'), { recursive: true });
-  }
-  const env = { NODE_PATH: at('tx', 'node_modules') };
-  const r = run(['build', 'm/n.html', '--math=mathml'], { env });
-  exits(r, 0, 'build --math=mathml');
-  ok(/3 formulas, 3 pre-rendered as MathML/.test(r.err), `summary: ${r.err}`);
-  const p = pageParts(r.out);
-  const spans = [...p.main.matchAll(/<span class="t-math"( data-display)? data-pos="[^"]*" data-tex="([^"]*)"><math/g)].map((m) => m[2]);
-  eq(spans, ['x^2', 'x \\in \\RR', '\\sum_{i=1}^n i'], 'pre-rendered formulas and their data-tex');
-  ok((p.main.match(/<math\b/g) || []).length === 3, 'three <math> elements');
-  ok(/annotation encoding="application\/x-tex"/.test(p.main), 'the TeX kept in an annotation');
-  // KaTeX off; its stylesheet and script never referenced; Temml inlined.
-  ok(/<script data-built src="luccet\.js">/.test(r.out), 'data-built; the MathML is in the page');
-  ok(!/katex\.min\.(js|css)/.test(r.out), 'no KaTeX asset referenced');
-  ok(/<style id="luccet-temml-style">/.test(p.head) && /url\(data:font\/woff2;base64,/.test(p.head), "Temml's CSS inlined with its font as a data URL");
-  // A formula Temml rejects stays as its TeX source; the page still turns KaTeX off.
-  write('m/bad.html', `${FIRST}<script src="luccet.js"></script>\nGood $x$, bad $\\left( x$.\n`);
-  const bad = run(['build', 'm/bad.html', '--math=mathml'], { env });
-  ok(/m\/bad\.html:2:15: warning math\.error: Temml cannot render this formula/.test(bad.err), `stderr: ${bad.err}`);
-  ok(/<script data-built src="luccet\.js">/.test(bad.out) && /data-pos="1:15">\\left\( x<\/span>/.test(bad.out), 'the bad formula left as TeX source');
 });
 
 test('build: refusals and usage errors', () => {

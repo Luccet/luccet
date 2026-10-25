@@ -744,9 +744,9 @@ function math(_r, fi, te) {
   const pa = begin();
   const node = { type: 'math', value: '' };
   addChild(node);
-  leaf = { kind: 'math', verbatim: true, node, pa, indent: indentAt(), tex: [], lines: [src.slice(fi, te)], start: pa ? pa.start : fi, end: te, open: fi };
+  leaf = { kind: 'math', verbatim: true, node, pa, indent: indentAt(), tex: [], texAt: [], lines: [src.slice(fi, te)], start: pa ? pa.start : fi, end: te, open: fi };
   const f = skipSp(fi + 2, te);
-  if (f < te) leaf.tex.push(src.slice(f, te));
+  if (f < te) leaf.tex.push(src.slice(f, te)), leaf.texAt.push(f);
   const g = src[f] === '{' && (src[f + 1] === '#' || src[f + 1] === '.') ? parseAttrs(src, f, te) : null;
   if (g && g.ok && g.strong && g.end === te) report('math.opener-tail', f, te, 'a group on the opening `$$` line is TeX, not attributes', 'attributes go after the closing `$$`: `$$ {#eq}`');
 }
@@ -754,8 +754,10 @@ function math(_r, fi, te) {
 // One-line display math: `$$ TeX $$ {attrs}`.
 function math1(r, fi, te) {
   const pa = begin();
-  const node = { type: 'math', value: src.slice(skipSp(fi + 2, r.close), trimEnd(fi + 2, r.close)) };
+  const f = skipSp(fi + 2, r.close);
+  const node = { type: 'math', value: src.slice(f, trimEnd(fi + 2, r.close)) };
   attach(node, pa, r.res);
+  luccet(node).texAt = [ctx.position(f, f).start];
   node.position = ctx.position(pa ? pa.start : fi, te);
   addChild(node);
 }
@@ -942,9 +944,9 @@ function feedMath(v, fi, te) {
   if (k < 0) {
     advance(Math.min(v.indent, indentAt()));
     const t = rest();
-    return v.tex.push(t), v.lines.push(t), (v.end = le), true;
+    return v.tex.push(t), v.texAt.push(partial ? pos + 1 : pos), v.lines.push(t), (v.end = le), true;
   }
-  if (trimEnd(fi, k) > fi) v.tex.push(src.slice(fi, trimEnd(fi, k)));
+  if (trimEnd(fi, k) > fi) v.tex.push(src.slice(fi, trimEnd(fi, k))), v.texAt.push(fi);
   const j = skipSp(k + 2, te);
   const g = src[j] === '{' ? parseAttrs(src, j, te) : null;
   const ok = j === te || (g && g.ok && skipSp(g.end, te) === te);
@@ -982,7 +984,7 @@ function finish(v) {
   const node = v.node;
   const opened = lineOf(v.open);
   node.value = (v.tex || v.lines).join('\n');
-  if (v.kind === 'math') attach(node, v.pa, v.res);
+  if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map((o) => ctx.position(o, o).start));
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
   if (v.kind === 'raw' && v.name === 'use') readUse(v);

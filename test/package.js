@@ -48,7 +48,7 @@ test('what npm pack ships: the engine and the command line, not the documentatio
   if (r.status !== 0) return p.push(`npm pack --dry-run exited ${r.status}: ${r.stderr.trim().split('\n')[0]}`);
   const files = JSON.parse(r.stdout)[0].files.map((f) => f.path);
   const has = (f) => files.includes(f);
-  for (const f of ['luccet.js', 'luccet.css', 'luccet.d.ts', 'luccet-cli.js', 'package.json', 'README.md', 'LICENSE', 'CHANGELOG.md', 'cli/commands.js', 'cli/language.js', 'cli/lsp.js', 'cli/sandbox.js', 'src/schema.js', 'src/use.js', 'addons/katex.js', 'skills/luccet-notes/SKILL.md', 'test/fixtures/detect.json', 'tools/npm.js', 'tools/katex.js']) {
+  for (const f of ['luccet.js', 'luccet.css', 'luccet.d.ts', 'luccet-cli.js', 'package.json', 'README.md', 'LICENSE', 'CHANGELOG.md', 'cli/commands.js', 'cli/language.js', 'cli/lsp.js', 'cli/sandbox.js', 'src/schema.js', 'src/use.js', 'addons/code.js', 'skills/luccet-notes/SKILL.md', 'test/fixtures/detect.json', 'tools/npm.js', 'tools/hljs.js']) {
     if (!has(f)) p.push(`${f} is not in the package`);
   }
   const stray = files.filter((f) => /^(docs|examples|test)\//.test(f) && f !== 'test/fixtures/detect.json');

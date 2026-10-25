@@ -318,6 +318,7 @@ The [kernel]{#k} is closed; see @k.
 ## ref/in-code-and-math
 
 spec: syntax-inline#reference syntax-inline#algorithm
+options: math=tex
 
 References never occur inside atoms: nothing here is a reference, and nothing dangles.
 

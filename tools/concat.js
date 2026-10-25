@@ -29,7 +29,7 @@ const CSS_OUT = path.join(ROOT, 'luccet.css');
 
 // Dependencies first. A file in src/ that is not listed is an error, so a
 // new module cannot be left out of the build silently.
-const ORDER = ['diag', 'scan', 'ast', 'entities', 'inline', 'block', 'outline', 'search', 'glossary', 'schema', 'transform', 'emit', 'css', 'use', 'runtime', 'index'];
+const ORDER = ['diag', 'scan', 'ast', 'entities', 'inline', 'block', 'outline', 'search', 'glossary', 'schema', 'tex-symbols', 'tex', 'transform', 'emit', 'css', 'use', 'runtime', 'index'];
 const ENTRY = 'index';
 
 function build() {

@@ -139,6 +139,7 @@ function runCase(c, luccet) {
   if (c.options.has('strict')) schema = { ...schema, strict: true };
   const opts = { schema, head: c.head };
   if (c.options.has('safe')) opts.safe = true;
+  if (c.options.has('math=tex')) opts.math = 'tex';
   const fails = [];
 
   try {

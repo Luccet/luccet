@@ -258,12 +258,6 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .docs-live-out > :first-child { margin-block-start: 0; }
 .docs-live-out > :last-child { margin-block-end: 0; }
 .docs-live-out > h1:first-child { font-size: 1.6rem; }
-/* An example's math before docs.js typesets it (or when KaTeX is missing):
-   luccet.css's .t-math look, under the class that hides it from the runtime. */
-.docs-math { direction: ltr; unicode-bidi: isolate; }
-.docs-math[data-display] { display: block; }
-.t-eq > .docs-math { flex: 1; text-align: center; min-inline-size: 0; }
-.docs-macros[hidden] { display: none !important; }
 .docs-live-diagnostics { background: color-mix(in srgb, var(--t-soft) 55%, var(--t-bg)); }
 .luccet .docs-diags { list-style: none; margin: 0; padding: 0; font-size: .9em; line-height: 1.45; }
 .docs-diags code { font-size: .85em; }
@@ -305,3 +299,10 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
   .docs-live-result { display: block !important; }
   .docs-live-out { overflow: visible; }
 }
+
+/* The Math page's symbol table (docs.js tex-symbols): a grid of symbol and command. */
+.docs-symbols-title { margin-block: 1.4em .5em; font: 600 .78rem/1.4 var(--docs-display); letter-spacing: .06em; text-transform: uppercase; color: var(--docs-gold-ink); }
+.luccet .docs-symbols { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .1rem .8rem; padding: 0; margin: 0; list-style: none; }
+.docs-symbols > li { display: flex; align-items: baseline; gap: .6rem; margin: 0; padding: .15rem 0; border-block-end: 1px solid var(--t-line); }
+.docs-symbol { flex: 0 0 1.6rem; text-align: center; font-size: 1.15em; }
+.docs-symbols code { font-size: .78em; background: none; padding: 0; overflow-wrap: anywhere; }

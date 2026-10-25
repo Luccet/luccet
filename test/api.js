@@ -203,7 +203,7 @@ test('glossary.terms: a dfn is defined by its paragraph, by the paragraph after 
   );
   const html = (t) => luccet.emit({ type: 'root', children: t.definition }, { positions: false }).trim();
   eq(html(list[0]), '<p>A <dfn class="dfn" data-t="dfn">truism</dfn> is obvious; so are <dfn id="tr" class="dfn" data-t="dfn" title="truism">truisms</dfn>.</p>', 'the paragraph a dfn stands in');
-  eq(html(list[3]), '<p>The <dfn class="dfn" data-t="dfn">kernel</dfn> of <span class="t-math">T</span>: the <span class="t-math">v</span> with <span class="t-math">T(v)=0</span>. Its <dfn class="dfn" data-t="dfn">nullity</dfn> is a number.</p>', "the block's body, without its title");
+  eq(html(list[3]), '<p>The <dfn class="dfn" data-t="dfn">kernel</dfn> of <span class="t-math" data-tex="T"><math><mi>T</mi></math></span>: the <span class="t-math" data-tex="v"><math><mi>v</mi></math></span> with <span class="t-math" data-tex="T(v)=0"><math><mi>T</mi><mo stretchy="false">(</mo><mi>v</mi><mo stretchy="false">)</mo><mo>=</mo><mn>0</mn></math></span>. Its <dfn class="dfn" data-t="dfn">nullity</dfn> is a number.</p>', "the block's body, without its title");
   eq(html(list[6]), '<p>The paragraph after.</p>', 'the paragraph after a heading');
   eq(html(list[8]), '<p><dfn class="dfn" data-t="dfn">cell</dfn></p>', 'a cell, as a paragraph');
   eq(/"position"|Position"/.test(JSON.stringify(list)), false, 'no positions in the definitions');

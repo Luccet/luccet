@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: inline · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: inline · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css ../addons/copy.js"></script>
 
 :::meta
 description: Every inline construct of Luccet: escapes, hard breaks, code, math, emphasis, strikethrough, highlight, links, images, spans, named elements, references, footnote references, autolinks, raw HTML and entities; the ambiguity rules, the escapes and the residual cases.
@@ -445,7 +445,7 @@ A malformed group that starts with `#` or `.` is reported:
 
 ## Inline math {#inline-math}
 
-Dollars around TeX make inline math, rendered by KaTeX.
+Dollars around TeX make inline math, which the engine writes as MathML.
 
 :::syntax
 ```luccet
@@ -457,7 +457,7 @@ $\sum_{i=1}^{n} x_i^*$
 If $V$ is finite-dimensional, $\dim V = \dim \ker T + \dim \operatorname{im} T$.
 ```
 
-The output is `<span class="t-math">` holding the TeX; the runtime adds `data-tex` and renders it with KaTeX (see [KaTeX](publishing.html#katex)). The content is raw TeX and an atom: nothing inside is seen by emphasis, brackets, references or the table-row splitter. So `_`, `^` and `*` inside math are TeX, never Luccet.
+The output is `<span class="t-math">` holding the formula as a `<math>` element, with the TeX in `data-tex` ([output](elements.html#math-output)). The TeX a formula can use is on the [Math](math.html) page. The content is raw TeX and an atom: nothing inside is seen by emphasis, brackets, references or the table-row splitter. So `_`, `^` and `*` inside math are TeX, never Luccet.
 
 Dollars are also prices. The rule below decides which dollars are math, so that prose about money stays prose without any escaping, in nearly every case.
 
@@ -512,9 +512,9 @@ The clause is about those positions only. A `[` after the opener and a `]` or `)
 $[0,1]$ and $(0,1]$
 ```
 
-The closer clause rejects only an *unescaped* bracket; after `\{`, `\[` or `\(` the dollar closes:
+The closer clause rejects only an *unescaped* bracket; after `\{`, `\[` or `\(` the dollar closes. All three spans below are math, though `\[` and `\(` are not math commands, so their TeX is [`tex.unknown`](diagnostics.html#tex-unknown):
 
-```luccet {.live}
+```luccet {.live expect="tex.unknown tex.unknown"}
 $\{$, $\[$ and $\($
 ```
 
@@ -623,12 +623,13 @@ the interval $]0,1[$ is open
 
 ### Content, groups and ids {#math-content}
 
-- The TeX is emitted as written, escaped for HTML. An entity inside math is not decoded, and a tag-shaped `<b>` inside math is TeX.
+- The TeX goes to `data-tex` unchanged, escaped for HTML, and is translated to MathML. An entity inside math is not decoded, and a tag-shaped `<b>` inside math is TeX.
 - A strong group glued after the closing `$` binds to the span: `$x${#e}` gives it an id. Inline math is never numbered; only a display equation with an id is (see [Numbering](elements.html#numbering)).
 - A weak group after math is text, and so is a group after a space.
+- TeX that does not translate is shown as its TeX, marked `t-error`, with a [`tex.*`](diagnostics.html#tex) diagnostic at the command at fault ([Math](math.html#errors)).
 
 ```luccet {.live}
-$a<b>c$, $a & b$ and $x${#e}, then $f${x} and $y$ {#f}
+$a<b>c$, $a \& b$ and $x${#e}, then $f${x} and $y$ {#f}
 ```
 
 TeX's marks outside math are plain text, and `\alpha` outside math is a backslash and letters:
@@ -695,6 +696,12 @@ None of these is suspect: a control word, words inside `\text{…}`, words in bo
 $3 \times 10^{8}$, $5 \text{ per unit}$, $2 \frac{ apples}{ day}$, $x then y$ and $5 kg$
 ```
 
+These three concern the dollars. What is inside a formula is checked too: TeX that does not translate gets one of the [`tex.*`](diagnostics.html#tex) codes, at the command at fault.
+
+```luccet {.live expect="tex.unknown"}
+The angle $\thetha$ is a typo for $\theta$.
+```
+
 ### Writing a dollar {#dollar-literal}
 
 `\$` is a literal dollar. It never opens or closes, and it is not "next to" another dollar:
@@ -748,9 +755,9 @@ cost $`5
 $`x$
 ```
 
-Like a code span's, the closing run may be far away. Here the second `` $` `` holds the backtick that closes the first, so the span is `5, and $`:
+Like a code span's, the closing run may be far away. Here the second `` $` `` holds the backtick that closes the first, so the span is `5, and $`, whose bare `$` is [`tex.misplaced`](diagnostics.html#tex-misplaced) in TeX:
 
-```luccet {.live}
+```luccet {.live expect="tex.misplaced"}
 cost $`5, and $`x$ too
 ```
 
@@ -1828,7 +1835,7 @@ AT&T, 10&nbsp;km, &copy; 2026, &#8704; and &#x2203;
 ```
 
 ```luccet {.live}
-&#42;not em&#42; and &#91;not a link&#93;(u); `&amp;` and $a &amp; b$.
+&#42;not em&#42; and &#91;not a link&#93;(u); `&amp;` and $a \&amp; b$.
 ```
 
 **Writing it literally.** `\&` is a literal `&` that cannot start an entity:
@@ -2080,9 +2087,9 @@ Link destinations and titles *do* take escapes and entities, as in CommonMark (s
 
 ### In math {#escapes-math}
 
-Inside `$…$`, `$$` and `:::macros`, the backslash belongs to TeX. When looking for the closing dollar, the scanner only skips `\` + any character, so `\$` inside math is TeX's dollar, and `\\` is a pair that does not hide the dollar after it:
+Inside `$…$`, `$$` and `:::macros`, the backslash belongs to TeX. When looking for the closing dollar, the scanner only skips `\` + any character, so `\$` inside math is TeX's dollar, and `\\` is a pair that does not hide the dollar after it. (The formula `a\\` itself is [`tex.misplaced`](diagnostics.html#tex-misplaced): in TeX, `\\` ends a row, which needs an environment.)
 
-```luccet {.live}
+```luccet {.live expect="tex.misplaced"}
 $\{x\}$, $\$$ and $a\\$ then $b$
 ```
 
