@@ -503,6 +503,32 @@ function searchIndex(file, query, limit, json) {
 const NOTES_JSON = 'notes.json';
 const SEARCH_JSON = 'search.json';
 const GLOSSARY_JSON = 'glossary.json';
+// The format of notes.json, as luccet.search.format is search.json's: a
+// reader takes a file of its own format, whatever version wrote it. 1 since
+// 2.0 (a file with none is 1.x's); it changes only in a major release, and
+// fields may be added in a minor one, which a reader ignores.
+const NOTES_FORMAT = 1;
+
+// The innermost entry of a note's search records (luccet.search.records,
+// a section or a named block) with an id that holds note line `line`: the
+// id a link is written in, or null before any.
+function within(records, line) {
+  let best = null;
+  for (const r of records) {
+    if (!r.id || !r.line || line < r.line || line > (r.endLine || r.line)) continue;
+    if (!best || (r.endLine || r.line) - r.line < (best.endLine || best.line) - best.line) best = r;
+  }
+  return best ? best.id : null;
+}
+const fragmentOf = (url) => {
+  const k = url.indexOf('#');
+  if (k < 0 || k === url.length - 1) return null;
+  try {
+    return decodeURIComponent(url.slice(k + 1));
+  } catch {
+    return url.slice(k + 1);
+  }
+};
 
 // git, run in a repository: {out, truncated}, or null when it fails or is
 // not there. Output past the buffer's size is cut, and said so, rather than
@@ -668,16 +694,22 @@ function index(args) {
       if (info && info.truncated && !committed && info.changed !== null && !info.changed.has(abs)) undated++;
       date = committed || (info && (info.changed === null || info.changed.has(abs)) ? today() : dayOf(abs));
     }
-    const links = [];
-    for (const u of d.links) {
-      const file = linkFile(path.dirname(abs), u);
-      if (file && file !== abs && !links.includes(file)) links.push(file);
-    }
-    notes.push({ url, title, description: d.description, date, headings: d.headings, links, abs });
     const fileLine = (line) => (line ? a.toFile({ start: { line, column: 1 }, end: { line, column: 1 } }).start.line : 0);
+    const records = luccet.search.records(a.ast, { url, title });
+    // Every link to another file, in order: kept below when it names a note
+    // of the catalogue, with its fragment, its file line, and the id of the
+    // section or block it is written in.
+    const links = [];
+    luccet.visit(a.ast, 'link', (n) => {
+      if (typeof n.url !== 'string' || !n.url || n.url.startsWith('#')) return;
+      const file = linkFile(path.dirname(abs), n.url);
+      const line = n.position ? n.position.start.line : 0;
+      if (file && file !== abs) links.push({ file, fragment: fragmentOf(n.url), line: fileLine(line), from: line ? within(records, line) : null });
+    });
+    notes.push({ url, title, description: d.description, date, meta: d.meta, headings: d.headings, links, abs });
     for (const t of luccet.glossary.terms(a.ast)) terms.push({ ...t, url, title, line: fileLine(t.line), shown: f.shown });
     for (const u of luccet.glossary.uses(a.ast)) uses.push({ ...u, url, line: fileLine(u.line), shown: f.shown });
-    for (const r of luccet.search.records(a.ast, { url, title })) {
+    for (const r of records) {
       const pos = r.line ? a.toFile({ start: { line: r.line, column: 1 }, end: { line: r.endLine || r.line, column: 1 } }) : null;
       const e = { ...r, url };
       if (pos) (e.line = pos.start.line), (e.endLine = pos.end.line);
@@ -687,7 +719,7 @@ function index(args) {
   // A link counts when it names a note in the catalogue, as a path like the note's.
   const known = new Map(notes.map((n) => [n.abs, n.url]));
   for (const n of notes) {
-    n.links = n.links.map((f) => known.get(f)).filter(Boolean);
+    n.links = n.links.filter((l) => known.has(l.file)).map((l) => ({ url: known.get(l.file), fragment: l.fragment, line: l.line, from: l.from }));
     delete n.abs;
   }
   const idx = luccet.search.index(entries);
@@ -704,7 +736,7 @@ function index(args) {
   }
   for (const u of uses) if (!defined.has(u.key)) warn(`luccet index: ${u.shown}:${u.line}: the term "${clean(u.term)}" has no definition in these notes`);
   const outputs = [
-    [NOTES_JSON, `${JSON.stringify({ luccet: luccet.version, notes }, null, 2)}\n`],
+    [NOTES_JSON, `${JSON.stringify({ luccet: luccet.version, format: NOTES_FORMAT, notes }, null, 2)}\n`],
     [SEARCH_JSON, lineJSON({ luccet: luccet.version, format: luccet.search.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
     [GLOSSARY_JSON, lineJSON({ luccet: luccet.version, format: luccet.glossary.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), terms: terms.map(({ shown, title, ...t }) => t) })],
   ];

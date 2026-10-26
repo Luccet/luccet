@@ -310,6 +310,13 @@ const TODAY = (() => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 })();
 
+test('index: a link before any heading is from null, one in a block with an id is from the block; a fragment is decoded', () => {
+  write('il/a.html', `${FIRST}<script src="luccet.js"></script>\nFirst [b](b.html).\n\n# A\n\n:::note{#n1}\nSee [the part](b.html#part%202).\n:::\n`);
+  write('il/b.html', `${FIRST}<script src="luccet.js"></script>\n# B\n\n## Part 2 {id="part 2"}\n`);
+  exits(run(['index', 'il']), 0, 'index');
+  eq(JSON.parse(read('il/notes.json')).notes[0].links, [{ url: 'b.html', fragment: null, line: 2, from: null }, { url: 'b.html', fragment: 'part 2', line: 7, from: 'n1' }], 'from, line and fragment');
+});
+
 test('index: notes.json and search.json, paths relative to -o, titles, descriptions and dates from the head and :::meta, links to notes in the catalogue, noindex left out; --check; search --index', () => {
   write('i/a.html', `${FIRST}<title>A note</title><meta name="description" content="About A &amp; B"><script src="luccet.js"></script>\n:::meta\ndate: 2026-01-02\n:::\n\n# Alpha {#alpha}\n\nSee [b](sub/b.html), [c](c.html#secret), [the readme](README.md), [b again](sub/b.html?x) and [nowhere](https://example.com/x.html).\n\n:::note[I.1]{#ex-1}\nProve Pythagoras theorem.\n:::\n`);
   write('i/sub/b.html', `${FIRST}<script src="../luccet.js"></script>\n:::meta\ntitle: Bee\ndescription: From meta\n:::\n\n# Bee\n\nBack to [a](../a.html).\n`);
@@ -319,8 +326,17 @@ test('index: notes.json and search.json, paths relative to -o, titles, descripti
   exits(r, 0, 'index');
   eq(r.err, 'luccet index: 2 notes, 3 entries; 1 noindex → i/notes.json, i/search.json, i/glossary.json\n', 'the summary');
   const notes = JSON.parse(read('i/notes.json'));
-  eq(notes.luccet, luccet.version, 'the version that wrote it');
-  eq(notes.notes.map((n) => [n.url, n.title, n.description, n.date, n.links]), [['a.html', 'A note', 'About A & B', '2026-01-02', ['sub/b.html']], ['sub/b.html', 'Bee', 'From meta', TODAY, ['a.html']]], 'the catalogue: the head\'s title and description, else :::meta\'s; the meta date, else the file\'s day; links to notes in the catalogue only, as paths like the notes\', each once');
+  eq([notes.luccet, notes.format], [luccet.version, 1], 'the version that wrote it, and the format');
+  eq(notes.notes.map((n) => [n.url, n.title, n.description, n.date]), [['a.html', 'A note', 'About A & B', '2026-01-02'], ['sub/b.html', 'Bee', 'From meta', TODAY]], 'the catalogue: the head\'s title and description, else :::meta\'s; the meta date, else the file\'s day');
+  eq(notes.notes.map((n) => n.meta), [{ date: '2026-01-02', description: 'About A & B' }, { title: 'Bee', description: 'From meta' }], 'the meta as the engine resolves it, the head\'s <meta> names over :::meta');
+  eq(
+    notes.notes.map((n) => n.links),
+    [
+      [{ url: 'sub/b.html', fragment: null, line: 8, from: 'alpha' }, { url: 'sub/b.html', fragment: null, line: 8, from: 'alpha' }],
+      [{ url: 'a.html', fragment: null, line: 9, from: 'bee' }],
+    ],
+    'every link to a note of the catalogue, as a path like the notes\', at its file line, from its section; the noindex note, the README and the web left out',
+  );
   eq(notes.notes[0].headings, [{ depth: 1, id: 'alpha', text: 'Alpha' }], 'the headings');
   ok(read('i/notes.json').endsWith('}\n') && read('i/notes.json').includes('\n  "notes": [\n    {\n      "url": "a.html",'), 'notes.json is pretty-printed');
   const idx = JSON.parse(read('i/search.json'));
@@ -344,7 +360,7 @@ test('index: notes.json and search.json, paths relative to -o, titles, descripti
   ok(!fs.existsSync(at('i/notes.json')), '--check wrote nothing');
   r = run(['index', 'i/a.html', 'i/sub', '-o', 'i/out']);
   exits(r, 0, '-o');
-  eq(JSON.parse(read('i/out/notes.json')).notes.map((n) => [n.url, n.links]), [['../a.html', ['../sub/b.html']], ['../sub/b.html', ['../a.html']]], 'paths relative to -o, which is created');
+  eq(JSON.parse(read('i/out/notes.json')).notes.map((n) => [n.url, n.links.map((l) => l.url)]), [['../a.html', ['../sub/b.html', '../sub/b.html']], ['../sub/b.html', ['../a.html']]], 'paths relative to -o, which is created');
   r = run(['index', 'i/plain.html']);
   exits(r, 0, 'a named non-note');
   ok(/plain\.html is not a note/.test(r.err) && /0 notes, 0 entries/.test(r.err), r.err);

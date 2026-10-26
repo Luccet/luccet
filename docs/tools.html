@@ -843,19 +843,21 @@ $ echo $?
 
 ### What is written {#index-files}
 
-**`notes.json`** is the catalogue: `luccet`, the version that wrote it, and `notes`, one object per note, in the folder's order.
+**`notes.json`** is the catalogue: `luccet`, the version that wrote it, `format`, the number of its format (1), and `notes`, one object per note, in the folder's order.
 
 ```json
 {
   "luccet": "2.0.0",
+  "format": 1,
   "notes": [
     {
       "url": "BookOfProof/chapter5.html",
       "title": "Contrapositive Proof",
       "description": "Worked solutions to chapter 5.",
       "date": "2026-10-12",
+      "meta": { "title": "Contrapositive Proof", "description": "Worked solutions to chapter 5.", "date": "2026-10-12", "author": "R. Hammack" },
       "headings": [{ "depth": 1, "id": "chapter-5", "text": "Contrapositive Proof" }],
-      "links": ["BookOfProof/chapter4.html"]
+      "links": [{ "url": "BookOfProof/chapter4.html", "fragment": "lemma-4-2", "line": 31, "from": "proposition-5-1" }]
     }
   ]
 }
@@ -864,11 +866,15 @@ $ echo $?
 - **`url`** is the note's path relative to the file, with forward slashes, so a site can be served under any path.
 - **`title`** is the head's `<title>`, else `:::meta`'s `title`, else the first heading's text. **`description`** is the head's `<meta name="description">`, else `:::meta`'s `description`, else empty.
 - **`date`** is `date:` in `:::meta`, as written; write it as `YYYY-MM-DD` (a time may follow), so that lists sort: another form is written as it is, and said on stderr. Without one, in a git repository, it is the day of the note's last commit, or today for a tracked note with changes not yet committed: the day the commit a hook is about to make will carry, so that `--check` holds once it is committed. Outside a repository, or for a file git does not track, it is the day the file was last modified. A fresh clone sets every file's modification time to the checkout, which is why git's dates are used where they exist. The log is asked for the indexed notes alone, so a repository full of other files costs nothing; should it still run past 256 MB, it is cut there, and `luccet index` says how many notes are dated by their modification time instead.
-- **`headings`** are every heading of the note, with its depth, its id as the page gives it, and its text. **`links`** are the notes in the catalogue this note links to, as paths like `url`, each once.
+- **`meta`** is the note's metadata as the engine resolves it: its `:::meta` keys, the title of its first heading when it sets none, and the head's `<meta>` names over them, as strings.
+- **`headings`** are every heading of the note, with its depth, its id as the page gives it, and its text.
+- **`links`** are the links to notes of the catalogue, in the note's order, each written one: `url`, the note it names, a path like `url`; `fragment`, the id after `#`, decoded, or `null`; `line`, the file line it is written on; and `from`, the id of the section or block it is written in, the innermost with an id, or `null` before the first heading. A link to a fragment of the note itself, or to anything that is not a note of the catalogue, is left out. So a page can list the notes that link to one, and from where.
 
 **`search.json`** is the search index: `luccet` (the version that wrote it), `format` (the number of its format, [`luccet.search.format`](api.html#search)), `notes` (each note's `url` and `title`), and the index [`luccet.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The words in `terms` are the tokeniser's, which changes only with the format, in a major release, so an index serves every reader of its format whatever version wrote it; a reader of another format says so and does without it.
 
 **`glossary.json`** is the glossary: `luccet`, `format` ([`luccet.glossary.format`](api.html#glossary); the [glossary add-on](https://github.com/Luccet/glossary) takes a file of its own format, whatever version wrote it), `notes` (each note's `url` and `title`) and `terms`, the terms the notes define ([`luccet.glossary`](api.html#glossary)), in the order of their folded key, then by note: each with `term`, `key`, `slug` (its id on a glossary page), `url` (the note, relative to the file), `id` (the anchor to jump to), `line` (a file line), `how` (`dfn`, or the block's name) and `definition`, the definition's nodes, which the glossary add-on renders. One term per line. A term is a `:dfn[…]`, defined by its paragraph, or a titled `:::definition` block, defined by its body. The summary counts the terms when there are any, and two things are said on stderr, as notes, the exit code unchanged: a term defined more than once, `the term "kernel" is defined in a.html:12 and b.html:3; the glossary lists both`, and a `:term[…]` no note defines, `c.html:5: the term "x" has no definition in these notes`.
+
+**Formats.** Each file carries the number of its format: `notes.json`'s 1, `search.json`'s [`luccet.search.format`](api.html#search) and `glossary.json`'s [`luccet.glossary.format`](api.html#glossary), both 1. A reader takes a file of its own format, whatever version of Luccet wrote it, and says so for any other: run `luccet index` again. The number changes only in a major release, when a field changes or goes; a minor release may add fields, which a reader ignores.
 
 ### What is left out {#index-left-out}
 
