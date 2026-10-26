@@ -2,7 +2,7 @@
 
 Every release of Luccet, called Tern until 2.0, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may break what the promise covers: the HTML and diagnostics the conformance corpus records for a note, the documented API and add-on options, the command line's commands, options, exit codes and `--json` shapes, and the files `luccet index` writes, read by their `format` number. A minor release may add to any of them, diagnostics at warning or info severity included, and something deprecated keeps working until the next major release; the whole promise is under [Status](https://luccet.dev/#status). Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `luccet.version` (`tern.version` before 2.0); the tags on GitHub and jsDelivr carry the same number from 0.4.3 on.
 
-## 2.0.0 (unreleased)
+## 2.0.0 (2026-10-26)
 
 - **Tern is now Luccet.** The name collided with ternjs, a JavaScript analyzer with an editor plugin of the same name, so it changed while nothing depended on it yet. Everything that carried the name carries the new one, and the rename changes nothing in how a note renders: the HTML the conformance corpus records is the same, and its diagnostics differ only by the severities below. The project lives at [github.com/Luccet/luccet](https://github.com/Luccet/luccet) and [luccet.dev](https://luccet.dev). The old GitHub and jsDelivr URLs redirect, so a note that loads `gh/OzkrAC/tern@v1.1.1/tern.js` keeps rendering with that version.
 

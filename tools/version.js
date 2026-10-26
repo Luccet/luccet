@@ -21,9 +21,13 @@
 // --tag is the guard against a tag that does not match the version (which
 // the release workflow would refuse, while jsDelivr serves the tag anyway,
 // forever): it refuses a branch other than main, a working tree with
-// changes, a place that disagrees, a missing changelog section, and a tag
-// that already exists here or on origin. It creates an annotated tag and
-// prints the push that starts the release.
+// changes, a place that disagrees, a changelog section that is missing or
+// still says "unreleased", and a tag that already exists here or on origin.
+// It creates an annotated tag and prints the push that starts the release.
+//
+// --notes makes the section's relative links absolute, since the release
+// page resolves them against github.com: the documentation's go to the site,
+// any other file's to the tag.
 'use strict';
 
 const fs = require('fs');
@@ -163,13 +167,28 @@ function changelogSection(v) {
   return text.slice(from, next < 0 ? text.length : from + next).trim();
 }
 
-// Starts the changelog's section for `v`, dated today, above the first
+// The heading line of CHANGELOG.md's section for `v`, or null.
+function changelogHeading(v) {
+  const m = new RegExp(`^## v?${esc(v)}(?=\\s|$).*`, 'm').exec(read(CHANGELOG));
+  return m && m[0];
+}
+
+// The notes' relative links, absolute: a page of the site (what the release
+// workflow publishes) at package.json's homepage, any other file at the tag.
+function absolute(notes, v) {
+  const pkg = JSON.parse(read('package.json'));
+  const site = pkg.homepage.replace(/\/?$/, '/');
+  const repo = pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, '');
+  return notes.replace(/\]\((?![a-z][a-z\d+.-]*:|#)([^)\s]+)\)/gi, (_, url) => `](${/^(?:index\.html|docs\/|examples\/)/.test(url) ? site : `${repo}/blob/v${v}/`}${url})`);
+}
+
+// Starts the changelog's section for `v`, unreleased, above the first
 // section, so the release notes have a place before the bump is committed.
+// The release's own commit dates it; --tag refuses it until then.
 function changelogStart(v) {
   const text = read(CHANGELOG);
   const at = text.search(/^## /m);
-  const today = new Date().toISOString().slice(0, 10);
-  const section = `## ${v} (${today})\n\n- \n\n`;
+  const section = `## ${v} (unreleased)\n\n- \n\n`;
   fs.writeFileSync(path.join(ROOT, CHANGELOG), at < 0 ? `${text.replace(/\s*$/, '\n\n')}${section}` : text.slice(0, at) + section + text.slice(at));
 }
 
@@ -190,6 +209,8 @@ function tag(current) {
   if (status.trim()) fail([`the working tree has changes; commit or stash them first:\n${status.trimEnd()}`]);
   const p = problems(current);
   if (p.length) fail(p, `Run node tools/version.js ${current} (or npm run bump) and commit, then tag.`);
+  const heading = changelogHeading(current);
+  if (/unreleased/i.test(heading)) fail([`${CHANGELOG}: "${heading}" is not dated`], `Write the release's date, ## ${current} (YYYY-MM-DD), commit it to main, then tag.`);
   if ((git(['tag', '-l', name]) || '').trim()) fail([`${name} already exists here; bump the version first`]);
   const remote = git(['ls-remote', '--tags', 'origin', `refs/tags/${name}`]);
   if (remote === null) console.log(`(origin could not be reached; ${name} was not checked there)`);
@@ -200,7 +221,7 @@ function tag(current) {
   if (made.status !== 0) fail([`git tag failed: ${(made.stdout + made.stderr).trim()}`]);
   console.log(`✓ tagged ${name} on main (${(git(['rev-parse', '--short', 'HEAD']) || '').trim()})`);
   console.log(`Next: git push origin ${name}`);
-  console.log('The release workflow runs every test and publishes the site; then write the GitHub Release from CHANGELOG.md.');
+  console.log('The release workflow runs every test, publishes the site and drafts the GitHub Release from CHANGELOG.md; read the draft, then publish it.');
 }
 
 // The version after `v`: a keyword, or one given.
@@ -248,7 +269,7 @@ function main() {
   if (args.includes('--notes')) {
     const notes = changelogSection(current);
     if (notes === null) fail([`${CHANGELOG}: no section for ${current}`]);
-    console.log(notes);
+    console.log(absolute(notes, current));
     return;
   }
 
@@ -293,8 +314,8 @@ function main() {
   if (after.length) fail(after);
 
   console.log(`luccet ${current} → ${want}: ${[...edits.keys(), 'luccet.js'].join(', ')}${log ? `; ${CHANGELOG} has a new section to fill` : ''}`);
-  console.log(`Next: ${log ? `write the ${want} section of ${CHANGELOG}, ` : ''}npm test, commit, and once it is on main: npm run tag, then git push origin v${want}`);
-  console.log('npm run tag refuses a tag the release workflow would: a dirty tree, a place that disagrees, a tag that exists.');
+  console.log(`Next: ${log ? `write the ${want} section of ${CHANGELOG}, ` : ''}npm test, commit; on the release's day date the section, and once it is on main: npm run tag, then git push origin v${want}`);
+  console.log('npm run tag refuses a tag the release workflow would: a dirty tree, a place that disagrees, an undated section, a tag that exists.');
 }
 
 main();

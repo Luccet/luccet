@@ -4,7 +4,7 @@
 
 Documents with the full power of HTML, CSS and JavaScript. A note is one HTML file: its first line loads `luccet.js`, and everything below it is written in Luccet's syntax and rendered in place when the file is opened.
 
-*Luccet was called Tern until version 2.0. A note written for Tern needs its first line changed: see [Migrating a note](CHANGELOG.md#200-unreleased).*
+*Luccet was called Tern until version 2.0. A note written for Tern needs its first line changed: see [Migrating a note](CHANGELOG.md#200-2026-10-26).*
 
 ```html
 <!doctype html>
