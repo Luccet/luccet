@@ -1161,7 +1161,9 @@ function blockPosition(b, e) {
 // transform moves or copies it; figures and the table merge before
 // `attributes`, which resolves the nodes they make; footnote ids before the
 // other ids.
-const BUILTIN = { math, figures, tables, attributes, footnotes, ids, numbering, refs, toc, meta };
+// math after figures and tables, which change the tree: it reads the index
+// that attributes then reads too, so the note is walked once.
+const BUILTIN = { figures, tables, math, attributes, footnotes, ids, numbering, refs, toc, meta };
 const order = Object.keys(BUILTIN);
 const custom = new Map();
 const KEEPS = new Set(['math', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']); // leave the index valid

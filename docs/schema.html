@@ -927,6 +927,7 @@ const remove = luccet.transform(name, fn, {before: 'refs'})   // or {after: 'num
 |---|---|---|
 | `figures` | turns an image with an id into a `figure` container | implicit figures as containers |
 | `tables` | merges a `table` container with its pipe table | merged tables |
+| `math` | translates every formula's TeX to MathML, with the note's macros ([Math](math.html)) | `data.luccet.mathml`, or `texError` for a formula that does not translate |
 | `attributes` | resolves elements, title slots, schema `class` and `attrs`, reserved keys | `data.luccet.tag`, `data.luccet.slot` |
 | `footnotes` | numbers footnotes, `fn-`/`fnref-` ids | footnote numbers |
 | `ids` | the id registry, heading slugs, invalid and duplicate ids | every heading's id |

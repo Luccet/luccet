@@ -256,7 +256,7 @@ const off = luccet.transform('todo', (ast, ctx) => {
 }, { before: 'ids' });
 
 luccet.transforms;
-// → ['math', 'figures', 'tables', 'attributes', 'footnotes', 'todo',
+// → ['figures', 'tables', 'math', 'attributes', 'footnotes', 'todo',
 //    'ids', 'numbering', 'refs', 'toc', 'meta']
 luccet.check('Ship it. TODO: tests.');
 // → [{ code: 'note.todo', severity: 'info', message: 'a TODO is left in the text',
@@ -265,7 +265,7 @@ luccet.check('Ship it. TODO: tests.');
 //      hint: 'finish it, then remove the TODO' }]
 off();
 luccet.transforms;
-// → ['math', 'figures', 'tables', 'attributes', 'footnotes',
+// → ['figures', 'tables', 'math', 'attributes', 'footnotes',
 //    'ids', 'numbering', 'refs', 'toc', 'meta']
 ```
 
@@ -730,7 +730,7 @@ A new array, on each read, of the transform names in the order they run: the ten
 
 ```js
 luccet.transforms;
-// → ['math', 'figures', 'tables', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']
+// → ['figures', 'tables', 'math', 'attributes', 'footnotes', 'ids', 'numbering', 'refs', 'toc', 'meta']
 ```
 
 #### `luccet.css` {#luccet-css}
