@@ -869,7 +869,7 @@ input.addEventListener('input', async () => {
 
 A page that is not a note can load luccet.js in any way the runtime does not start from: `defer`, `async`, a module, or a script it inserts itself. Then `luccet.render(element, source)` renders a note into any element of the page.
 
-- **Styles.** The runtime adds no stylesheet. Link `luccet.css` yourself, and give the element the class `luccet`: most of its rules apply inside `.luccet`, the math font among them. Its `html` and `body` rules (colours, font, margins) style the whole page, so leave them to your own CSS where they clash.
+- **Styles.** The runtime adds no stylesheet. Link `luccet.css` yourself, and give the element the class `luccet`: most of its rules apply inside `.luccet`, the math font among them. Its one page-wide rule is on `html`: the page's background and text colours, the system's, or a theme's through `--t-bg` and `--t-fg`. Your own CSS wins where they clash.
 - **Configuration.** `window.LUCCET` and `data-*` are not read, so [`luccet.config`](#config) stays `{use: {}}`. Set what you need on it before the first render that needs it: `luccet.config.lang` for labels, `luccet.config.macros` for macros every rendered note shares.
 - **Math** needs nothing more: each formula is MathML in the HTML `luccet.render` writes, laid out by the browser ([Math](math.html#browsers)). `luccet.config.math = 'tex'` writes the TeX instead, for a renderer of your own in a `render` listener.
 - **`luccet.ready`** never settles, and `luccet.diagnostics` stays empty: use the diagnostics `luccet.render` resolves to, and listen for [`diagnostic`](#on) for the ones found later, such as a note script's `document.write`.
@@ -1398,6 +1398,7 @@ The parser records under `data.luccet` what it knows that mdast has no field for
 | `unclosed` | `html`, `math` | `true` on an unclosed comment or raw-text block, and on an unclosed `$$`. Each is shown as source |
 | `source` | `math` | for an unclosed `$$`, the text shown as source |
 | `texAt` | `math`, `inlineMath` | where each line of the formula's TeX starts in the note, `[{line, column, offset}]`, one entry per line of `value`. The `math` transform places a [`tex.*`](diagnostics.html#tex) diagnostic with it, at the command at fault |
+| `htmlAt` | `html` holding `id=` | where each line of `value` starts in the note, `[{line, column, offset}]`. The `ids` transform places an [`id.duplicate`](diagnostics.html#id-duplicate) diagnostic with it, at the `id=…` of the raw HTML, and the id's `line` and `column` in [`ids`](#data-luccet) |
 | `headerless` | `table` | `true` on a table that starts with its delimiter row |
 | `entity` | `text` | an entity's spelling, such as `'&nbsp;'`; `value` is the decoded text |
 | `caption` | `image` | the bracket content, as inline nodes |

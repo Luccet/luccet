@@ -396,6 +396,18 @@ On a block opener a bad group is `block.opener-junk`, on a fence `fence.info-jun
 See [the plan]{#2024}.
 ```
 
+### `attr.overridden` · warning
+
+An element gets two ids, or one key twice, and the later one wins: `{#a}` above `:::note{#b}`, `{#a #b}` or `{#a id=b}` in one group, `{k=1 k=2}` (keys are not case-sensitive, so `{Title=a title=b}` too), or a key on an attribute line and again on its block. Reported at the one replaced, which is dropped. Classes add up and are never overridden.
+**Fix:** keep the one you mean; an element has one id.
+
+```luccet expect="attr.overridden"
+{#intro}
+:::note{#summary}
+Short.
+:::
+```
+
 ### `attributes.orphan` · warning
 
 An attribute line (groups alone on a line) with no block right after it: a blank line, a closer, a `+++` line, the end, or a footnote definition (which takes none) follows. It shows as text. An auto-wrap that moves `{#eq}` off the closing `$$` line gives this too.
@@ -693,7 +705,7 @@ lib/callout.js
 
 A reserved name, key or class:
 
-- a block, leaf or inline name `base`, `body`, `head`, `html`, `link`, `main`, `meta` (as `::meta` or `:meta[…]`), `noscript`, `script`, `style`, `template`, `title`, `luccet`, `t-…` or `end`. It falls back to a `div` or `span` without the name as class; `:::script`, `:::style` and `:::html` show their body as text, never run; `:::end` is read as `:::`;
+- a block, leaf or inline name `base`, `body`, `head`, `html`, `link`, `main`, `meta` (as `::meta` or `:meta[…]`), `noscript`, `script`, `style`, `template`, `title`, `luccet`, `t-…` or `end`. It falls back to a `div` or `span` without the name as class; `:::script`, `:::style` and `:::html` show their body as text, never run; `:::end` alone on its line is read as `:::`, and with text after it the line is text and the block stays open;
 - `{tag=x}`, or a schema's `tag`, naming a reserved element (ignored);
 - the key `data-t`, the class `luccet`, or a `t-…` class (dropped).
 
@@ -744,7 +756,7 @@ An `id=` value that is empty or holds whitespace, such as `id="final results"`. 
 
 ### `id.duplicate` · warning
 
-Two elements have the same written id (or a footnote's `fn-…`, `fnref-…` id); both are reported. The first keeps it and references resolve to it; the later one drops it. Luccet's own ids `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics` are taken too. Heading slugs never collide (a taken slug becomes `kernel-2`).
+Two elements have the same written id (or a footnote's `fn-…`, `fnref-…` id, or an `id=` in raw HTML); both are reported. The first keeps it and references resolve to it; the later one drops it. Raw HTML keeps its ids wherever it stands, so the note's element is the one that drops it; two raw elements both keep theirs. Luccet's own ids `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics` are taken too. Heading slugs never collide (a taken slug becomes `kernel-2`).
 **Fix:** give each element its own id, then check which one each `@id` meant.
 
 ```luccet expect="id.duplicate id.duplicate"
@@ -755,8 +767,8 @@ Two elements have the same written id (or a footnote's `fn-…`, `fnref-…` id)
 
 ### `ref.dangling` · warning
 
-An `@name`, or a fragment link `[text](#name)`, whose id is nowhere in the note: a typo, a target without `{#id}`, or a handle such as `@alice`. `@name` stays text; a link stays a link. An e-mail address is never a reference.
-**Fix:** correct the id, or give the target `{#name}`; for a handle or a literal `@`, write `\@alice`. A link to an id in another file is checked as `link.dangling`.
+An `@name`, or a fragment link `[text](#name)`, whose id is nowhere in the note: a typo, a target without `{#id}`, or a handle such as `@alice`. `@name` stays text (with a group after it, in a `<span>` that carries it); a link stays a link. An e-mail address is never a reference. Also an `@name` whose id is in raw HTML, which has no label or number to show; a fragment link reaches it.
+**Fix:** correct the id, or give the target `{#name}`; for a handle or a literal `@`, write `\@alice`; for raw HTML, `[text of your own](#name)`. A link to an id in another file is checked as `link.dangling`.
 
 ```luccet expect="ref.dangling ref.dangling"
 Thanks to @alice. See [the proof](#proof).

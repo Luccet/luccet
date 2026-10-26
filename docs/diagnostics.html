@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 62 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `output.limit` from the emitter, wherever it runs.
+The first 63 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `output.limit` from the emitter, wherever it runs.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -59,6 +59,7 @@ The first 62 codes come from the parser and the transforms, so `luccet.check`, `
 | [`tex.macro`](#tex-macro) | error | A macro definition does not work. |
 | [`tex.limit`](#tex-limit) | error | A formula's macros expand without end, or its groups nest too deep. |
 | [`attr.malformed`](#attr-malformed) | warning | An attribute group does not parse, or a reserved key has a bad value. |
+| [`attr.overridden`](#attr-overridden) | warning | An id or a key is written twice for one element, and the later one wins. |
 | [`attributes.orphan`](#attributes-orphan) | warning | An attribute line has no block to attach to. |
 | [`attributes.raw`](#attributes-raw) | warning | An attribute line before raw HTML. |
 | [`table.stray-delimiter`](#table-stray-delimiter) | warning | A paragraph line is shaped like a table's delimiter row. |
@@ -138,7 +139,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)): each code 
 | `warning` | kept | Everything you wrote reaches the page, as text or with an attribute not applied, which is probably not what you meant. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 | `info` | hint | The page is what you meant. | [`footnote.unused`](#footnote-unused): a definition nothing refers to is still shown, after the others. |
 
-The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 62 parser and transform codes, 20 are errors, 37 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `output.limit` is an error, `addon.remote` is an info, and `link.dangling` is a warning.
+The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 63 parser and transform codes, 20 are errors, 38 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `output.limit` is an error, `addon.remote` is an info, and `link.dangling` is a warning.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -1678,6 +1679,36 @@ The set {1, 2}, the call `f`{x}, and [x]{}.
 
 **Related.** [`attributes.orphan`](#attributes-orphan), [`block.opener-junk`](#block-opener-junk), [`fence.info-junk`](#fence-info-junk).
 
+### `attr.overridden` {#attr-overridden}
+
+**Warning.** An id or a key is written twice for one element, and the later one wins.
+
+- **Trigger.** A second id for the same element: an attribute line's and the block's own group (`{#a}` above `:::note{#b}`), or two in one group (`{#a #b}`, `{#a id=b}`). A key written twice: in one group (`{k=1 k=2}`, `{Title=a title=b}`, as keys are not case-sensitive), or on an attribute line and again on its block. An element has one id, and an attribute one value.
+- **Position.** The one replaced: the earlier id or key.
+- **Content.** Kept: the later value applies, the earlier one is dropped.
+
+````luccet {.live expect="attr.overridden"}
+{#intro}
+:::note{#summary}
+Short.
+:::
+````
+
+The engine reports `attr.overridden` (warning) at 1:2:
+
+- **Message:** `the id "intro" is replaced by "summary", written later for the same block; an element has one id`
+- **Hint:** ``keep one: remove {#intro}, or {#summary}``
+
+**Fix.** Keep the one you mean:
+
+````luccet {.live}
+:::note{#summary}
+Short.
+:::
+````
+
+**Related.** [`attr.malformed`](#attr-malformed), [`id.duplicate`](#id-duplicate).
+
 ### `attributes.orphan` {#attributes-orphan}
 
 **Warning.** An attribute line has no block to attach to.
@@ -2528,7 +2559,7 @@ Some text first.
 - **Content.**
   - A reserved name falls back to `div` (container or leaf) or `span` (inline), **without** the name as its class, so `:::luccet` cannot produce `class="luccet"`. It keeps `data-t="NAME"`.
   - `:::script`, `:::style` and `:::html` have a verbatim body, shown as `<pre class="t-error">` and never run. The `<pre>` carries the block's id, classes and keys.
-  - `:::end` is read as a bare closer.
+  - `:::end` alone on its line is read as a bare closer. With text after it, the line is text, and the block stays open.
   - A reserved key or class is dropped. A reserved `tag=` or schema `tag` is ignored, and the next rule decides the element. A `tag=` on a reserved name is dropped too, with [`attr.malformed`](#attr-malformed).
 
 ```luccet {.live expect="name.reserved"}
@@ -2769,12 +2800,14 @@ The engine reports `id.invalid` (warning) at 1:13:
 
 **Warning.** Two elements have the same id.
 
-- **Trigger.** Two *fixed* ids collide. Fixed ids are those you wrote, with `#id` or `id=`, anywhere, and the footnote ids `fn-LABEL`, `fnref-LABEL` and `fnref-LABEL-N`. Heading slugs never collide: a slug that is taken becomes `kernel-2`, silently.
+- **Trigger.** Two *fixed* ids collide. Fixed ids are those you wrote, with `#id` or `id=`, anywhere, the ids in raw HTML's start tags, and the footnote ids `fn-LABEL`, `fnref-LABEL` and `fnref-LABEL-N`. Heading slugs never collide: a slug that is taken becomes `kernel-2`, silently.
 
   Luccet's own ids are taken before any of these: `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics`, which luccet.js gives elements of its own in the page. An id you write that is one of them gets this diagnostic once, and a slug yields to them silently (`luccet-style-2`).
 - **Position.** The id, at every element that has it: the first and each later one.
 - **Content.** The first keeps the id, and references resolve to it. Each later element drops its `id` attribute, which keeps the HTML valid. A heading that loses its id gets its slug instead.
-- **Message.** The first says the id is used again and this element keeps it; each later one says it is already used and this element drops it.
+
+  Raw HTML is the exception: it is written out as it stands, so it keeps its ids. Its ids count as first, wherever they stand, and an element of the note's own that repeats one drops its id. Two raw HTML elements with one id both keep it, and the browser finds the first.
+- **Message.** The first says the id is used again and this element keeps it; each later one says it is already used and this element drops it. Between two raw HTML elements, the later one says the browser finds the first.
 
 ```luccet {.live expect="id.duplicate id.duplicate"}
 ## One {#part}
@@ -2807,6 +2840,16 @@ The engine reports `id.duplicate` (warning) at 1:2:
 - **Message:** `the id "luccet-style" belongs to luccet itself, which gives it to an element of its own in the page; this element drops it`
 - **Hint:** `choose another id`
 
+Raw HTML keeps its id, and the heading drops it:
+
+```luccet {.live expect="id.duplicate id.duplicate"}
+<div id="intro">Raw.</div>
+
+## Introduction {#intro}
+```
+
+The engine reports `id.duplicate` (warning) at both: at 1:6, `the id "intro" is used again on line 3; this element keeps it`, and at 3:18, `the id "intro" is already used on line 1; this element drops it`.
+
 An id you write wins over a heading's slug, with no diagnostic:
 
 ```luccet {.live}
@@ -2823,10 +2866,10 @@ The kernel of a map.
 
 **Warning.** A reference points at no id.
 
-- **Trigger.** A reference `@id`, or a fragment link `[text](#id)`, whose id names nothing in the note. The usual cause is a mention, such as `@alice`, or a typo.
+- **Trigger.** A reference `@id`, or a fragment link `[text](#id)`, whose id names nothing in the note. The usual cause is a mention, such as `@alice`, or a typo. Also an `@id` whose id is in raw HTML: raw HTML has no label or number for the reference to show. A fragment link reaches it.
 - **Position.** The reference, with its group; for a link, its `[`.
-- **Content.** `@id` stays literal text, and a group after it is consumed. A fragment link stays a link.
-- **Hint.** For `@`, the escape; for a link, to check the id.
+- **Content.** `@id` stays literal text. A group after it is kept: the text goes in a `<span>` that carries its attributes. A fragment link stays a link.
+- **Hint.** For `@`, the escape; for a raw HTML id, a link of your own; for a link, to check the id.
 
 ```luccet {.live expect="ref.dangling"}
 Thanks to @alice for the review.
@@ -2853,6 +2896,19 @@ The engine reports `ref.dangling` (warning) at 1:5:
 
 - **Message:** `the link points to #proof, which names no id in this note`
 - **Hint:** `check the id, or give the target that id`
+
+An id in raw HTML:
+
+```luccet {.live expect="ref.dangling"}
+<div id="fig-a">A figure.</div>
+
+See @fig-a.
+```
+
+The engine reports `ref.dangling` (warning) at 3:5:
+
+- **Message:** `the id "fig-a" is in raw HTML, which has no label or number for @ to show, so the reference stays text`
+- **Hint:** `link to it with text of your own: [see this](#fig-a)`
 
 **Related.** [`ref.unreferenceable`](#ref-unreferenceable), [`id.duplicate`](#id-duplicate), [`link.dangling`](#link-dangling).
 

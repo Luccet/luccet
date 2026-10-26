@@ -774,7 +774,17 @@ function mathNode(value, at) {
 // their end tag. Open tags are tracked for html.stray-closer and
 // html.inline-unclosed. A single capital (`<B>`) gets html.inline-escaped only
 // when its end tag follows, so `List<B>` stays silent.
-const rawHtml = (s, e) => atom(s, e, { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null });
+const rawHtml = (s, e) => {
+  const node = { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null };
+  if (!atomMode && /\bid\s*=/i.test(node.value)) node.data.luccet.htmlAt = htmlAt(s, e); // where its ids are (the ids transform)
+  return atom(s, e, node);
+};
+// Where each line of text[s, e) starts in the source.
+function htmlAt(s, e) {
+  const at = [ctx.point(offset(s))];
+  for (let k = text.indexOf('\n', s); k !== -1 && k < e; k = text.indexOf('\n', k + 1)) at.push(ctx.point(offset(k + 1)));
+  return at;
+}
 const autolink = (s, e, url, label) => atom(s, e, { type: 'link', url, children: [{ type: 'text', value: label, position: atomMode ? null : pos(s + 1, e - 1) }], position: null }, STRONG);
 function angle(i) {
   let m;

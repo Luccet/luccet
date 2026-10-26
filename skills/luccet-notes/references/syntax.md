@@ -335,7 +335,7 @@ Docs: [tables](https://luccet.dev/docs/syntax-blocks.html#tables).
 | `:::aside[T` or `:::aside{#a!}` | opens; junk from the `[` or the `{`: `block.opener-junk` |
 | `::: aside` | paragraph text, `block.spaced-name`; its closer is then stray |
 | `:::{.x}`, `:::123`, `:::_x`, `:::/box extra` | paragraph text, `block.bad-opener` |
-| `:::end` | acts as a bare closer, `name.reserved` |
+| `:::end` | alone: acts as a bare closer, `name.reserved`; with text after it, the line is text and the block stays open |
 
 ### Closers
 
@@ -439,7 +439,7 @@ Docs: [raw bodies](https://luccet.dev/docs/syntax-blocks.html#raw-body), [metada
 ### Footnote definitions
 
 - `[^LABEL]:` then a space or the end of the line, at a block start, anywhere in the note (inside containers and quotes too). A LABEL is letters, marks, digits, `_` and `-`, with no spaces; labels match case-insensitively.
-- **Content** is block-level: the rest of the first line, then lines indented 2 or more columns (2 are stripped). A blank line followed by an indented line continues it, and so do lazy paragraph lines. An unindented line that is not lazy ends it.
+- **Content** is block-level: the rest of the first line, then lines indented 2 or more columns (2 are stripped). A blank line followed by an indented line continues it, even right after an empty `[^LABEL]:`, and so do lazy paragraph lines. An unindented line that is not lazy ends it.
 - Definitions are collected at the end of the note, numbered in order of first reference, each with a back link. An unreferenced one is `footnote.unused` and listed last. A second definition of a label is `footnote.duplicate`, dropped. A reference inside a definition is `footnote.nested`, left as text.
 - A definition takes no attributes: an attribute line before one is an orphan.
 
@@ -454,7 +454,7 @@ A claim.[^src] The same source again.[^SRC]
 
 ### Attribute lines
 
-- One or more **strong** groups alone on a line attach to the block that starts on the next line, in the same container. Consecutive attribute lines merge.
+- One or more **strong** groups alone on a line attach to the block that starts on the next line, in the same container. Consecutive attribute lines merge. An element has one id: a second one, or a key written twice, replaces the first, with `attr.overridden`.
 - Targets: a paragraph, heading, list, table, quote or rule (its element); a fence (`<pre>`, or a listing's `<figure>`); display math (`div.t-eq`; an `#id` numbers it); a container or a leaf (merged: the line's classes come first, the opener's own id and keys win); a paragraph holding only an image (an `#id` makes it a figure).
 - With nothing to attach to (a blank line, a closer, `+++`, a footnote definition or the end of the note next), the line is text, with `attributes.orphan`. Before a raw HTML block or an `=html` fence it is text, with `attributes.raw`.
 - A weak or unparsable group (`{x}`, `{1, 2}`) is paragraph text, silently; a broken line starting `{#` or `{.` gets `attr.malformed`.
@@ -611,7 +611,7 @@ A subscript glued to a word needs the tag, H<sub>2</sub>O; press:kbd[S] stays te
 | anything else | the id |
 
 - `@id{ref=label}`, `{ref=number}`, `{ref=title}` and `{ref=full}` ("Theorem 1 (Rank–nullity)") pick a part. A part the target lacks gives the default text, silently; any other value is `attr.malformed`. A group after a space is not glued.
-- A reference to no id stays text, with `ref.dangling`. For a handle, write `\@alice`.
+- A reference to no id stays text, with `ref.dangling`; a group glued after it is kept, on a `<span>` around the text. For a handle, write `\@alice`. An id in raw HTML is no target either (it has no label or number): link to it.
 - For your own words, link to the fragment: `[the main result](#thm-rn)`.
 - A reference may come before its target. Without a vocabulary nothing is counted, so `@thm` to a titled `:::theorem` reads as its title.
 
@@ -755,6 +755,7 @@ Docs: [names](https://luccet.dev/docs/elements.html#names), [allowlists](https:/
 - Every id lives in one registry: headings, containers, leaves, elements, spans, links, images, code and math spans, equations, tables and footnotes. Author ids (`#id`, `id=`, attribute lines, `$$` closers) and footnote ids are registered first, then heading slugs, which yield silently with `-2`, `-3`.
 - Two author ids that collide get `id.duplicate` at both places; the first keeps the id, later elements lose it, and references go to the first. A heading that loses its id gets its slug.
 - `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics` belong to Luccet: an author id with one of these names is dropped, with `id.duplicate`.
+- Raw HTML's ids (`id=` in its tags) are taken before the note's: raw HTML keeps them, so a note element that repeats one drops its id, with `id.duplicate`, and a slug steps around it. A fragment link reaches a raw id; `@` does not.
 - Through `id=` only: an empty id or one with whitespace is dropped (`id.invalid`); one that starts with a digit or holds `:` or `.` is kept, but `@` cannot reach it (`ref.unreferenceable`).
 - Footnotes get `fn-LABEL` and `fnref-LABEL` (`fnref-LABEL-2` for a repeat), so a hand-written `#fn-x` collides with footnote `x`.
 - An id on `:::meta` is not registered.

@@ -210,6 +210,31 @@ Text.[^a]
 </ol></section>
 ````
 
+## footnote/def-empty-first-line-then-blank
+
+spec: syntax-blocks#footnote-definition
+
+From the content-loss audit (A15): after an empty `[^LABEL]:`, a blank line ended the definition, so the note was empty and its indented text became a code block. A footnote's content may start after a blank line, as it may continue after one.
+
+````luccet
+Text.[^a]
+
+[^a]:
+
+  The note starts after a blank line.
+
+After.
+````
+
+````html
+<p>Text.<sup class="t-fnref"><a role="doc-noteref" id="fnref-a" href="#fn-a">1</a></sup></p>
+<p>After.</p>
+<section class="t-footnotes" role="doc-endnotes" aria-label="Footnotes"><ol>
+<li id="fn-a"><p>The note starts after a blank line. <a class="t-fnback" href="#fnref-a" aria-label="Back to the text">↩</a></p>
+</li>
+</ol></section>
+````
+
 ## footnote/def-needs-space
 
 spec: syntax-blocks#footnote-definition syntax-inline#footnote-reference

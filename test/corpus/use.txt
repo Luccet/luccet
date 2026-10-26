@@ -129,6 +129,33 @@ a.js
 1:11 warning attr.malformed
 ````
 
+## use/attribute-line-above
+
+spec: syntax-blocks#use diagnostics#attr-malformed
+
+From the content-loss audit (A13): an attribute line above `:::use` binds to it, so the block still leads the note and its entries are read; the attributes apply to nothing and are dropped. (The command line's scanner skips the line too: test/cli.js.)
+
+````luccet
+{.x}
+:::use
+a.js
+:::
+
+Text.
+````
+
+````json ast
+{"data":{"luccet":{"use":[{"url":"a.js"}]}}}
+````
+
+````html
+<p>Text.</p>
+````
+
+````diagnostics
+1:2 warning attr.malformed "applies to no element here"
+````
+
 ## use/unclosed
 
 spec: syntax-blocks#use diagnostics#block-unclosed

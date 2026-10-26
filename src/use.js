@@ -8,14 +8,31 @@
 // leading.
 'use strict';
 
+const { parseAttrs } = require('./scan');
+
 const OPENER = /^[ \t]*:{3,}(meta|use)(?:[ \t\[{].*)?$/;
 // A closer: bare `:::`, or `:::/NAME` naming the open block, as the parser
 // closes a raw container (block.js); `:::/other` is a line of the block.
 const closer = (s, name) => new RegExp(`^[ \\t]*:{3,}(?:\\/${name})?[ \\t]*$`).test(s);
 
+// An attribute line: strong groups only (block.js attrRow). It binds to the
+// block below it, so the parser reads a `:::use` under one as leading, and so
+// does this scan (the attributes themselves apply to nothing: attr.malformed).
+function attrLine(s) {
+  const t = s.trim();
+  let i = 0;
+  let res;
+  while (t[i] === '{' && (res = parseAttrs(t, i, t.length)) && res.ok && res.strong) {
+    i = res.end;
+    while (t[i] === ' ' || t[i] === '\t') i++;
+  }
+  return i > 0 && i === t.length;
+}
+
 // scanUse(text, {eof}) -> {entries, decided}: the entries of every leading
 // `:::use` block ({url, line, column, offset}, 1-based line and column),
-// `:::meta` blocks and blank lines skipped, stopping at the first other line.
+// `:::meta` blocks, attribute lines and blank lines skipped, stopping at the
+// first other line.
 // `decided` is false while the text ends inside an open block, or after the
 // blocks with nothing else yet, and `eof` is false: more may still come. With
 // `eof`, an open block ends at the text's end.
@@ -41,7 +58,7 @@ function scanUse(text, { eof = true } = {}) {
     } else {
       const m = OPENER.exec(s);
       if (m) open = m[1];
-      else if (/\S/.test(s)) return { entries, decided: true };
+      else if (/\S/.test(s) && !attrLine(s)) return { entries, decided: true };
     }
     if (nl < 0) break;
     i = nl + 1;

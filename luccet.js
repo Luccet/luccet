@@ -69,6 +69,7 @@ const EFFECT = {
   'tex.misplaced': CHANGED,
   'tex.macro': CHANGED,
   'tex.limit': CHANGED,
+  'attr.overridden': KEPT,
   'attr.malformed': KEPT,
   'attributes.orphan': KEPT,
   'attributes.raw': KEPT,
@@ -268,6 +269,8 @@ function parseAttrs(text, i, limit) {
   const rest = Object.create(null);
   const keyAt = Object.create(null);
   const reserved = [];
+  const overridden = []; // an id or a key written again in the group: {at, length, text, kind}
+  let idEnd = -1;
   let strong = false;
   const fail = (at) => ({ end, ok: false, bad: at });
   const addClasses = (list, at, length) => {
@@ -285,8 +288,10 @@ function parseAttrs(text, i, limit) {
       const name = text.slice(k + 1, e);
       strong = true;
       if (c === '#') {
+        if (id !== undefined) overridden.push({ at: idAt, length: idEnd - idAt, text: id, kind: 'id', now: name });
         id = name;
         idAt = k;
+        idEnd = e;
       } else addClasses([name], k, e - k);
       k = e;
     } else {
@@ -312,11 +317,14 @@ function parseAttrs(text, i, limit) {
         }
       }
       if (key === 'id') {
+        if (id !== undefined) overridden.push({ at: idAt, length: idEnd - idAt, text: id, kind: 'id', now: value });
         id = value;
         idAt = at;
+        idEnd = k;
       } else if (key === 'class') addClasses(value.split(/[ \t\n]+/).filter(Boolean), at, e - at);
       else if (key === 'data-t') reserved.push({ at, length: e - at, text: text.slice(at, e), kind: 'key' });
       else {
+        if (key in rest) overridden.push({ at: keyAt[key], length: key.length, text: key, kind: 'key' });
         rest[key] = value;
         keyAt[key] = at;
       }
@@ -329,12 +337,18 @@ function parseAttrs(text, i, limit) {
   if (id !== undefined) attrs.id = id;
   if (classes.length) attrs.class = classes.join(' ');
   for (const key in rest) put(attrs, key, rest[key]);
-  return { end, ok: true, strong, attrs, idAt, classAt, keyAt, reserved };
+  return { end, ok: true, strong, attrs, idAt, classAt, keyAt, reserved, overridden };
 }
 
 // Reports `name.reserved` for what parseAttrs dropped from a group that was
-// used. `toOffset(index)` maps a text index to a source offset.
+// used, and `attr.overridden` for an id or a key it holds twice (the last
+// wins). `toOffset(index)` maps a text index to a source offset.
 function reportReserved(ctx, res, toOffset) {
+  for (const o of res.overridden || []) {
+    const at = toOffset(o.at);
+    if (o.kind === 'id') ctx.report('attr.overridden', at, at + o.length, `the id "${o.text}" is replaced by "${o.now}", written later in the same group; an element has one id`, `keep one: remove #${o.text}, or #${o.now}`);
+    else ctx.report('attr.overridden', at, at + o.length, `\`${o.text}\` is written again later in the same group, and that value wins`, 'keep one of them');
+  }
   for (const r of res.reserved) {
     const at = toOffset(r.at);
     if (r.kind === 'key')
@@ -1327,7 +1341,17 @@ function mathNode(value, at) {
 // their end tag. Open tags are tracked for html.stray-closer and
 // html.inline-unclosed. A single capital (`<B>`) gets html.inline-escaped only
 // when its end tag follows, so `List<B>` stays silent.
-const rawHtml = (s, e) => atom(s, e, { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null });
+const rawHtml = (s, e) => {
+  const node = { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null };
+  if (!atomMode && /\bid\s*=/i.test(node.value)) node.data.luccet.htmlAt = htmlAt(s, e); // where its ids are (the ids transform)
+  return atom(s, e, node);
+};
+// Where each line of text[s, e) starts in the source.
+function htmlAt(s, e) {
+  const at = [ctx.point(offset(s))];
+  for (let k = text.indexOf('\n', s); k !== -1 && k < e; k = text.indexOf('\n', k + 1)) at.push(ctx.point(offset(k + 1)));
+  return at;
+}
 const autolink = (s, e, url, label) => atom(s, e, { type: 'link', url, children: [{ type: 'text', value: label, position: atomMode ? null : pos(s + 1, e - 1) }], position: null }, STRONG);
 function angle(i) {
   let m;
@@ -1700,10 +1724,16 @@ function moveTo(i) {
 
 // The remainder as written; a partly consumed tab becomes spaces.
 const rest = () => (partial ? ' '.repeat(partial) + src.slice(pos + 1, le) : src.slice(pos, le));
+// The offset rest()'s first character stands for: under a partial tab, the
+// spaces it adds stand before pos + 1.
+const lineAt = () => (partial ? pos + 1 - partial : pos);
 
 // Matches and consumes frame f's prefix: a quote's `>` (after any indent)
 // and one space or tab; a list item's indent to its content column; a
-// footnote's 2 columns. A blank line matches an item or a footnote.
+// footnote's 2 columns. A blank line matches an item or a footnote; an item
+// still empty takes none (it begins with at most one blank line, as in
+// CommonMark), but an empty footnote does: its content may start on an
+// indented line after a blank one.
 // Containers and cells have no prefix.
 function matchPrefix(f) {
   if (f.kind === 'quote') {
@@ -1715,7 +1745,7 @@ function matchPrefix(f) {
   const need = f.kind === 'fn' ? 2 : f.indent;
   const w = indentAt();
   if (firstNB() < le) return w >= need && (advance(need), true);
-  return !!f.node.children.length && (advance(Math.min(w, need)), true); // an item still empty takes no blank line: it begins with at most one
+  return (f.kind === 'fn' || !!f.node.children.length) && (advance(Math.min(w, need)), true);
 }
 
 // ------------------------------------------------------------ the tree
@@ -1754,6 +1784,9 @@ function attach(node, pa, res) {
   const cls = [], other = Object.create(null), keyAt = Object.create(null); // no prototype: `__proto__` is a key
   for (const g of groups) {
     reportReserved(ctx, g, same);
+    // An attribute line's id or key that the opener's group writes again is replaced: said, not silent.
+    if (g.attrs.id !== undefined && id !== undefined) overridden(idAt, id, g.attrs.id);
+    for (const k in g.attrs) if (k !== 'id' && k !== 'class' && k in other) overriddenKey(keyAt[k], k);
     if (g.attrs.id !== undefined) (id = g.attrs.id), (idAt = g.idAt);
     if (g.attrs.class && classAt < 0) classAt = g.classAt;
     if (g.attrs.class) cls.push(g.attrs.class);
@@ -2236,7 +2269,7 @@ function fence(r, fi, te) {
     if (o.tb >= 0) luccet(node).title = inline(o.tb + 1, o.tc, 'title');
   }
   addChild(node);
-  leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], start: pa ? pa.start : fi, end: te, open: fi };
+  leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], at: node.type === 'html' ? [] : null, start: pa ? pa.start : fi, end: te, open: fi };
 }
 
 // A raw HTML block: the kind, and with it the end condition, is fixed on the first line, which counts too.
@@ -2252,7 +2285,7 @@ function html(r, fi) {
     if (r.stray) report('html.stray-closer', a, trimEnd(a, le), `\`</${r.stray}>\` closes nothing that is open; it is passed through`, hint);
     return;
   }
-  const v = (leaf = { kind: 'html', verbatim: true, node, hk: r.hk, name: r.name, lines: [node.value], start: a, end: le, first: le, open: a, d: 0 });
+  const v = (leaf = { kind: 'html', verbatim: true, node, hk: r.hk, name: r.name, lines: [node.value], at: [lineAt()], start: a, end: le, first: le, open: a, d: 0 });
   const s = src.slice(fi, le);
   if (r.hk === 'comment' ? s.includes('-->', 2) : r.hk === 'rawtext' ? RAW_END[r.name].test(s.slice(1)) : (v.d = balance(r.name, fi, le)) <= 0) finish(v);
 }
@@ -2488,9 +2521,9 @@ function feed(fi, te) {
   } else if (v.kind === 'raw') {
     const r = src[fi] === ':' ? colonRow(fi, te) : null;
     if (r && r.k === 'closer' && (!r.name || r.name === v.name)) return (v.end = te), finish(v), true;
-    v.at.push(pos);
   }
   const a = pos;
+  if (v.at) v.at.push(lineAt());
   v.lines.push(rest());
   v.end = le;
   if (v.kind !== 'html') return true;
@@ -2548,6 +2581,7 @@ function finish(v) {
   const opened = lineOf(v.open);
   node.value = (v.tex || v.lines).join('\n');
   if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map(ctx.point));
+  else if (node.type === 'html' && /\bid\s*=/i.test(node.value)) luccet(node).htmlAt = v.at.map(ctx.point); // where its ids are (the ids transform)
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
   if (v.kind === 'raw' && v.name === 'use') readUse(v);
@@ -2626,11 +2660,16 @@ function item(r, fi, te, pa) {
 }
 
 // A container opener `:::NAME[title]{attrs}`. Anything after that is junk,
-// shown as an error paragraph; `:::end` acts as a bare closer. The body is
+// shown as an error paragraph; `:::end` alone acts as a bare closer, and with
+// anything after it the line is text, as `::: words` is. The body is
 // verbatim for `:::macros`, `:::meta`, `:::script`, `:::style`, `:::html`,
 // `{raw}` and a schema entry with `body: 'raw'`.
 function opener(r, fi, te) {
   if (r.name === 'end') {
+    if (skipSp(r.ne, te) < te) {
+      report('name.reserved', r.ne - 3, r.ne, '`:::end` is reserved, and with text after it the line is text, not a closer', 'close with `:::` or `:::/name` alone on its line');
+      return paraLine(fi, te, OWN, false);
+    }
     report('name.reserved', r.ne - 3, r.ne, '`:::end` is reserved; it is read as `:::`', 'write `:::` or `:::/name`');
     return closer({ k: 'closer', n: r.n, name: '' }, fi, te);
   }
@@ -2686,6 +2725,16 @@ function metaAttrs(node, m, name = 'meta') {
   const many = m.classAt >= 0 && cls.includes(' ');
   if (m.classAt >= 0) dropped(m.classAt, src[m.classAt] === '.' ? matchAt(IDENT, src, m.classAt + 1) : m.classAt + 5, `the class${many ? 'es' : ''} "${cls}"`, many);
   for (const k in m.keyAt) if (k !== 'tag' && k !== 'cols' && k !== 'ref' && k !== 'raw') dropped(m.keyAt[k], m.keyAt[k] + k.length, `\`${k}\``);
+}
+
+// attr.overridden for an attribute line's id or key that a later group on the
+// same block writes again (the later one wins).
+function overridden(at, was, now) {
+  const e = src[at] === '#' ? matchAt(IDENT, src, at + 1) : at + 2;
+  report('attr.overridden', at, Math.max(e, at + 1), `the id "${was}" is replaced by "${now}", written later for the same block; an element has one id`, `keep one: remove {#${was}}, or {#${now}}`);
+}
+function overriddenKey(at, key) {
+  report('attr.overridden', at, at + key.length, `\`${key}\` is written again later for the same block, and that value wins`, 'keep one of them');
 }
 
 // A schema entry with `body: 'raw'` makes the body verbatim, as `{raw}` does.
@@ -3345,7 +3394,7 @@ const slug = (text) => `glossary-${key(text).replace(/[^\p{L}\p{M}\p{N}]+/gu, '-
 
 // A deep copy without positions (`position`, and the `…Position` spans the
 // transforms keep), so a definition travels light and emits the same.
-const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'position' || k === 'texAt' || /Position$/.test(k) ? undefined : v)));
+const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'position' || k === 'texAt' || k === 'htmlAt' || /Position$/.test(k) ? undefined : v)));
 
 const entry = (term, id, node, how, nodes) => ({ term, key: key(term), slug: slug(term), id, line: node.position ? node.position.start.line : 0, how, definition: strip(nodes) });
 const isTitle = (k) => k && k.type === 'paragraph' && k.data && k.data.directiveLabel;
@@ -5600,13 +5649,13 @@ function walk(root, enter, leave) {
 // it holds): `attrs` (attributes, named elements, fences), `ids` (attributes,
 // headings, footnote nodes), `nums` (named elements, fences, display math,
 // headings), `refs` (references, fragment links), `fns` (footnote nodes),
-// `heads` (headings, leaves), `math` (formulas, inline and display) and
-// `macros` (:::macros blocks). `inDef` maps a node inside a footnote
+// `heads` (headings, leaves), `math` (formulas, inline and display),
+// `macros` (:::macros blocks) and `html` (raw HTML). `inDef` maps a node inside a footnote
 // definition to it, as a dropped definition's content counts for nothing.
 // Rebuilt after a custom transform, which may have changed the tree.
 function index(ast, ctx) {
   if (ctx.idx) return ctx.idx;
-  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], math: [], macros: [], inDef: new Map() };
+  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], math: [], macros: [], html: [], inDef: new Map() };
   const ks = [];
   const is = [];
   const ds = [];
@@ -5633,6 +5682,7 @@ function index(ast, ctx) {
     if (type === 'ref' || (type === 'link' && typeof n.url === 'string' && n.url[0] === '#')) k = x.refs.push(n);
     if (fn) k = x.fns.push(n);
     if (type === 'heading' || type === 'leafDirective') k = x.heads.push(n);
+    if (type === 'html') k = x.html.push(n);
     if (type === 'inlineMath' || (type === 'math' && !peek(n).unclosed)) x.math.push(n);
     else if (named && n.name === 'macros' && typeof n.value === 'string') x.macros.push(n);
     if (k && def) x.inDef.set(n, def);
@@ -6077,7 +6127,18 @@ function ids(ast, ctx) {
     ctx.report('id.duplicate', at, `the id "${id}" is already used on line ${first.start.line}; this element drops it`, DUP);
     return false;
   };
-  const { ids: list, fns, inDef } = index(ast, ctx);
+  const { ids: list, fns, inDef, html } = index(ast, ctx);
+  // Raw HTML's ids first: the page has them whatever the note says, so an
+  // element of the note's own that repeats one drops it, and a heading's slug
+  // steps around it. Two raw ones are said once; the browser finds the first.
+  for (const n of html) {
+    if (dead(n, inDef)) continue;
+    for (const { id, o, len } of rawIds(n.value || '')) {
+      const prev = reg.node(id);
+      if (!prev) reg.add(id, n, false);
+      else if (prev !== n) ctx.report('id.duplicate', rawAt(n, o, len), `the id "${id}" in this raw HTML is already used on line ${idAt(prev, id).start.line}; the browser finds the first`, DUP);
+    }
+  }
   // A generated footnote id (fns) is registered where its node starts, before
   // an author id on the same node.
   const generated = (n) => {
@@ -6114,6 +6175,44 @@ function ids(ast, ctx) {
     h.attributes = a;
   }
   reg.publish(ast.data.luccet);
+}
+
+// The ids raw HTML gives its elements: `id=` in its start tags, read with
+// no DOM; comments, and the text of elements whose content is not markup
+// (script, style, textarea, title, xmp), left out. They are blanked, not
+// removed, so each {id, o, len} gives where its `id=…` is in the value.
+const blank = (m) => m.replace(/[^\n]/g, ' ');
+function rawIds(html) {
+  if (!/\bid\s*=/i.test(html)) return [];
+  const s = html.replace(/<!--[\s\S]*?(?:-->|$)/g, blank).replace(/(<(script|style|textarea|title|xmp)\b[^>]*>)([\s\S]*?(?:<\/\2\s*>|$))/gi, (m, open, _, body) => open + blank(body));
+  const out = [];
+  for (const m of s.matchAll(/<[A-Za-z][^\s/>]*(\s[^>]*)?>/g)) {
+    const a = m[1] && /(^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i.exec(m[1]);
+    if (a) {
+      const id = a[2] !== undefined ? a[2] : a[3] !== undefined ? a[3] : a[4];
+      const o = m.index + m[0].length - 1 - m[1].length + a.index + a[1].length;
+      if (id && !/[\t\n\f\r ]/.test(id)) out.push({ id, o, len: a[0].length - a[1].length });
+    }
+  }
+  return out;
+}
+
+// Where offset o of a raw HTML node's value is in the source: the start of
+// its line (htmlAt, the parser's, kept when the value has an id) plus the
+// column. One-line HTML needs only the node's start; without either, the node.
+function rawAt(n, o, len) {
+  const p = n.position;
+  if (!p) return ORIGIN;
+  const v = n.value;
+  let line = 0;
+  let nl = -1;
+  for (let k = v.indexOf('\n'); k !== -1 && k < o; k = v.indexOf('\n', k + 1)) line++, (nl = k);
+  const at = peek(n).htmlAt;
+  const base = at ? at[line] : line === 0 ? p.start : null;
+  if (!base) return p;
+  const c = o - nl - 1;
+  const point = (d) => ({ line: base.line, column: base.column + d, offset: base.offset + d });
+  return { start: point(c), end: point(c + len) };
 }
 
 // The registry: a Map from each id to its element, so an id costs no object
@@ -6160,6 +6259,10 @@ const target = (ctx, id) => {
 // Where a node's id is written, for diagnostics: the `#` or `id=` item, a
 // footnote definition's `[^label]:`, a footnote reference; else the node.
 function idAt(n, id) {
+  if (n.type === 'html') {
+    const r = rawIds(n.value || '').find((x) => x.id === id);
+    return r ? rawAt(n, r.o, r.len) : n.position || ORIGIN;
+  }
   const t = peek(n);
   if (t.id === id && n.type === 'footnoteDefinition') return marker(n);
   if (t.id === id && n.type === 'footnoteReference') return n.position || ORIGIN;
@@ -6294,13 +6397,15 @@ function refs(ast, ctx) {
 // none, and is written as its literal `@id`.
 function reference(n, ctx) {
   const e = target(ctx, n.id);
-  if (e) {
+  if (e && e.type !== 'html') {
     set(n, { resolved: true }); // data first, so the JSON keeps its key order
     n.children = refText(e, peek(n).ref, n.id, ctx);
     return;
   }
   set(n, { resolved: false });
-  ctx.report('ref.dangling', n, DANGLING, `if it is not a reference, write \\@${n.id}`);
+  // An id in raw HTML has no label or number for @ to show: a link reaches it.
+  if (e) ctx.report('ref.dangling', n, `the id "${n.id}" is in raw HTML, which has no label or number for @ to show, so the reference stays text`, `link to it with text of your own: [see this](#${n.id})`);
+  else ctx.report('ref.dangling', n, DANGLING, `if it is not a reference, write \\@${n.id}`);
 }
 
 // A fragment link: a missing target gives ref.dangling at the `[`; the link
@@ -6861,10 +6966,13 @@ function atom(n) {
       return footnoteReference(n, a);
     case 'html':
       return html(n);
-    case 'ref': // unresolved, or in a toc: its literal text, when that is plain text
+    case 'ref': {
+      // Unresolved, or in a toc: its literal text, when that is plain text;
+      // with attributes, in a span that carries them, so its id names it.
       if (luccet(n).resolved && !inToc) return null;
-      if (!n.children || !n.children.length) return esc(`@${n.id}`);
-      return n.children.length === 1 && n.children[0].type === 'text' ? atom(n.children[0]) : null;
+      const text = !n.children || !n.children.length ? esc(`@${n.id}`) : n.children.length === 1 && n.children[0].type === 'text' ? atom(n.children[0]) : null;
+      return text !== null && a && !inToc ? `<span${attrs(a)}>${text}</span>` : text;
+    }
     default:
       return null;
   }
@@ -7446,7 +7554,8 @@ function image(n, a) {
 function ref(n, a) {
   if (!luccet(n).resolved || inToc) {
     const h = atom(n); // its literal text
-    return h !== null ? void write(h) : kids(n.children);
+    if (h !== null) return void write(h);
+    return a && !inToc ? wrapped(`<span${attrs(a)}>`, n.children, '</span>') : kids(n.children);
   }
   wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(prefix + String(n.id))}"`, 'href')}>`, n.children, '</a>');
 }
@@ -7675,14 +7784,31 @@ module.exports = { css };
 // the tree (block.js readUse), where `use.late` reports one that is not
 // leading.
 
+const { parseAttrs } = require('./scan');
+
 const OPENER = /^[ \t]*:{3,}(meta|use)(?:[ \t\[{].*)?$/;
 // A closer: bare `:::`, or `:::/NAME` naming the open block, as the parser
 // closes a raw container (block.js); `:::/other` is a line of the block.
 const closer = (s, name) => new RegExp(`^[ \\t]*:{3,}(?:\\/${name})?[ \\t]*$`).test(s);
 
+// An attribute line: strong groups only (block.js attrRow). It binds to the
+// block below it, so the parser reads a `:::use` under one as leading, and so
+// does this scan (the attributes themselves apply to nothing: attr.malformed).
+function attrLine(s) {
+  const t = s.trim();
+  let i = 0;
+  let res;
+  while (t[i] === '{' && (res = parseAttrs(t, i, t.length)) && res.ok && res.strong) {
+    i = res.end;
+    while (t[i] === ' ' || t[i] === '\t') i++;
+  }
+  return i > 0 && i === t.length;
+}
+
 // scanUse(text, {eof}) -> {entries, decided}: the entries of every leading
 // `:::use` block ({url, line, column, offset}, 1-based line and column),
-// `:::meta` blocks and blank lines skipped, stopping at the first other line.
+// `:::meta` blocks, attribute lines and blank lines skipped, stopping at the
+// first other line.
 // `decided` is false while the text ends inside an open block, or after the
 // blocks with nothing else yet, and `eof` is false: more may still come. With
 // `eof`, an open block ends at the text's end.
@@ -7708,7 +7834,7 @@ function scanUse(text, { eof = true } = {}) {
     } else {
       const m = OPENER.exec(s);
       if (m) open = m[1];
-      else if (/\S/.test(s)) return { entries, decided: true };
+      else if (/\S/.test(s) && !attrLine(s)) return { entries, decided: true };
     }
     if (nl < 0) break;
     i = nl + 1;

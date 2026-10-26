@@ -176,10 +176,13 @@ function atom(n) {
       return footnoteReference(n, a);
     case 'html':
       return html(n);
-    case 'ref': // unresolved, or in a toc: its literal text, when that is plain text
+    case 'ref': {
+      // Unresolved, or in a toc: its literal text, when that is plain text;
+      // with attributes, in a span that carries them, so its id names it.
       if (luccet(n).resolved && !inToc) return null;
-      if (!n.children || !n.children.length) return esc(`@${n.id}`);
-      return n.children.length === 1 && n.children[0].type === 'text' ? atom(n.children[0]) : null;
+      const text = !n.children || !n.children.length ? esc(`@${n.id}`) : n.children.length === 1 && n.children[0].type === 'text' ? atom(n.children[0]) : null;
+      return text !== null && a && !inToc ? `<span${attrs(a)}>${text}</span>` : text;
+    }
     default:
       return null;
   }
@@ -761,7 +764,8 @@ function image(n, a) {
 function ref(n, a) {
   if (!luccet(n).resolved || inToc) {
     const h = atom(n); // its literal text
-    return h !== null ? void write(h) : kids(n.children);
+    if (h !== null) return void write(h);
+    return a && !inToc ? wrapped(`<span${attrs(a)}>`, n.children, '</span>') : kids(n.children);
   }
   wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(prefix + String(n.id))}"`, 'href')}>`, n.children, '</a>');
 }

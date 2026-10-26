@@ -98,13 +98,13 @@ function walk(root, enter, leave) {
 // it holds): `attrs` (attributes, named elements, fences), `ids` (attributes,
 // headings, footnote nodes), `nums` (named elements, fences, display math,
 // headings), `refs` (references, fragment links), `fns` (footnote nodes),
-// `heads` (headings, leaves), `math` (formulas, inline and display) and
-// `macros` (:::macros blocks). `inDef` maps a node inside a footnote
+// `heads` (headings, leaves), `math` (formulas, inline and display),
+// `macros` (:::macros blocks) and `html` (raw HTML). `inDef` maps a node inside a footnote
 // definition to it, as a dropped definition's content counts for nothing.
 // Rebuilt after a custom transform, which may have changed the tree.
 function index(ast, ctx) {
   if (ctx.idx) return ctx.idx;
-  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], math: [], macros: [], inDef: new Map() };
+  const x = { attrs: [], ids: [], nums: [], refs: [], fns: [], heads: [], math: [], macros: [], html: [], inDef: new Map() };
   const ks = [];
   const is = [];
   const ds = [];
@@ -131,6 +131,7 @@ function index(ast, ctx) {
     if (type === 'ref' || (type === 'link' && typeof n.url === 'string' && n.url[0] === '#')) k = x.refs.push(n);
     if (fn) k = x.fns.push(n);
     if (type === 'heading' || type === 'leafDirective') k = x.heads.push(n);
+    if (type === 'html') k = x.html.push(n);
     if (type === 'inlineMath' || (type === 'math' && !peek(n).unclosed)) x.math.push(n);
     else if (named && n.name === 'macros' && typeof n.value === 'string') x.macros.push(n);
     if (k && def) x.inDef.set(n, def);
@@ -575,7 +576,18 @@ function ids(ast, ctx) {
     ctx.report('id.duplicate', at, `the id "${id}" is already used on line ${first.start.line}; this element drops it`, DUP);
     return false;
   };
-  const { ids: list, fns, inDef } = index(ast, ctx);
+  const { ids: list, fns, inDef, html } = index(ast, ctx);
+  // Raw HTML's ids first: the page has them whatever the note says, so an
+  // element of the note's own that repeats one drops it, and a heading's slug
+  // steps around it. Two raw ones are said once; the browser finds the first.
+  for (const n of html) {
+    if (dead(n, inDef)) continue;
+    for (const { id, o, len } of rawIds(n.value || '')) {
+      const prev = reg.node(id);
+      if (!prev) reg.add(id, n, false);
+      else if (prev !== n) ctx.report('id.duplicate', rawAt(n, o, len), `the id "${id}" in this raw HTML is already used on line ${idAt(prev, id).start.line}; the browser finds the first`, DUP);
+    }
+  }
   // A generated footnote id (fns) is registered where its node starts, before
   // an author id on the same node.
   const generated = (n) => {
@@ -612,6 +624,44 @@ function ids(ast, ctx) {
     h.attributes = a;
   }
   reg.publish(ast.data.luccet);
+}
+
+// The ids raw HTML gives its elements: `id=` in its start tags, read with
+// no DOM; comments, and the text of elements whose content is not markup
+// (script, style, textarea, title, xmp), left out. They are blanked, not
+// removed, so each {id, o, len} gives where its `id=…` is in the value.
+const blank = (m) => m.replace(/[^\n]/g, ' ');
+function rawIds(html) {
+  if (!/\bid\s*=/i.test(html)) return [];
+  const s = html.replace(/<!--[\s\S]*?(?:-->|$)/g, blank).replace(/(<(script|style|textarea|title|xmp)\b[^>]*>)([\s\S]*?(?:<\/\2\s*>|$))/gi, (m, open, _, body) => open + blank(body));
+  const out = [];
+  for (const m of s.matchAll(/<[A-Za-z][^\s/>]*(\s[^>]*)?>/g)) {
+    const a = m[1] && /(^|\s)id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i.exec(m[1]);
+    if (a) {
+      const id = a[2] !== undefined ? a[2] : a[3] !== undefined ? a[3] : a[4];
+      const o = m.index + m[0].length - 1 - m[1].length + a.index + a[1].length;
+      if (id && !/[\t\n\f\r ]/.test(id)) out.push({ id, o, len: a[0].length - a[1].length });
+    }
+  }
+  return out;
+}
+
+// Where offset o of a raw HTML node's value is in the source: the start of
+// its line (htmlAt, the parser's, kept when the value has an id) plus the
+// column. One-line HTML needs only the node's start; without either, the node.
+function rawAt(n, o, len) {
+  const p = n.position;
+  if (!p) return ORIGIN;
+  const v = n.value;
+  let line = 0;
+  let nl = -1;
+  for (let k = v.indexOf('\n'); k !== -1 && k < o; k = v.indexOf('\n', k + 1)) line++, (nl = k);
+  const at = peek(n).htmlAt;
+  const base = at ? at[line] : line === 0 ? p.start : null;
+  if (!base) return p;
+  const c = o - nl - 1;
+  const point = (d) => ({ line: base.line, column: base.column + d, offset: base.offset + d });
+  return { start: point(c), end: point(c + len) };
 }
 
 // The registry: a Map from each id to its element, so an id costs no object
@@ -658,6 +708,10 @@ const target = (ctx, id) => {
 // Where a node's id is written, for diagnostics: the `#` or `id=` item, a
 // footnote definition's `[^label]:`, a footnote reference; else the node.
 function idAt(n, id) {
+  if (n.type === 'html') {
+    const r = rawIds(n.value || '').find((x) => x.id === id);
+    return r ? rawAt(n, r.o, r.len) : n.position || ORIGIN;
+  }
   const t = peek(n);
   if (t.id === id && n.type === 'footnoteDefinition') return marker(n);
   if (t.id === id && n.type === 'footnoteReference') return n.position || ORIGIN;
@@ -792,13 +846,15 @@ function refs(ast, ctx) {
 // none, and is written as its literal `@id`.
 function reference(n, ctx) {
   const e = target(ctx, n.id);
-  if (e) {
+  if (e && e.type !== 'html') {
     set(n, { resolved: true }); // data first, so the JSON keeps its key order
     n.children = refText(e, peek(n).ref, n.id, ctx);
     return;
   }
   set(n, { resolved: false });
-  ctx.report('ref.dangling', n, DANGLING, `if it is not a reference, write \\@${n.id}`);
+  // An id in raw HTML has no label or number for @ to show: a link reaches it.
+  if (e) ctx.report('ref.dangling', n, `the id "${n.id}" is in raw HTML, which has no label or number for @ to show, so the reference stays text`, `link to it with text of your own: [see this](#${n.id})`);
+  else ctx.report('ref.dangling', n, DANGLING, `if it is not a reference, write \\@${n.id}`);
 }
 
 // A fragment link: a missing target gives ref.dangling at the `[`; the link

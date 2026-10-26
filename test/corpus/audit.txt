@@ -1489,6 +1489,10 @@ b
 <div id="q" class="t-block a x z" data-t="a"><p>b</p></div>
 ````
 
+````diagnostics
+1:19-1:21 warning attr.overridden
+````
+
 ## audit/opener-unclosed-title
 
 spec: syntax-blocks#container syntax-blocks#r7

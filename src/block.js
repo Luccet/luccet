@@ -137,10 +137,16 @@ function moveTo(i) {
 
 // The remainder as written; a partly consumed tab becomes spaces.
 const rest = () => (partial ? ' '.repeat(partial) + src.slice(pos + 1, le) : src.slice(pos, le));
+// The offset rest()'s first character stands for: under a partial tab, the
+// spaces it adds stand before pos + 1.
+const lineAt = () => (partial ? pos + 1 - partial : pos);
 
 // Matches and consumes frame f's prefix: a quote's `>` (after any indent)
 // and one space or tab; a list item's indent to its content column; a
-// footnote's 2 columns. A blank line matches an item or a footnote.
+// footnote's 2 columns. A blank line matches an item or a footnote; an item
+// still empty takes none (it begins with at most one blank line, as in
+// CommonMark), but an empty footnote does: its content may start on an
+// indented line after a blank one.
 // Containers and cells have no prefix.
 function matchPrefix(f) {
   if (f.kind === 'quote') {
@@ -152,7 +158,7 @@ function matchPrefix(f) {
   const need = f.kind === 'fn' ? 2 : f.indent;
   const w = indentAt();
   if (firstNB() < le) return w >= need && (advance(need), true);
-  return !!f.node.children.length && (advance(Math.min(w, need)), true); // an item still empty takes no blank line: it begins with at most one
+  return (f.kind === 'fn' || !!f.node.children.length) && (advance(Math.min(w, need)), true);
 }
 
 // ------------------------------------------------------------ the tree
@@ -191,6 +197,9 @@ function attach(node, pa, res) {
   const cls = [], other = Object.create(null), keyAt = Object.create(null); // no prototype: `__proto__` is a key
   for (const g of groups) {
     reportReserved(ctx, g, same);
+    // An attribute line's id or key that the opener's group writes again is replaced: said, not silent.
+    if (g.attrs.id !== undefined && id !== undefined) overridden(idAt, id, g.attrs.id);
+    for (const k in g.attrs) if (k !== 'id' && k !== 'class' && k in other) overriddenKey(keyAt[k], k);
     if (g.attrs.id !== undefined) (id = g.attrs.id), (idAt = g.idAt);
     if (g.attrs.class && classAt < 0) classAt = g.classAt;
     if (g.attrs.class) cls.push(g.attrs.class);
@@ -673,7 +682,7 @@ function fence(r, fi, te) {
     if (o.tb >= 0) luccet(node).title = inline(o.tb + 1, o.tc, 'title');
   }
   addChild(node);
-  leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], start: pa ? pa.start : fi, end: te, open: fi };
+  leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], at: node.type === 'html' ? [] : null, start: pa ? pa.start : fi, end: te, open: fi };
 }
 
 // A raw HTML block: the kind, and with it the end condition, is fixed on the first line, which counts too.
@@ -689,7 +698,7 @@ function html(r, fi) {
     if (r.stray) report('html.stray-closer', a, trimEnd(a, le), `\`</${r.stray}>\` closes nothing that is open; it is passed through`, hint);
     return;
   }
-  const v = (leaf = { kind: 'html', verbatim: true, node, hk: r.hk, name: r.name, lines: [node.value], start: a, end: le, first: le, open: a, d: 0 });
+  const v = (leaf = { kind: 'html', verbatim: true, node, hk: r.hk, name: r.name, lines: [node.value], at: [lineAt()], start: a, end: le, first: le, open: a, d: 0 });
   const s = src.slice(fi, le);
   if (r.hk === 'comment' ? s.includes('-->', 2) : r.hk === 'rawtext' ? RAW_END[r.name].test(s.slice(1)) : (v.d = balance(r.name, fi, le)) <= 0) finish(v);
 }
@@ -925,9 +934,9 @@ function feed(fi, te) {
   } else if (v.kind === 'raw') {
     const r = src[fi] === ':' ? colonRow(fi, te) : null;
     if (r && r.k === 'closer' && (!r.name || r.name === v.name)) return (v.end = te), finish(v), true;
-    v.at.push(pos);
   }
   const a = pos;
+  if (v.at) v.at.push(lineAt());
   v.lines.push(rest());
   v.end = le;
   if (v.kind !== 'html') return true;
@@ -985,6 +994,7 @@ function finish(v) {
   const opened = lineOf(v.open);
   node.value = (v.tex || v.lines).join('\n');
   if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map(ctx.point));
+  else if (node.type === 'html' && /\bid\s*=/i.test(node.value)) luccet(node).htmlAt = v.at.map(ctx.point); // where its ids are (the ids transform)
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
   if (v.kind === 'raw' && v.name === 'use') readUse(v);
@@ -1063,11 +1073,16 @@ function item(r, fi, te, pa) {
 }
 
 // A container opener `:::NAME[title]{attrs}`. Anything after that is junk,
-// shown as an error paragraph; `:::end` acts as a bare closer. The body is
+// shown as an error paragraph; `:::end` alone acts as a bare closer, and with
+// anything after it the line is text, as `::: words` is. The body is
 // verbatim for `:::macros`, `:::meta`, `:::script`, `:::style`, `:::html`,
 // `{raw}` and a schema entry with `body: 'raw'`.
 function opener(r, fi, te) {
   if (r.name === 'end') {
+    if (skipSp(r.ne, te) < te) {
+      report('name.reserved', r.ne - 3, r.ne, '`:::end` is reserved, and with text after it the line is text, not a closer', 'close with `:::` or `:::/name` alone on its line');
+      return paraLine(fi, te, OWN, false);
+    }
     report('name.reserved', r.ne - 3, r.ne, '`:::end` is reserved; it is read as `:::`', 'write `:::` or `:::/name`');
     return closer({ k: 'closer', n: r.n, name: '' }, fi, te);
   }
@@ -1123,6 +1138,16 @@ function metaAttrs(node, m, name = 'meta') {
   const many = m.classAt >= 0 && cls.includes(' ');
   if (m.classAt >= 0) dropped(m.classAt, src[m.classAt] === '.' ? matchAt(IDENT, src, m.classAt + 1) : m.classAt + 5, `the class${many ? 'es' : ''} "${cls}"`, many);
   for (const k in m.keyAt) if (k !== 'tag' && k !== 'cols' && k !== 'ref' && k !== 'raw') dropped(m.keyAt[k], m.keyAt[k] + k.length, `\`${k}\``);
+}
+
+// attr.overridden for an attribute line's id or key that a later group on the
+// same block writes again (the later one wins).
+function overridden(at, was, now) {
+  const e = src[at] === '#' ? matchAt(IDENT, src, at + 1) : at + 2;
+  report('attr.overridden', at, Math.max(e, at + 1), `the id "${was}" is replaced by "${now}", written later for the same block; an element has one id`, `keep one: remove {#${was}}, or {#${now}}`);
+}
+function overriddenKey(at, key) {
+  report('attr.overridden', at, at + key.length, `\`${key}\` is written again later for the same block, and that value wins`, 'keep one of them');
 }
 
 // A schema entry with `body: 'raw'` makes the body verbatim, as `{raw}` does.

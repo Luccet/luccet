@@ -1275,6 +1275,14 @@ An `@name` whose name is no id in the note stays literal text, with `ref.danglin
 Ask @alice. Or ask \@bob.
 ```
 
+An unresolved reference with attributes keeps them: its text goes in a `<span>` that carries them, so an id on it names an element, as on any other.
+
+```luccet {.live expect="ref.dangling"}
+Ask @alice{#ask .who}, then [read it again](#ask).
+```
+
+An id in raw HTML is in the registry ([Ids](#ids)), but `@` does not reach it: raw HTML has no label or number for the reference to show. It is `ref.dangling`, with a hint to link to it instead.
+
 ## Ids {#ids}
 
 Every id in a note, of every kind, lives in **one registry**: heading ids, container and span ids, equation ids, footnote ids. A reference finds its target there, and the registry keeps the HTML valid by never giving one id to two elements.
@@ -1283,10 +1291,11 @@ Every id in a note, of every kind, lives in **one registry**: heading ids, conta
 
 Before anything else, the registry holds **luccet's own ids**: `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics`, which luccet.js gives elements of its own in the page (its stylesheet, its colour-scheme meta, the note's source and, on a page `luccet build` wrote, the note's diagnostics). Then the `ids` transform fills it in two passes.
 
-1. **Fixed ids**, in document order:
+1. **Raw HTML's ids**: every `id=` in the start tags of raw HTML (blocks, inline tags and `=html` fences; not in comments, scripts or styles). The page has them whatever the note says.
+2. **Fixed ids**, in document order:
    - every id an author wrote, as `#id` or `id=`: on headings, containers, leaves, inline elements, spans, links, images, code and math spans, titled fences, tables, attribute lines and `$$` closers;
    - every generated footnote id: `fn-LABEL` at the definition, `fnref-LABEL` and `fnref-LABEL-N` at each reference.
-2. **Heading slugs**, in document order, for every heading without an id.
+3. **Heading slugs**, in document order, for every heading without an id.
 
 So an id you wrote always beats a slug, wherever the two stand: an author who wrote `#kernel` meant it, and a slug is a guess. The slug yields silently.
 
@@ -1343,6 +1352,18 @@ See @proof-of-thm-a.
 ### Duplicates {#duplicates}
 
 Two fixed ids that collide get [`id.duplicate`](diagnostics.html#id-duplicate) (W), reported **at both places**: at the first, and at each later one. The first keeps the id; every later element drops its `id` attribute, which keeps the HTML valid. References resolve to the first.
+
+Raw HTML cannot drop an id, so an element of the note's own that repeats one of its ids drops its own, wherever the two stand, and a heading's slug steps around it. A fragment link reaches a raw HTML id; `@` does not ([Unresolved references](#unresolved)).
+
+```luccet {.live expect="id.duplicate id.duplicate"}
+<div id="intro">Raw.</div>
+
+## Introduction {#intro}
+
+## Intro
+
+See [the raw block](#intro).
+```
 
 ```luccet {.live schema=demo expect="id.duplicate id.duplicate"}
 :::theorem{#t}

@@ -634,6 +634,11 @@ test('check, build: a :::use block in a CRLF note loads its add-ons; only ::: or
   const { scanUse } = require(path.join(ROOT, 'src', 'use.js'));
   eq(scanUse(':::use\r\na.js b.js\r\n:::\r\n\r\nText.\r\n').entries.map((e) => [e.url, e.line, e.column]), [['a.js', 2, 1], ['b.js', 2, 6]], 'CRLF entries');
   eq(scanUse(':::use\n:::/meta\nc.js\n:::/use\nText.\n').entries.map((e) => e.url), [':::/meta', 'c.js'], 'only ::: or :::/use closes the block');
+  // An attribute line above `:::use` binds to the block (and applies to
+  // nothing), so the block still leads: the scan, and the build, read it.
+  eq(scanUse('{.x}\n:::use\nd.js\n:::\n').entries.map((e) => [e.url, e.line]), [['d.js', 3]], 'an attribute line above');
+  write('crlf/a.html', `${FIRST}<script src="luccet.js"></script>\n{.x}\n:::use\nbox.js\n:::\n\n:::box[T]\nx\n:::\n`);
+  ok(/<span class="t-label">Box<\/span>/.test(run(['build', 'crlf/a.html']).out), 'box.js under an attribute line is loaded');
 });
 
 test('check: a transform that never returns is addon.failed, not a hang', () => {

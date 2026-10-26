@@ -246,6 +246,26 @@ The fix for glued CJK text is a space or an empty group: `{}` is not an attribut
   {"type":"text","value":"です"}]}]}
 ````
 
+## ref/unresolved-keeps-attributes
+
+spec: syntax-inline#reference elements#unresolved diagnostics#ref-dangling
+
+From the content-loss audit (A14): an unresolved reference consumed its group, and the id and classes were lost, with the link to `#ask`. The text now goes in a `<span>` that carries them. An empty group is still only a terminator.
+
+````luccet
+Ask @alice{#ask .who}, then [read it again](#ask). And @bob{} and @carol{.x}.
+````
+
+````html
+<p>Ask <span id="ask" class="who">@alice</span>, then <a href="#ask">read it again</a>. And @bob and <span class="x">@carol</span>.</p>
+````
+
+````diagnostics
+1:5 warning ref.dangling
+1:56 warning ref.dangling
+1:67 warning ref.dangling
+````
+
 ## ref/double-trailing-dash
 
 spec: syntax-inline#reference

@@ -125,6 +125,11 @@ Text.
 </div>
 ````
 
+````diagnostics
+1:2-1:4 warning attr.overridden
+1:8-1:11 warning attr.overridden
+````
+
 ## attrs/line-before-container-classes
 
 spec: syntax-blocks#attribute-line syntax-blocks#merging-and-emission
@@ -741,6 +746,10 @@ Text.
 <p id="b">Text.</p>
 ````
 
+````diagnostics
+1:2-1:4 warning attr.overridden
+````
+
 ## attrs/class-accumulation
 
 spec: syntax-blocks#merging-and-emission
@@ -771,6 +780,10 @@ Text.
 <p id="b">Text.</p>
 ````
 
+````diagnostics
+1:2-1:4 warning attr.overridden
+````
+
 ## attrs/class-key-merges
 
 spec: syntax-blocks#merging-and-emission
@@ -799,6 +812,10 @@ Text.
 
 ````html
 <p class="x" k="2">Text.</p>
+````
+
+````diagnostics
+1:2-1:3 warning attr.overridden
 ````
 
 ## attrs/key-characters
@@ -947,6 +964,10 @@ Keys are ASCII-lower-cased, as the browser lower-cases attribute names, so `ID=`
 
 ````html
 <p><span id="a" class="b c" title="two">x</span></p>
+````
+
+````diagnostics
+1:21-1:26 warning attr.overridden
 ````
 
 ## attrs/reserved-key-upper-case

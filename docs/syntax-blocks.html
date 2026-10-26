@@ -441,8 +441,9 @@ Bonjour.
 - The last `#id` wins. `id=` is the same attribute as `#`.
 - Classes accumulate in source order. `class=` merges with `.` items, and a quoted `class="a b"` adds two classes.
 - For any other repeated key, the last value wins.
+- A replaced id or key is reported, as [`attr.overridden`](diagnostics.html#attr-overridden) (warning): an element has one id, and an attribute one value.
 
-```luccet {.live}
+```luccet {.live expect="attr.overridden attr.overridden"}
 {#a .b id=c class="d e" k=1 k=2}
 Merged.
 ```
@@ -453,7 +454,7 @@ Merged.
 - In values, `"`, `<` and `&` are escaped; a well-formed character reference such as `&amp;` or `&copy;` is kept as written.
 - A bare key becomes an HTML boolean attribute: `controls`, not `controls=""`.
 
-```luccet {.live}
+```luccet {.live expect="attr.overridden"}
 A [span]{b=1 .c a=2 #i b=3 title="&copy; & <x>"}.
 ```
 
@@ -2544,12 +2545,18 @@ Named closers are how you make long or nested structures robust: with `:::/secti
 The closer is missing.
 ```
 
-**`:::end`** is read as a bare closer, with [`name.reserved`](diagnostics.html#name-reserved) (warning): write `:::` or `:::/name`.
+**`:::end`** alone on its line is read as a bare closer, with [`name.reserved`](diagnostics.html#name-reserved) (warning): write `:::` or `:::/name`. With anything after it, the line is text, as a bare `:::` with text after it is, so nothing on it is lost; the block it meant to close is still open.
 
 ```luccet {.live expect="name.reserved"}
 :::aside
 x
 :::end
+```
+
+```luccet {.live expect="name.reserved block.unclosed"}
+:::aside
+x
+:::end[aside] here
 ```
 
 A closer interrupts a paragraph, and a closer-shaped line that falls back to text (stray, or a mismatch) still does, then starts a paragraph of its own (see [Lines that fall back to text](#fallback)).
@@ -2918,13 +2925,13 @@ Une autre.
 | a paragraph, heading, list, table, blockquote or thematic break | its element |
 | a fence | `<pre>`, or the `<figure>` of a titled fence |
 | display math | `div.t-eq`; an id numbers the equation |
-| a container or a leaf | the element, merged: the line's classes come before the opener's; for the id and other keys, the opener's own attributes win |
+| a container or a leaf | the element, merged: the line's classes come before the opener's; for the id and other keys, the opener's own attributes win, and the line's replaced id or key is [`attr.overridden`](diagnostics.html#attr-overridden) |
 | an image-only paragraph | the implicit figure; an `#id` here makes the figure even when the image has none |
 
-```luccet {.live}
+```luccet {.live expect="attr.overridden attr.overridden"}
 {#line-id .from-line k=line}
 :::aside{#own-id .own k=opener}
-The opener's id and key win; classes accumulate.
+The opener's id and key win, and the line's are reported; classes accumulate.
 :::
 
 {.thin}
@@ -3084,7 +3091,7 @@ The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 ### `:::use` {#use}
 
 - The body lists the add-ons the note loads — scripts and stylesheets, as the luccet.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, on [Vocabulary and behaviour](schema.html#addons).
-- It must lead the note: at the top level, before any content, after `:::meta` at most. The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (error) and is ignored: its add-ons could not have been loaded in time.
+- It must lead the note: at the top level, before any content, after `:::meta` at most. An attribute line above it is not content: it binds to the block, which still leads (and its attributes apply to nothing, as below). The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (error) and is ignored: its add-ons could not have been loaded in time.
 - Nothing is emitted, and its body is verbatim. As on `:::meta`, an id, a class or a key on `:::use` gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped.
 - The entries are in the tree as `root.data.luccet.use`, `[{url, position}]`, in order.
 

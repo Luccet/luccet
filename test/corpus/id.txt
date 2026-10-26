@@ -596,3 +596,136 @@ See @luccet-style.
 5:11 warning id.duplicate
 7:5 warning ref.dangling
 ````
+
+## id/raw-html-first
+
+spec: elements#ids elements#duplicates syntax-blocks#raw-html
+
+From the content-loss audit (A25): raw HTML's ids were not in the registry, so a note element could repeat one and a slug could take one. Raw HTML is written as it stands and keeps its ids, so they are registered first: the heading's `#intro` is `id.duplicate` at both places (the raw one at its `id=…`) and is dropped, the heading gets its slug, a later slug steps around (`intro-2`), and a fragment link reaches the raw element.
+
+````luccet
+<div id="intro">Raw.</div>
+
+## Introduction {#intro}
+
+## Intro
+
+See [the raw block](#intro).
+````
+
+````html
+<div id="intro">Raw.</div>
+<h2 id="introduction">Introduction</h2>
+<h2 id="intro-2">Intro</h2>
+<p>See <a href="#intro">the raw block</a>.</p>
+````
+
+````diagnostics
+1:6 warning id.duplicate "this element keeps it"
+3:18 warning id.duplicate "this element drops it"
+````
+
+## id/raw-html-twice
+
+spec: elements#duplicates diagnostics#id-duplicate
+
+Two raw HTML elements with one id both keep it, as written; the later is reported once, at its `id=…`, and the browser finds the first.
+
+````luccet
+<p id="x">a</p>
+
+<p id="x">b</p>
+
+See [it](#x).
+````
+
+````html
+<p id="x">a</p>
+<p id="x">b</p>
+<p>See <a href="#x">it</a>.</p>
+````
+
+````diagnostics
+3:4 warning id.duplicate "the browser finds the first"
+````
+
+## id/raw-html-not-markup
+
+spec: elements#ids
+
+An `id=` in a comment, or in the text of a script, is not an element's id, so the headings keep theirs.
+
+````luccet
+<!-- <p id="c"> -->
+<script>let s = '<b id="s">'</script>
+
+## C {#c}
+
+## S {#s}
+````
+
+````html
+<!-- <p id="c"> -->
+<script>let s = '<b id="s">'</script>
+<h2 id="c">C</h2>
+<h2 id="s">S</h2>
+````
+
+## id/raw-html-positions
+
+spec: elements#ids diagnostics#id-duplicate
+
+The diagnostic points at the raw `id=…` on its own line: in a quote, past the `> `, and in an inline tag that spans lines.
+
+````luccet
+> <div>
+>   <p id="q">x</p>
+> </div>
+
+Text <span
+id="inl">x</span>.
+
+## Q {#q}
+
+## N {#inl}
+````
+
+````html
+<blockquote>
+<div>
+  <p id="q">x</p>
+</div>
+</blockquote>
+<p>Text <span
+id="inl">x</span>.</p>
+<h2 id="q-2">Q</h2>
+<h2 id="n">N</h2>
+````
+
+````diagnostics
+2:8 warning id.duplicate
+6:1 warning id.duplicate
+8:7 warning id.duplicate
+10:7 warning id.duplicate
+````
+
+## id/raw-html-not-referenceable
+
+spec: elements#unresolved syntax-inline#reference diagnostics#ref-dangling
+
+`@` does not resolve to a raw HTML id: raw HTML has no label or number to show. It is `ref.dangling`, with a hint to link instead; the link reaches it.
+
+````luccet
+<figure id="fig-a">A figure.</figure>
+
+See @fig-a, or [the figure](#fig-a).
+````
+
+````html
+<figure id="fig-a">A figure.</figure>
+<p>See @fig-a, or <a href="#fig-a">the figure</a>.</p>
+````
+
+````diagnostics
+3:5 warning ref.dangling "is in raw HTML"
+````

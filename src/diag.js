@@ -54,6 +54,7 @@ const EFFECT = {
   'tex.misplaced': CHANGED,
   'tex.macro': CHANGED,
   'tex.limit': CHANGED,
+  'attr.overridden': KEPT,
   'attr.malformed': KEPT,
   'attributes.orphan': KEPT,
   'attributes.raw': KEPT,

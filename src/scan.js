@@ -135,6 +135,8 @@ function parseAttrs(text, i, limit) {
   const rest = Object.create(null);
   const keyAt = Object.create(null);
   const reserved = [];
+  const overridden = []; // an id or a key written again in the group: {at, length, text, kind}
+  let idEnd = -1;
   let strong = false;
   const fail = (at) => ({ end, ok: false, bad: at });
   const addClasses = (list, at, length) => {
@@ -152,8 +154,10 @@ function parseAttrs(text, i, limit) {
       const name = text.slice(k + 1, e);
       strong = true;
       if (c === '#') {
+        if (id !== undefined) overridden.push({ at: idAt, length: idEnd - idAt, text: id, kind: 'id', now: name });
         id = name;
         idAt = k;
+        idEnd = e;
       } else addClasses([name], k, e - k);
       k = e;
     } else {
@@ -179,11 +183,14 @@ function parseAttrs(text, i, limit) {
         }
       }
       if (key === 'id') {
+        if (id !== undefined) overridden.push({ at: idAt, length: idEnd - idAt, text: id, kind: 'id', now: value });
         id = value;
         idAt = at;
+        idEnd = k;
       } else if (key === 'class') addClasses(value.split(/[ \t\n]+/).filter(Boolean), at, e - at);
       else if (key === 'data-t') reserved.push({ at, length: e - at, text: text.slice(at, e), kind: 'key' });
       else {
+        if (key in rest) overridden.push({ at: keyAt[key], length: key.length, text: key, kind: 'key' });
         rest[key] = value;
         keyAt[key] = at;
       }
@@ -196,12 +203,18 @@ function parseAttrs(text, i, limit) {
   if (id !== undefined) attrs.id = id;
   if (classes.length) attrs.class = classes.join(' ');
   for (const key in rest) put(attrs, key, rest[key]);
-  return { end, ok: true, strong, attrs, idAt, classAt, keyAt, reserved };
+  return { end, ok: true, strong, attrs, idAt, classAt, keyAt, reserved, overridden };
 }
 
 // Reports `name.reserved` for what parseAttrs dropped from a group that was
-// used. `toOffset(index)` maps a text index to a source offset.
+// used, and `attr.overridden` for an id or a key it holds twice (the last
+// wins). `toOffset(index)` maps a text index to a source offset.
 function reportReserved(ctx, res, toOffset) {
+  for (const o of res.overridden || []) {
+    const at = toOffset(o.at);
+    if (o.kind === 'id') ctx.report('attr.overridden', at, at + o.length, `the id "${o.text}" is replaced by "${o.now}", written later in the same group; an element has one id`, `keep one: remove #${o.text}, or #${o.now}`);
+    else ctx.report('attr.overridden', at, at + o.length, `\`${o.text}\` is written again later in the same group, and that value wins`, 'keep one of them');
+  }
   for (const r of res.reserved) {
     const at = toOffset(r.at);
     if (r.kind === 'key')

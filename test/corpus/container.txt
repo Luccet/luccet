@@ -717,6 +717,30 @@ Text.
 3:4 warning name.reserved
 ````
 
+## container/end-keyword-with-text
+
+spec: syntax-blocks#closer elements#reserved
+
+From the content-loss audit (A12): `:::end` with text after it was read as a bare closer, and the text was lost. Like a bare `:::` with text after it, the line is now text, kept, with `name.reserved` at the name; the block stays open, and the next `:::` closes it.
+
+````luccet
+:::box
+Text.
+:::end and more
+:::
+````
+
+````html
+<div class="t-block box" data-t="box">
+<p>Text.</p>
+<p>:::end and more</p>
+</div>
+````
+
+````diagnostics
+3:4 warning name.reserved "with text after it the line is text"
+````
+
 ## container/reserved-style
 
 spec: syntax-blocks#container elements#reserved
