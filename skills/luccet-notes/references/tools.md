@@ -198,7 +198,7 @@ One JSON array of every diagnostic (`[]` when there are none), filtered by `--qu
 
 ### Add-ons and head scripts under Node
 
-To know the note's vocabulary, the commands run, in one context, as the browser would: the head's classic scripts (inline, or a local `src`; not modules, `async`/`defer` ones or other origins), then `window.LUCCET`, then each script add-on of `data-use` and of the leading `:::use` block, then `window.LUCCET.schema` on top. Transforms that add-ons register run; behaviours (`luccet.define`, a schema's `dom`) do not. CSS add-ons are not run; their paths are link-checked. An add-on's `console` output goes to stderr. Each script gets 2 seconds.
+To know the note's vocabulary, the commands run, in one context, as the browser would: the head's classic scripts (inline, or a local `src`; not modules, `async`/`defer` ones or other origins), then `window.LUCCET`, then each script add-on of `data-use` and of the leading `:::use` block, then `window.LUCCET.schema` on top. Transforms that add-ons register run; behaviours (`luccet.define`, a schema's `dom`) do not. CSS add-ons are not run; their paths are link-checked. An add-on's `console` output goes to stderr. The scripts, and the parse and transforms run with them, share 2 seconds.
 
 ```text
 $ luccet check addons.html

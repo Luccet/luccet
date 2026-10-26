@@ -102,9 +102,11 @@ A :tide-clock[clock]{station=leith} inline.
 
 ````html
 <div class="iframe" data-t="iframe" id="f" src="map.html"></div>
-<div class="t-block signup" data-t="signup" action="/submit"><p>Body.</p></div>
-<p>A <span class="tide-clock" data-t="tide-clock" station="leith">clock</span> inline.</p>
+<div class="t-block signup" data-t="signup"><p>Body.</p></div>
+<p>A <span class="tide-clock" data-t="tide-clock">clock</span> inline.</p>
 ````
+
+The attributes go through the allowlist (`safe/attribute-allowlist`): `src` is one (a URL, checked, inert on a `div`); `action` and the custom `station` are not, and are dropped.
 
 ## safe/navigation-attributes-dropped
 
@@ -235,3 +237,25 @@ A `srcset` is decoded before it is split: `&#44;` is the comma between two candi
 <p><img src="a.png" alt="a"></p>
 <p><img src="b.png" alt="b" srcset="b.png 1x, b@2x.png 2x"></p>
 ````
+
+## safe/attribute-allowlist
+
+spec: elements#safe
+options: safe
+
+From the 2.0 plan (1.10): `safe` kept every attribute but a list of known dangerous ones, so the next one HTML adds would pass. It keeps only an allowlist now: the global attributes that describe an element (`id`, `class`, `title`, `lang`, `dir`, `hidden`, `role`, `translate`), `aria-*` but those that name an id, `data-*` but Luccet's `data-t-*`, and those HTML gives media, links, quotes, tables, lists, details, meters and tracks. `tabindex`, `accesskey`, `contenteditable`, `slot`, `for`, `aria-owns` and an unknown key are dropped. A `<button>` is `type="button"`, so it cannot submit a form of the host page.
+
+````luccet
+[a]{lang=de dir=rtl aria-label="A" data-x=1 tabindex=0 accesskey=k contenteditable slot=s for=host aria-owns=host-menu data-t-cols=9 foo=bar}
+
+:button[Go]{type=submit}
+
+[x](https://example.org){rel=nofollow hreflang=en target=_blank}
+````
+
+````html
+<p><span lang="de" dir="rtl" aria-label="A" data-x="1">a</span></p>
+<p><button class="button" data-t="button" type="button">Go</button></p>
+<p><a href="https://example.org" rel="nofollow" hreflang="en">x</a></p>
+````
+

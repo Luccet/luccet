@@ -22,6 +22,10 @@ const { build, escAttr } = require('./build');
 const links = require('./links');
 const { relocate, apply } = require('./relocate');
 
+// The commands, one table: luccet-cli.js dispatches from it, the usage
+// below prints it, and test/cli.js checks that the docs, the README, the
+// skill and the header comments name the same commands, and EXIT_1 the
+// same reasons for exit 1.
 const SYNOPSIS = {
   new: 'luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
   check: 'luccet check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
@@ -31,6 +35,27 @@ const SYNOPSIS = {
   search: 'luccet search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'luccet index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
   lsp: 'luccet lsp [--stdio]',
+};
+
+// Why a command exits 1, by command; any other exits 0 or 2.
+const EXIT_1 = {
+  check: 'check found a diagnostic at or above --fail-on',
+  new: 'new refused to write the file',
+  mv: 'mv refused to move, or a move failed',
+  search: 'search found nothing',
+  index: 'index --check found a file missing or stale',
+};
+// The exit codes as the usage ends with them, wrapped as the rest is.
+const exitCodes = () => {
+  const list = Object.values(EXIT_1);
+  const words = `Exit codes: 0 done; 1 ${list.slice(0, -1).join('; ')}; or ${list[list.length - 1]}; 2 a usage error.`.split(' ');
+  const lines = [''];
+  for (const w of words) {
+    const last = lines.length - 1;
+    if (lines[last] && lines[last].length + 1 + w.length > 78) lines.push(w);
+    else lines[last] += (lines[last] ? ' ' : '') + w;
+  }
+  return lines.join('\n');
 };
 
 const usage = () =>
@@ -91,8 +116,7 @@ const usage = () =>
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
 
-Exit codes: 0 done; 1 check found problems, new or mv refused, search found
-nothing, or index --check found a file missing or stale; 2 a usage error.
+${exitCodes()}
 `;
 
 class UsageError extends Error {
@@ -1019,6 +1043,8 @@ function lsp(args) {
 }
 
 module.exports = {
+  SYNOPSIS,
+  EXIT_1,
   usage,
   new: command('new', newNote),
   check: command('check', check),

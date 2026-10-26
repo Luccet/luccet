@@ -341,7 +341,6 @@ An add-on that loads a library from a CDN, as those for code highlighting, diagr
 **Known differences** between the tested browsers:
 
 - Firefox logs a warning, "An unbalanced tree was written using document.write()", on every note. It comes from the way `luccet.js` captures the note and is harmless.
-- Code-block line numbers use typed `attr()` in CSS, which only Chromium supports; `luccet.js` sets the counter through the CSSOM so that both browsers number lines.
 - Under a CSP, Chromium reports blocked `style` attributes while parsing and Firefox when inserting (see [CSP](#csp-reports)).
 - In math, Firefox and WebKit stretch a wide tilde (`\widetilde`) over several letters, where Chromium draws a plain one, and WebKit's spacing differs slightly from the other two.
 
@@ -383,7 +382,7 @@ A note is a web page, and Luccet does not sandbox it.
 
 - **A note runs its own scripts.** `<script>` blocks in the note are re-created and run in document order, with the page's full privileges, as are scripts in the head and add-ons in `data-use`. Opening someone's note is opening their web page.
 - **Raw HTML is the author's.** HTML written in the note reaches the page byte for byte: event-handler attributes, `<iframe>`s, forms. Links keep their destinations, including `javascript:` URLs.
-- **`safe: true` exists for untrusted input.** The engine's `safe` option escapes raw HTML (a raw block is shown in a `<pre>`, an inline tag as text), neutralises dangerous elements (a frame, a form, a custom element) to a plain container, drops `on…` handlers and other running or navigating attributes, and drops URLs that are not `http(s)`, `mailto` or relative. See [Safe rendering](elements.html#safe) and [luccet.toHTML](api.html#tohtml).
+- **`safe: true` exists for untrusted input.** The engine's `safe` option escapes raw HTML (a raw block is shown in a `<pre>`, an inline tag as text), neutralises dangerous elements (a frame, a form, a custom element) to a plain container, keeps only an allowlist of attributes that describe content (no handler, nothing that runs, submits, navigates elsewhere or reaches the host page's elements), and drops URLs that are not `http(s)`, `mailto` or relative. See [Safe rendering](elements.html#safe) and [luccet.toHTML](api.html#tohtml).
 - **The page's own note is rendered without it.** A note you publish is trusted like any page you write. To show text you do **not** trust, such as comments posted by others, render it with `safe`: either render into an element (its scripts do not run, and its behaviours are skipped, then and later),
 
   ```js

@@ -225,6 +225,32 @@ function checkDocsJs(found) {
   }
 }
 
+// ---------------------------------------------------------------- page lists
+
+// The documentation's pages are listed three times besides the folder: in
+// docs.js's navigation (PAGES), in docs/README.md's table and in the home
+// page's. Each names every page of docs/, and nothing else, under the
+// title the page's own <title> gives it ("Add-ons · Luccet").
+function checkPageLists() {
+  const titleOf = (file) => (/<title>([^<]*) · Luccet<\/title>/.exec(fs.readFileSync(file, 'utf8').split('\n')[0]) || [])[1];
+  const want = new Map();
+  for (const f of pages()) if (path.dirname(f) === path.join(ROOT, 'docs')) want.set(`docs/${path.basename(f)}`, titleOf(f));
+  const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  const lists = [
+    ['docs/docs.js', [...read('docs/docs.js').matchAll(/\['(docs\/[\w-]+\.html)', '([^']+)'\]/g)]],
+    ['docs/README.md', [...read('docs/README.md').matchAll(/^\| `(docs\/[\w-]+\.html)` \| ([^|]+?) \|/gm)]],
+    ['index.html', [...read('index.html').matchAll(/^\| \[([^\]]+)\]\((docs\/[\w-]+\.html)#top\) \|/gm)].map((m) => [m[0], m[2], m[1]])],
+  ];
+  for (const [where, found] of lists) {
+    const got = new Map(found.map((m) => [m[1], m[2]]));
+    for (const [page, title] of want) {
+      if (!got.has(page)) problems.push(`${where}: ${page} (${title}) is not listed`);
+      else if (got.get(page) !== title) problems.push(`${where}: ${page} is listed as "${got.get(page)}", its <title> says "${title}"`);
+    }
+    for (const page of got.keys()) if (!want.has(page)) problems.push(`${where}: ${page} is listed, but is no page of docs/`);
+  }
+}
+
 // ---------------------------------------------------------------- severities
 
 // Each parser and transform code declares its effect in src/diag.js, and its
@@ -274,7 +300,10 @@ for (const f of found) {
   }
 }
 checkDocsJs(found);
-if (!named.length) checkSeverities();
+if (!named.length) {
+  checkSeverities();
+  checkPageLists();
+}
 const cases = checkCorpus(checked);
 
 if (!QUIET) {

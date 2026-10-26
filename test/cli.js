@@ -1630,6 +1630,32 @@ test('parse | head: a reader that closes early ends the command quietly, exit 0,
   eq(err, '', 'stderr');
 });
 
+// One command table (cli/commands.js SYNOPSIS, EXIT_1): every place that
+// lists the commands, or the reasons for exit 1, names the same ones.
+test('one command table: the CLI header comments, the tools page, the home page, the docs README and the skill name the commands of SYNOPSIS, and EXIT_1 the commands that exit 1', () => {
+  const { SYNOPSIS, EXIT_1 } = require(path.join(ROOT, 'cli', 'commands.js'));
+  const all = Object.keys(SYNOPSIS).sort().join(' ');
+  const but = (x) => Object.keys(SYNOPSIS).filter((c) => c !== x).sort().join(' ');
+  const src = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  const set = (list) => [...new Set(list)].sort().join(' ');
+  const tools = src('docs/tools.html');
+  const skill = src('skills/luccet-notes/references/tools.md');
+  const places = [
+    ['luccet-cli.js header', set([...src('luccet-cli.js').matchAll(/^\/\/ {3}luccet (\w+)/gm)].map((m) => m[1])), all],
+    ['cli/commands.js header', set(/^\/\/ luccet ([\w, ]+?), and the\n\/\/ arguments of luccet lsp/m.exec(src('cli/commands.js'))[1].split(/, | and /)), but('lsp')],
+    ['docs/tools.html commands table', set([...tools.slice(0, tools.indexOf('{#common}')).matchAll(/^\| `luccet (\w+)/gm)].map((m) => m[1])), all],
+    ['docs/tools.html description', set(/^description: The luccet command line \(([^)]*)\)/m.exec(tools)[1].split(/, /)), but('lsp')],
+    ['index.html', set(/`luccet new`([^;|]*)/.exec(src('index.html'))[0].match(/`(?:luccet )?(\w+)`/g).map((w) => w.replace(/`|luccet /g, ''))), all],
+    ['docs/README.md', set(/`luccet ([a-z/]+)`/.exec(src('docs/README.md'))[1].split('/')), all],
+    ['the skill', set(/one command-line program: ([^.]*)\./.exec(skill)[1].match(/`(\w+)`/g).map((w) => w.replace(/`/g, ''))), all],
+  ];
+  for (const [where, got, want] of places) eq(got, want, where);
+  const ones = Object.keys(EXIT_1).sort().join(' ');
+  const row = (text) => set([...(/^\| `1` \|(.*)$/m.exec(text)[1].matchAll(/`luccet (\w+)/g))].map((m) => m[1]));
+  eq(row(tools), ones, 'the tools page: exit 1');
+  eq(row(skill), ones, 'the skill: exit 1');
+});
+
 test('usage: help, unknown commands, --help, --version', () => {
   const h = run(['help']);
   exits(h, 0, 'help');

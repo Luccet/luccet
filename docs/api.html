@@ -127,7 +127,7 @@ source ──parse──▶ AST + diagnostics ──transform──▶ transform
 | `math` | `transform`, `emit`, `toHTML`, `check` | MathML | `'tex'` writes each formula as its TeX instead of MathML, for a renderer of your own, and translates nothing, so no `tex.*` diagnostic is reported ([Math](math.html#katex)) |
 | `maxDepth` | `parse`, `toHTML`, `check` | `64` | how deep blocks may nest |
 | `positions` | `emit`, `toHTML` | `true` | writes `data-pos="line:col"` on elements |
-| `safe` | `emit`, `toHTML`, `render` | `false` | for untrusted source: escapes raw HTML, neutralises dangerous elements, and drops risky attributes and URLs; in `render` it also skips the note's scripts and behaviours |
+| `safe` | `emit`, `toHTML`, `render` | `false` | for untrusted source: escapes raw HTML, neutralises dangerous elements, and drops attributes outside an allowlist and risky URLs; in `render` it also skips the note's scripts and behaviours |
 
 ### `luccet.parse` {#parse}
 
@@ -559,21 +559,20 @@ luccet.search.format → 1
 The pipeline behind the [search add-on](https://github.com/Luccet/search) and [`luccet search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
 
 ```js
-const { ast } = luccet.parse('# Triangles {#tri}
+const { ast } = luccet.parse(String.raw`# Triangles {#tri}
 
 The hypotenuse: $c=\sqrt{a^2+b^2}$.
 
 :::note[I.1]{#ex-1}
 Prove Pythagoras.
-:::
-');
+:::`);
 luccet.transform(ast);
 const entries = luccet.search.records(ast, { url: 'alpha.html', title: 'Alpha' });
 // → [ { url: 'alpha.html', id: 'tri', line: 1, endLine: 7, kind: 'heading', label: 'Triangles', title: '', text: 'The hypotenuse: c=\sqrt{a^2+b^2}.' },
 //     { url: 'alpha.html', id: 'ex-1', line: 5, endLine: 7, kind: 'note', label: 'note', title: 'I.1', text: 'Prove Pythagoras.' } ]
 const index = luccet.search.index(entries);
 luccet.search.query(index, 'pythag');
-// → [ { entry: entries[1], score: 0.9…, matched: ['pythagora'] } ]
+// → [ { entry: entries[1], score: 0.73…, matched: ['pythagora'] } ]
 luccet.search.snippet(entries[1].text, ['pythagora']);
 // → { text: 'Prove Pythagoras.', marks: [[6, 16]] }
 ```
@@ -585,7 +584,7 @@ luccet.search.snippet(entries[1].text, ['pythagora']);
 - **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.
 - **`describe(head, ast)`** is what a catalogue holds for a note ([`luccet index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
 - **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
-- **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share.
+- **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share; **`plain(node)`** is a node's content as the plain text `records` indexes (words, code and TeX as written, an image by its alt, raw HTML and footnote marks left out).
 - **`format`** is the number of the index's format, 1: `luccet index` writes it into `search.json`, and the [search add-on](https://github.com/Luccet/search) and [`luccet search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
 
 ### `luccet.glossary` {#glossary}
@@ -855,7 +854,7 @@ Renders, or re-renders, a root element.
 - **Without content**, it runs behaviours on the elements under `root` that have not had them, and fires `render` and `math` with `root`. A second call runs no behaviour twice. It is how an add-on hands over content it adds or shows after the mount ([Content shown later](addon-api.html#later)).
 - **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head, `luccet.config.lang`, `luccet.config.macros` and `luccet.config.math`, so its formulas are MathML, with the page's macros and its own `:::macros`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without content. What the previous render's scripts registered on `luccet.define`, `luccet.on` and `luccet.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.luccet`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
 - **A tree.** `content` may be a tree instead, a node of type `root` as [`luccet.transform`](#transform) leaves it. It is emitted as it is, without positions, with `luccet.config.lang` and `luccet.config.math`, and not transformed again: its numbers and references stay those of the note it came from. Then it goes on as with a source. Any other object rejects the Promise with a `TypeError`.
-- **Untrusted content.** `{ safe: true }` renders `content`, a source or a tree, as content you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument. Its formulas are translated as any note's: no TeX command writes a link, an attribute or a request ([what is left out](math.html#unsupported)), and its `:::macros` reach only its own formulas. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. A tree is also held to what a source can make, so one from a file another site serves cannot write markup of its own ([Foreign content](addon-api.html#trust)). Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
+- **Untrusted content.** `{ safe: true }` renders `content`, a source or a tree, as content you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements, keeps only an allowlist of attributes and drops risky URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument. Its formulas are translated as any note's: no TeX command writes a link, an attribute or a request ([what is left out](math.html#unsupported)), and its `:::macros` reach only its own formulas. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. A tree is also held to what a source can make, so one from a file another site serves cannot write markup of its own ([Foreign content](addon-api.html#trust)). Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
 - **It resolves** to the diagnostics of a source, parse and transform, or to `[]` for a tree or without content.
 - **The page's own root.** When `root` is the page's `main.luccet`, the new diagnostics replace those in [`luccet.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `luccet.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the source that element was rendered from.
 - **`root`** defaults to the page's `main.luccet`. Anything other than an element rejects the Promise with `TypeError: luccet.render(root, content): root must be an element`.

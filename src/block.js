@@ -962,6 +962,7 @@ function feed(fi, te) {
   } else if (v.kind === 'raw') {
     const r = src[fi] === ':' ? colonRow(fi, te) : null;
     if (r && r.k === 'closer' && (!r.name || r.name === v.name)) return (v.end = te), finish(v), true;
+    advance(Math.min(v.indent, indentAt()));
   }
   const a = pos;
   if (v.at) v.at.push(lineAt());
@@ -1116,6 +1117,7 @@ function opener(r, fi, te) {
     return closer({ k: 'closer', n: r.n, name: '' }, fi, te);
   }
   if (depth >= MAX) return nesting(fi, r.ne, te);
+  const ind = indentAt(); // a raw body loses up to this much, as a fence's does
   const o = tail(r.ne, te);
   const pa = begin();
   const name = r.name;
@@ -1148,7 +1150,7 @@ function opener(r, fi, te) {
   }
   addChild(node);
   const start = pa ? pa.start : fi;
-  if (RAW_BODY.has(name) || (node.attributes && 'raw' in node.attributes) || rawBody(name)) leaf ={ kind: 'raw', verbatim: true, node, name, lines: [], at: [], start, end: te, open: fi, ne: r.ne };
+  if (RAW_BODY.has(name) || (node.attributes && 'raw' in node.attributes) || rawBody(name)) leaf = { kind: 'raw', verbatim: true, node, name, indent: ind, lines: [], at: [], start, end: te, open: fi, ne: r.ne };
   else push({ kind: 'dir', node, start, end: te, name, n: r.n, open: fi, ne: r.ne, body: node.children.length });
 }
 
@@ -1261,7 +1263,7 @@ function readMeta(v) {
     const m = metaLine(s);
     const value = m && m[2].replace(/[ \t]+$/, '');
     if (!/[^ \t]/.test(s)) return;
-    if (!m) return report('meta.malformed', at, at + s.replace(/[ \t]+$/, '').length, 'a `:::meta` line is `key: value`', 'write `key: value`, unindented, the key starting with a letter');
+    if (!m) return report('meta.malformed', at, at + s.replace(/[ \t]+$/, '').length, 'a `:::meta` line is `key: value`', 'write `key: value`, indented no further than `:::meta`, the key starting with a letter');
     if (m[1] in meta) return report('meta.duplicate', at, at + m[1].length, `\`${m[1]}\` is already set; the first value wins`, 'remove one of them');
     const h = headValue(m[1]);
     const differs = h !== undefined && (m[1] === 'lang' ? h.toLowerCase() !== value.toLowerCase() : h !== value);

@@ -541,3 +541,28 @@ title Maps
 ````diagnostics
 4:1 error meta.malformed
 ````
+
+## meta/indented
+
+spec: syntax-blocks#r2 syntax-blocks#meta diagnostics#meta-malformed
+
+From the audit (A28): an indented `:::meta` kept its indentation on every line, so no line was `key: value` and each was `meta.malformed`, against R2. A raw body loses up to its opener's indentation, as a fence's lines do; a line indented further is still malformed.
+
+````luccet
+  :::meta
+  title: Indented
+  lang: de
+    author: deeper
+  :::
+````
+
+````json ast
+{"data":{"luccet":{"meta":{"title":"Indented","lang":"de"}}}}
+````
+
+````html
+````
+
+````diagnostics
+4:3 error meta.malformed "a `:::meta` line is `key: value`"
+````

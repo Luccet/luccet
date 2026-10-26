@@ -347,3 +347,25 @@ graph TD
 ````json ast
 {"type": "root", "children": [{"type": "containerDirective", "name": "chart", "value": "graph TD\n\n  A --> B"}]}
 ````
+
+## raw/indented-body
+
+spec: syntax-blocks#r2
+
+An indented `{raw}` container's body loses the opener's indentation, as a fence's lines do, and keeps what is indented beyond it (A28).
+
+````luccet
+  :::chart{raw}
+  month,rain
+    Jan,62
+  :::
+````
+
+````json ast
+{"children":[{"type":"containerDirective","name":"chart","value":"month,rain\n  Jan,62"}]}
+````
+
+````html
+<div class="t-block chart" data-t="chart">month,rain
+  Jan,62</div>
+````

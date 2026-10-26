@@ -2527,9 +2527,9 @@ date:2026-10-07
 The engine reports `meta.malformed` (error) at 2:1, 3:1 and 4:1:
 
 - **Message:** `` a `:::meta` line is `key: value` ``
-- **Hint:** ``write `key: value`, unindented, the key starting with a letter``
+- **Hint:** ``write `key: value`, indented no further than `:::meta`, the key starting with a letter``
 
-**Fix.** One `key: value` per line, unindented:
+**Fix.** One `key: value` per line, indented no further than `:::meta`:
 
 ```luccet {.live}
 :::meta

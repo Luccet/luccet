@@ -1140,7 +1140,7 @@ luccet.style(css)   // adds a <style> to the head; returns it
 ```
 :::
 
-- **While an add-on runs,** the sheet goes to that add-on's place in the cascade (rule 3 above). Otherwise it goes after all add-ons (rule 4).
+- **While an add-on runs,** the sheet goes to that add-on's place in the cascade (2 in the order above). Otherwise it goes after all add-ons (3).
 - **Each call** adds one `<style>`. With `data-nonce`, it carries the nonce, so a strict CSP allows it ([CSP](publishing.html#csp)).
 - A schema entry's `css` goes through `luccet.style`.
 - **Under node** it does nothing and returns nothing.

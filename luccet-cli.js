@@ -9,9 +9,7 @@
 //   luccet build FILE…   write static, pre-rendered pages
 //   luccet mv FROM… TO   move notes and files, rewriting the links to and from them
 //   luccet search QUERY  search notes by word, each hit with its file and line
-//   luccet index [PATH…] write notes.json and search.json, what the ::notes and ::search add-ons read
-//   luccet corpus PATH…  print documentation examples as corpus cases
-//   luccet vendor DIR    write local copies of the add-ons' libraries, for ?base=
+//   luccet index [PATH…] write notes.json, search.json and glossary.json, what the notes, search and glossary add-ons read
 //   luccet lsp           the language server, over stdio
 'use strict';
 
@@ -27,7 +25,8 @@ for (const stream of [process.stdout, process.stderr]) {
   });
 }
 
-const COMMANDS = ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'vendor', 'lsp'];
+// The commands (cli/commands.js SYNOPSIS), and vendor, gone in 2.0, which says where it went.
+const COMMANDS = [...Object.keys(commands.SYNOPSIS), 'vendor'];
 const [name, ...args] = process.argv.slice(2);
 const run = COMMANDS.includes(name) ? commands[name] : null;
 if (name === '--version' || name === '-v' || name === 'version') {

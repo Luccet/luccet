@@ -47,14 +47,22 @@ declare namespace luccet {
     class?: string;
     attrs?: Record<string, string>;
     counter?: string;
+    /** Restarts the counter at each section of that level (with a `counter`). */
+    within?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
     label?: string | Record<string, string> | ((n: number | null, node: Node) => string);
     ref?: string;
+    /** A block's title element. */
+    title?: 'block' | 'inline' | 'summary' | 'figcaption' | 'caption' | 'legend';
+    titleDefault?: string;
+    /** How a block's body is read. */
+    body?: 'blocks' | 'raw' | 'inline';
     end?: string;
-    slot?: string;
-    raw?: boolean;
-    within?: string | string[];
+    /** A leaf filled with a table of contents. */
+    transform?: 'toc';
+    /** The heading levels a toc lists: 'N' or 'A-B'. */
+    depth?: string;
     css?: string;
-    dom?: (el: Element) => void;
+    dom?: (this: Element, el: Element) => void;
     [key: string]: any;
   }
   export interface Schema {
@@ -81,7 +89,7 @@ declare namespace luccet {
   export interface EmitOptions extends ParseOptions {
     /** Write data-pos on block elements (true). */
     positions?: boolean;
-    /** Untrusted content, a source or a tree from elsewhere: raw HTML escaped, risky attributes and URLs dropped, and a tree's elements and MathML held to what a source can make. */
+    /** Untrusted content, a source or a tree from elsewhere: raw HTML escaped, attributes outside an allowlist and risky URLs dropped, and a tree's elements and MathML held to what a source can make. */
     safe?: boolean;
     /** Prefix every id and fragment link. */
     idPrefix?: string;
@@ -127,6 +135,14 @@ declare namespace luccet {
   }
   export interface Search {
     records(ast: Root, info: { url: string; title?: string }): SearchEntry[];
+    /** A node's content as plain text, as records() indexes it. */
+    plain(node: Node): string;
+    /** Text as it is indexed and searched: NFKC, lower case, Latin, Greek and Cyrillic diacritics removed. */
+    fold(text: string): string;
+    /** The light stem the index and the query share. */
+    stem(word: string): string;
+    /** The stems of a text's words. */
+    tokens(text: string): string[];
     index(entries: SearchEntry[]): SearchIndex;
     query(index: SearchIndex, text: string, opts?: { limit?: number }): SearchHit[];
     snippet(text: string, matched: string[], opts?: { width?: number }): { text: string; marks: Array<[number, number]> };
@@ -237,7 +253,10 @@ declare namespace luccet {
     readonly ready: Promise<void>;
     define(name: string, fn: (this: Element, el: Element) => void): Remove;
     undefine(name: string): void;
-    on(event: LuccetEvent, fn: (root: Element, info: { safe: boolean }) => void | Promise<void>): Remove;
+    /** 'render' listeners are awaited before 'math' fires (docs/addon-api.html#lifecycle). */
+    on(event: 'render' | 'math', fn: (root: Element, info: { safe: boolean }) => void | Promise<void>): Remove;
+    on(event: 'ready', fn: (root: Element) => void): Remove;
+    on(event: 'diagnostic', fn: (diagnostic: Diagnostic) => void): Remove;
     /** Renders a source, or a tree as it is, into root; with no content, runs the behaviours and the 'render' and 'math' listeners on what root holds. */
     render(root?: Element, content?: string | Root, opts?: { safe?: boolean; idPrefix?: string; scripts?: boolean }): Promise<Diagnostic[]>;
     style(css: string): HTMLStyleElement | undefined;

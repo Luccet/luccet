@@ -65,6 +65,14 @@ test('the declarations name every export of the engine, and nothing else', (p) =
   for (const k of Object.keys(luccet)) if (!declared.has(k)) p.push(`luccet.${k} is not declared in luccet.d.ts`);
   for (const k of declared) if (!(k in luccet)) p.push(`luccet.d.ts declares luccet.${k}, which the engine lacks`);
   if (!/^export = luccet;$/m.test(dts)) p.push('luccet.d.ts does not `export = luccet`');
+  // The objects on it: each interface's members, and the engine's.
+  for (const [name, obj] of [['Search', luccet.search], ['Glossary', luccet.glossary], ['Tex', luccet.tex]]) {
+    const at = dts.indexOf(`export interface ${name} {`);
+    const body = dts.slice(at, dts.indexOf('\n  }\n', at));
+    const members = new Set([...body.matchAll(/^\s+(?:readonly )?([a-zA-Z]+)[(:?]/gm)].map((m) => m[1]));
+    for (const k of Object.keys(obj)) if (!members.has(k)) p.push(`luccet.${name.toLowerCase()}.${k} is not declared in luccet.d.ts`);
+    for (const k of members) if (!(k in obj)) p.push(`luccet.d.ts declares ${name}.${k}, which the engine lacks`);
+  }
 });
 
 test('every exported subpath exists', (p) => {

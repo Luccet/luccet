@@ -240,7 +240,7 @@ await luccet.render(el, content, { safe: true, idPrefix: 'c1-' });
 ```
 
 - **`content`** is a source, which is parsed and transformed with the page's settings, or a tree: a node of type `root`, as `luccet.transform` leaves it, which is written as it is.
-- **What `safe` guarantees** holds for both: raw HTML escaped, dangerous elements neutralised, risky attributes and URLs dropped ([Safe rendering](elements.html#safe)). A tree is also held to what a source can make: elements from the schema's allowlist, a title slot a schema can give, numbers that are numbers, and entities and MathML in the shapes the engine writes. Anything else becomes a plain element or plain text, and MathML of another shape is translated again from the formula's TeX.
+- **What `safe` guarantees** holds for both: raw HTML escaped, dangerous elements neutralised, attributes outside an allowlist and risky URLs dropped ([Safe rendering](elements.html#safe)). A tree is also held to what a source can make: elements from the schema's allowlist, a title slot a schema can give, numbers that are numbers, and entities and MathML in the shapes the engine writes. Anything else becomes a plain element or plain text, and MathML of another shape is translated again from the formula's TeX.
 - **No behaviour touches it,** then or later: `el` is marked `data-t-safe`, its scripts do not run, and a `luccet.define` registered afterwards skips it. Listeners get `{safe: true}`.
 - **`idPrefix`** keeps its ids and fragment links apart from the page's.
 
@@ -267,7 +267,7 @@ An add-on gets **the engine itself** as `window.luccet`, the object `require('lu
 
 - **Browser globals** (`document`, `customElements`, `HTMLElement`, `fetch`, `setTimeout` …) are stand-ins that accept anything and do nothing. So `customElements.define(…)` or `class X extends HTMLElement` does not stop the add-on before its `luccet.block` calls.
 - **`window`**, `self` and `globalThis` are the sandbox. Its `console` writes to stderr.
-- **Each script** gets 2 seconds.
+- **Time.** The scripts, and the parse and transforms the sandbox runs with them, share 2 seconds ([Running a note's code](tools.html#sandbox)).
 - **Files.** Only local files load: a relative URL from the note's directory, a root-relative one (`/lib/x.js`) from the note's directory or the nearest ancestor that has it. A remote add-on is not loaded: `addon.remote` ([When an add-on fails](#addon-failed)).
 
 What follows:

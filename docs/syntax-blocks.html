@@ -50,6 +50,7 @@ Every construct on this page is an instance of eight rules. Learn these and the 
 - Its end condition is fixed when it opens, and is tested on the current line only.
 - No block reads another block's state.
 - List items and footnote definitions do not read ahead across blank lines either: the blank lines are held until the next non-blank line arrives, and that line decides whether they belong to the item.
+- The rule is about where a block ends, not about what is inside its parent. Two later lines change how earlier blocks are grouped, never what they are: a `+++` line splits the blocks before it in its container into a cell ([Cells](#cells)), and a blank line between two items makes the whole list loose, its items' text in paragraphs, as in Markdown ([Lists](#lists)).
 
 So there are no setext headings: a line of `=` under a paragraph cannot turn the paragraph above into a heading, because that would change a block after the fact.
 
@@ -67,7 +68,7 @@ The first three lines are one paragraph, and `---` is a rule.
 Indentation means nothing, except in two places:
 
 - it decides membership in [list items](#lists) and [footnote definitions](#footnote-definition);
-- it is removed from the content lines of a [fence](#fence) and the TeX lines of [display math](#display-math), up to the indentation of their opening line.
+- it is removed from the content lines of a [fence](#fence), the TeX lines of [display math](#display-math), and the body of a raw container (`:::meta`, `:::use`, `:::macros`, a `{raw}` container), up to the indentation of their opening line.
 
 There are no indented code blocks, and container bodies may be indented freely.
 
@@ -77,6 +78,16 @@ There are no indented code blocks, and container bodies may be indented freely.
 
         # Still a heading
 :::
+```
+
+An indented raw container reads as one at the margin:
+
+```luccet {.live}
+  :::macros
+  \newcommand{\RR}{\mathbb{R}}
+  :::
+
+$x \in \RR$
 ```
 
 ### R3: Trailing whitespace means nothing {#r3}
@@ -160,6 +171,10 @@ Each construct has one spelling, and this documentation uses it. A few unambiguo
 |---|---|---|
 | Thematic break | `---` | `***`, `___`, `- - -`, `* * *` |
 | Fenced code | ```` ``` ```` | `~~~` |
+| Bullet list | `-` | `*`, `+` |
+| Ordered list | `1.` | `1)` |
+| Done task | `[x]` | `[X]` |
+| Id and class | `{#id .class}` | `{id=id class="class"}` |
 
 ```luccet {.live}
 ***
@@ -1352,7 +1367,7 @@ After the block, Luccet again.
 
 - **Starts.** Row 4: the remainder begins with `<` and matches one of four kinds, tested in order. Leading whitespace is ignored, and kept in the output.
 - **The kind is fixed on the first line**, and with it the end condition, which belongs to this block alone.
-- **Tag names are case-insensitive** everywhere: on the first line, in end tags, and in depth counting.
+- **Tag names are case-insensitive** everywhere: on the first line, in end tags, and in depth counting. A custom element's name is lower case, by HTML's own rule, so `<My-Widget>` is no custom element and starts no block.
 - **An end tag on the opening line counts**, for every kind.
 - **Content** is never parsed as Luccet: no headings, no references, no ids. It is emitted verbatim (except an unclosed comment or raw-text block, below).
 - A raw HTML block interrupts a paragraph.

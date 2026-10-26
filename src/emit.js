@@ -81,12 +81,24 @@ function mathShape(s) {
   }
   return false;
 }
-// Under `safe`, attributes dropped from every element whatever their value:
-// event handlers (on*, caught by the regex), ones that run or submit, ones
-// that steer navigation or focus, and ones that drive the host page's own
-// elements (its forms, dialogs and popovers through the popover, command
-// and interest invokers, and its image maps) or clobber its names.
-const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popover popovertarget popovertargetaction commandfor command interestfor interesttarget usemap name'.split(' '));
+// Under `safe`, an attribute an author wrote or a schema set is kept only
+// when it is one HTML gives an element for its content: the global ones
+// that describe it, and those of media, links, quotes, tables, lists,
+// details, meters and tracks (a URL among them checked as any). Any other is
+// dropped: handlers, what runs or submits (srcdoc, formaction, form),
+// navigates elsewhere (target, ping), steers focus or keys (autofocus,
+// tabindex, accesskey), drives or reaches into the host page (popover and
+// the command and interest invokers, usemap, for, name, slot, an aria-*
+// that names an id), styles, and whatever HTML adds next. `data-*` is kept
+// but for Luccet's own `data-t-*`, which the runtime applies.
+const SAFE_ATTR = new Set(
+  ('id class title lang dir hidden role translate ' +
+    'href rel hreflang src srcset sizes alt width height loading decoding poster controls loop muted preload playsinline media type ' +
+    'cite datetime colspan rowspan scope abbr span start reversed value open min max low high optimum label kind srclang default').split(' '),
+);
+const ARIA_REF = new Set('aria-owns aria-controls aria-describedby aria-labelledby aria-activedescendant aria-details aria-errormessage aria-flowto'.split(' '));
+const safeAttr = (k, v) =>
+  SAFE_ATTR.has(k) ? !URL_KEYS.has(k) || safeSet(k, v) : k.startsWith('aria-') ? !ARIA_REF.has(k) : k.startsWith('data-') && k !== 'data-t' && !k.startsWith('data-t-');
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -273,7 +285,7 @@ function attrs(a, pre, post, extra, skip, fence) {
     const v = a[k] == null ? '' : String(a[k]);
     // HTML reads attribute names without case, so does the check (a schema's `attrs` may spell one as it likes).
     const lower = k.toLowerCase();
-    if (safe && (/^on/.test(lower) || UNSAFE_ATTR.has(lower) || (URL_KEYS.has(lower) && !safeSet(lower, v)))) continue;
+    if (safe && !safeAttr(lower, v)) continue;
     s += v === '' ? ` ${k}` : ` ${k}="${escAttr(v)}"`;
   }
   return s;
@@ -641,7 +653,9 @@ function title(slot, label, inlines) {
 // Luccet's class tokens and data-t for a named element: its name as a class
 // unless reserved, `t-cols` after the author's classes, and the grid as the
 // first declaration of `style`, or data-t-cols under `cssom`.
-function named(n, a, block) {
+// `tag` is the element's: under `safe` a <button> is type=button, so that
+// an untrusted root inside the host's form cannot submit it.
+function named(n, a, block, tag) {
   const t = luccet(n);
   const name = String(n.name);
   const cache = block ? names : inlineNames;
@@ -661,6 +675,7 @@ function named(n, a, block) {
       }
     }
   }
+  if (safe && tag === 'button') (extra += ' type="button"'), (skip = 'type');
   return attrs(a, pre, t.cols != null && t.cols !== '' ? 't-cols' : '', extra + pos(n), skip);
 }
 
@@ -778,8 +793,8 @@ function tocNext(t) {
 function inlineElement(n, a) {
   const t = luccet(n);
   const tag = elementTag(t.tag, 'inline', 'span');
-  if (VOID.has(tag)) return void (write(`<${tag}${named(n, a, '')}>`), kids(n.children));
-  wrapped(`<${tag}${named(n, a, '')}>${label(t, n.children && n.children.length > 0)}`, n.children, `</${tag}>`);
+  if (VOID.has(tag)) return void (write(`<${tag}${named(n, a, '', tag)}>`), kids(n.children));
+  wrapped(`<${tag}${named(n, a, '', tag)}>${label(t, n.children && n.children.length > 0)}`, n.children, `</${tag}>`);
 }
 
 // ---------------------------------------------------------------- inline

@@ -672,7 +672,7 @@ title: Two
 ### `meta.malformed` · error
 
 A line in `:::meta` that is not `key: value`: no colon, no space after it, an indented line, a key not starting with a letter. The line is ignored. Keys may hold `.`, `:` and `-`: `og:title: …` is fine.
-**Fix:** one `key: value` per line, unindented.
+**Fix:** one `key: value` per line, indented no further than `:::meta`.
 
 ```luccet expect="meta.malformed meta.malformed"
 :::meta
