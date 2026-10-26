@@ -46,6 +46,10 @@ const PHRASING = words(
 );
 const VERBATIM = words('svg math textarea');
 const UNTRACKED = words('br embed img input source track wbr rt rp option optgroup'); // void, or end tag optional: never unclosed or stray
+// Phrasing tags that, left open, take the rest of the page with them: an
+// iframe's content is text, a select's is options only. Unclosed in their
+// paragraph, they are shown as text (html.unclosed).
+const SWALLOW = words('iframe select');
 const CURRENT = words(
   'address area article aside base blockquote body caption col colgroup dd details dialog div dl dt fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup hr html legend li link main map menu meta nav noscript ol p pre script search section slot style summary table tbody td template tfoot th thead title tr ul svg math textarea',
 );
@@ -774,11 +778,12 @@ function mathNode(value, at) {
 // their end tag. Open tags are tracked for html.stray-closer and
 // html.inline-unclosed. A single capital (`<B>`) gets html.inline-escaped only
 // when its end tag follows, so `List<B>` stays silent.
-const rawHtml = (s, e) => {
+const rawNode = (s, e) => {
   const node = { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null };
   if (!atomMode && /\bid\s*=/i.test(node.value)) node.data.luccet.htmlAt = htmlAt(s, e); // where its ids are (the ids transform)
-  return atom(s, e, node);
+  return node;
 };
+const rawHtml = (s, e) => atom(s, e, rawNode(s, e));
 // Where each line of text[s, e) starts in the source.
 function htmlAt(s, e) {
   const at = [ctx.point(offset(s))];
@@ -801,12 +806,13 @@ function angle(i) {
       const c = endTag(name, e);
       if (c.at >= 0) return rawHtml(i, c.end);
     } else if (name === lower && passes(name)) {
+      const node = rawNode(i, e);
       if (!UNTRACKED.has(name) && !atomMode) {
         if (!openTags) openTags = new Map();
         if (!openTags.has(name)) openTags.set(name, []);
-        openTags.get(name).push(i, e);
+        openTags.get(name).push(i, e, node);
       }
-      return rawHtml(i, e);
+      return atom(i, e, node);
     }
     if (name === lower && CURRENT.has(name)) rep('html.inline-escaped', i, e, `<${name}> is not an inline tag, so it is shown as text`, 'put block HTML on its own line');
     else if (name !== lower && CURRENT.has(lower) && (name.length > 1 || endTag(lower, e).at >= 0))
@@ -814,7 +820,7 @@ function angle(i) {
   } else if ((m = exec(CLOSE_TAG, i)) && passes(m[1])) {
     const e = CLOSE_TAG.lastIndex;
     const open = openTags && openTags.get(m[1]);
-    if (open && open.length) open.splice(-2);
+    if (open && open.length) open.splice(-3);
     else if (!UNTRACKED.has(m[1])) rep('html.stray-closer', i, e, `</${m[1]}> closes no open <${m[1]}> in this paragraph`, `open it with <${m[1]}> earlier in the paragraph, or remove it`);
     return rawHtml(i, e);
   }
@@ -945,7 +951,16 @@ function scanAll() {
   processEmphasis(null);
   if (openTags)
     for (const [name, at] of openTags)
-      for (let k = 0; k < at.length; k += 2) rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
+      for (let k = 0; k < at.length; k += 3) {
+        if (!SWALLOW.has(name)) {
+          rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
+          continue;
+        }
+        const node = at[k + 2];
+        node.type = 'text';
+        delete node.data;
+        rep('html.unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph, so the browser would hide the rest of the page inside it; it is shown as text`, `close it with </${name}> before the paragraph ends`);
+      }
   if (latexAt < Infinity && !ctx.flags['latex.delimiters']) {
     ctx.flags['latex.delimiters'] = true;
     rep('latex.delimiters', latexAt, latexAt + 2, "LaTeX's delimiters are not math in luccet; the backslash is an escape", 'math is `$…$` and `$$`');

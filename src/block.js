@@ -23,7 +23,7 @@
 'use strict';
 
 const { createSpan, spanAdd } = require('./ast');
-const { IDENT, NAME, LABEL, matchAt, isAsciiPunct, parseAttrs, reportReserved, isReservedName, isCustomName, put } = require('./scan');
+const { IDENT, NAME, LABEL, matchAt, isAsciiPunct, parseAttrs, reportReserved, isReservedName, isCustomName, put, htmlHazard } = require('./scan');
 const { parseInline, atomRanges } = require('./inline');
 
 // Tags that start a raw HTML block, as custom elements do. A raw-text tag's
@@ -685,6 +685,33 @@ function fence(r, fi, te) {
   leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], at: node.type === 'html' ? [] : null, start: pa ? pa.start : fi, end: te, open: fi };
 }
 
+// Raw HTML, a block or an `=html` fence, that would hide what follows it in
+// the page (scan.js htmlHazard) is shown as its source, pre.t-error: the
+// browser would otherwise take the rest of the note into a comment, a
+// script's text, a video's fallback. `at` holds where each line of the
+// value starts in the source.
+const HAZARD = {
+  comment: (h) => [`this \`${h.name}\` is never closed, so the browser would hide everything after it`, `end it with \`${h.name === '<!--' ? '-->' : ']]>'}\``],
+  tag: (h) => [`this \`${h.name.startsWith('<') ? h.name : `<${h.name}`}\` tag is never ended with \`>\`, so the browser would read what follows as part of it`, 'end the tag with `>`, and close every quote in it'],
+  text: (h) => (h.name === 'plaintext' ? ['`<plaintext>` has no end, so the browser would show the rest of the page as its text', 'use `<pre>` for preformatted text'] : [`\`<${h.name}>\` is never closed here, so the browser would take the rest of the page as its text`, `end it with \`</${h.name}>\``]),
+  open: (h) => [`\`<${h.name}>\` is never closed here, so the browser would hide the rest of the page inside it`, `end it with \`</${h.name}>\``],
+  self: (h) => [`\`/>\` does not close a \`<${h.name}>\`: HTML ignores it on an element that is not void, so the rest of the page would be its content`, `write \`<${h.name} …></${h.name}>\``],
+};
+function hazard(node, at) {
+  const h = htmlHazard(node.value || '');
+  if (!h) return;
+  luccet(node).unclosed = true;
+  const v = node.value;
+  const offset = (o) => {
+    let line = 0;
+    let nl = -1;
+    for (let k = v.indexOf('\n'); k !== -1 && k < o; k = v.indexOf('\n', k + 1)) line++, (nl = k);
+    return at && at[line] !== undefined ? at[line] + o - nl - 1 : node.position ? node.position.start.offset : 0;
+  };
+  const [message, hint] = HAZARD[h.kind](h);
+  report(h.kind === 'self' ? 'html.self-closed' : 'html.unclosed', offset(h.at), offset(h.end), `${message}; the raw HTML is shown as source`, hint);
+}
+
 // A raw HTML block: the kind, and with it the end condition, is fixed on the first line, which counts too.
 function html(r, fi) {
   const pa = begin();
@@ -694,6 +721,7 @@ function html(r, fi) {
   addChild(node);
   if (r.hk === 'oneline') {
     node.position = ctx.position(a, le);
+    hazard(node, [lineAt()]);
     const hint = r.stray === 'table' ? 'write a pipe table or a whole raw `<table>` block' : `to wrap Luccet content write \`:::${r.stray}{…}\` … \`:::\``;
     if (r.stray) report('html.stray-closer', a, trimEnd(a, le), `\`</${r.stray}>\` closes nothing that is open; it is passed through`, hint);
     return;
@@ -1011,6 +1039,7 @@ function finish(v) {
     if (v.hk !== 'generic') (luccet(node).unclosed = true), (unclosedWhat = `the ${what} opened on line ${opened} is unclosed`);
     report('html.unclosed', v.start, v.first, `the raw ${what} opened on line ${opened} is never closed`, v.hk === 'comment' ? 'end it with `-->`' : `end it with \`</${v.name}>\``);
   }
+  if (node.type === 'html' && !luccet(node).unclosed) hazard(node, v.at);
   node.position = ctx.position(v.start, v.end);
 }
 

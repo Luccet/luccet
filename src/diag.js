@@ -55,6 +55,7 @@ const EFFECT = {
   'tex.macro': CHANGED,
   'tex.limit': CHANGED,
   'attr.overridden': KEPT,
+  'html.self-closed': CHANGED,
   'attr.malformed': KEPT,
   'attributes.orphan': KEPT,
   'attributes.raw': KEPT,

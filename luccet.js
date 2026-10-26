@@ -70,6 +70,7 @@ const EFFECT = {
   'tex.macro': CHANGED,
   'tex.limit': CHANGED,
   'attr.overridden': KEPT,
+  'html.self-closed': CHANGED,
   'attr.malformed': KEPT,
   'attributes.orphan': KEPT,
   'attributes.raw': KEPT,
@@ -358,6 +359,121 @@ function reportReserved(ctx, res, toOffset) {
   }
 }
 
+// ---------------------------------------------------------------- raw HTML hazards
+
+// What in raw HTML would hide the rest of the page once the browser reads it
+// (docs/elements.html#raw-hazards), read as the browser's tokenizer reads
+// it, with no DOM: a comment, or a CDATA section in svg or math, never
+// closed; a tag never ended with `>` (a quote left open in it, say); an
+// element whose content is text (script, style, textarea, title, xmp,
+// iframe, noembed, noframes, noscript) without its end tag, or a plaintext,
+// which has none; a template or a select left open; and `/>` on an element
+// that is not void, which HTML ignores, outside svg and math, where it
+// closes. Returns the first, {kind, name, at, end} with offsets in s
+// (kind: 'comment', 'tag', 'text', 'open' or 'self'), or null.
+const TEXT_ELEMENT = new Set('script style textarea title xmp iframe noembed noframes noscript'.split(' '));
+const VOID_ELEMENT = new Set('area base br col embed hr img input link meta source track wbr param keygen'.split(' '));
+const HELD = new Set(['template', 'select']);
+const textEnd = new Map(); // a text element's name -> its end tag, as a sticky-free global regex
+const isTagSpace = (c) => c === 32 || c === 9 || c === 10 || c === 12 || c === 13;
+const isAlpha = (c) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+function htmlHazard(s) {
+  let i = s.indexOf('<');
+  if (i < 0) return null;
+  const n = s.length;
+  const open = { template: [], select: [] }; // each one's start tags still open: at, end
+  let foreign = 0; // svg or math depth
+  for (; i >= 0 && i < n; i = s.indexOf('<', i)) {
+    if (s.startsWith('<!--', i)) {
+      if (s.startsWith('<!-->', i) || s.startsWith('<!--->', i)) {
+        i += s[i + 4] === '>' ? 5 : 6;
+        continue;
+      }
+      const e = s.indexOf('-->', i + 4);
+      if (e < 0) return { kind: 'comment', name: '<!--', at: i, end: i + 4 };
+      i = e + 3;
+      continue;
+    }
+    if (foreign && s.startsWith('<![CDATA[', i)) {
+      const e = s.indexOf(']]>', i + 9);
+      if (e < 0) return { kind: 'comment', name: '<![CDATA[', at: i, end: i + 9 };
+      i = e + 3;
+      continue;
+    }
+    const c = s.charCodeAt(i + 1);
+    if (c === 33 || c === 63) {
+      // `<!…>` or `<?…>`: a bogus comment, to the next `>`
+      const e = s.indexOf('>', i + 2);
+      if (e < 0) return { kind: 'tag', name: s.slice(i, i + 2), at: i, end: i + 2 };
+      i = e + 1;
+      continue;
+    }
+    const close = c === 47;
+    const k0 = close ? i + 2 : i + 1;
+    if (!isAlpha(s.charCodeAt(k0))) {
+      i++;
+      continue;
+    }
+    let k = k0;
+    while (k < n && !isTagSpace(s.charCodeAt(k)) && s[k] !== '/' && s[k] !== '>') k++;
+    const name = s.slice(k0, k).toLowerCase();
+    // The attributes, to the `>`: a `/` right before it, outside a value, self-closes.
+    let j = k;
+    let self = false;
+    while (j < n && s[j] !== '>') {
+      const ch = s.charCodeAt(j);
+      if (ch === 47) {
+        self = s[j + 1] === '>';
+        j++;
+      } else if (isTagSpace(ch)) j++;
+      else {
+        const a0 = j; // an attribute's name; an `=` that starts it is part of it
+        while (j < n && !isTagSpace(s.charCodeAt(j)) && s[j] !== '/' && s[j] !== '>' && (s[j] !== '=' || j === a0)) j++;
+        while (j < n && isTagSpace(s.charCodeAt(j))) j++;
+        if (s[j] !== '=') continue;
+        j++;
+        while (j < n && isTagSpace(s.charCodeAt(j))) j++;
+        if (s[j] === '"' || s[j] === "'") {
+          const e = s.indexOf(s[j], j + 1);
+          if (e < 0) return { kind: 'tag', name, at: i, end: k };
+          j = e + 1;
+        } else while (j < n && !isTagSpace(s.charCodeAt(j)) && s[j] !== '>') j++; // unquoted: a `/` is part of it
+        self = false;
+      }
+    }
+    if (j >= n) return { kind: 'tag', name, at: i, end: k };
+    const after = j + 1;
+    i = after;
+    if (close) {
+      if (name === 'svg' || name === 'math') foreign = Math.max(0, foreign - 1);
+      else if (!foreign && HELD.has(name)) open[name].length -= open[name].length ? 2 : 0;
+      continue;
+    }
+    if (name === 'svg' || name === 'math') {
+      if (!self) foreign++;
+      continue;
+    }
+    if (foreign) continue; // there `/>` closes, and no element's content is text
+    if (self && !VOID_ELEMENT.has(name)) return { kind: 'self', name, at: k0 - 1, end: after };
+    if (name === 'plaintext') return { kind: 'text', name, at: k0 - 1, end: after };
+    if (TEXT_ELEMENT.has(name)) {
+      let re = textEnd.get(name);
+      if (!re) textEnd.set(name, (re = new RegExp(`</${name}[\\t\\n\\f\\r />]`, 'gi')));
+      re.lastIndex = after;
+      const m = re.exec(s);
+      if (!m) return { kind: 'text', name, at: k0 - 1, end: after };
+      i = m.index;
+      continue;
+    }
+    if (HELD.has(name)) open[name].push(k0 - 1, after);
+  }
+  const t = open.template;
+  const sel = open.select;
+  if (!t.length && !sel.length) return null;
+  const name = !sel.length || (t.length && t[0] < sel[0]) ? 'template' : 'select';
+  return { kind: 'open', name, at: open[name][0], end: open[name][1] };
+}
+
 module.exports = {
   normalise,
   IDENT,
@@ -372,6 +488,7 @@ module.exports = {
   isCustomName,
   parseAttrs,
   reportReserved,
+  htmlHazard,
 };
   };
   // ---- src/ast.js
@@ -613,6 +730,10 @@ const PHRASING = words(
 );
 const VERBATIM = words('svg math textarea');
 const UNTRACKED = words('br embed img input source track wbr rt rp option optgroup'); // void, or end tag optional: never unclosed or stray
+// Phrasing tags that, left open, take the rest of the page with them: an
+// iframe's content is text, a select's is options only. Unclosed in their
+// paragraph, they are shown as text (html.unclosed).
+const SWALLOW = words('iframe select');
 const CURRENT = words(
   'address area article aside base blockquote body caption col colgroup dd details dialog div dl dt fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup hr html legend li link main map menu meta nav noscript ol p pre script search section slot style summary table tbody td template tfoot th thead title tr ul svg math textarea',
 );
@@ -1341,11 +1462,12 @@ function mathNode(value, at) {
 // their end tag. Open tags are tracked for html.stray-closer and
 // html.inline-unclosed. A single capital (`<B>`) gets html.inline-escaped only
 // when its end tag follows, so `List<B>` stays silent.
-const rawHtml = (s, e) => {
+const rawNode = (s, e) => {
   const node = { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null };
   if (!atomMode && /\bid\s*=/i.test(node.value)) node.data.luccet.htmlAt = htmlAt(s, e); // where its ids are (the ids transform)
-  return atom(s, e, node);
+  return node;
 };
+const rawHtml = (s, e) => atom(s, e, rawNode(s, e));
 // Where each line of text[s, e) starts in the source.
 function htmlAt(s, e) {
   const at = [ctx.point(offset(s))];
@@ -1368,12 +1490,13 @@ function angle(i) {
       const c = endTag(name, e);
       if (c.at >= 0) return rawHtml(i, c.end);
     } else if (name === lower && passes(name)) {
+      const node = rawNode(i, e);
       if (!UNTRACKED.has(name) && !atomMode) {
         if (!openTags) openTags = new Map();
         if (!openTags.has(name)) openTags.set(name, []);
-        openTags.get(name).push(i, e);
+        openTags.get(name).push(i, e, node);
       }
-      return rawHtml(i, e);
+      return atom(i, e, node);
     }
     if (name === lower && CURRENT.has(name)) rep('html.inline-escaped', i, e, `<${name}> is not an inline tag, so it is shown as text`, 'put block HTML on its own line');
     else if (name !== lower && CURRENT.has(lower) && (name.length > 1 || endTag(lower, e).at >= 0))
@@ -1381,7 +1504,7 @@ function angle(i) {
   } else if ((m = exec(CLOSE_TAG, i)) && passes(m[1])) {
     const e = CLOSE_TAG.lastIndex;
     const open = openTags && openTags.get(m[1]);
-    if (open && open.length) open.splice(-2);
+    if (open && open.length) open.splice(-3);
     else if (!UNTRACKED.has(m[1])) rep('html.stray-closer', i, e, `</${m[1]}> closes no open <${m[1]}> in this paragraph`, `open it with <${m[1]}> earlier in the paragraph, or remove it`);
     return rawHtml(i, e);
   }
@@ -1512,7 +1635,16 @@ function scanAll() {
   processEmphasis(null);
   if (openTags)
     for (const [name, at] of openTags)
-      for (let k = 0; k < at.length; k += 2) rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
+      for (let k = 0; k < at.length; k += 3) {
+        if (!SWALLOW.has(name)) {
+          rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
+          continue;
+        }
+        const node = at[k + 2];
+        node.type = 'text';
+        delete node.data;
+        rep('html.unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph, so the browser would hide the rest of the page inside it; it is shown as text`, `close it with </${name}> before the paragraph ends`);
+      }
   if (latexAt < Infinity && !ctx.flags['latex.delimiters']) {
     ctx.flags['latex.delimiters'] = true;
     rep('latex.delimiters', latexAt, latexAt + 2, "LaTeX's delimiters are not math in luccet; the backslash is an escape", 'math is `$…$` and `$$`');
@@ -1610,7 +1742,7 @@ module.exports = { parseInline, atomRanges };
 //     column count is `align.length`); a continuation is a `break` in a cell.
 
 const { createSpan, spanAdd } = require('./ast');
-const { IDENT, NAME, LABEL, matchAt, isAsciiPunct, parseAttrs, reportReserved, isReservedName, isCustomName, put } = require('./scan');
+const { IDENT, NAME, LABEL, matchAt, isAsciiPunct, parseAttrs, reportReserved, isReservedName, isCustomName, put, htmlHazard } = require('./scan');
 const { parseInline, atomRanges } = require('./inline');
 
 // Tags that start a raw HTML block, as custom elements do. A raw-text tag's
@@ -2272,6 +2404,33 @@ function fence(r, fi, te) {
   leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], at: node.type === 'html' ? [] : null, start: pa ? pa.start : fi, end: te, open: fi };
 }
 
+// Raw HTML, a block or an `=html` fence, that would hide what follows it in
+// the page (scan.js htmlHazard) is shown as its source, pre.t-error: the
+// browser would otherwise take the rest of the note into a comment, a
+// script's text, a video's fallback. `at` holds where each line of the
+// value starts in the source.
+const HAZARD = {
+  comment: (h) => [`this \`${h.name}\` is never closed, so the browser would hide everything after it`, `end it with \`${h.name === '<!--' ? '-->' : ']]>'}\``],
+  tag: (h) => [`this \`${h.name.startsWith('<') ? h.name : `<${h.name}`}\` tag is never ended with \`>\`, so the browser would read what follows as part of it`, 'end the tag with `>`, and close every quote in it'],
+  text: (h) => (h.name === 'plaintext' ? ['`<plaintext>` has no end, so the browser would show the rest of the page as its text', 'use `<pre>` for preformatted text'] : [`\`<${h.name}>\` is never closed here, so the browser would take the rest of the page as its text`, `end it with \`</${h.name}>\``]),
+  open: (h) => [`\`<${h.name}>\` is never closed here, so the browser would hide the rest of the page inside it`, `end it with \`</${h.name}>\``],
+  self: (h) => [`\`/>\` does not close a \`<${h.name}>\`: HTML ignores it on an element that is not void, so the rest of the page would be its content`, `write \`<${h.name} …></${h.name}>\``],
+};
+function hazard(node, at) {
+  const h = htmlHazard(node.value || '');
+  if (!h) return;
+  luccet(node).unclosed = true;
+  const v = node.value;
+  const offset = (o) => {
+    let line = 0;
+    let nl = -1;
+    for (let k = v.indexOf('\n'); k !== -1 && k < o; k = v.indexOf('\n', k + 1)) line++, (nl = k);
+    return at && at[line] !== undefined ? at[line] + o - nl - 1 : node.position ? node.position.start.offset : 0;
+  };
+  const [message, hint] = HAZARD[h.kind](h);
+  report(h.kind === 'self' ? 'html.self-closed' : 'html.unclosed', offset(h.at), offset(h.end), `${message}; the raw HTML is shown as source`, hint);
+}
+
 // A raw HTML block: the kind, and with it the end condition, is fixed on the first line, which counts too.
 function html(r, fi) {
   const pa = begin();
@@ -2281,6 +2440,7 @@ function html(r, fi) {
   addChild(node);
   if (r.hk === 'oneline') {
     node.position = ctx.position(a, le);
+    hazard(node, [lineAt()]);
     const hint = r.stray === 'table' ? 'write a pipe table or a whole raw `<table>` block' : `to wrap Luccet content write \`:::${r.stray}{…}\` … \`:::\``;
     if (r.stray) report('html.stray-closer', a, trimEnd(a, le), `\`</${r.stray}>\` closes nothing that is open; it is passed through`, hint);
     return;
@@ -2598,6 +2758,7 @@ function finish(v) {
     if (v.hk !== 'generic') (luccet(node).unclosed = true), (unclosedWhat = `the ${what} opened on line ${opened} is unclosed`);
     report('html.unclosed', v.start, v.first, `the raw ${what} opened on line ${opened} is never closed`, v.hk === 'comment' ? 'end it with `-->`' : `end it with \`</${v.name}>\``);
   }
+  if (node.type === 'html' && !luccet(node).unclosed) hazard(node, v.at);
   node.position = ctx.position(v.start, v.end);
 }
 

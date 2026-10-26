@@ -1457,6 +1457,24 @@ Each door makes one `html` node with its own end. Nothing in it is parsed as Luc
 <!-- a comment that never closes
 ```
 
+### What would hide the rest {#raw-hazards}
+
+"Nothing outside it is affected" holds only if the browser ends the node where Luccet does. So each raw block and `=html` fence is read as the browser's tokenizer reads HTML, and one that holds any of these is shown as escaped source in `<pre class="t-error">`, with an error at the construct:
+
+- a comment never closed, or a `<![CDATA[` in svg or math: the browser would hide everything after it ([`html.unclosed`](diagnostics.html#html-unclosed));
+- a tag never ended with `>`, often a quote left open: what follows would become its attributes;
+- an element whose content is text, `<script>`, `<style>`, `<textarea>`, `<title>`, `<xmp>`, `<iframe>`, `<noembed>`, `<noframes>` or `<noscript>`, without its end tag, or a `<plaintext>`, which has none: the rest of the page would be its text;
+- a `<template>` or a `<select>` left open: the rest would be hidden inside it;
+- `/>` on an element that is not void, such as `<video … />`, `<iframe/>` or `<div/>`: HTML ignores the `/`, so the element stays open and the rest of the page is its content ([`html.self-closed`](diagnostics.html#html-self-closed)). Inside `<svg>` and `<math>` `/>` closes, as in XML.
+
+Inline, an `<iframe>` or a `<select>` never closed in its paragraph is shown as text, with `html.unclosed`; other unclosed inline tags stay open until the paragraph's end tag closes them, with [`html.inline-unclosed`](diagnostics.html#html-inline-unclosed).
+
+```luccet {.live expect="html.self-closed"}
+<iframe src="map.html" />
+
+The map's legend.
+```
+
 To put Luccet inside an element, use a container with that name, `:::details` … `:::`, rather than raw tags around Luccet.
 
 ### Safe rendering {#safe}

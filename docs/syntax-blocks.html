@@ -1418,14 +1418,14 @@ A one-line block is just its line. It covers:
 
 - an end tag `</NAME>` whose NAME is block-level or a custom element. It also gets [`html.stray-closer`](diagnostics.html#html-stray-closer) (info), with a hint to write a `:::NAME{…}` container instead (for `</table>`, the hint points to a pipe table or a whole raw `<table>` block). Any other end tag does not start a block: `</select>` continues a paragraph;
 - a void block tag: `<hr …>`, `<link …>`;
-- a self-closed tag: `<section/>`;
+- a self-closed tag: `<section/>`. HTML closes none with `/>` but the void ones, so on any other it is [`html.self-closed`](diagnostics.html#html-self-closed) (error), and the line is shown as source;
 - an element whose end tag HTML lets you omit: `p`, `li`, `dd`, `dt`, `tr`, `td`, `th`, `thead`, `tbody`, `tfoot`.
 
 ```luccet {.live}
 <hr class="fancy">
 <p>
 A Luccet paragraph, between two raw lines: *parsed*.
-<section/>
+<hr/>
 ```
 
 So wrapping Luccet text in `<p>` … `</p>` lines gives a raw `<p>`, a Luccet paragraph, and a stray `</p>`:
@@ -1440,7 +1440,7 @@ Luccet **text**
 
 Every other block-level or custom element starts a generic block, which ends on the line where the count of openings minus closings of its name, counted from the opener, returns to 0. That may be the opener line itself.
 
-- An **opening** is `<NAME` followed by whitespace, `/`, `>` or the end of the line, and not self-closed.
+- An **opening** is `<NAME` followed by whitespace, `/`, `>` or the end of the line, and not self-closed. (A self-closed `<div/>` is not counted, but the browser opens it: [`html.self-closed`](diagnostics.html#html-self-closed).)
 - A **closing** is `</NAME` followed by optional whitespace and `>`.
 - The boundary matters: `<details-panel>` is not an opening of `details`, and `<divider>` is not an opening of `div`.
 - Names compare case-insensitively: `</DIV>` and `</div >` both count.
@@ -1450,7 +1450,6 @@ Every other block-level or custom element starts a generic block, which ends on 
 <div>
 nested divs are counted
 </div>
-<div/>
 <divider></divider>
 </DIV >
 After.

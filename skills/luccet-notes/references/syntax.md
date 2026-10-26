@@ -215,7 +215,7 @@ A line starting with `<` starts a raw block when it is one of four kinds. The co
 |---|---|---|
 | comment | `<!--` | at the first line containing `-->`, all of that line included |
 | raw text | `<script`, `<style`, `<pre`, `<textarea` | at the first line containing the matching end tag |
-| one line | an end tag, a void tag (`<hr>`, `<link>`), a self-closed tag, or `<p>` `<li>` `<dd>` `<dt>` `<tr>` `<td>` `<th>` `<thead>` `<tbody>` `<tfoot>` | on the same line |
+| one line | an end tag, a void tag (`<hr>`, `<link>`), a self-closed tag (`html.self-closed` unless void: HTML does not close `<div/>`), or `<p>` `<li>` `<dd>` `<dt>` `<tr>` `<td>` `<th>` `<thead>` `<tbody>` `<tfoot>` | on the same line |
 | generic | a block-level or custom element | on the line where the openings and closings of that name balance |
 
 - **Block-level names:** `address article aside audio blockquote canvas details dialog div dl fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr iframe link math menu nav noscript object ol picture search section summary svg table template ul video`. A custom element is lower case, starts with a letter and holds a hyphen: `<tide-clock>`.

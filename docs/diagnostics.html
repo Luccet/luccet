@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 63 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `output.limit` from the emitter, wherever it runs.
+The first 64 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `output.limit` from the emitter, wherever it runs.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -38,7 +38,8 @@ The first 63 codes come from the parser and the transforms, so `luccet.check`, `
 | [`block.spaced-name`](#block-spaced-name) | warning | A space separates the colons from the name. |
 | [`block.unclosed-fence`](#block-unclosed-fence) | error | A fenced code block has no closing fence. |
 | [`fence.info-junk`](#fence-info-junk) | warning | A fence's info has something besides a language, a title and a group. |
-| [`html.unclosed`](#html-unclosed) | error | A raw HTML block never reaches its end. |
+| [`html.unclosed`](#html-unclosed) | error | Raw HTML never reaches its end, or holds something that would hide the rest of the page. |
+| [`html.self-closed`](#html-self-closed) | error | Raw HTML closes an element with `/>` that HTML does not close that way. |
 | [`html.stray-closer`](#html-stray-closer) | info | An end tag closes nothing that is open. |
 | [`html.wrapper`](#html-wrapper) | warning | Luccet written inside a raw HTML block is shown as HTML, not parsed. |
 | [`html.inline-unclosed`](#html-inline-unclosed) | warning | Inline content opens a tag it never closes. |
@@ -139,7 +140,7 @@ Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)): each code 
 | `warning` | kept | Everything you wrote reaches the page, as text or with an attribute not applied, which is probably not what you meant. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
 | `info` | hint | The page is what you meant. | [`footnote.unused`](#footnote-unused): a definition nothing refers to is still shown, after the others. |
 
-The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 63 parser and transform codes, 20 are errors, 38 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `output.limit` is an error, `addon.remote` is an info, and `link.dangling` is a warning.
+The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 64 parser and transform codes, 21 are errors, 38 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `output.limit` is an error, `addon.remote` is an info, and `link.dangling` is a warning.
 
 Severity decides how each tool treats a diagnostic:
 
@@ -776,19 +777,27 @@ The engine reports `fence.info-junk` (warning) at 1:10:
 
 ### `html.unclosed` {#html-unclosed}
 
-**Error.** A raw HTML block never reaches its end.
+**Error.** Raw HTML never reaches its end, or holds something that would hide the rest of the page.
 
-- **Trigger.** It depends on the kind of block, fixed by its first line:
-  - a comment, `<!--`, with no `-->`;
-  - a raw-text element, `<script>`, `<style>`, `<pre>` or `<textarea>`, with no matching end tag, in any case, with optional spaces or tabs before its `>` (`</script >` counts);
-  - a generic block-level or custom element whose openings and closings never balance.
+- **Trigger.** Any of these:
+  - **A block never ends.** It depends on the kind of block, fixed by its first line:
+    - a comment, `<!--`, with no `-->`;
+    - a raw-text element, `<script>`, `<style>`, `<pre>` or `<textarea>`, with no matching end tag, in any case, with optional spaces or tabs before its `>` (`</script >` counts);
+    - a generic block-level or custom element whose openings and closings never balance.
 
-  A comment or raw-text block runs to the end of the innermost quote, list item or footnote definition, or to the end of the note, through `:::` lines, since it may legitimately hold them. A generic block also stops at the first `:::` opener or closer line, which is then read normally.
-- **Position.** The first line of the block.
+    A comment or raw-text block runs to the end of the innermost quote, list item or footnote definition, or to the end of the note, through `:::` lines, since it may legitimately hold them. A generic block also stops at the first `:::` opener or closer line, which is then read normally.
+  - **A block or an `=html` fence holds a hazard** further in, read as the browser reads HTML ([Raw HTML](elements.html#raw-hazards)):
+    - a comment never closed, or a `<![CDATA[` in svg or math;
+    - a tag never ended with `>`, such as one with an open quote;
+    - an element whose content is text, `<script>`, `<style>`, `<textarea>`, `<title>`, `<xmp>`, `<iframe>`, `<noembed>`, `<noframes>` or `<noscript>`, without its end tag, or a `<plaintext>`, which has none;
+    - a `<template>` or a `<select>` left open.
+  - **Inline**, an `<iframe>` or a `<select>` never closed in its paragraph.
+- **Position.** For a block that never ends, its first line; for a hazard, the construct.
 - **Content.**
-  - An unclosed comment or raw-text block is **not** emitted as HTML: in the browser it would turn the rest of the page into a comment, a script or a stylesheet. It is shown as escaped source in a `<pre class="t-error">`, from its first line to the last line it held.
+  - An unclosed comment or raw-text block, and a block or fence with a hazard, is **not** emitted as HTML: in the browser it would turn the rest of the page into a comment, a script's text, a template's hidden content. It is shown as escaped source in a `<pre class="t-error">`, from its first line to the last line it held.
+  - An unclosed `<iframe>` or `<select>` inline is shown as text.
   - An unclosed generic block is still emitted as raw HTML, up to where it stopped. The browser then balances the tags itself, which can change what ends up inside what.
-- **Hint.** The end tag to add.
+- **Hint.** The end to add.
 
 ```luccet {.live expect="html.unclosed"}
 :::note
@@ -843,7 +852,66 @@ The engine reports `block.unclosed` (error) at 1:1:
 - **Message:** `` `:::note` opened on line 1 is still open at line 4 ``
 - **Hint:** ``add `:::` or `:::/note`; the `<script>` opened on line 2 is unclosed``
 
-**Related.** [`html.wrapper`](#html-wrapper), [`html.stray-closer`](#html-stray-closer), [`block.unclosed`](#block-unclosed), [`block.unclosed-fence`](#block-unclosed-fence).
+A comment left open inside a block:
+
+```luccet {.live expect="html.unclosed"}
+<div class="box">
+<!-- the old version:
+<p>Old text.</p>
+</div>
+
+## Next section
+```
+
+The engine reports `html.unclosed` (error) at 2:1:
+
+- **Message:** ``this `<!--` is never closed, so the browser would hide everything after it; the raw HTML is shown as source``
+- **Hint:** `` end it with `-->` ``
+
+An `<iframe>` left open in a paragraph:
+
+```luccet {.live expect="html.unclosed"}
+See the map <iframe src="map.html"> below.
+
+## Next section
+```
+
+The engine reports `html.unclosed` (error) at 1:13:
+
+- **Message:** `<iframe> is never closed in this paragraph, so the browser would hide the rest of the page inside it; it is shown as text`
+- **Hint:** `close it with </iframe> before the paragraph ends`
+
+**Related.** [`html.self-closed`](#html-self-closed), [`html.wrapper`](#html-wrapper), [`html.stray-closer`](#html-stray-closer), [`block.unclosed`](#block-unclosed), [`block.unclosed-fence`](#block-unclosed-fence).
+
+### `html.self-closed` {#html-self-closed}
+
+**Error.** Raw HTML closes an element with `/>` that HTML does not close that way.
+
+- **Trigger.** In a raw HTML block or an `=html` fence, a start tag ending in `/>` on an element that is not void: `<video … />`, `<iframe … />`, `<div/>`, `<my-widget/>`. HTML ignores the `/` there, so the element stays open and the rest of the page becomes its content: a video's or an iframe's fallback, which the browser does not show. Void elements (`<br/>`, `<img … />`, `<hr/>` …) are fine, and so is anything inside `<svg>` or `<math>`, where `/>` does close.
+- **Position.** The tag.
+- **Content.** The block or fence is shown as escaped source in a `<pre class="t-error">`.
+- **Hint.** The element with its end tag.
+
+```luccet {.live expect="html.self-closed"}
+<video src="talk.mp4" controls />
+
+The talk's notes.
+```
+
+The engine reports `html.self-closed` (error) at 1:1:
+
+- **Message:** ``` ``/>` does not close a `<video>`: HTML ignores it on an element that is not void, so the rest of the page would be its content; the raw HTML is shown as source`` ```
+- **Hint:** `` write `<video …></video>` ``
+
+**Fix.** Write the end tag:
+
+```luccet {.live}
+<video src="talk.mp4" controls></video>
+
+The talk's notes.
+```
+
+**Related.** [`html.unclosed`](#html-unclosed).
 
 ### `html.stray-closer` {#html-stray-closer}
 
@@ -959,7 +1027,7 @@ Plain text, now *parsed*.
 
 **Warning.** Inline content opens a tag it never closes.
 
-- **Trigger.** A paragraph, heading, table cell or title opens a non-void phrasing tag, such as `<b>` or `<span>`, or a custom element, such as `<my-tag>`, and never closes it. Void elements (`<br>`, `<img>`, `<input>` …) are exempt, and so are those whose end tag HTML lets you omit: `rt`, `rp`, `option`, `optgroup`.
+- **Trigger.** A paragraph, heading, table cell or title opens a non-void phrasing tag, such as `<b>` or `<span>`, or a custom element, such as `<my-tag>`, and never closes it. Void elements (`<br>`, `<img>`, `<input>` …) are exempt, and so are those whose end tag HTML lets you omit: `rt`, `rp`, `option`, `optgroup`. An `<iframe>` or a `<select>`, which would take the rest of the page with it, is [`html.unclosed`](#html-unclosed) instead.
 - **Position.** The open tag.
 - **Content.** Verbatim. The browser would carry a formatting tag such as `<b>` on into the paragraphs that follow.
 - **Hint.** The end tag to add, and where.

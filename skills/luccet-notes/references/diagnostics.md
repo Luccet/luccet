@@ -157,8 +157,9 @@ print("hi")
 
 ### `html.unclosed` · error
 
-A raw HTML block never ends: `<!--` with no `-->`; `<script>`, `<style>`, `<pre>` or `<textarea>` with no end tag; a block element (`<div>`, `<form>` …) whose tags never balance. An unclosed comment or raw-text block runs to the end of its container or the note and is shown as escaped source, hiding everything after it. An unclosed generic block stops at the next `:::` line and is emitted anyway.
-**Fix:** add the end tag the hint gives, where the element ends.
+A raw HTML block never ends: `<!--` with no `-->`; `<script>`, `<style>`, `<pre>` or `<textarea>` with no end tag; a block element (`<div>`, `<form>` …) whose tags never balance. An unclosed comment or raw-text block runs to the end of its container or the note and is shown as escaped source. An unclosed generic block stops at the next `:::` line and is emitted anyway.
+Also raw HTML, a block or an `=html` fence, that holds what would hide the rest of the page: a comment never closed, a tag never ended with `>` (an open quote), `<script>`, `<style>`, `<textarea>`, `<title>`, `<iframe>`, `<noscript>` … without its end tag, `<plaintext>`, or a `<template>` or `<select>` left open. It is shown as escaped source. Inline, an `<iframe>` or `<select>` never closed in its paragraph is shown as text.
+**Fix:** add the end the hint gives, where the element ends.
 
 ```luccet expect="html.unclosed"
 :::note
@@ -195,9 +196,18 @@ Some **bold** text.
 :::
 ```
 
+### `html.self-closed` · error
+
+Raw HTML writes `/>` on an element that is not void: `<video … />`, `<iframe/>`, `<div/>`, `<my-widget/>`. HTML ignores the `/`, so the element stays open and the rest of the page becomes its content (a video's hidden fallback). The block is shown as escaped source. Void elements (`<br/>`, `<img … />`) and anything inside `<svg>` or `<math>` are fine.
+**Fix:** write the end tag: `<video src="talk.mp4" controls></video>`.
+
+```luccet expect="html.self-closed"
+<video src="talk.mp4" controls />
+```
+
 ### `html.inline-unclosed` · warning
 
-A paragraph, heading, cell or title opens a non-void inline tag (`<b>`, `<span>`, `<my-tag>`) and never closes it; the browser would carry it into what follows.
+A paragraph, heading, cell or title opens a non-void inline tag (`<b>`, `<span>`, `<my-tag>`) and never closes it; the browser would carry it into what follows. (An `<iframe>` or `<select>` is `html.unclosed`.)
 **Fix:** close it in the same paragraph, or use Luccet's spelling: `**bold**`, `[text]{.class}`.
 
 ```luccet expect="html.inline-unclosed"

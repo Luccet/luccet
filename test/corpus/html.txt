@@ -645,7 +645,7 @@ Text.
 
 spec: syntax-blocks#raw-html
 
-A self-closed block-level or custom tag is a one-line block.
+A self-closed block-level or custom tag is a one-line block. HTML does not close it, though (the `/` is ignored on an element that is not void), so the rest of the page would be its content: each is `html.self-closed` and shown as source (A9).
 
 ````luccet
 <my-widget data-src="a.json"/>
@@ -654,13 +654,18 @@ Text.
 ````
 
 ````json ast
-{"type":"root","children":[{"type":"html","value":"<my-widget data-src=\"a.json\"/>","data":{"luccet":{"kind":"oneline"}}},{"type":"html","value":"<div class=\"spacer\" />","data":{"luccet":{"kind":"oneline"}}},{"type":"paragraph"}]}
+{"type":"root","children":[{"type":"html","value":"<my-widget data-src=\"a.json\"/>","data":{"luccet":{"kind":"oneline","unclosed":true}}},{"type":"html","value":"<div class=\"spacer\" />","data":{"luccet":{"kind":"oneline","unclosed":true}}},{"type":"paragraph"}]}
 ````
 
 ````html
-<my-widget data-src="a.json"/>
-<div class="spacer" />
+<pre class="t-error">&lt;my-widget data-src="a.json"/&gt;</pre>
+<pre class="t-error">&lt;div class="spacer" /&gt;</pre>
 <p>Text.</p>
+````
+
+````diagnostics
+1:1 error html.self-closed "does not close a `<my-widget>`"
+2:1 error html.self-closed "does not close a `<div>`"
 ````
 
 ## html/optional-end-p-one-line
@@ -905,7 +910,7 @@ After.
 
 spec: syntax-blocks#raw-html
 
-A self-closed `<div/>` inside a generic block is not an opening.
+A self-closed `<div/>` inside a generic block is not an opening, so the block ends at its `</div>`. The browser reads it as one, though, and the outer `<div>` would stay open: `html.self-closed` at the tag, and the block is shown as source.
 
 ````luccet
 <div>
@@ -915,14 +920,18 @@ After.
 ````
 
 ````json ast
-{"type":"root","children":[{"type":"html","value":"<div>\n<div/>\n</div>","data":{"luccet":{"kind":"generic"}}},{"type":"paragraph"}]}
+{"type":"root","children":[{"type":"html","value":"<div>\n<div/>\n</div>","data":{"luccet":{"kind":"generic","unclosed":true}}},{"type":"paragraph"}]}
 ````
 
 ````html
-<div>
-<div/>
-</div>
+<pre class="t-error">&lt;div&gt;
+&lt;div/&gt;
+&lt;/div&gt;</pre>
 <p>After.</p>
+````
+
+````diagnostics
+2:1 error html.self-closed
 ````
 
 ## html/closing-spellings
@@ -2227,4 +2236,225 @@ Watch <video src="tide.mp4" controls></video> here.
 ````html
 <iframe src="map.html"></iframe>
 <p>Watch <video src="tide.mp4" controls></video> here.</p>
+````
+
+## html/hazard-comment-inside
+
+spec: elements#raw-hazards diagnostics#html-unclosed
+
+From the content-loss audit (A8): a comment opened inside a raw block and never closed hid the rest of the page in the browser, with no diagnostic. The block is shown as source, with `html.unclosed` at the `<!--`.
+
+````luccet
+<div class="box">
+<!-- the old version:
+<p>Old.</p>
+</div>
+
+## Next
+````
+
+````html
+<pre class="t-error">&lt;div class="box"&gt;
+&lt;!-- the old version:
+&lt;p&gt;Old.&lt;/p&gt;
+&lt;/div&gt;</pre>
+<h2 id="next">Next</h2>
+````
+
+````diagnostics
+2:1 error html.unclosed "is never closed, so the browser would hide everything after it"
+````
+
+## html/hazard-text-element
+
+spec: elements#raw-hazards diagnostics#html-unclosed
+
+A script opened inside a raw block without its end tag would take the rest of the page as its text (A8).
+
+````luccet
+<div>
+<script>let x = 1
+</div>
+
+After.
+````
+
+````html
+<pre class="t-error">&lt;div&gt;
+&lt;script&gt;let x = 1
+&lt;/div&gt;</pre>
+<p>After.</p>
+````
+
+````diagnostics
+2:1 error html.unclosed "`<script>` is never closed here"
+````
+
+## html/hazard-template
+
+spec: elements#raw-hazards diagnostics#html-unclosed
+
+A `<template>` left open would hide the rest of the page inside it.
+
+````luccet
+<div>
+<template><p>x</p>
+</div>
+
+After.
+````
+
+````html
+<pre class="t-error">&lt;div&gt;
+&lt;template&gt;&lt;p&gt;x&lt;/p&gt;
+&lt;/div&gt;</pre>
+<p>After.</p>
+````
+
+````diagnostics
+2:1 error html.unclosed "`<template>` is never closed here"
+````
+
+## html/hazard-open-quote
+
+spec: elements#raw-hazards diagnostics#html-unclosed
+
+A quote left open in a tag: the browser would read what follows as the tag's attributes.
+
+````luccet
+<div title="open
+</div>
+
+After.
+````
+
+````html
+<pre class="t-error">&lt;div title="open
+&lt;/div&gt;</pre>
+<p>After.</p>
+````
+
+````diagnostics
+1:1 error html.unclosed "is never ended with `>`"
+````
+
+## html/hazard-self-closed
+
+spec: elements#raw-hazards diagnostics#html-self-closed
+
+From the content-loss audit (A9): `<video … />` at a line start is a one-line block, but HTML ignores the `/`, so the rest of the page became the video's fallback, which is not shown.
+
+````luccet
+<video src="talk.mp4" controls />
+
+After.
+````
+
+````html
+<pre class="t-error">&lt;video src="talk.mp4" controls /&gt;</pre>
+<p>After.</p>
+````
+
+````diagnostics
+1:1 error html.self-closed "write `<video …></video>`"
+````
+
+## html/hazard-self-closed-in-quote
+
+spec: elements#raw-hazards diagnostics#html-self-closed
+
+The diagnostic points at the tag on its own line, past the quote's `> `; a `/>` inside a quoted value is part of the value.
+
+````luccet
+> <div>
+>   <p>x <span title="a/>b">y</span></p>
+>   <my-card/>
+> </div>
+````
+
+````html
+<blockquote>
+<pre class="t-error">&lt;div&gt;
+  &lt;p&gt;x &lt;span title="a/&gt;b"&gt;y&lt;/span&gt;&lt;/p&gt;
+  &lt;my-card/&gt;
+&lt;/div&gt;</pre>
+</blockquote>
+````
+
+````diagnostics
+3:5 error html.self-closed "a `<my-card>`"
+````
+
+## html/hazard-none
+
+spec: elements#raw-hazards
+
+What hides nothing stays raw: `/>` in svg, void elements self-closed, a closed comment, a script with its end tag.
+
+````luccet
+<svg viewBox="0 0 10 10"><circle r="5"/></svg>
+<div>
+<br/><img src="a.png" />
+<!-- closed -->
+<script>a<b</script>
+</div>
+
+After.
+````
+
+````html
+<svg viewBox="0 0 10 10"><circle r="5"/></svg>
+<div>
+<br/><img src="a.png" />
+<!-- closed -->
+<script>a<b</script>
+</div>
+<p>After.</p>
+````
+
+## html/hazard-fence
+
+spec: elements#raw-hazards syntax-blocks#html-fence diagnostics#html-unclosed
+
+From the content-loss audit (A10): an `=html` fence with an unclosed comment hid the rest of the page.
+
+````luccet
+```=html
+<!-- open
+<p>x</p>
+```
+
+After.
+````
+
+````html
+<pre class="t-error">&lt;!-- open
+&lt;p&gt;x&lt;/p&gt;</pre>
+<p>After.</p>
+````
+
+````diagnostics
+2:1 error html.unclosed "`<!--` is never closed"
+````
+
+## html/hazard-inline-iframe-select
+
+spec: elements#raw-hazards syntax-inline#raw-inline-html diagnostics#html-unclosed
+
+From the content-loss audit (A11): an `<iframe>` or a `<select>` never closed in its paragraph took the rest of the page with it, reported only as `html.inline-unclosed`. Each is now `html.unclosed` and shown as text; closed, it passes.
+
+````luccet
+See the map <iframe src="map.html"> below, and <select><option>a</option> this.
+
+After <iframe src="m.html"></iframe> fine.
+````
+
+````html
+<p>See the map &lt;iframe src="map.html"&gt; below, and &lt;select&gt;<option>a</option> this.</p>
+<p>After <iframe src="m.html"></iframe> fine.</p>
+````
+
+````diagnostics
+1:13 error html.unclosed "<iframe> is never closed in this paragraph"
+1:48 error html.unclosed "<select> is never closed"
 ````

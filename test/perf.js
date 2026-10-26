@@ -96,6 +96,8 @@ const CASES = [
   { name: 'table with continued rows', gen: (n) => '| a | b |\n|---|---|\n' + rep('| $x | y\\\n', n) + '| z |\n', n: 3000 },
   { name: 'unclosed raw <div> lines', gen: (n) => rep('<div>\n', n), n: 6000 },
   { name: 'raw <div> nesting on one line', gen: (n) => rep('<div>', n) + rep('</div>', n) + '\n', n: 5000 },
+  { name: 'raw HTML hazards: selects in a template', gen: (n) => '<div><template>' + rep('<select>', n) + rep('</template>', n) + '</div>\n', n: 5000 },
+  { name: 'raw HTML hazards: attributes and quotes', gen: (n) => '<div>' + rep('<a b="c" d=e f/>', n) + '</div>\n', n: 5000 },
   { name: 'alternating $$ lines', gen: (n) => rep('$$\nx\n', n), n: 6000 },
   { name: 'attribute lines', gen: (n) => rep('{.a}\n', n) + 'x\n', n: 6000 },
   // Documents.

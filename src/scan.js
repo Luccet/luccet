@@ -224,6 +224,121 @@ function reportReserved(ctx, res, toOffset) {
   }
 }
 
+// ---------------------------------------------------------------- raw HTML hazards
+
+// What in raw HTML would hide the rest of the page once the browser reads it
+// (docs/elements.html#raw-hazards), read as the browser's tokenizer reads
+// it, with no DOM: a comment, or a CDATA section in svg or math, never
+// closed; a tag never ended with `>` (a quote left open in it, say); an
+// element whose content is text (script, style, textarea, title, xmp,
+// iframe, noembed, noframes, noscript) without its end tag, or a plaintext,
+// which has none; a template or a select left open; and `/>` on an element
+// that is not void, which HTML ignores, outside svg and math, where it
+// closes. Returns the first, {kind, name, at, end} with offsets in s
+// (kind: 'comment', 'tag', 'text', 'open' or 'self'), or null.
+const TEXT_ELEMENT = new Set('script style textarea title xmp iframe noembed noframes noscript'.split(' '));
+const VOID_ELEMENT = new Set('area base br col embed hr img input link meta source track wbr param keygen'.split(' '));
+const HELD = new Set(['template', 'select']);
+const textEnd = new Map(); // a text element's name -> its end tag, as a sticky-free global regex
+const isTagSpace = (c) => c === 32 || c === 9 || c === 10 || c === 12 || c === 13;
+const isAlpha = (c) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+function htmlHazard(s) {
+  let i = s.indexOf('<');
+  if (i < 0) return null;
+  const n = s.length;
+  const open = { template: [], select: [] }; // each one's start tags still open: at, end
+  let foreign = 0; // svg or math depth
+  for (; i >= 0 && i < n; i = s.indexOf('<', i)) {
+    if (s.startsWith('<!--', i)) {
+      if (s.startsWith('<!-->', i) || s.startsWith('<!--->', i)) {
+        i += s[i + 4] === '>' ? 5 : 6;
+        continue;
+      }
+      const e = s.indexOf('-->', i + 4);
+      if (e < 0) return { kind: 'comment', name: '<!--', at: i, end: i + 4 };
+      i = e + 3;
+      continue;
+    }
+    if (foreign && s.startsWith('<![CDATA[', i)) {
+      const e = s.indexOf(']]>', i + 9);
+      if (e < 0) return { kind: 'comment', name: '<![CDATA[', at: i, end: i + 9 };
+      i = e + 3;
+      continue;
+    }
+    const c = s.charCodeAt(i + 1);
+    if (c === 33 || c === 63) {
+      // `<!…>` or `<?…>`: a bogus comment, to the next `>`
+      const e = s.indexOf('>', i + 2);
+      if (e < 0) return { kind: 'tag', name: s.slice(i, i + 2), at: i, end: i + 2 };
+      i = e + 1;
+      continue;
+    }
+    const close = c === 47;
+    const k0 = close ? i + 2 : i + 1;
+    if (!isAlpha(s.charCodeAt(k0))) {
+      i++;
+      continue;
+    }
+    let k = k0;
+    while (k < n && !isTagSpace(s.charCodeAt(k)) && s[k] !== '/' && s[k] !== '>') k++;
+    const name = s.slice(k0, k).toLowerCase();
+    // The attributes, to the `>`: a `/` right before it, outside a value, self-closes.
+    let j = k;
+    let self = false;
+    while (j < n && s[j] !== '>') {
+      const ch = s.charCodeAt(j);
+      if (ch === 47) {
+        self = s[j + 1] === '>';
+        j++;
+      } else if (isTagSpace(ch)) j++;
+      else {
+        const a0 = j; // an attribute's name; an `=` that starts it is part of it
+        while (j < n && !isTagSpace(s.charCodeAt(j)) && s[j] !== '/' && s[j] !== '>' && (s[j] !== '=' || j === a0)) j++;
+        while (j < n && isTagSpace(s.charCodeAt(j))) j++;
+        if (s[j] !== '=') continue;
+        j++;
+        while (j < n && isTagSpace(s.charCodeAt(j))) j++;
+        if (s[j] === '"' || s[j] === "'") {
+          const e = s.indexOf(s[j], j + 1);
+          if (e < 0) return { kind: 'tag', name, at: i, end: k };
+          j = e + 1;
+        } else while (j < n && !isTagSpace(s.charCodeAt(j)) && s[j] !== '>') j++; // unquoted: a `/` is part of it
+        self = false;
+      }
+    }
+    if (j >= n) return { kind: 'tag', name, at: i, end: k };
+    const after = j + 1;
+    i = after;
+    if (close) {
+      if (name === 'svg' || name === 'math') foreign = Math.max(0, foreign - 1);
+      else if (!foreign && HELD.has(name)) open[name].length -= open[name].length ? 2 : 0;
+      continue;
+    }
+    if (name === 'svg' || name === 'math') {
+      if (!self) foreign++;
+      continue;
+    }
+    if (foreign) continue; // there `/>` closes, and no element's content is text
+    if (self && !VOID_ELEMENT.has(name)) return { kind: 'self', name, at: k0 - 1, end: after };
+    if (name === 'plaintext') return { kind: 'text', name, at: k0 - 1, end: after };
+    if (TEXT_ELEMENT.has(name)) {
+      let re = textEnd.get(name);
+      if (!re) textEnd.set(name, (re = new RegExp(`</${name}[\\t\\n\\f\\r />]`, 'gi')));
+      re.lastIndex = after;
+      const m = re.exec(s);
+      if (!m) return { kind: 'text', name, at: k0 - 1, end: after };
+      i = m.index;
+      continue;
+    }
+    if (HELD.has(name)) open[name].push(k0 - 1, after);
+  }
+  const t = open.template;
+  const sel = open.select;
+  if (!t.length && !sel.length) return null;
+  const name = !sel.length || (t.length && t[0] < sel[0]) ? 'template' : 'select';
+  return { kind: 'open', name, at: open[name][0], end: open[name][1] };
+}
+
 module.exports = {
   normalise,
   IDENT,
@@ -238,4 +353,5 @@ module.exports = {
   isCustomName,
   parseAttrs,
   reportReserved,
+  htmlHazard,
 };
