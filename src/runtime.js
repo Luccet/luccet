@@ -1,32 +1,32 @@
 // SPDX-License-Identifier: MIT
 // The browser runtime. Run from a plain <script src> in a loading document,
-// tern.js captures the rest of the file as the note and renders it in place,
+// luccet.js captures the rest of the file as the note and renders it in place,
 // in this order (docs/api.html#lifecycle):
 //
-//   config → capture (one document.write) → add-ons, base CSS and KaTeX
+//   config → capture (one document.write) → add-ons and base CSS
 //   requested → wait for DOMContentLoaded and every add-on →
-//   window.TERN.schema → parse → transform → emit → mount → note scripts in
+//   window.LUCCET.schema → parse → transform → emit → mount → note scripts in
 //   order → line numbers, behaviours → 'render' → 'math' → fragment scroll →
 //   console group → 'ready'
 //
-// The engine leaves each formula as its TeX; a math add-on (addons/katex.js or
-// addons/mathml.js) renders them in a 'render' listener, which the engine
-// awaits before it fires 'math'. Code that needs the rendered math listens for
-// 'math'.
+// The engine writes each formula as MathML (src/tex.js). An add-on that
+// typesets math itself (KaTeX's) sets config.math = 'tex', gets the TeX, and
+// renders it in a 'render' listener, which the runtime awaits before it fires
+// 'math'. Code that needs the rendered math listens for 'math'.
 //
-// A page written by `tern build` (its tern.js tag has data-built) starts at
-// the behaviours instead: its main.tern is in the HTML, and its scripts and
+// A page written by `luccet build` (its luccet.js tag has data-built) starts at
+// the behaviours instead: its main.luccet is in the HTML, and its scripts and
 // add-ons are real scripts the browser runs.
 //
 // The API sits on the engine's object:
-//   tern.define(name, fn) -> undo   fn(el) once per [data-t=name] element
-//   tern.undefine(name)
-//   tern.on('render'|'math'|'ready'|'diagnostic', fn) -> undo
-//   tern.render(root = main.tern, source?) -> Promise of source's diagnostics
-//   tern.ready        a Promise, settled after 'ready'
-//   tern.diagnostics  parse, transform and runtime diagnostics (a live array)
-//   tern.config       window.TERN merged with the tag's data-* (data-* wins)
-//   tern.style(css)   a stylesheet, at its add-on's place in the cascade
+//   luccet.define(name, fn) -> undo   fn(el) once per [data-t=name] element
+//   luccet.undefine(name)
+//   luccet.on('render'|'math'|'ready'|'diagnostic', fn) -> undo
+//   luccet.render(root = main.luccet, source?) -> Promise of source's diagnostics
+//   luccet.ready        a Promise, settled after 'ready'
+//   luccet.diagnostics  parse, transform and runtime diagnostics (a live array)
+//   luccet.config       window.LUCCET merged with the tag's data-* (data-* wins)
+//   luccet.style(css)   a stylesheet, at its add-on's place in the cascade
 // Under node nothing touches a DOM: the API is present and inert.
 'use strict';
 
@@ -35,15 +35,14 @@ const { sortDiagnostics } = require('./diag');
 const { scanUse } = require('./use');
 
 // The runtime's own diagnostic codes, all errors: each loses or changes what
-// the reader sees. (Math is rendered by an add-on now — addons/katex.js or
-// addons/mathml.js — which reports its own failures to the console.)
+// the reader sees. (A formula's problems are the engine's tex.* codes.)
 const SEVERITY = {
   'addon.failed': 'error',
   'script.document-write': 'error',
   'script.domcontentloaded': 'error',
   'doc.quirks': 'error',
 };
-// A problem with the tern.js line or the head, not with a note line: line 0,
+// A problem with the luccet.js line or the head, not with a note line: line 0,
 // the line before the note's first; the panel shows its file line.
 const HEAD = { start: { line: 0, column: 0, offset: 0 }, end: { line: 0, column: 0, offset: 0 } };
 // Note scripts that run: JavaScript MIME types, modules, import maps,
@@ -62,7 +61,7 @@ const ready = new Promise((resolve) => (settle = resolve));
 
 let page = null; // what capture found: {head, lines, source, quirks}
 let main = null;
-let built = false; // a page written by `tern build`
+let built = false; // a page written by `luccet build`
 let addonList = []; // the data-use entries
 let mounted = false;
 let logged = false;
@@ -75,8 +74,8 @@ const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').
 const escText = (s) => String(s).replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'));
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-// The runtime's own words, and the add-ons' (tern.string): each a key with
-// an English fallback, overridden by window.TERN.strings[key]. A string
+// The runtime's own words, and the add-ons' (luccet.string): each a key with
+// an English fallback, overridden by window.LUCCET.strings[key]. A string
 // holds `{name}` fields; one with a `|` is `singular|plural`, picked by
 // params.n. The emitter's words (Footnotes …) take the same keys.
 const STRINGS = { problems: '{n} problem|{n} problems', errors: '{n} error|{n} errors', warnings: '{n} warning|{n} warnings', infos: '{n} info|{n} infos' };
@@ -104,7 +103,7 @@ function attach(api) {
   api.render = render;
   api.style = style;
   api.string = string;
-  // A schema entry's `css` is queued like tern.style.
+  // A schema entry's `css` is queued like luccet.style.
   for (const level of ['block', 'leaf', 'inline']) {
     const add = api[level];
     api[level] = (name, spec) => {
@@ -114,10 +113,10 @@ function attach(api) {
     };
   }
   if (!BROWSER) return api;
-  // A second tern.js (from a note script, say) leaves the first in charge.
-  const first = window.tern;
+  // A second luccet.js (from a note script, say) leaves the first in charge.
+  const first = window.luccet;
   if (first && first.version) {
-    console.warn('tern: tern.js is already loaded; this second copy does nothing');
+    console.warn('luccet: luccet.js is already loaded; this second copy does nothing');
     return api;
   }
   document.addEventListener('copy', onCopy);
@@ -128,8 +127,8 @@ function attach(api) {
 }
 
 function on(event, fn) {
-  if (!EVENTS.includes(event)) throw new TypeError(`tern.on: "${event}" is not one of ${EVENTS.join(', ')}`);
-  if (typeof fn !== 'function') throw new TypeError(`tern.on("${event}", fn): fn must be a function`);
+  if (!EVENTS.includes(event)) throw new TypeError(`luccet.on: "${event}" is not one of ${EVENTS.join(', ')}`);
+  if (typeof fn !== 'function') throw new TypeError(`luccet.on("${event}", fn): fn must be a function`);
   listeners[event].push(fn);
   const off = () => {
     const i = listeners[event].indexOf(fn);
@@ -145,22 +144,22 @@ function fire(event, arg, info) {
     try {
       fn(arg, info);
     } catch (e) {
-      console.error(`tern: a "${event}" listener failed`, e);
+      console.error(`luccet: a "${event}" listener failed`, e);
     }
   }
 }
 
 // Like fire, but awaits the listeners' return values. They run concurrently,
 // so a synchronous listener (one logging the event, say) is not held up by an
-// async one. The lifecycle awaits 'render' this way: a math add-on renders the
-// formulas there, so 'math' fires only once they are typeset.
+// async one. The lifecycle awaits 'render' this way: an add-on that typesets
+// math itself (KaTeX's) does it there, so 'math' fires once that is done.
 async function fireAsync(event, arg, info) {
   await Promise.all(
     listeners[event].slice().map(async (fn) => {
       try {
         await fn(arg, info);
       } catch (e) {
-        console.error(`tern: a "${event}" listener failed`, e);
+        console.error(`luccet: a "${event}" listener failed`, e);
       }
     }),
   );
@@ -174,12 +173,12 @@ const safeRoots = new WeakSet();
 let anySafe = false; // a safe root was made: elements must be checked
 const inSafe = (el) => anySafe && !!el.closest('[data-t-safe]');
 
-// tern.define(name, fn): additive, in registration order. Defined after the
+// luccet.define(name, fn): additive, in registration order. Defined after the
 // behaviours ran, it runs at once on the elements already there, the safe
 // roots' left out.
 function define(name, fn) {
-  if (typeof name !== 'string' || !name) throw new TypeError('tern.define(name, fn): name must be a non-empty string');
-  if (typeof fn !== 'function') throw new TypeError(`tern.define("${name}", fn): fn must be a function`);
+  if (typeof name !== 'string' || !name) throw new TypeError('luccet.define(name, fn): name must be a non-empty string');
+  if (typeof fn !== 'function') throw new TypeError(`luccet.define("${name}", fn): fn must be a function`);
   const rec = { fn, done: new WeakSet() };
   if (!defined.has(name)) defined.set(name, []);
   defined.get(name).push(rec);
@@ -202,17 +201,21 @@ function undefine(name) {
   defined.delete(name);
 }
 
-// tern.render(root, source, {safe, idPrefix}): with a source, root's content
-// is replaced by the note's HTML and its scripts run. Then behaviours run on
-// elements that have not had them and formulas not yet typeset are typeset,
-// so a second call with no source changes nothing. Resolves to the source's
-// diagnostics, which replace tern.diagnostics when root is the page's main.
+// luccet.render(root, content, {safe, idPrefix}): with content, root's content
+// is replaced by its HTML and its scripts run. Content is a source, or a tree
+// (a root node), emitted as it is: the glossary's definitions, transformed in
+// their own note, would be numbered again by a second transform. Then
+// behaviours run on elements that have not had them and the 'render' and
+// 'math' listeners on root, so a call with no content is how an add-on hands
+// over what it added or showed later. Resolves to the source's diagnostics
+// (none for a tree), which replace luccet.diagnostics when root is the
+// page's main.
 function render(root, source, opts) {
   if (!BROWSER) return Promise.resolve([]);
   return renderRoot(root, source, !!(opts && opts.safe), opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '', !(opts && opts.scripts === false));
 }
 
-// What a root's note scripts registered (tern.define, tern.on, tern.style),
+// What a root's note scripts registered (luccet.define, luccet.on, luccet.style),
 // as undo functions: rendered again from a source, the root first retires
 // them, so a live preview does not stack a registration per edit.
 const registrations = new WeakMap(); // root -> [undo]
@@ -230,18 +233,20 @@ function retire(root) {
     try {
       undo();
     } catch (e) {
-      console.error('tern: retiring a registration failed', e);
+      console.error('luccet: retiring a registration failed', e);
     }
   }
 }
 
 async function renderRoot(root, source, safe, idPrefix, scripts) {
-  root = root || main || document.querySelector('main.tern');
-  if (!root || root.nodeType !== 1) throw new TypeError('tern.render(root, source): root must be an element');
+  root = root || main || document.querySelector('main.luccet');
+  if (!root || root.nodeType !== 1) throw new TypeError('luccet.render(root, content): root must be an element');
   let list = [];
   if (source !== undefined) {
+    const tree = source !== null && typeof source === 'object';
+    if (tree && source.type !== 'root') throw new TypeError('luccet.render(root, content): content must be a source or a tree, a node of type "root"');
     retire(root);
-    const r = compile(String(source), safe, idPrefix);
+    const r = tree ? emitTree(source, safe, idPrefix) : compile(String(source), safe, idPrefix);
     list = r.list;
     const tpl = document.createElement('template');
     tpl.innerHTML = r.html;
@@ -255,7 +260,7 @@ async function renderRoot(root, source, safe, idPrefix, scripts) {
       rebuildPanel();
     }
     // Under `safe` the note is untrusted: its scripts do not run, and
-    // behaviours (schema `dom`, tern.define — host code acting on untrusted
+    // behaviours (schema `dom`, luccet.define — host code acting on untrusted
     // content) are skipped, now and later: the root is remembered and marked.
     // Its raw HTML is escaped and risky attributes dropped by emit; math
     // still typesets, with trust off (the add-ons read the mark). A trusted
@@ -274,7 +279,7 @@ async function renderRoot(root, source, safe, idPrefix, scripts) {
   return list;
 }
 
-// tern.style(css): a stylesheet in the head. One added while an add-on runs
+// luccet.style(css): a stylesheet in the head. One added while an add-on runs
 // sits at that add-on's place in data-use, so the cascade follows the
 // listing; any other comes after all add-ons.
 function style(text) {
@@ -294,9 +299,9 @@ function style(text) {
 
 // ---------------------------------------------------------------- diagnostics
 
-// `el` is the element concerned, if any. tern.diagnostics, the panel and
+// `el` is the element concerned, if any. luccet.diagnostics, the panel and
 // the console speak of the page's note: a problem in another root given to
-// tern.render, or on a page where the runtime did not start, only fires
+// luccet.render, or on a page where the runtime did not start, only fires
 // the event.
 function report(code, position, message, hint, el) {
   const d = { code, severity: SEVERITY[code], message, position: position || HEAD };
@@ -305,29 +310,29 @@ function report(code, position, message, hint, el) {
   if (own) diagnostics.push(d);
   fire('diagnostic', d);
   if (own && mounted) panelAdd(d);
-  if (own && logged) console.warn(`tern: ${describe(d)}`);
+  if (own && logged) console.warn(`luccet: ${describe(d)}`);
   return d;
 }
 
 // "line 12:3 (file line 13)": positions are note lines; the file line is
-// what the author edits, the note starting after the tern.js line.
+// what the author edits, the note starting after the luccet.js line.
 function where(d) {
   const p = d.position && d.position.start;
   const before = page ? page.lines : 0;
-  if (!p || !p.line) return before ? `the tern.js line (file line ${before})` : 'the tern.js line';
+  if (!p || !p.line) return before ? `the luccet.js line (file line ${before})` : 'the luccet.js line';
   return `line ${p.line}:${p.column}${before ? ` (file line ${p.line + before})` : ''}`;
 }
 const describe = (d) => `${d.severity} ${d.code} at ${where(d)}: ${d.message}${d.hint ? ` (${d.hint})` : ''}`;
 
 // The source each root was rendered from: the page's note for main, then
-// each tern.render(root, source). data-pos holds line and column only; the
+// each luccet.render(root, source). data-pos holds line and column only; the
 // offset is counted in the source of the root the element belongs to.
 
 // The console group, always printed once; later problems get a line each.
 function logGroup(times) {
   logged = true;
-  console.groupCollapsed(`tern: ${string('problems', { n: diagnostics.length })}`);
-  if (times) console.log(`tern ${T.version}: ${times}`);
+  console.groupCollapsed(`luccet: ${string('problems', { n: diagnostics.length })}`);
+  if (times) console.log(`luccet ${T.version}: ${times}`);
   for (const d of diagnostics) (d.severity === 'info' ? console.info : console.warn)(describe(d));
   console.groupEnd();
 }
@@ -368,7 +373,7 @@ function panelAdd(d) {
   const n = panel.n;
   n[d.severity] = (n[d.severity] || 0) + 1;
   const parts = [n.error && string('errors', { n: n.error }), n.warning && string('warnings', { n: n.warning }), n.info && string('infos', { n: n.info })].filter(Boolean);
-  panel.sum.textContent = `tern: ${string('problems', { n: n.error + n.warning + n.info })} (${parts.join(', ')})`;
+  panel.sum.textContent = `luccet: ${string('problems', { n: n.error + n.warning + n.info })} (${parts.join(', ')})`;
   if (n.error) panel.box.open = true;
 }
 function rebuildPanel() {
@@ -380,8 +385,9 @@ function rebuildPanel() {
 // ---------------------------------------------------------------- capture
 
 // What the runtime needs of the browser: replaceChildren, CSS.escape and
-// `:is()` (Chrome 86, Firefox 78, Safari 14), nonce as a property, and
-// MutationObserver.
+// `:is()` (Chrome 86, Firefox 78, Safari 14), nonce as a property,
+// MutationObserver, and MathML layout, which MathMLElement stands for
+// (Chrome 109; Firefox 71, Safari 13.1): formulas are MathML.
 function supported() {
   try {
     return (
@@ -392,7 +398,8 @@ function supported() {
       typeof CSS.supports === 'function' &&
       !!document.querySelector(':is(html)') && // throws where :is() is unknown; CSS.supports('selector()') came later than :is() itself
 
-      'nonce' in HTMLScriptElement.prototype
+      'nonce' in HTMLScriptElement.prototype &&
+      typeof MathMLElement === 'function'
     );
   } catch {
     return false;
@@ -403,16 +410,16 @@ function start() {
   const script = document.currentScript;
   if (script && script.hasAttribute('data-built')) return startBuilt(script);
   if (!script || document.readyState !== 'loading' || script.async || script.defer || script.type === 'module') {
-    if (script && (script.hasAttribute('async') || script.hasAttribute('defer'))) console.warn('tern: load tern.js with a plain <script src>, without async or defer; the note was not rendered');
-    return; // loaded by a page or an app: tern.render works, nothing starts
+    if (script && (script.hasAttribute('async') || script.hasAttribute('defer'))) console.warn('luccet: load luccet.js with a plain <script src>, without async or defer; the note was not rendered');
+    return; // loaded by a page or an app: luccet.render works, nothing starts
   }
-  if (document.querySelector('main.tern')) return void console.warn('tern: the page already has a main.tern; tern.js does nothing');
+  if (document.querySelector('main.luccet')) return void console.warn('luccet: the page already has a main.luccet; luccet.js does nothing');
   // The support floor (docs/publishing.html#browsers): without these the
   // runtime would fail half-way, so the note is shown as its source instead.
   if (!supported()) {
-    console.warn('tern: this browser lacks what tern.js needs (Chrome 86, Firefox 78, Safari 14 or newer); the note is shown as its source');
+    console.warn('luccet: this browser lacks what luccet.js needs (Chrome 109, Firefox 78, Safari 14 or newer); the note is shown as its source');
     try {
-      document.write('<p>This browser is too old for tern.js (it needs Chrome 86, Firefox 78, Safari 14 or newer); the note follows as its source.</p><plaintext>');
+      document.write('<p>This browser is too old for luccet.js (it needs Chrome 109, Firefox 78, Safari 14 or newer); the note follows as its source.</p><plaintext>');
     } catch {}
     return;
   }
@@ -435,15 +442,15 @@ function start() {
   // in the note's text (a code example) may be fetched: at worst a 404.
   const n = config.nonce ? ` nonce="${escAttr(config.nonce)}"` : '';
   let w = '';
-  if (!document.querySelector('meta[name="color-scheme" i]')) w += '<meta name="color-scheme" content="light dark" id="tern-color-scheme">';
+  if (!document.querySelector('meta[name="color-scheme" i]')) w += '<meta name="color-scheme" content="light dark" id="luccet-color-scheme">';
   for (const a of addons) if (!a.css) w += `<link rel="preload" as="script" href="${escAttr(a.url)}"${n}>`;
   try {
-    document.write(`${w}<plaintext id="tern-source" hidden>`);
+    document.write(`${w}<plaintext id="luccet-source" hidden>`);
   } catch (e) {
-    console.warn('tern: the capture write was refused (a Trusted Types policy, perhaps); the note is shown as it is', e);
+    console.warn('luccet: the capture write was refused (a Trusted Types policy, perhaps); the note is shown as it is', e);
     return;
   }
-  const holder = document.getElementById('tern-source');
+  const holder = document.getElementById('luccet-source');
   if (!holder) return; // the write was ignored: not a parser-inserted script
   document.documentElement.setAttribute('aria-busy', 'true'); // until the mount
 
@@ -500,7 +507,7 @@ function start() {
     document.addEventListener(
       'DOMContentLoaded',
       () => {
-        // The note is everything after the line holding the tern.js tag.
+        // The note is everything after the line holding the luccet.js tag.
         const text = holder.textContent;
         const nl = text.indexOf('\n');
         page.source = nl < 0 ? '' : text.slice(nl + 1);
@@ -511,11 +518,11 @@ function start() {
   );
   // The mount waits for the note and every add-on, but not forever: once the
   // note has arrived, an add-on still loading after the deadline (12 s, or
-  // tern.config.addonTimeout in ms) is addon.failed and the note mounts
+  // luccet.config.addonTimeout in ms) is addon.failed and the note mounts
   // without it; a console line after 2 s says what is still awaited.
   const deadline = parsed.then(() => new Promise((resolve) => setTimeout(() => resolve('late'), addonTimeout())));
   setTimeout(() => {
-    if (!mounted && pending.size) console.warn(`tern: still waiting for ${plural(pending.size, 'add-on')} to load: ${[...pending].map((a) => a.url).join(', ')}`);
+    if (!mounted && pending.size) console.warn(`luccet: still waiting for ${plural(pending.size, 'add-on')} to load: ${[...pending].map((a) => a.url).join(', ')}`);
   }, NAG_MS);
   Promise.race([Promise.all([parsed, useP, ...waits]), deadline]).then((r) => {
     if (r === 'late')
@@ -533,7 +540,7 @@ function start() {
 // window instead. Until mount (on a built page, until DOMContentLoaded),
 // such an error is addon.failed, once per add-on, with its message. The
 // add-on is the current script when the error is reported (so an error
-// thrown inside tern.js by the add-on's call counts), else the error's file.
+// thrown inside luccet.js by the add-on's call counts), else the error's file.
 // A cross-origin add-on served without CORS has its error muted: the message
 // is then only "Script error.". Returns the function that stops watching.
 function watchAddons(addons) {
@@ -557,10 +564,10 @@ function watchAddons(addons) {
   return () => window.removeEventListener('error', onError);
 }
 
-// window.TERN merged with data-* on the tag. data-use's query strings go to
+// window.LUCCET merged with data-* on the tag. data-use's query strings go to
 // config.use[name]: "my-addon.js?lang=de" gives use['my-addon'].lang.
 function readConfig(script) {
-  const given = window.TERN && typeof window.TERN === 'object' ? window.TERN : {};
+  const given = window.LUCCET && typeof window.LUCCET === 'object' ? window.LUCCET : {};
   const attr = (k) => (script.hasAttribute(k) ? script.getAttribute(k).trim() : null);
   const flag = (k, v) => (attr(k) === null ? !!v : !/^(?:false|0|off|no)$/i.test(attr(k)));
   Object.assign(config, given);
@@ -575,6 +582,7 @@ function readConfig(script) {
     script.removeAttribute('data-nonce');
   } else if (script.nonce) config.nonce = script.nonce;
   if (attr('data-lang') !== null) config.lang = attr('data-lang');
+  if (attr('data-math') !== null) config.math = attr('data-math');
   config.diagnostics = flag('data-diagnostics', config.diagnostics);
   config.quiet = flag('data-quiet', config.quiet);
   const addons = [];
@@ -639,7 +647,7 @@ function loadAddons(list, waits) {
   }
 }
 
-// A single-file note declares its vocabulary in window.TERN.schema, in
+// A single-file note declares its vocabulary in window.LUCCET.schema, in
 // the registry's shape {block, leaf, inline}, from a head script. It is
 // applied once the add-ons have registered theirs, so the note's own entry
 // wins for a name both declare; function fields (label, dom) work as in an
@@ -658,7 +666,7 @@ function applyOwnSchema() {
       try {
         T[level](name, entries[name]);
       } catch (e) {
-        console.warn(`tern: window.TERN.schema.${level}: ${e.message}`);
+        console.warn(`luccet: window.LUCCET.schema.${level}: ${e.message}`);
       }
     }
   }
@@ -671,7 +679,7 @@ function headString() {
   return `${s}>${document.head ? document.head.innerHTML : ''}`;
 }
 
-// The tern.js line's number in the file: the line breaks in what the parser
+// The luccet.js line's number in the file: the line breaks in what the parser
 // kept of the file so far, the tag being its last node. Exact for the
 // canonical first line and for breaks between head elements; the parser
 // drops breaks before <html> and <head>, which are then not counted.
@@ -689,10 +697,10 @@ function linesBefore() {
 
 // ---------------------------------------------------------------- the head
 
-// Tern's sheets go in the head in this order: KaTeX, the base, each add-on
-// (its link, or the tern.style sheets it adds) in data-use order, then other
-// tern.style sheets. The group sits before the head's first author
-// stylesheet, so the author's head CSS wins; a head link to tern.css is the
+// Luccet's sheets go in the head in this order: the base, each add-on
+// (its link, or the luccet.style sheets it adds) in data-use order, then other
+// luccet.style sheets. The group sits before the head's first author
+// stylesheet, so the author's head CSS wins; a head link to luccet.css is the
 // base itself (the CSP route).
 const BASE_SLOT = { els: [] };
 const STYLE_SLOT = { els: [] };
@@ -710,8 +718,8 @@ function locateSheets() {
     if (config.css) named = new URL(config.css, document.baseURI).href;
   } catch {}
   for (const el of sheets) {
-    // A built page inlines the base as <style id="tern-style"> (cli/build.js).
-    const base = el.localName === 'link' ? el.href === named || /(?:^|\/)tern(?:\.min)?\.css$/.test(el.href.replace(/[?#].*$/, '')) : built && el.id === 'tern-style';
+    // A built page inlines the base as <style id="luccet-style"> (cli/build.js).
+    const base = el.localName === 'link' ? el.href === named || /(?:^|\/)luccet(?:\.min)?\.css$/.test(el.href.replace(/[?#].*$/, '')) : built && el.id === 'luccet-style';
     if (base) {
       BASE_SLOT.els.push(el);
       return;
@@ -767,12 +775,12 @@ const loaded = (el) =>
   });
 
 // The base stylesheet (src/css.js), unless data-css names one or the head
-// links tern.css. Added at capture: the empty page already has its colours.
+// links luccet.css. Added at capture: the empty page already has its colours.
 function baseStyle() {
   if (BASE_SLOT.els.length || !document.head) return;
   if (config.css) return void insert(sheet(config.css), BASE_SLOT);
   const s = nonce(document.createElement('style'));
-  s.id = 'tern-style';
+  s.id = 'luccet-style';
   s.textContent = BASE_CSS;
   insert(s, BASE_SLOT);
 }
@@ -791,7 +799,7 @@ function writeMeta(m) {
     } else {
       const el = document.head.querySelector(`meta[name="${CSS.escape(k)}" i]`);
       if (!el) document.head.append(meta(k, v));
-      else if (el.id === 'tern-color-scheme') el.content = v; // tern's, not the head's
+      else if (el.id === 'luccet-color-scheme') el.content = v; // luccet's, not the head's
     }
   }
 }
@@ -800,13 +808,19 @@ function writeMeta(m) {
 
 // parse → transform → emit, with every diagnostic in document order.
 function compile(source, safe, idPrefix) {
-  const opts = { head: page ? page.head : '', lang: config.lang || undefined };
+  const opts = { head: page ? page.head : '', lang: config.lang || undefined, math: config.math === 'tex' ? 'tex' : undefined, macros: config.macros };
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
-  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: sortDiagnostics(parsed.concat(ast.data.tern.diagnostics)) };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: sortDiagnostics(parsed.concat(ast.data.luccet.diagnostics)) };
 }
 
-// Tern's own presentational styles, a column's alignment and a grid's
+// A tree as it is, without positions: they are lines of another note.
+function emitTree(ast, safe, idPrefix) {
+  const opts = { lang: config.lang || undefined, math: config.math === 'tex' ? 'tex' : undefined };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, positions: false, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: [] };
+}
+
+// Luccet's own presentational styles, a column's alignment and a grid's
 // --t-cols, arrive as data-t-align and data-t-cols (emit's `cssom` option) and
 // are set through the CSSOM: a strict CSP blocks style attributes, Chromium
 // already while parsing (so stripping them after a <template> parse is too
@@ -830,7 +844,7 @@ function presentation(root) {
 // unloaded in Chromium (Firefox loads it). Setting the attribute again, once
 // per element, starts the load; where it is loaded already, the cache answers.
 // presentation() runs after every insertion and in process(), so this
-// covers a mount, tern.render and a built page.
+// covers a mount, luccet.render and a built page.
 const posterDone = new WeakSet();
 function posters(root) {
   for (const v of root.querySelectorAll('video[poster]')) {
@@ -847,12 +861,11 @@ function posters(root) {
 // not wait for the whole note. Each block is released, plain again for good,
 // before it comes into view (those near the viewport at once, the rest when
 // they come within one and a half screens), and all of them before printing
-// and before a fragment jump. tern.config.holdOver (characters, 30 000 by
+// and before a fragment jump. luccet.config.holdOver (characters, 30 000 by
 // default; 0 never holds) is the note size from which a mount holds: from
 // about 20 KB a held note paints sooner, in Chromium at normal speed and on a
 // CPU four times slower, and from 30 KB by a margin over what the hold costs
-// the mount. The math add-ons hold the same way on their own account while
-// formulas wait.
+// the mount.
 const HOLD_OVER = 30000;
 const held = new Map(); // block -> [content-visibility, contain-intrinsic-block-size] as they were
 let watcher = null;
@@ -909,19 +922,19 @@ async function mount() {
       r = compile(page.source);
     } catch (e) {
       // An engine bug: the note stays readable.
-      console.error('tern: rendering failed; the note is shown as source', e);
+      console.error('luccet: rendering failed; the note is shown as source', e);
       r = { ast: null, list: [], html: `<pre class="t-error">${escText(page.source)}</pre>` };
     }
     const t1 = now();
     append(diagnostics, r.list);
     sortDiagnostics(diagnostics);
-    writeMeta(r.ast && r.ast.data && r.ast.data.tern && r.ast.data.tern.meta);
+    writeMeta(r.ast && r.ast.data && r.ast.data.luccet && r.ast.data.luccet.meta);
     if (!config.lang) config.lang = document.documentElement.lang || undefined;
     if (!document.querySelector('meta[name="viewport" i]')) document.head.append(meta('viewport', 'width=device-width, initial-scale=1'));
     baseStyle();
     // The one emitter's string, through <template>: never a second renderer.
     const tpl = document.createElement('template');
-    tpl.innerHTML = `<main class="tern">${r.html}</main>`;
+    tpl.innerHTML = `<main class="luccet">${r.html}</main>`;
     main = tpl.content.firstElementChild;
     document.body.replaceChildren(tpl.content);
     presentation(main);
@@ -936,7 +949,7 @@ async function mount() {
     reveal();
     times = `${plural(page.source.split('\n').length, 'line')}; parse, transform and emit ${Math.round(t1 - t0)} ms, mount ${Math.round(t2 - t1)} ms, then scripts, behaviours and math ${Math.round(t3 - t2)} ms`;
   } catch (e) {
-    console.error('tern: the runtime failed', e);
+    console.error('luccet: the runtime failed', e);
   } finally {
     taskStart = 0;
     document.documentElement.removeAttribute('aria-busy');
@@ -957,22 +970,22 @@ function reveal() {
   const target = document.getElementById(id);
   if (!target) return;
   for (let d = target.parentElement && target.parentElement.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
-    if (!d.open) d.open = true; // a math add-on typesets a formula it reveals (toggle)
+    if (!d.open) d.open = true;
   }
   target.scrollIntoView();
 }
 
 // ---------------------------------------------------------------- a built page
 
-// `tern build` writes main.tern into the page, the note into
-// <script type="text/tern" id="tern-source" data-line="N">, its diagnostics
-// into <script type="application/json" id="tern-diagnostics">, and the
-// add-ons as static tags after tern.js (cli/build.js). The browser has run
+// `luccet build` writes main.luccet into the page, the note into
+// <script type="text/luccet" id="luccet-source" data-line="N">, its diagnostics
+// into <script type="application/json" id="luccet-diagnostics">, and the
+// add-ons as static tags after luccet.js (cli/build.js). The browser has run
 // the note's scripts by DOMContentLoaded, so there is no capture, mount or
 // script re-creation: config now, then at DOMContentLoaded the diagnostics
-// and the panel, behaviours, a math add-on's rendering, the fragment and
-// 'ready'. A built page carries no math itself unless an add-on was loaded or
-// `tern build --math` pre-rendered the formulas into it.
+// and the panel, behaviours, the 'render' listeners (where an add-on that
+// typesets math itself works), the fragment and 'ready'. Its formulas are
+// the engine's MathML, written by the build.
 function startBuilt(script) {
   built = true;
   const addons = readConfig(script);
@@ -1000,26 +1013,26 @@ async function startBuiltPage(addons, failed) {
   const t0 = (taskStart = now());
   let times = '';
   try {
-    applyOwnSchema(); // for behaviours and tern.render: the build applied it already
-    main = document.querySelector('main.tern');
-    const src = document.getElementById('tern-source');
+    applyOwnSchema(); // for behaviours and luccet.render: the build applied it already
+    main = document.querySelector('main.luccet');
+    const src = document.getElementById('luccet-source');
     if (src && src.localName === 'script') {
       page.source = src.textContent.replace(/<\\(\\*)(\/script|!--)/gi, '<$1$2'); // cli/build.js decodeSource
       page.lines = Number(src.getAttribute('data-line')) || 0;
     }
-    const data = document.getElementById('tern-diagnostics');
+    const data = document.getElementById('luccet-diagnostics');
     try {
       if (data) append(diagnostics, JSON.parse(data.textContent));
     } catch (e) {
-      console.warn('tern: the built page has unreadable diagnostics', e);
+      console.warn('luccet: the built page has unreadable diagnostics', e);
     }
-    // A script add-on that failed. A CSS add-on's link comes before tern.js,
+    // A script add-on that failed. A CSS add-on's link comes before luccet.js,
     // so its error event is past, and a failed link still has a sheet: the
     // browser's own console reports it.
     for (const a of addons) if (!a.css && failed.has(a.abs)) report('addon.failed', HEAD, `the add-on ${a.url} did not load; the note renders without it`, 'check the path in data-use');
     sortDiagnostics(diagnostics);
     if (!config.lang) config.lang = document.documentElement.lang || undefined;
-    if (!main) return void console.warn('tern: this page has data-built but no main.tern; tern.js does nothing');
+    if (!main) return void console.warn('luccet: this page has data-built but no main.luccet; luccet.js does nothing');
     mounted = true;
     rebuildPanel();
     await process(main);
@@ -1027,7 +1040,7 @@ async function startBuiltPage(addons, failed) {
     reveal();
     times = `a built page; behaviours and math ${Math.round(now() - t0)} ms`;
   } catch (e) {
-    console.error('tern: the runtime failed', e);
+    console.error('luccet: the runtime failed', e);
   } finally {
     taskStart = 0;
     logGroup(times);
@@ -1104,7 +1117,7 @@ function scriptPositions(ast) {
 }
 
 // The guard is installed for the outermost runScripts and removed when it
-// ends: a note script that calls tern.render(el, source) with a script in
+// ends: a note script that calls luccet.render(el, source) with a script in
 // the source runs a nested runScripts, whose end must not disarm the guard
 // for the scripts still to come (a later document.write would wipe the page).
 let intercepting = 0;
@@ -1124,12 +1137,12 @@ function intercept(on) {
   };
   const add = EventTarget.prototype.addEventListener;
   // A DOMContentLoaded listener is reported and not registered: the mount
-  // may run inside the event's dispatch (tern's own listener on document),
+  // may run inside the event's dispatch (luccet's own listener on document),
   // where one added to window would still run, so "never runs" holds only if
   // it is never added.
   const wrapped = function (type, fn, opts) {
     if (type !== 'DOMContentLoaded') return add.call(this, type, fn, opts);
-    report('script.domcontentloaded', at(), 'a note script listens for DOMContentLoaded, which fired before note scripts run, so the listener never runs', "use tern.on('ready', fn), or run the code directly", document.currentScript);
+    report('script.domcontentloaded', at(), 'a note script listens for DOMContentLoaded, which fired before note scripts run, so the listener never runs', "use luccet.on('ready', fn), or run the code directly", document.currentScript);
   };
   document.addEventListener = wrapped;
   window.addEventListener = wrapped;
@@ -1142,14 +1155,15 @@ async function process(root, safe) {
   presentation(root);
   lineNumbers(root);
   if (!safe) behaviours(root);
-  // A math add-on renders the formulas in its 'render' listener; the listener
-  // is awaited, so a listener on 'math' sees them typeset. Both get {safe}.
+  // The formulas are MathML already; an add-on that typesets math itself does
+  // it in a 'render' listener, which is awaited, so a listener on 'math' sees
+  // the formulas done. Both get {safe}.
   const info = { safe: !!safe };
   await fireAsync('render', root, info);
   fire('math', root, info);
 }
 
-// schema `dom` and tern.define, once per element and function, in document
+// schema `dom` and luccet.define, once per element and function, in document
 // order, keyed on data-t. A `t-block` element is a container, so its block
 // entry comes first; otherwise the leaf, then the inline one. An element
 // inside a safe root (one rendered with `safe` inside this root) gets none.
@@ -1182,7 +1196,7 @@ function apply(rec, el, name) {
   try {
     rec.fn.call(el, el);
   } catch (e) {
-    console.error(`tern: the "${name}" behaviour failed`, e);
+    console.error(`luccet: the "${name}" behaviour failed`, e);
   }
 }
 
@@ -1198,9 +1212,9 @@ function lineNumbers(root) {
 
 // ---------------------------------------------------------------- page handlers
 
-// Copy: a formula a math add-on rendered is copied as its TeX, $tex$ or
-// $$tex$$ (from data-tex), in text/plain and text/html. A formula left as its
-// TeX source (no add-on) copies as its text, which is the TeX, by itself.
+// Copy: a rendered formula (the engine's MathML, or an add-on's) is copied as
+// its TeX, $tex$ or $$tex$$ (from data-tex), in text/plain and text/html. A
+// formula left as its TeX copies as its text, which is the TeX, by itself.
 function onCopy(e) {
   const sel = document.getSelection();
   if (!sel || sel.isCollapsed || !sel.rangeCount || !e.clipboardData) return;
@@ -1235,8 +1249,7 @@ function onCopy(e) {
 }
 
 // Print: every details.t-block opens (and closes again afterwards), so its
-// content prints. A math add-on typesets what is still pending on beforeprint,
-// as the print layout is taken right after.
+// content prints.
 let printOpened = [];
 function onBeforePrint() {
   releaseAll();

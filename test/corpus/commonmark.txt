@@ -2,8 +2,8 @@
 
 CommonMark 0.31.2 examples (https://spec.commonmark.org/0.31.2/spec.json) for emphasis,
 backslash escapes, code spans and the backslash form of hard line breaks, checked against
-Tern's documentation rather than CommonMark. A case whose prose says "Differs from CommonMark" expects
-Tern's result. Output conventions (heading ids, data-t="code") are Tern's throughout.
+Luccet's documentation rather than CommonMark. A case whose prose says "Differs from CommonMark" expects
+Luccet's result. Output conventions (heading ids, data-t="code") are Luccet's throughout.
 
 Not imported:
 
@@ -20,7 +20,7 @@ Not imported:
   right-trimmed and trailing whitespace means nothing.
 
 Escapes 22 is imported: backslash escapes apply in link destinations and titles.
-No HTML-block example (148-191) is imported, so Tern's raw HTML rules (the error block, `html.wrapper`) change nothing here.
+No HTML-block example (148-191) is imported, so Luccet's raw HTML rules (the error block, `html.wrapper`) change nothing here.
 
 ## commonmark/emphasis-350
 
@@ -28,7 +28,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 350, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo bar*
 ````
 
@@ -42,7 +42,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 351, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 a * foo bar*
 ````
 
@@ -56,7 +56,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 352, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 a*"foo"*
 ````
 
@@ -71,7 +71,7 @@ options: escaped
 
 CommonMark 0.31.2 example 353, "Emphasis and strong emphasis". The spaces are U+00A0, so `*` is no list marker and the runs are not left-flanking.
 
-````tern
+````luccet
 *\u00a0a\u00a0*
 ````
 
@@ -85,7 +85,7 @@ spec: syntax-inline#emphasis syntax-inline#inline-math
 
 CommonMark 0.31.2 example 354, "Emphasis and strong emphasis". Each `$` opens no math, since no dollar follows it in its paragraph; `$`, `£` and `€` are punctuation for flanking, as in CommonMark 0.31.
 
-````tern
+````luccet
 *$*alpha.
 
 *£*bravo.
@@ -105,7 +105,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 355, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo*bar*
 ````
 
@@ -119,7 +119,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 356, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 5*6*78
 ````
 
@@ -133,7 +133,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 366, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo bar *
 ````
 
@@ -147,7 +147,7 @@ spec: syntax-inline#emphasis syntax-blocks#lists
 
 CommonMark 0.31.2 example 367, "Emphasis and strong emphasis". The lone `*` would be an empty bullet, which does not interrupt a paragraph.
 
-````tern
+````luccet
 *foo bar
 *
 ````
@@ -163,7 +163,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 368, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *(*foo)
 ````
 
@@ -177,7 +177,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 369, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *(*foo*)*
 ````
 
@@ -191,7 +191,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 370, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo*bar
 ````
 
@@ -205,7 +205,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 378, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo bar**
 ````
 
@@ -219,7 +219,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 379, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ** foo bar**
 ````
 
@@ -233,7 +233,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 380, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 a**"foo"**
 ````
 
@@ -247,7 +247,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 381, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo**bar**
 ````
 
@@ -261,7 +261,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 391, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo bar **
 ````
 
@@ -275,7 +275,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 392, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **(**foo)
 ````
 
@@ -289,7 +289,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 393, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *(**foo**)*
 ````
 
@@ -303,7 +303,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 394, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **Gomphocarpus (*Gomphocarpus physocarpus*, syn.
 *Asclepias physocarpa*)**
 ````
@@ -319,7 +319,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 395, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo "*bar*" foo**
 ````
 
@@ -333,7 +333,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 396, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo**bar
 ````
 
@@ -347,7 +347,7 @@ spec: syntax-inline#emphasis syntax-inline#links
 
 CommonMark 0.31.2 example 404, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo [bar](/url)*
 ````
 
@@ -361,7 +361,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 405, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo
 bar*
 ````
@@ -377,7 +377,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 409, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo *bar**
 ````
 
@@ -391,7 +391,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 410, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo **bar** baz*
 ````
 
@@ -405,7 +405,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 411, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo**bar**baz*
 ````
 
@@ -419,7 +419,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 412, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo**bar*
 ````
 
@@ -433,7 +433,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 413, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ***foo** bar*
 ````
 
@@ -447,7 +447,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 414, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo **bar***
 ````
 
@@ -461,7 +461,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 415, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo**bar***
 ````
 
@@ -475,7 +475,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 416, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo***bar***baz
 ````
 
@@ -489,7 +489,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 417, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo******bar*********baz
 ````
 
@@ -503,7 +503,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 418, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo **bar *baz* bim** bop*
 ````
 
@@ -517,7 +517,7 @@ spec: syntax-inline#emphasis syntax-inline#links
 
 CommonMark 0.31.2 example 419, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo [*bar*](/url)*
 ````
 
@@ -531,7 +531,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 420, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ** is not an empty emphasis
 ````
 
@@ -545,7 +545,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 421, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **** is not an empty strong emphasis
 ````
 
@@ -559,7 +559,7 @@ spec: syntax-inline#emphasis syntax-inline#links
 
 CommonMark 0.31.2 example 422, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo [bar](/url)**
 ````
 
@@ -573,7 +573,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 423, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo
 bar**
 ````
@@ -589,7 +589,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 427, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo **bar****
 ````
 
@@ -603,7 +603,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 428, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo *bar* baz**
 ````
 
@@ -617,7 +617,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 429, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo*bar*baz**
 ````
 
@@ -631,7 +631,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 430, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ***foo* bar**
 ````
 
@@ -645,7 +645,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 431, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo *bar***
 ````
 
@@ -659,7 +659,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 432, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo *bar **baz**
 bim* bop**
 ````
@@ -675,7 +675,7 @@ spec: syntax-inline#emphasis syntax-inline#links
 
 CommonMark 0.31.2 example 433, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo [*bar*](/url)**
 ````
 
@@ -689,7 +689,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 436, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo ***
 ````
 
@@ -703,7 +703,7 @@ spec: syntax-inline#emphasis syntax-inline#escape
 
 CommonMark 0.31.2 example 437, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo *\**
 ````
 
@@ -717,7 +717,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 438, "Emphasis and strong emphasis". The `_` is content, text in both (`_` is never a delimiter).
 
-````tern
+````luccet
 foo *_*
 ````
 
@@ -731,7 +731,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 439, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo *****
 ````
 
@@ -745,7 +745,7 @@ spec: syntax-inline#emphasis syntax-inline#escape
 
 CommonMark 0.31.2 example 440, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 foo **\***
 ````
 
@@ -759,7 +759,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 441, "Emphasis and strong emphasis". The `_` is content, text in both (`_` is never a delimiter).
 
-````tern
+````luccet
 foo **_**
 ````
 
@@ -773,7 +773,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 442, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo*
 ````
 
@@ -787,7 +787,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 443, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo**
 ````
 
@@ -801,7 +801,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 444, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ***foo**
 ````
 
@@ -815,7 +815,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 445, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ****foo*
 ````
 
@@ -829,7 +829,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 446, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo***
 ````
 
@@ -843,7 +843,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 447, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo****
 ````
 
@@ -857,7 +857,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 460, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo**
 ````
 
@@ -871,7 +871,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 464, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ****foo****
 ````
 
@@ -885,7 +885,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 466, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ******foo******
 ````
 
@@ -899,7 +899,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 467, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 ***foo***
 ````
 
@@ -913,7 +913,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 471, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **foo **bar baz**
 ````
 
@@ -927,7 +927,7 @@ spec: syntax-inline#emphasis
 
 CommonMark 0.31.2 example 472, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *foo *bar baz*
 ````
 
@@ -941,7 +941,7 @@ spec: syntax-inline#emphasis syntax-inline#links
 
 CommonMark 0.31.2 example 473, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *[bar*](/url)
 ````
 
@@ -955,7 +955,7 @@ spec: syntax-inline#emphasis syntax-inline#raw-inline-html
 
 CommonMark 0.31.2 example 475, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *<img src="foo" title="*"/>
 ````
 
@@ -968,9 +968,9 @@ CommonMark 0.31.2 example 475, "Emphasis and strong emphasis".
 spec: syntax-inline#emphasis syntax-inline#raw-inline-html
 
 CommonMark 0.31.2 example 476, "Emphasis and strong emphasis".
-Differs from CommonMark: same HTML, but the paragraph opens `<a>` and never closes it, so Tern adds `html.inline-unclosed` (W) at the tag.
+Differs from CommonMark: same HTML, but the paragraph opens `<a>` and never closes it, so Luccet adds `html.inline-unclosed` (W) at the tag.
 
-````tern
+````luccet
 **<a href="**">
 ````
 
@@ -988,7 +988,7 @@ spec: syntax-inline#emphasis syntax-inline#code-span
 
 CommonMark 0.31.2 example 478, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 *a `*`*
 ````
 
@@ -1002,7 +1002,7 @@ spec: syntax-inline#emphasis syntax-inline#autolinks
 
 CommonMark 0.31.2 example 480, "Emphasis and strong emphasis".
 
-````tern
+````luccet
 **a<https://foo.bar/?q=**>
 ````
 
@@ -1016,7 +1016,7 @@ spec: syntax-inline#escape syntax-inline#escapes
 
 CommonMark 0.31.2 example 12, "Backslash escapes".
 
-````tern
+````luccet
 \!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~
 ````
 
@@ -1031,7 +1031,7 @@ options: escaped
 
 CommonMark 0.31.2 example 13, "Backslash escapes".
 
-````tern
+````luccet
 \\\t\\A\\a\\ \\3\\φ\\«
 ````
 
@@ -1044,9 +1044,9 @@ CommonMark 0.31.2 example 13, "Backslash escapes".
 spec: syntax-inline#escape syntax-inline#escapes
 
 CommonMark 0.31.2 example 14, "Backslash escapes".
-Same as CommonMark: the `\[` on lines 3 and 8 have no matching `\]`, so no `latex.delimiters` hint.
+Same as CommonMark: the `\[` on lines 3 and 8 have no matching `\]`, so no `latex.delimiters` warning.
 
-````tern
+````luccet
 \*not emphasized*
 \<br/> not a tag
 \[not a link](/foo)
@@ -1076,7 +1076,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-inline#emphasis
 
 CommonMark 0.31.2 example 15, "Backslash escapes".
 
-````tern
+````luccet
 \\*emphasis*
 ````
 
@@ -1090,7 +1090,7 @@ spec: syntax-inline#escape syntax-inline#escapes
 
 CommonMark 0.31.2 example 16, "Backslash escapes".
 
-````tern
+````luccet
 foo\
 bar
 ````
@@ -1106,7 +1106,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-inline#code-span
 
 CommonMark 0.31.2 example 17, "Backslash escapes".
 
-````tern
+````luccet
 `` \[\` ``
 ````
 
@@ -1120,7 +1120,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-blocks#fence
 
 CommonMark 0.31.2 example 19, "Backslash escapes".
 
-````tern
+````luccet
 ~~~
 \[\]
 ~~~
@@ -1138,7 +1138,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-inline#links
 CommonMark 0.31.2 example 22, "Backslash escapes".
 Same as CommonMark: backslash escapes apply in link destinations and titles.
 
-````tern
+````luccet
 [foo](/bar\* "ti\*tle")
 ````
 
@@ -1153,7 +1153,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-blocks#fence syntax-bloc
 CommonMark 0.31.2 example 24, "Backslash escapes".
 Differs from CommonMark: the info is not inline content; its LANG is the `LANG` class (which admits `\`) and the info string is verbatim, with no escapes, so the class keeps the backslash where CommonMark has `language-foo+bar`. The language may follow a space after the backticks.
 
-````tern
+````luccet
 ``` foo\+bar
 foo
 ```
@@ -1170,7 +1170,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 328, "Code spans".
 
-````tern
+````luccet
 `foo`
 ````
 
@@ -1184,7 +1184,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 329, "Code spans".
 
-````tern
+````luccet
 `` foo ` bar ``
 ````
 
@@ -1198,7 +1198,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 330, "Code spans".
 
-````tern
+````luccet
 ` `` `
 ````
 
@@ -1212,7 +1212,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 331, "Code spans".
 
-````tern
+````luccet
 `  ``  `
 ````
 
@@ -1226,7 +1226,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 332, "Code spans".
 
-````tern
+````luccet
 ` a`
 ````
 
@@ -1241,7 +1241,7 @@ options: escaped
 
 CommonMark 0.31.2 example 333, "Code spans". The spaces are U+00A0 and are not stripped; the `json ast` block asserts them, since the HTML normaliser folds them into spaces.
 
-````tern
+````luccet
 `\u00a0b\u00a0`
 ````
 
@@ -1260,7 +1260,7 @@ options: escaped
 
 CommonMark 0.31.2 example 334, "Code spans". The first span holds U+00A0, which is not a space, so neither span is stripped.
 
-````tern
+````luccet
 `\u00a0`
 `  `
 ````
@@ -1278,7 +1278,7 @@ options: escaped
 CommonMark 0.31.2 example 335, "Code spans".
 Differs from CommonMark: the two trailing spaces after `bar` (written `\u0020`) are trimmed before the line joins the paragraph, so the content is `foo bar baz` where CommonMark has `foo bar   baz`; the `json ast` block asserts it, since the HTML normaliser folds spaces.
 
-````tern
+````luccet
 ``
 foo
 bar\u0020\u0020
@@ -1302,7 +1302,7 @@ options: escaped
 CommonMark 0.31.2 example 336, "Code spans".
 Differs from CommonMark: the trailing space after `foo` (written `\u0020`) is trimmed, so the span holds `foo` where CommonMark keeps `foo `.
 
-````tern
+````luccet
 ``
 foo\u0020
 ``
@@ -1324,7 +1324,7 @@ options: escaped
 CommonMark 0.31.2 example 337, "Code spans".
 Differs from CommonMark: the trailing space on line 1 (written `\u0020`) is trimmed, so one space joins `bar` and `baz` where CommonMark has two; the `json ast` block asserts it, since the HTML normaliser folds spaces.
 
-````tern
+````luccet
 `foo   bar\u0020
 baz`
 ````
@@ -1343,7 +1343,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 338, "Code spans".
 
-````tern
+````luccet
 `foo\`bar`
 ````
 
@@ -1357,7 +1357,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 339, "Code spans".
 
-````tern
+````luccet
 ``foo`bar``
 ````
 
@@ -1371,7 +1371,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 340, "Code spans".
 
-````tern
+````luccet
 ` foo `` bar `
 ````
 
@@ -1385,7 +1385,7 @@ spec: syntax-inline#code-span syntax-inline#emphasis
 
 CommonMark 0.31.2 example 341, "Code spans".
 
-````tern
+````luccet
 *foo`*`
 ````
 
@@ -1399,7 +1399,7 @@ spec: syntax-inline#code-span syntax-inline#links
 
 CommonMark 0.31.2 example 342, "Code spans".
 
-````tern
+````luccet
 [not a `link](/foo`)
 ````
 
@@ -1413,7 +1413,7 @@ spec: syntax-inline#code-span syntax-inline#raw-inline-html
 
 CommonMark 0.31.2 example 343, "Code spans".
 
-````tern
+````luccet
 `<a href="`">`
 ````
 
@@ -1426,9 +1426,9 @@ CommonMark 0.31.2 example 343, "Code spans".
 spec: syntax-inline#code-span syntax-inline#raw-inline-html
 
 CommonMark 0.31.2 example 344, "Code spans".
-Differs from CommonMark: same HTML, but the paragraph opens `<a>` and never closes it, so Tern adds `html.inline-unclosed` (W) at the tag.
+Differs from CommonMark: same HTML, but the paragraph opens `<a>` and never closes it, so Luccet adds `html.inline-unclosed` (W) at the tag.
 
-````tern
+````luccet
 <a href="`">`
 ````
 
@@ -1446,7 +1446,7 @@ spec: syntax-inline#code-span syntax-inline#autolinks
 
 CommonMark 0.31.2 example 345, "Code spans".
 
-````tern
+````luccet
 `<https://foo.bar.`baz>`
 ````
 
@@ -1460,7 +1460,7 @@ spec: syntax-inline#code-span syntax-blocks#fence
 
 CommonMark 0.31.2 example 347, "Code spans". A backtick fence's info may not contain a backtick, so the line is a paragraph, and neither run finds a partner.
 
-````tern
+````luccet
 ```foo``
 ````
 
@@ -1474,7 +1474,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 348, "Code spans".
 
-````tern
+````luccet
 `foo
 ````
 
@@ -1488,7 +1488,7 @@ spec: syntax-inline#code-span
 
 CommonMark 0.31.2 example 349, "Code spans".
 
-````tern
+````luccet
 `foo``bar``
 ````
 
@@ -1502,7 +1502,7 @@ spec: syntax-inline#hard-break
 
 CommonMark 0.31.2 example 634, "Hard line breaks".
 
-````tern
+````luccet
 foo\
 baz
 ````
@@ -1518,7 +1518,7 @@ spec: syntax-inline#hard-break syntax-blocks#paragraph
 
 CommonMark 0.31.2 example 637, "Hard line breaks".
 
-````tern
+````luccet
 foo\
      bar
 ````
@@ -1534,7 +1534,7 @@ spec: syntax-inline#hard-break syntax-inline#emphasis
 
 CommonMark 0.31.2 example 639, "Hard line breaks".
 
-````tern
+````luccet
 *foo\
 bar*
 ````
@@ -1550,7 +1550,7 @@ spec: syntax-inline#hard-break syntax-inline#code-span
 
 CommonMark 0.31.2 example 641, "Hard line breaks".
 
-````tern
+````luccet
 `code\
 span`
 ````
@@ -1564,9 +1564,9 @@ span`
 spec: syntax-inline#hard-break syntax-inline#raw-inline-html
 
 CommonMark 0.31.2 example 643, "Hard line breaks". The raw tag is an atom, so the `\` inside it is no hard break.
-Differs from CommonMark: same HTML, but the paragraph opens `<a>` and never closes it, so Tern adds `html.inline-unclosed` (W) at the tag.
+Differs from CommonMark: same HTML, but the paragraph opens `<a>` and never closes it, so Luccet adds `html.inline-unclosed` (W) at the tag.
 
-````tern
+````luccet
 <a href="foo\
 bar">
 ````
@@ -1586,7 +1586,7 @@ spec: syntax-inline#hard-break
 
 CommonMark 0.31.2 example 644, "Hard line breaks".
 
-````tern
+````luccet
 foo\
 ````
 
@@ -1600,7 +1600,7 @@ spec: syntax-inline#hard-break syntax-blocks#heading
 
 CommonMark 0.31.2 example 646, "Hard line breaks".
 
-````tern
+````luccet
 ### foo\
 ````
 

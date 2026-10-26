@@ -1,6 +1,6 @@
 # The conformance corpus
 
-The corpus is Tern's conformance test: small notes, each with what the engine must make of it. `node test/run.js` runs the cases against the engine, and `node test/run.js --lint` checks the corpus itself ("The lint", below). Every case cites the sections of the documentation it tests, and every reference section and every diagnostic code has at least one case.
+The corpus is Luccet's conformance test: small notes, each with what the engine must make of it. `node test/run.js` runs the cases against the engine, and `node test/run.js --lint` checks the corpus itself ("The lint", below). Every case cites the sections of the documentation it tests, and every reference section and every diagnostic code has at least one case.
 
 The engine, this corpus and the documentation in `docs/` are the reference together. When they disagree, that is a bug to report, not something to settle by adjusting whichever side is easiest.
 
@@ -16,7 +16,7 @@ options: schema=none
 
 A slug keeps letters from any script; NFKC then lower case.
 
-````tern
+````luccet
 ## Überblick
 ### 日本語
 ````
@@ -32,21 +32,21 @@ A slug keeps letters from any script; NFKC then lower case.
 
 - **`## area/slug`** starts a case. The id is kebab case, unique across the corpus, and greppable; the area is the construct it belongs to (`heading`, `inline-math`, `table` …).
 - **`spec:`** (required, before the first block) lists the documentation sections the case tests, as anchors `PAGE#ID` separated by spaces. PAGE is `guide`, `syntax-blocks`, `syntax-inline`, `elements`, `schema`, `diagnostics`, `tools`, `publishing` or `api` (the file `docs/PAGE.html`), or `index` (`index.html`). ID is an id that page defines: `syntax-blocks#fence`, `syntax-inline#inline-math`, `elements#ids`, `diagnostics#block-unclosed`. Cite the most specific section that covers what the case tests, and a code's section on the diagnostics page (the code with dashes) when the case is about that diagnostic.
-- **`options:`** (optional): `schema=none` runs without the fixture schema (core only); `schema=extended` runs with `test/fixtures/schema-extended.js`, the fixture plus test-only entries no example declares (a schema `tag` naming a reserved element, labelled and counted leaves and inline elements); `strict` sets `schema.strict` (for `name.unknown`); `safe` renders with `safe: true` (`elements#safe`); `diagnostics=partial` requires the listed diagnostics but allows others; `diagnostics=any` skips the diagnostics check; `escaped` decodes `\t \r \n \0 \\ \uXXXX \u{X…}` in the `tern` block (for tabs, CR, NUL, BOM, trailing spaces as `\u0020`; every literal backslash is then `\\`); `noeol` drops the final newline of the source.
+- **`options:`** (optional): `schema=none` runs without the fixture schema (core only); `schema=extended` runs with `test/fixtures/schema-extended.js`, the fixture plus test-only entries no example declares (a schema `tag` naming a reserved element, labelled and counted leaves and inline elements); `strict` sets `schema.strict` (for `name.unknown`); `safe` renders with `safe: true` (`elements#safe`); `math=tex` writes formulas as their TeX (`math: 'tex'`), for a case about Luccet's math syntax rather than the TeX inside it; `diagnostics=partial` requires the listed diagnostics but allows others; `diagnostics=any` skips the diagnostics check; `escaped` decodes `\t \r \n \0 \\ \uXXXX \u{X…}` in the `luccet` block (for tabs, CR, NUL, BOM, trailing spaces as `\u0020`; every literal backslash is then `\\`); `noeol` drops the final newline of the source.
 - **Prose** lines between the heading and the blocks say what the case is about, in one or two sentences. Start a line with `Open:` to flag something the documentation does not settle (see "When the documentation is silent"); `node test/run.js --open` lists them all.
 - **Writing the file.** Some editing tools decode `\uXXXX` when they write a file, which turns `\u0020` into a real space (then trimmed) and `\uFEFF` into an invisible BOM. After writing an `escaped` case, check what it decodes to: `node -e "const c=require('./test/lib/corpus').loadAll().cases.find(c=>c.id==='ID');console.log(JSON.stringify(c.source))"`.
 - **Blocks** are fenced with **four or more** backticks (more than any run inside), with one of these info strings:
 
 | Block | Meaning |
 |---|---|
-| `tern` | the note source: everything after the `tern.js` line. The harness adds a final newline unless `noeol` |
-| `tern js` | instead of `tern`: one JavaScript expression producing the source, for generated input (`':::d\n'.repeat(65)`); used exactly as produced, with no final newline added |
-| `html head` | the preserved head (HTML before the `tern.js` line), passed as `opts.head`; for `:::meta` conflicts |
-| `html` | the expected body HTML (what goes inside `main.tern`), compared after normalisation (below) |
+| `luccet` | the note source: everything after the `luccet.js` line. The harness adds a final newline unless `noeol` |
+| `luccet js` | instead of `luccet`: one JavaScript expression producing the source, for generated input (`':::d\n'.repeat(65)`); used exactly as produced, with no final newline added |
+| `html head` | the preserved head (HTML before the `luccet.js` line), passed as `opts.head`; for `:::meta` conflicts |
+| `html` | the expected body HTML (what goes inside `main.luccet`), compared after normalisation (below) |
 | `diagnostics` | the expected diagnostics, one per line: `LINE:COL[-LINE:COL] SEVERITY CODE ["substring"]` |
 | `json diagnostics` | the same as JSON, a subset match per diagnostic, when more fields matter |
-| `json ast` | a subset of `tern.parse(source).ast` (before transforms) |
-| `json transformed` | a subset of the AST after `tern.transform` (numbers, ref text, ids) |
+| `json ast` | a subset of `luccet.parse(source).ast` (before transforms) |
+| `json transformed` | a subset of the AST after `luccet.transform` (numbers, ref text, ids) |
 
 A case needs a source and at least one expectation. **A case without a diagnostics block expects no diagnostics at all**, infos included; write an empty `diagnostics` block to say so explicitly.
 
@@ -68,21 +68,21 @@ A case needs a source and at least one expectation. **A case without a diagnosti
 
 ### Positions
 
-- Lines are 1-based within the `tern` source (the note; the `tern.js` line is not line 1 of it).
+- Lines are 1-based within the `luccet` source (the note; the `luccet.js` line is not line 1 of it).
 - Columns are 1-based and count UTF-16 code units of the line after normalisation (`syntax-blocks#normalisation`), leading whitespace included; a tab is one column here (tab stops matter for list membership, not for positions).
 - `offset` is the 0-based UTF-16 index into the normalised source.
 - An end is exclusive: the column just after the last character, as in unist.
 
 ### The AST
 
-Node shapes are mdast's, remark-directive's and mdast-util-math's, plus Tern's additions (`footnoteReference`, `footnoteDefinition`, `code.data.tern.title`, `html.data.tern.kind`, `root.data.tern.meta`, `attributes` on `table`, `cell`, `ref`, `inlineMath`); `api#node-types` lists them. A `json ast` block is a subset: give the fields that are the point of the case and leave out the rest, but arrays must list every element (so a `children` array is complete). Positions appear only where the case asserts them. The value `"$absent"` asserts that a field is missing: `{"type": "math", "attributes": "$absent"}`. The same subset rules apply to `json transformed` and `json diagnostics`.
+Node shapes are mdast's, remark-directive's and mdast-util-math's, plus Luccet's additions (`footnoteReference`, `footnoteDefinition`, `code.data.luccet.title`, `html.data.luccet.kind`, `root.data.luccet.meta`, `attributes` on `table`, `cell`, `ref`, `inlineMath`); `api#node-types` lists them. A `json ast` block is a subset: give the fields that are the point of the case and leave out the rest, but arrays must list every element (so a `children` array is complete). Positions appear only where the case asserts them. The value `"$absent"` asserts that a field is missing: `{"type": "math", "attributes": "$absent"}`. The same subset rules apply to `json transformed` and `json diagnostics`.
 
 ## The lint
 
 `node test/run.js --lint` checks the corpus without running it; `node test/run.js` refuses to run a corpus with lint problems, though not one with coverage gaps. It ends with a summary line such as `corpus: 1395 cases in 34 files citing 123 anchors; reference sections 63/63, engine codes 53/53`. The rules are in `test/lib/spec.js`; the pages are read by `test/lib/anchors.js`, which `test/docs.js` shares.
 
 - **Format.** Every case parses as above, and its id is unique.
-- **Anchors.** Every `spec:` anchor names a page and an id that page defines: its id registry after `tern.transform`, or an id its HTML emits, found by analysing the page with the engine.
+- **Anchors.** Every `spec:` anchor names a page and an id that page defines: its id registry after `luccet.transform`, or an id its HTML emits, found by analysing the page with the engine.
 - **Codes.** Every expected diagnostic is one of the engine's codes (`SEVERITY` in `src/diag.js`), with the engine's severity. The runtime's and the tools' codes (`math.error`, `addon.failed`, `script.document-write`, `script.domcontentloaded`, `katex.unavailable`, `doc.quirks`, `head.script`, `addon.remote`) are not the corpus's: `test/smoke.js` and `test/cli.js` test them.
 - **The diagnostics page.** Every code, the engine's, the runtime's and the tools', has its section on `docs/diagnostics.html`: the code with dashes, `block.unclosed` at `diagnostics#block-unclosed`.
 - **Coverage of codes.** Every engine code is expected (without `?`) by at least one case.
@@ -92,12 +92,12 @@ Node shapes are mdast's, remark-directive's and mdast-util-math's, plus Tern's a
 
 ## Cases from the documentation
 
-`tern corpus FILE…` prints a documentation page's live examples (`docs/README.md` "Live examples") as cases in this format, and `--out=DIR` writes one file per page (`DIR/docs-PAGE.txt`).
+`node tools/corpus.js FILE…` (`npm run corpus` for the site) prints a documentation page's live examples (`docs/README.md` "Live examples") as cases in this format, and `--out=DIR` writes one file per page (`DIR/docs-PAGE.txt`).
 
 - **Id.** `## docs/PAGE-SLUG`. PAGE is the file name (`examples-NAME` for a page in `examples/`). SLUG is the fence's own `#id` when it has one; otherwise it is the id of the heading the example follows plus its number under that heading (`docs/syntax-blocks-fence-2`), or its number on the page before any heading. So adding an example renumbers only its own section.
 - **`spec:`** is the fence's `spec="…"` attribute when it has one (anchors, as above). Otherwise it is the section the example is in: `PAGE#ID` for the nearest heading with an id before it, or `PAGE#top` before any. `index.html` cites its own sections (`index#tour-math`); a page in `examples/` cites `guide#top`.
 - **`options:`** `schema=none` for an example with no schema; `schema=demo` uses the fixture schema, which `docs/docs.js`'s demo schema equals (`test/docs.js` checks). `escaped` when the source holds tabs, CR, NUL, a BOM or trailing spaces.
-- **Blocks.** The `tern` block is the fence's text; `html head` is its `head=`; `diagnostics` lists the codes of its `expect`, with the positions and severities the engine gives them. An example whose diagnostics differ from its `expect` is left out and reported, and the command exits 1.
+- **Blocks.** The `luccet` block is the fence's text; `html head` is its `head=`; `diagnostics` lists the codes of its `expect`, with the positions and severities the engine gives them. An example whose diagnostics differ from its `expect` is left out and reported, and the command exits 1.
 
 `test/docs.js` runs the extraction on every page and checks that the cases parse, that their codes and severities are the engine's, and that every anchor they cite exists. These cases count toward no coverage: the corpus's own cases must cover everything.
 
@@ -107,10 +107,10 @@ The harness calls the engine with `opts = {schema, head}` where `schema` is `tes
 
 | Expectation | Engine call |
 |---|---|
-| `json ast` | `tern.parse(source, opts).ast` |
-| diagnostics | `tern.check(source, opts)` |
-| `json transformed` | `tern.transform(tern.parse(…).ast, opts)` |
-| `html` | `tern.toHTML(source, {...opts, positions: false})` |
+| `json ast` | `luccet.parse(source, opts).ast` |
+| diagnostics | `luccet.check(source, opts)` |
+| `json transformed` | `luccet.transform(luccet.parse(…).ast, opts)` |
+| `html` | `luccet.toHTML(source, {...opts, positions: false})` |
 
 ## HTML comparison
 

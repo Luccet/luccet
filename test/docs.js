@@ -4,25 +4,28 @@
 // example and every link, under node, with no browser and no dependencies.
 // The pages are index.html, docs/*.html and examples/*.html that are notes.
 //
-//   - The page: its diagnostics under its own add-ons (what `tern check`
+//   - The page: its diagnostics under its own add-ons (what `luccet check`
 //     prints) include no error or warning; infos are listed and pass. A page
 //     that loads docs.js uses only names it declares (README "Use nothing
-//     else"), and no id of its own is one tern.js or docs.js gives its own
-//     elements (tern-style, ex1-…).
+//     else"), and no id of its own is one luccet.js or docs.js gives its own
+//     elements (luccet-style, ex1-…).
 //   - Every live example: its diagnostics equal its `expect` as a multiset,
 //     under schema=none or demo and its head=; it renders; what its case
 //     cites (its spec=, else its section) are anchors PAGE#ID that exist.
-//     `tern corpus` turns the page's examples into corpus cases that parse
+//     tools/corpus.js turns the page's examples into corpus cases that parse
 //     and lint (test/lib/corpus.js, spec.js).
 //   - Every link: a relative link, image or element URL (`[x](page.html#id)`,
 //     `![x](img.svg)`, `::video{src=…}`, raw HTML href/src) names a file that
 //     exists, and its fragment an id of that page: its id registry
-//     (data.tern.ids) or an id its HTML emits; a fragment in a .md file is a
+//     (data.luccet.ids) or an id its HTML emits; a fragment in a .md file is a
 //     GitHub heading anchor. Root-relative URLs are refused: the site is
 //     served under a path.
 //   - docs.js: its demo schema equals test/fixtures/schema.js, and its site
 //     navigation lists every example page. A page the navigation lists that
 //     does not exist yet is pending (listed, not failed; --strict fails it).
+//   - Severities: each code's effect in src/diag.js is a known one, and the
+//     severity it gives is what docs/diagnostics.html (summary table, section,
+//     count) and the skill's headings say.
 //
 // Each problem prints as `file:line: message`; exit 1 on any.
 //
@@ -45,7 +48,7 @@ const ROOT = path.join(__dirname, '..');
 const args = process.argv.slice(2);
 const STRICT = args.includes('--strict');
 const QUIET = args.includes('--quiet');
-const tern = note.tern;
+const luccet = note.luccet;
 
 const problems = [];
 const infos = [];
@@ -84,7 +87,7 @@ function checkPage(file) {
 
   if (usesDocs(x)) {
     // Names docs.js does not declare: name.unknown under `strict`.
-    const strict = tern.check(x.a.note, { ...x.a.opts, schema: { ...x.a.schema, strict: true } });
+    const strict = luccet.check(x.a.note, { ...x.a.opts, schema: { ...x.a.schema, strict: true } });
     for (const d of strict) {
       if (d.code !== 'name.unknown') continue;
       const name = (/`([^`]+)`/.exec(d.message) || [])[1];
@@ -92,10 +95,10 @@ function checkPage(file) {
     }
   }
   // Ids docs.js makes (example results ex1-…, widgets docs-ex1 …, the nav
-  // docs-nav-…). Tern's own ids are the engine's to keep out (id.duplicate,
+  // docs-nav-…). Luccet's own ids are the engine's to keep out (id.duplicate,
   // reported with the page's diagnostics above).
   for (const id of p.ids) {
-    const at = x.a.ast.data.tern.ids[id] ? x.a.ast.data.tern.ids[id].line + x.a.line : 1;
+    const at = x.a.ast.data.luccet.ids[id] ? x.a.ast.data.luccet.ids[id].line + x.a.line : 1;
     if (/^ex\d+-|^docs-ex\d+(?:-|$)|^docs-nav-/.test(id)) problem(file, at, `the id ${id} is one docs.js makes (ex1-…, docs-ex1, docs-nav-…); give this one another id ({#…})`);
   }
 
@@ -116,11 +119,11 @@ function checkExamples({ file, x }) {
         const got = r.diagnostics.map((d) => `${d.code} (${d.position.start.line}:${d.position.start.column})`).join(', ') || 'none';
         problem(file, ex.line, `live example ${ex.slug}: diagnostics ${got}; expect="${ex.expect.join(' ')}"${r.missing.length ? `; missing ${r.missing.join(' ')}` : ''}${r.unexpected.length ? `; unexpected ${r.unexpected.join(' ')}` : ''}`);
       }
-      tern.toHTML(ex.source, { ...examples.options(ex), positions: false });
+      luccet.toHTML(ex.source, { ...examples.options(ex), positions: false });
     } catch (e) {
       problem(file, ex.line, `live example ${ex.slug} throws: ${(e && e.stack) || e}`);
     }
-    // What `tern corpus` cites for it: its spec=, else its section.
+    // What tools/corpus.js cites for it: its spec=, else its section.
     for (const s of ex.spec || [ex.cite]) {
       const r = spec.resolve(String(s));
       if (r.error) problem(file, ex.line, `live example ${ex.slug}: ${ex.spec ? `spec="${ex.spec.join(' ')}"` : 'its section'} cites ${s}: ${r.error}`);
@@ -128,11 +131,11 @@ function checkExamples({ file, x }) {
   }
 }
 
-// `tern corpus` on the pages: the cases parse as corpus cases, and their
+// tools/corpus.js on the pages: the cases parse as corpus cases, and their
 // codes and severities lint. Mismatched examples and the anchors the cases
 // cite are reported with the examples.
 function checkCorpus(checked) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tern-docs-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luccet-docs-'));
   try {
     let n = 0;
     for (const p of checked) {
@@ -140,12 +143,12 @@ function checkCorpus(checked) {
       if (c.text) fs.writeFileSync(path.join(tmp, `${String(++n).padStart(3, '0')}.txt`), c.text);
     }
     const { cases, errors } = loadAll(tmp);
-    for (const e of errors) problems.push(`tern corpus: ${e.message.replace(/^[^:]*:\d+: /, '')}`);
+    for (const e of errors) problems.push(`corpus: ${e.message.replace(/^[^:]*:\d+: /, '')}`);
     for (const c of cases) {
       for (const d of c.diagnostics || []) {
         const known = spec.codes.get(d.code);
-        if (!known) problems.push(`tern corpus: ${c.id}: ${d.code} is not an engine code (src/diag.js)`);
-        else if (known !== d.severity) problems.push(`tern corpus: ${c.id}: ${d.code} is ${known} in src/diag.js, tern.js says ${d.severity}`);
+        if (!known) problems.push(`corpus: ${c.id}: ${d.code} is not an engine code (src/diag.js)`);
+        else if (known !== d.severity) problems.push(`corpus: ${c.id}: ${d.code} is ${known} in src/diag.js, luccet.js says ${d.severity}`);
       }
     }
     return cases.length;
@@ -156,7 +159,7 @@ function checkCorpus(checked) {
 
 // ---------------------------------------------------------------- links
 
-// cli/links.js, as `tern check` runs it, with two rules of the site's: a
+// cli/links.js, as `luccet check` runs it, with two rules of the site's: a
 // root-relative URL is refused, and a page the navigation plans is pending.
 const links = require('../cli/links');
 const targets = new links.Targets();
@@ -186,15 +189,15 @@ function checkLinks({ file, x }) {
 
 // ---------------------------------------------------------------- docs.js
 
-// docs.js under node, as `tern check` loads it: window.ternDocs, or null.
+// docs.js under node, as `luccet check` loads it: window.luccetDocs, or null.
 const DOCS_JS = path.join(ROOT, 'docs', 'docs.js');
 function docsJs() {
   if (!fs.existsSync(DOCS_JS)) return problem(DOCS_JS, 1, 'docs.js is missing'), null;
   // A minimal note under docs/ that loads docs.js, analysed in the sandbox.
-  const a = note.analyse('<!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="docs.js"></script>\n# x\n', path.join(ROOT, 'docs', 'probe.html'));
+  const a = note.analyse('<!doctype html><meta charset="utf-8"><script src="../luccet.js" data-use="docs.js"></script>\n# x\n', path.join(ROOT, 'docs', 'probe.html'));
   for (const d of a.diagnostics) if (!d.position && d.code === 'addon.failed') problem(DOCS_JS, 1, `does not load under node: ${d.message}`);
-  const docs = a.ternDocs;
-  if (!docs) problem(DOCS_JS, 1, 'sets no window.ternDocs');
+  const docs = a.luccetDocs;
+  if (!docs) problem(DOCS_JS, 1, 'sets no window.luccetDocs');
   return docs || null;
 }
 const DOCS = docsJs();
@@ -207,7 +210,7 @@ function checkDocsJs(found) {
   if (!docs) return;
   // The realms differ, so compare as canonical JSON.
   const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : typeof x === 'function' ? `[function ${x.name}]` : x));
-  if (canon(docs.demo) !== canon(fixture)) problem(file, 1, 'window.ternDocs.demo differs from test/fixtures/schema.js; keep the demo schema exactly the corpus fixture');
+  if (canon(docs.demo) !== canon(fixture)) problem(file, 1, 'window.luccetDocs.demo differs from test/fixtures/schema.js; keep the demo schema exactly the corpus fixture');
   const listed = [...(docs.pages || []), ...(docs.examples || [])].map(([p]) => p);
   for (const p of listed) {
     if (fs.existsSync(path.join(ROOT, p))) continue;
@@ -218,8 +221,68 @@ function checkDocsJs(found) {
   }
   for (const f of found) {
     const r = rel(f);
-    if (/^(docs|examples)\/[^_][^/]*\.html$|^index\.html$/.test(r) && !listed.includes(r)) problem(f, 1, `is not in the site navigation (docs.js ternDocs.${r.startsWith('examples/') ? 'examples' : 'pages'})`);
+    if (/^(docs|examples)\/[^_][^/]*\.html$|^index\.html$/.test(r) && !listed.includes(r)) problem(f, 1, `is not in the site navigation (docs.js luccetDocs.${r.startsWith('examples/') ? 'examples' : 'pages'})`);
   }
+}
+
+// ---------------------------------------------------------------- page lists
+
+// The documentation's pages are listed three times besides the folder: in
+// docs.js's navigation (PAGES), in docs/README.md's table and in the home
+// page's. Each names every page of docs/, and nothing else, under the
+// title the page's own <title> gives it ("Add-ons · Luccet").
+function checkPageLists() {
+  const titleOf = (file) => (/<title>([^<]*) · Luccet<\/title>/.exec(fs.readFileSync(file, 'utf8').split('\n')[0]) || [])[1];
+  const want = new Map();
+  for (const f of pages()) if (path.dirname(f) === path.join(ROOT, 'docs')) want.set(`docs/${path.basename(f)}`, titleOf(f));
+  const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  const lists = [
+    ['docs/docs.js', [...read('docs/docs.js').matchAll(/\['(docs\/[\w-]+\.html)', '([^']+)'\]/g)]],
+    ['docs/README.md', [...read('docs/README.md').matchAll(/^\| `(docs\/[\w-]+\.html)` \| ([^|]+?) \|/gm)]],
+    ['index.html', [...read('index.html').matchAll(/^\| \[([^\]]+)\]\((docs\/[\w-]+\.html)#top\) \|/gm)].map((m) => [m[0], m[2], m[1]])],
+  ];
+  for (const [where, found] of lists) {
+    const got = new Map(found.map((m) => [m[1], m[2]]));
+    for (const [page, title] of want) {
+      if (!got.has(page)) problems.push(`${where}: ${page} (${title}) is not listed`);
+      else if (got.get(page) !== title) problems.push(`${where}: ${page} is listed as "${got.get(page)}", its <title> says "${title}"`);
+    }
+    for (const page of got.keys()) if (!want.has(page)) problems.push(`${where}: ${page} is listed, but is no page of docs/`);
+  }
+}
+
+// ---------------------------------------------------------------- severities
+
+// Each parser and transform code declares its effect in src/diag.js, and its
+// severity follows from it. docs/diagnostics.html states it three times (the
+// summary table, the section's first word, the count under #severity) and the
+// skill once (its heading): all must say what the engine says.
+function checkSeverities() {
+  const { EFFECT, SEVERITY_OF, SEVERITY } = require('../src/diag');
+  const page = path.join(ROOT, 'docs', 'diagnostics.html');
+  const skill = path.join(ROOT, 'skills', 'luccet-notes', 'references', 'diagnostics.md');
+  const text = fs.readFileSync(page, 'utf8');
+  const skillText = fs.existsSync(skill) ? fs.readFileSync(skill, 'utf8') : null;
+  const lineAt = (s, i) => s.slice(0, i).split('\n').length;
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const [code, effect] of Object.entries(EFFECT)) {
+    if (!SEVERITY_OF[effect]) problem(path.join(ROOT, 'src', 'diag.js'), 1, `${code}: the effect ${JSON.stringify(effect)} is not one of ${Object.keys(SEVERITY_OF).join(', ')}`);
+    const sev = SEVERITY[code];
+    const row = new RegExp(`^\\| \\[\`${esc(code)}\`\\]\\([^)]*\\) \\| (\\w+)[^|]* \\|`, 'm').exec(text); // "info, with `strict` only"
+    if (!row) problem(page, 1, `${code} has no row in the summary table`);
+    else if (row[1] !== sev) problem(page, lineAt(text, row.index), `${code} is ${row[1]} in the summary table; the engine says ${sev} (${effect})`);
+    const head = new RegExp(`^### \`${esc(code)}\`[^\\n]*\\n\\n\\*\\*(\\w+)[.,]`, 'm').exec(text);
+    if (!head) problem(page, 1, `${code} has no section that starts with its severity`);
+    else if (head[1].toLowerCase() !== sev) problem(page, lineAt(text, head.index), `${code}'s section says ${head[1]}; the engine says ${sev} (${effect})`);
+    if (skillText === null) continue;
+    const h = new RegExp(`^### \`${esc(code)}\` · (\\w+)`, 'm').exec(skillText);
+    if (h && h[1] !== sev) problem(skill, lineAt(skillText, h.index), `${code} is ${h[1]} in the skill's heading; the engine says ${sev} (${effect})`);
+  }
+  const n = (s) => Object.values(SEVERITY).filter((x) => x === s).length;
+  const count = /Of the (\d+) parser and transform codes, (\d+) are errors, (\d+) are warnings and (\d+) are infos/.exec(text);
+  const want = [Object.keys(SEVERITY).length, n('error'), n('warning'), n('info')];
+  if (!count) problem(page, 1, 'the count of codes by severity under #severity is missing');
+  else if (count.slice(1).map(Number).join() !== want.join()) problem(page, lineAt(text, count.index), `the count reads ${count.slice(1).join('/')} (codes/errors/warnings/infos); the engine has ${want.join('/')}`);
 }
 
 // ---------------------------------------------------------------- main
@@ -237,6 +300,10 @@ for (const f of found) {
   }
 }
 checkDocsJs(found);
+if (!named.length) {
+  checkSeverities();
+  checkPageLists();
+}
 const cases = checkCorpus(checked);
 
 if (!QUIET) {

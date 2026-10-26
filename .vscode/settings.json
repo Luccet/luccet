@@ -1,5 +1,5 @@
 {
-  "//": "Tern notes are .html files whose body is Tern source. An HTML formatter rewrites them into something else, so formatting is off for HTML here and Prettier only touches files that ask for it.",
+  "//": "Luccet notes are .html files whose body is Luccet source. An HTML formatter rewrites them into something else, so formatting is off for HTML here and Prettier only touches files that ask for it.",
   "[html]": {
     "editor.formatOnSave": false,
     "editor.formatOnPaste": false,

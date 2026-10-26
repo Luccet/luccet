@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // The conformance harness. Zero dependencies.
 //
-//   node test/run.js            run the corpus against the engine (tern.js, or $TERN_ENGINE)
+//   node test/run.js            run the corpus against the engine (luccet.js, or $LUCCET_ENGINE)
 //   node test/run.js --lint     check the corpus itself (test/lib/spec.js): its format,
 //                               that every `spec:` anchor names an id of its docs page,
 //                               codes and severities against the engine's, and coverage
@@ -134,15 +134,16 @@ function compareDiagnostics(expected, actual, partial = false) {
 
 // ---------------------------------------------------------------- running
 
-function runCase(c, tern) {
+function runCase(c, luccet) {
   let schema = c.options.has('schema=none') ? { block: {}, leaf: {}, inline: {} } : c.options.has('schema=extended') ? extended : fixture;
   if (c.options.has('strict')) schema = { ...schema, strict: true };
   const opts = { schema, head: c.head };
   if (c.options.has('safe')) opts.safe = true;
+  if (c.options.has('math=tex')) opts.math = 'tex';
   const fails = [];
 
   try {
-    const parsed = tern.parse(c.source, opts);
+    const parsed = luccet.parse(c.source, opts);
     const broken = checkParse(parsed, c.source);
     if (broken.length) fails.push(`invariants (test/lib/invariants.js)\n${broken.slice(0, 8).join('\n')}`);
     if (c.ast !== undefined) {
@@ -150,20 +151,20 @@ function runCase(c, tern) {
       if (r) fails.push(`json ast ${r}`);
     }
     if (c.transformed !== undefined) {
-      const ast = tern.transform(tern.parse(c.source, opts).ast, opts);
+      const ast = luccet.transform(luccet.parse(c.source, opts).ast, opts);
       const r = subset(c.transformed, ast);
       if (r) fails.push(`json transformed ${r}`);
     }
     if (c.forbidden && c.forbidden.length) {
-      const bad = tern.check(c.source, opts).filter((d) => c.forbidden.includes(d.code));
+      const bad = luccet.check(c.source, opts).filter((d) => c.forbidden.includes(d.code));
       if (bad.length) fails.push(`diagnostics: forbidden ${bad.map(fmt).join('; ')}`);
     }
     if (!c.options.has('diagnostics=any')) {
-      const r = compareDiagnostics(expectedDiagnostics(c) || [], tern.check(c.source, opts), c.options.has('diagnostics=partial'));
+      const r = compareDiagnostics(expectedDiagnostics(c) || [], luccet.check(c.source, opts), c.options.has('diagnostics=partial'));
       if (r) fails.push(`diagnostics\n${r}`);
     }
     if (c.html !== undefined) {
-      const got = normalize(tern.toHTML(c.source, { ...opts, positions: false }));
+      const got = normalize(luccet.toHTML(c.source, { ...opts, positions: false }));
       const want = normalize(c.html);
       if (got !== want) {
         const i = firstDifference(want, got);
@@ -192,8 +193,8 @@ function main() {
     console.log('fix the corpus before running it (node test/run.js --lint)');
     process.exit(1);
   }
-  const { tern, why } = engine.load();
-  if (!tern) {
+  const { luccet, why } = engine.load();
+  if (!luccet) {
     console.log(`✗ ${why}`);
     console.log(`  ${cases.length} case(s) not run; node test/run.js --lint checks the corpus alone`);
     process.exit(2);
@@ -201,7 +202,7 @@ function main() {
   const failed = [];
   const t0 = Date.now();
   for (const c of cases) {
-    const fails = runCase(c, tern);
+    const fails = runCase(c, luccet);
     if (fails.length) failed.push({ c, fails });
   }
   const ms = Date.now() - t0;

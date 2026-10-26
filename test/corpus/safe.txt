@@ -13,7 +13,7 @@ options: safe
 A raw block, a comment and an `=html` fence are shown as escaped source, each in a `<pre>`.
 Under `safe`, a raw block is shown escaped in a plain `<pre>`.
 
-````tern
+````luccet
 <div class="box">
 raw
 </div>
@@ -40,7 +40,7 @@ options: safe
 
 Inline tags, comments and custom elements are escaped text in their paragraph.
 
-````tern
+````luccet
 x <b class="y">z</b> <!-- c --> <tide-clock station="leith"></tide-clock> y
 ````
 
@@ -55,7 +55,7 @@ options: safe
 
 Event-handler attributes are dropped from spans and named elements; the others stay.
 
-````tern
+````luccet
 [x]{onclick="alert(1)" title=ok}
 
 :::box{onmouseover=go .c}
@@ -75,7 +75,7 @@ options: safe
 
 `srcdoc`, `formaction` and `style` are dropped; a span's classes stay. An `::iframe` is neutralised to a plain element (below), so its `src` is inert.
 
-````tern
+````luccet
 [go]{formaction=/x} [s]{style="color:red" .k}
 ````
 
@@ -90,7 +90,7 @@ options: safe
 
 A named element that resolves to one that loads, runs or navigates — a frame, an object, a form, `<base>`, `<meta>`, `<link>` — or to a custom element (a hyphen in the name) is emitted as a plain `div` (a `span` inline), keeping its id, class, `data-t` and content. Raw HTML with these tags is escaped already; this catches `::iframe` and `{tag=form}`.
 
-````tern
+````luccet
 ::iframe{src=map.html #f}
 
 :::signup{tag=form action=/submit}
@@ -102,9 +102,11 @@ A :tide-clock[clock]{station=leith} inline.
 
 ````html
 <div class="iframe" data-t="iframe" id="f" src="map.html"></div>
-<div class="t-block signup" data-t="signup" action="/submit"><p>Body.</p></div>
-<p>A <span class="tide-clock" data-t="tide-clock" station="leith">clock</span> inline.</p>
+<div class="t-block signup" data-t="signup"><p>Body.</p></div>
+<p>A <span class="tide-clock" data-t="tide-clock">clock</span> inline.</p>
 ````
+
+The attributes go through the allowlist (`safe/attribute-allowlist`): `src` is one (a URL, checked, inert on a `div`); `action` and the custom `station` are not, and are dropped.
 
 ## safe/navigation-attributes-dropped
 
@@ -113,7 +115,7 @@ options: safe
 
 Attributes that steer navigation or focus — `target`, `ping`, `is`, `autofocus`, `formtarget` — are dropped; an ordinary `rel` and the link stay.
 
-````tern
+````luccet
 [x](https://a.org){target=_blank ping=/p rel=noopener}
 
 [y]{is=my-button autofocus title=t}
@@ -131,7 +133,7 @@ options: safe
 
 A `javascript:` URL is dropped from a link destination and from an attribute, in any case and when spelled with an entity; so is a `data:` image.
 
-````tern
+````luccet
 [a](javascript:alert(1)) [b]{href="javascript:x"} [c]{href="&#106;avascript:x"} [d](JavaScript:x) ![i](data:image/png;base64,AA)
 ````
 
@@ -146,7 +148,7 @@ options: safe
 
 http(s), mailto and relative URLs are kept, fragments included.
 
-````tern
+````luccet
 [a](https://x.org) [b](http://x.org) [c](mailto:me@x.org) [d](../rel/p.html) [e](#frag) [f](/abs) [here]{#frag}
 
 ::img{src=img/a.png alt=A}
@@ -163,9 +165,9 @@ spec: elements#safe syntax-blocks#cells
 options: safe
 
 The author's `style` is dropped, but the grid's own `--t-cols` declaration stays, so `cols` still lays out cells.
-Under `safe`, tern's own `--t-cols` style is kept when its value holds only numbers, words and `(),.%/+*-`, and dropped otherwise.
+Under `safe`, luccet's own `--t-cols` style is kept when its value holds only numbers, words and `(),.%/+*-`, and dropped otherwise.
 
-````tern
+````luccet
 :::row{cols=2 style="gap:1rem"}
 A.
 +++
@@ -187,7 +189,7 @@ options: safe
 
 Attributes that drive the host page's own elements or clobber its names — `form`, `popovertarget`, `popovertargetaction`, `usemap` and `name` — are dropped with the handlers; `title` stays.
 
-````tern
+````luccet
 [s]{form=f popovertarget=p popovertargetaction=show usemap="#m" name=n title=ok}
 
 :::box{form=f popovertarget=p name=n}
@@ -208,7 +210,7 @@ options: safe
 
 `popover`, `commandfor`, `command`, `interestfor` and `interesttarget` would let untrusted content open or drive the host page's dialogs and popovers; `data-*` stays.
 
-````tern
+````luccet
 :::note{popover commandfor=host-dialog command=show-modal interestfor=tip interesttarget=tip data-k=v}
 x
 :::
@@ -225,7 +227,7 @@ options: safe
 
 A `srcset` is decoded before it is split: `&#44;` is the comma between two candidates to the browser, so a `data:` candidate hidden behind it is seen and the attribute dropped; a plain srcset of relative URLs stays.
 
-````tern
+````luccet
 ![a](a.png){srcset="a.png 1x&#44; data:image/svg+xml;base64,PHN2Zz4= 2x"}
 
 ![b](b.png){srcset="b.png 1x, b@2x.png 2x"}
@@ -235,3 +237,25 @@ A `srcset` is decoded before it is split: `&#44;` is the comma between two candi
 <p><img src="a.png" alt="a"></p>
 <p><img src="b.png" alt="b" srcset="b.png 1x, b@2x.png 2x"></p>
 ````
+
+## safe/attribute-allowlist
+
+spec: elements#safe
+options: safe
+
+From the 2.0 plan (1.10): `safe` kept every attribute but a list of known dangerous ones, so the next one HTML adds would pass. It keeps only an allowlist now: the global attributes that describe an element (`id`, `class`, `title`, `lang`, `dir`, `hidden`, `role`, `translate`), `aria-*` but those that name an id, `data-*` but Luccet's `data-t-*`, and those HTML gives media, links, quotes, tables, lists, details, meters and tracks. `tabindex`, `accesskey`, `contenteditable`, `slot`, `for`, `aria-owns` and an unknown key are dropped. A `<button>` is `type="button"`, so it cannot submit a form of the host page.
+
+````luccet
+[a]{lang=de dir=rtl aria-label="A" data-x=1 tabindex=0 accesskey=k contenteditable slot=s for=host aria-owns=host-menu data-t-cols=9 foo=bar}
+
+:button[Go]{type=submit}
+
+[x](https://example.org){rel=nofollow hreflang=en target=_blank}
+````
+
+````html
+<p><span lang="de" dir="rtl" aria-label="A" data-x="1">a</span></p>
+<p><button class="button" data-t="button" type="button">Go</button></p>
+<p><a href="https://example.org" rel="nofollow" hreflang="en">x</a></p>
+````
+

@@ -5,25 +5,25 @@
 // and at most one open leaf.
 //
 // AST conventions beyond mdast, for the emitter and transforms (every
-// data.tern field is listed in docs/api.html#data-tern):
+// data.luccet field is listed in docs/api.html#data-luccet):
 //   - an attribute line is merged into its block's `attributes` and the
 //     block's position starts at it; one that binds to nothing is an
 //     `attributes` node whose `value` is its lines, rendered as text;
-//   - an author id has `data.tern.idPosition`, its `#id` or `id=value` item;
+//   - an author id has `data.luccet.idPosition`, its `#id` or `id=value` item;
 //   - reserved keys (`raw`, `cols`, `tag`, `lines` …) stay in `attributes`;
 //     `code.meta` is a fence's info junk (`data-meta`), else null;
-//   - a container has `data.tern.colons`; opener junk is a paragraph with
-//     `data.tern.junk` holding one text node, after the label; a container
+//   - a container has `data.luccet.colons`; opener junk is a paragraph with
+//     `data.luccet.junk` holding one text node, after the label; a container
 //     with a verbatim body (`:::meta`, `{raw}`, `:::script` …) has it as
 //     `value`;
-//   - `root.data.tern.meta` exists when a top-level `:::meta` does;
-//   - an unclosed `$$` has `data.tern.unclosed` and `data.tern.source`;
+//   - `root.data.luccet.meta` exists when a top-level `:::meta` does;
+//   - an unclosed `$$` has `data.luccet.unclosed` and `data.luccet.source`;
 //   - a row holds the cells it has (missing ones are not in the tree, so the
 //     column count is `align.length`); a continuation is a `break` in a cell.
 'use strict';
 
 const { createSpan, spanAdd } = require('./ast');
-const { IDENT, NAME, LABEL, matchAt, isAsciiPunct, parseAttrs, reportReserved, isReservedName, isCustomName, put } = require('./scan');
+const { IDENT, NAME, LABEL, matchAt, isAsciiPunct, parseAttrs, reportReserved, isReservedName, isCustomName, put, htmlHazard } = require('./scan');
 const { parseInline, atomRanges } = require('./inline');
 
 // Tags that start a raw HTML block, as custom elements do. A raw-text tag's
@@ -88,7 +88,7 @@ const top = () => stack[stack.length - 1];
 const lineOf = (o) => ctx.point(o).line;
 const same = (i) => i; // index to offset, where the text is src itself
 const report = (code, a, b, message, hint) => ctx.report(code, a, b, message, hint);
-const tern = (node) => (node.data = node.data || {}).tern || (node.data.tern = {});
+const luccet = (node) => (node.data = node.data || {}).luccet || (node.data.luccet = {});
 const skipSp = (i, e) => {
   while (i < e && isSp(src[i])) i++;
   return i;
@@ -137,10 +137,16 @@ function moveTo(i) {
 
 // The remainder as written; a partly consumed tab becomes spaces.
 const rest = () => (partial ? ' '.repeat(partial) + src.slice(pos + 1, le) : src.slice(pos, le));
+// The offset rest()'s first character stands for: under a partial tab, the
+// spaces it adds stand before pos + 1.
+const lineAt = () => (partial ? pos + 1 - partial : pos);
 
 // Matches and consumes frame f's prefix: a quote's `>` (after any indent)
 // and one space or tab; a list item's indent to its content column; a
-// footnote's 2 columns. A blank line matches an item or a footnote.
+// footnote's 2 columns. A blank line matches an item or a footnote; an item
+// still empty takes none (it begins with at most one blank line, as in
+// CommonMark), but an empty footnote does: its content may start on an
+// indented line after a blank one.
 // Containers and cells have no prefix.
 function matchPrefix(f) {
   if (f.kind === 'quote') {
@@ -152,7 +158,7 @@ function matchPrefix(f) {
   const need = f.kind === 'fn' ? 2 : f.indent;
   const w = indentAt();
   if (firstNB() < le) return w >= need && (advance(need), true);
-  return !!f.node.children.length && (advance(Math.min(w, need)), true); // an item still empty takes no blank line: it begins with at most one
+  return (f.kind === 'fn' || !!f.node.children.length) && (advance(Math.min(w, need)), true);
 }
 
 // ------------------------------------------------------------ the tree
@@ -180,7 +186,7 @@ function push(f) {
 }
 
 // A node's attributes: an attribute line's, then its own group, which wins
-// for the id and the other keys; classes accumulate. Records under data.tern
+// for the id and the other keys; classes accumulate. Records under data.luccet
 // where the id is written (idPosition) and where reserved keys that may not
 // apply are (tagPosition, refPosition, rawPosition, colsPosition), for the
 // transforms' diagnostics. Returns them with where each key was written.
@@ -191,6 +197,9 @@ function attach(node, pa, res) {
   const cls = [], other = Object.create(null), keyAt = Object.create(null); // no prototype: `__proto__` is a key
   for (const g of groups) {
     reportReserved(ctx, g, same);
+    // An attribute line's id or key that the opener's group writes again is replaced: said, not silent.
+    if (g.attrs.id !== undefined && id !== undefined) overridden(idAt, id, g.attrs.id);
+    for (const k in g.attrs) if (k !== 'id' && k !== 'class' && k in other) overriddenKey(keyAt[k], k);
     if (g.attrs.id !== undefined) (id = g.attrs.id), (idAt = g.idAt);
     if (g.attrs.class && classAt < 0) classAt = g.classAt;
     if (g.attrs.class) cls.push(g.attrs.class);
@@ -204,15 +213,15 @@ function attach(node, pa, res) {
   if (idAt >= 0) {
     const q = src[idAt + 3];
     const e = src[idAt] === '#' ? matchAt(IDENT, src, idAt + 1) : q === '"' || q === "'" ? src.indexOf(q, idAt + 4) + 1 : matchAt(VALUE, src, idAt + 3);
-    tern(node).idPosition = ctx.position(idAt, Math.max(e, idAt + 1));
+    luccet(node).idPosition = ctx.position(idAt, Math.max(e, idAt + 1));
   }
-  if (keyAt.tag !== undefined) tern(node).tagPosition = ctx.position(keyAt.tag, keyAt.tag + 3); // for tag.not-allowed
+  if (keyAt.tag !== undefined) luccet(node).tagPosition = ctx.position(keyAt.tag, keyAt.tag + 3); // for tag.not-allowed
   // Reserved keys where they may not apply, for attr.malformed: `ref` off
   // references, `raw` off containers, `cols` off containers and leaves (and
   // on raw-body containers).
-  if (keyAt.ref !== undefined) tern(node).refPosition = ctx.position(keyAt.ref, keyAt.ref + 3);
-  if (keyAt.raw !== undefined && node.type !== 'containerDirective') tern(node).rawPosition = ctx.position(keyAt.raw, keyAt.raw + 3);
-  if (keyAt.cols !== undefined && node.type !== 'leafDirective' && (node.type !== 'containerDirective' || RAW_BODY.has(node.name))) tern(node).colsPosition = ctx.position(keyAt.cols, keyAt.cols + 4);
+  if (keyAt.ref !== undefined) luccet(node).refPosition = ctx.position(keyAt.ref, keyAt.ref + 3);
+  if (keyAt.raw !== undefined && node.type !== 'containerDirective') luccet(node).rawPosition = ctx.position(keyAt.raw, keyAt.raw + 3);
+  if (keyAt.cols !== undefined && node.type !== 'leafDirective' && (node.type !== 'containerDirective' || RAW_BODY.has(node.name))) luccet(node).colsPosition = ctx.position(keyAt.cols, keyAt.cols + 4);
   return { attrs, keyAt, classAt };
 }
 
@@ -666,14 +675,41 @@ function fence(r, fi, te) {
   if (lang === '=html') {
     if (pa) orphan(pa, true);
     pa = null;
-    node = { type: 'html', value: '', data: { tern: { kind: 'fence' } } };
+    node = { type: 'html', value: '', data: { luccet: { kind: 'fence' } } };
   } else {
     node = { type: 'code', lang: (lang[0] === '=' ? lang.slice(1) : lang) || null, meta: o.junk >= 0 ? src.slice(o.junk, te) : null, value: '' };
     attach(node, pa, o.res);
-    if (o.tb >= 0) tern(node).title = inline(o.tb + 1, o.tc, 'title');
+    if (o.tb >= 0) luccet(node).title = inline(o.tb + 1, o.tc, 'title');
   }
   addChild(node);
-  leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], start: pa ? pa.start : fi, end: te, open: fi };
+  leaf = { kind: 'fence', verbatim: true, node, c: r.c, len: r.len, indent: ind, lines: [], at: node.type === 'html' ? [] : null, start: pa ? pa.start : fi, end: te, open: fi };
+}
+
+// Raw HTML, a block or an `=html` fence, that would hide what follows it in
+// the page (scan.js htmlHazard) is shown as its source, pre.t-error: the
+// browser would otherwise take the rest of the note into a comment, a
+// script's text, a video's fallback. `at` holds where each line of the
+// value starts in the source.
+const HAZARD = {
+  comment: (h) => [`this \`${h.name}\` is never closed, so the browser would hide everything after it`, `end it with \`${h.name === '<!--' ? '-->' : ']]>'}\``],
+  tag: (h) => [`this \`${h.name.startsWith('<') ? h.name : `<${h.name}`}\` tag is never ended with \`>\`, so the browser would read what follows as part of it`, 'end the tag with `>`, and close every quote in it'],
+  text: (h) => (h.name === 'plaintext' ? ['`<plaintext>` has no end, so the browser would show the rest of the page as its text', 'use `<pre>` for preformatted text'] : [`\`<${h.name}>\` is never closed here, so the browser would take the rest of the page as its text`, `end it with \`</${h.name}>\``]),
+  open: (h) => [`\`<${h.name}>\` is never closed here, so the browser would hide the rest of the page inside it`, `end it with \`</${h.name}>\``],
+  self: (h) => [`\`/>\` does not close a \`<${h.name}>\`: HTML ignores it on an element that is not void, so the rest of the page would be its content`, `write \`<${h.name} …></${h.name}>\``],
+};
+function hazard(node, at) {
+  const h = htmlHazard(node.value || '');
+  if (!h) return;
+  luccet(node).unclosed = true;
+  const v = node.value;
+  const offset = (o) => {
+    let line = 0;
+    let nl = -1;
+    for (let k = v.indexOf('\n'); k !== -1 && k < o; k = v.indexOf('\n', k + 1)) line++, (nl = k);
+    return at && at[line] !== undefined ? at[line] + o - nl - 1 : node.position ? node.position.start.offset : 0;
+  };
+  const [message, hint] = HAZARD[h.kind](h);
+  report(h.kind === 'self' ? 'html.self-closed' : 'html.unclosed', offset(h.at), offset(h.end), `${message}; the raw HTML is shown as source`, hint);
 }
 
 // A raw HTML block: the kind, and with it the end condition, is fixed on the first line, which counts too.
@@ -681,15 +717,16 @@ function html(r, fi) {
   const pa = begin();
   if (pa) orphan(pa, true);
   const a = pos;
-  const node = { type: 'html', value: rest(), data: { tern: { kind: r.hk } } };
+  const node = { type: 'html', value: rest(), data: { luccet: { kind: r.hk } } };
   addChild(node);
   if (r.hk === 'oneline') {
     node.position = ctx.position(a, le);
-    const hint = r.stray === 'table' ? 'write a pipe table or a whole raw `<table>` block' : `to wrap Tern content write \`:::${r.stray}{…}\` … \`:::\``;
+    hazard(node, [lineAt()]);
+    const hint = r.stray === 'table' ? 'write a pipe table or a whole raw `<table>` block' : `to wrap Luccet content write \`:::${r.stray}{…}\` … \`:::\``;
     if (r.stray) report('html.stray-closer', a, trimEnd(a, le), `\`</${r.stray}>\` closes nothing that is open; it is passed through`, hint);
     return;
   }
-  const v = (leaf = { kind: 'html', verbatim: true, node, hk: r.hk, name: r.name, lines: [node.value], start: a, end: le, first: le, open: a, d: 0 });
+  const v = (leaf = { kind: 'html', verbatim: true, node, hk: r.hk, name: r.name, lines: [node.value], at: [lineAt()], start: a, end: le, first: le, open: a, d: 0 });
   const s = src.slice(fi, le);
   if (r.hk === 'comment' ? s.includes('-->', 2) : r.hk === 'rawtext' ? RAW_END[r.name].test(s.slice(1)) : (v.d = balance(r.name, fi, le)) <= 0) finish(v);
 }
@@ -728,14 +765,14 @@ function selfClosed(s, i, e) {
 }
 
 // `html.wrapper`: the first non-tag line of a generic block after a blank
-// line or holding Tern syntax, a sign the author expects Tern inside an
+// line or holding Luccet syntax, a sign the author expects Luccet inside an
 // HTML wrapper. Once per block.
 function wrapper(v, fi, te) {
   if (v.warned || fi >= te) return void (v.blank = v.blank || fi >= te);
   const s = src.slice(fi, te);
   if (s[0] === '<' || (!v.blank && !/[*`$[]|:::/.test(s) && !/^(?:#{1,6}(?:[ \t]|$)|[-*+](?:[ \t]|$)|\d{1,9}[.)](?:[ \t]|$)|>|\|)/.test(s))) return;
   v.warned = true;
-  report('html.wrapper', fi, te, `This line is inside the raw \`<${v.name}>\` opened on line ${lineOf(v.open)} and is shown as HTML, not parsed as Tern.`, `To put Tern inside an element write \`:::${v.name}{…}\` … \`:::\`.`);
+  report('html.wrapper', fi, te, `This line is inside the raw \`<${v.name}>\` opened on line ${lineOf(v.open)} and is shown as HTML, not parsed as Luccet.`, `To put Luccet inside an element write \`:::${v.name}{…}\` … \`:::\`.`);
 }
 
 // Multi-line display math: the rest of the opener line is the first TeX line,
@@ -744,9 +781,9 @@ function math(_r, fi, te) {
   const pa = begin();
   const node = { type: 'math', value: '' };
   addChild(node);
-  leaf = { kind: 'math', verbatim: true, node, pa, indent: indentAt(), tex: [], lines: [src.slice(fi, te)], start: pa ? pa.start : fi, end: te, open: fi };
+  leaf = { kind: 'math', verbatim: true, node, pa, indent: indentAt(), tex: [], texAt: [], lines: [src.slice(fi, te)], start: pa ? pa.start : fi, end: te, open: fi };
   const f = skipSp(fi + 2, te);
-  if (f < te) leaf.tex.push(src.slice(f, te));
+  if (f < te) leaf.tex.push(src.slice(f, te)), leaf.texAt.push(f);
   const g = src[f] === '{' && (src[f + 1] === '#' || src[f + 1] === '.') ? parseAttrs(src, f, te) : null;
   if (g && g.ok && g.strong && g.end === te) report('math.opener-tail', f, te, 'a group on the opening `$$` line is TeX, not attributes', 'attributes go after the closing `$$`: `$$ {#eq}`');
 }
@@ -754,8 +791,10 @@ function math(_r, fi, te) {
 // One-line display math: `$$ TeX $$ {attrs}`.
 function math1(r, fi, te) {
   const pa = begin();
-  const node = { type: 'math', value: src.slice(skipSp(fi + 2, r.close), trimEnd(fi + 2, r.close)) };
+  const f = skipSp(fi + 2, r.close);
+  const node = { type: 'math', value: src.slice(f, trimEnd(fi + 2, r.close)) };
   attach(node, pa, r.res);
+  luccet(node).texAt = [ctx.point(f)];
   node.position = ctx.position(pa ? pa.start : fi, te);
   addChild(node);
 }
@@ -781,7 +820,7 @@ function leafLine(r, fi, te) {
   const pa = begin();
   const node = { type: 'leafDirective', name: r.name, children: [] };
   reserved(r.name, r.ns, attach(node, pa, r.o.res));
-  tern(node).namePosition = ctx.position(r.ns, r.ns + r.name.length);
+  luccet(node).namePosition = ctx.position(r.ns, r.ns + r.name.length);
   if (r.o.tb >= 0) node.children = inline(r.o.tb + 1, r.o.tc, 'leaf');
   node.position = ctx.position(pa ? pa.start : fi, te);
   addChild(node);
@@ -813,7 +852,7 @@ function table(r, fi, te) {
   addChild(node);
   const t = (leaf = { kind: 'table', node, start: pa ? pa.start : fi, end: te, cols: 0, delim: r.k === 'table', row: null, at: 0, io: IO.cell[+(top().fn > 0)] });
   if (t.delim) t.cols = row(t, [fi, te, le]).children.length;
-  else (tern(node).headerless = true), (node.align = aligns(fi, te, -1)), (t.cols = node.align.length);
+  else (luccet(node).headerless = true), (node.align = aligns(fi, te, -1)), (t.cols = node.align.length);
 }
 
 // A line while a table is open: its delimiter row, a continuation, or a row.
@@ -923,9 +962,10 @@ function feed(fi, te) {
   } else if (v.kind === 'raw') {
     const r = src[fi] === ':' ? colonRow(fi, te) : null;
     if (r && r.k === 'closer' && (!r.name || r.name === v.name)) return (v.end = te), finish(v), true;
-    v.at.push(pos);
+    advance(Math.min(v.indent, indentAt()));
   }
   const a = pos;
+  if (v.at) v.at.push(lineAt());
   v.lines.push(rest());
   v.end = le;
   if (v.kind !== 'html') return true;
@@ -942,9 +982,9 @@ function feedMath(v, fi, te) {
   if (k < 0) {
     advance(Math.min(v.indent, indentAt()));
     const t = rest();
-    return v.tex.push(t), v.lines.push(t), (v.end = le), true;
+    return v.tex.push(t), v.texAt.push(partial ? pos + 1 : pos), v.lines.push(t), (v.end = le), true;
   }
-  if (trimEnd(fi, k) > fi) v.tex.push(src.slice(fi, trimEnd(fi, k)));
+  if (trimEnd(fi, k) > fi) v.tex.push(src.slice(fi, trimEnd(fi, k))), v.texAt.push(fi);
   const j = skipSp(k + 2, te);
   const g = src[j] === '{' ? parseAttrs(src, j, te) : null;
   const ok = j === te || (g && g.ok && skipSp(g.end, te) === te);
@@ -982,12 +1022,13 @@ function finish(v) {
   const node = v.node;
   const opened = lineOf(v.open);
   node.value = (v.tex || v.lines).join('\n');
-  if (v.kind === 'math') attach(node, v.pa, v.res);
+  if (v.kind === 'math') attach(node, v.pa, v.res), (luccet(node).texAt = v.texAt.map(ctx.point));
+  else if (node.type === 'html' && /\bid\s*=/i.test(node.value)) luccet(node).htmlAt = v.at.map(ctx.point); // where its ids are (the ids transform)
   if (v.kind === 'raw' && v.unclosed) unclosedDir(v, '');
   if (v.kind === 'raw' && v.name === 'meta') readMeta(v);
   if (v.kind === 'raw' && v.name === 'use') readUse(v);
   if (v.kind === 'math' && v.unclosed) {
-    Object.assign(tern(node), { unclosed: true, source: v.lines.join('\n') });
+    Object.assign(luccet(node), { unclosed: true, source: v.lines.join('\n') });
     const where = v.stop >= 0 ? `ends at ${v.why} on line ${lineOf(v.stop)} without a closing \`$$\`` : 'is never closed';
     const tex = v.why === 'the blank line' ? '; TeX forbids blank lines in display math' : '';
     report('math.unclosed', v.open, v.stop >= 0 ? v.stop : v.end, `\`$$\` opened on line ${opened} ${where}${tex}`, 'add a line holding only `$$`');
@@ -996,9 +1037,10 @@ function finish(v) {
     unclosedWhat = `the fence opened on line ${opened} is unclosed`;
   } else if (v.kind === 'html' && v.unclosed) {
     const what = v.hk === 'comment' ? '`<!--`' : `\`<${v.name}>\``;
-    if (v.hk !== 'generic') (tern(node).unclosed = true), (unclosedWhat = `the ${what} opened on line ${opened} is unclosed`);
+    if (v.hk !== 'generic') (luccet(node).unclosed = true), (unclosedWhat = `the ${what} opened on line ${opened} is unclosed`);
     report('html.unclosed', v.start, v.first, `the raw ${what} opened on line ${opened} is never closed`, v.hk === 'comment' ? 'end it with `-->`' : `end it with \`</${v.name}>\``);
   }
+  if (node.type === 'html' && !luccet(node).unclosed) hazard(node, v.at);
   node.position = ctx.position(v.start, v.end);
 }
 
@@ -1061,20 +1103,26 @@ function item(r, fi, te, pa) {
 }
 
 // A container opener `:::NAME[title]{attrs}`. Anything after that is junk,
-// shown as an error paragraph; `:::end` acts as a bare closer. The body is
+// shown as an error paragraph; `:::end` alone acts as a bare closer, and with
+// anything after it the line is text, as `::: words` is. The body is
 // verbatim for `:::macros`, `:::meta`, `:::script`, `:::style`, `:::html`,
 // `{raw}` and a schema entry with `body: 'raw'`.
 function opener(r, fi, te) {
   if (r.name === 'end') {
+    if (skipSp(r.ne, te) < te) {
+      report('name.reserved', r.ne - 3, r.ne, '`:::end` is reserved, and with text after it the line is text, not a closer', 'close with `:::` or `:::/name` alone on its line');
+      return paraLine(fi, te, OWN, false);
+    }
     report('name.reserved', r.ne - 3, r.ne, '`:::end` is reserved; it is read as `:::`', 'write `:::` or `:::/name`');
     return closer({ k: 'closer', n: r.n, name: '' }, fi, te);
   }
   if (depth >= MAX) return nesting(fi, r.ne, te);
+  const ind = indentAt(); // a raw body loses up to this much, as a fence's does
   const o = tail(r.ne, te);
   const pa = begin();
   const name = r.name;
   const ns = r.ne - name.length;
-  const node = { type: 'containerDirective', name, children: [], data: { tern: { colons: r.n, namePosition: ctx.position(ns, r.ne) } } };
+  const node = { type: 'containerDirective', name, children: [], data: { luccet: { colons: r.n, namePosition: ctx.position(ns, r.ne) } } };
   const m = attach(node, pa, o.res);
   if (RESERVED_HINT[name]) report('name.reserved', ns, r.ne, `\`:::${name}\` is reserved: its body is shown as text, not run`, RESERVED_HINT[name]);
   reserved(RESERVED_HINT[name] || name === 'meta' ? '' : name, ns, m);
@@ -1089,7 +1137,7 @@ function opener(r, fi, te) {
   if (o.junk >= 0) {
     const text = src.slice(o.junk, te);
     const position = ctx.position(o.junk, te);
-    node.children.push({ type: 'paragraph', data: { tern: { junk: true } }, children: [{ type: 'text', value: text, position }], position });
+    node.children.push({ type: 'paragraph', data: { luccet: { junk: true } }, children: [{ type: 'text', value: text, position }], position });
     const title = o.tb >= 0 ? src.slice(o.tb, o.tc + 1) : '';
     const c = text[0];
     const hint =
@@ -1102,7 +1150,7 @@ function opener(r, fi, te) {
   }
   addChild(node);
   const start = pa ? pa.start : fi;
-  if (RAW_BODY.has(name) || (node.attributes && 'raw' in node.attributes) || rawBody(name)) leaf ={ kind: 'raw', verbatim: true, node, name, lines: [], at: [], start, end: te, open: fi, ne: r.ne };
+  if (RAW_BODY.has(name) || (node.attributes && 'raw' in node.attributes) || rawBody(name)) leaf = { kind: 'raw', verbatim: true, node, name, indent: ind, lines: [], at: [], start, end: te, open: fi, ne: r.ne };
   else push({ kind: 'dir', node, start, end: te, name, n: r.n, open: fi, ne: r.ne, body: node.children.length });
 }
 
@@ -1115,12 +1163,22 @@ function metaAttrs(node, m, name = 'meta') {
   const hint = name === 'meta' ? 'remove it; metadata goes in the body, as `key: value` lines' : 'remove it; add-ons go in the body, one per line';
   const dropped = (at, e, what, many) =>
     report('attr.malformed', at, e, `${what} ${many ? 'apply' : 'applies'} to no element here, as \`:::${name}\` emits nothing; ${many ? 'they are' : 'it is'} dropped`, hint);
-  const idp = tern(node).idPosition;
+  const idp = luccet(node).idPosition;
   if (idp) dropped(idp.start.offset, idp.end.offset, `the id "${m.attrs.id}"`, false);
   const cls = m.attrs.class;
   const many = m.classAt >= 0 && cls.includes(' ');
   if (m.classAt >= 0) dropped(m.classAt, src[m.classAt] === '.' ? matchAt(IDENT, src, m.classAt + 1) : m.classAt + 5, `the class${many ? 'es' : ''} "${cls}"`, many);
   for (const k in m.keyAt) if (k !== 'tag' && k !== 'cols' && k !== 'ref' && k !== 'raw') dropped(m.keyAt[k], m.keyAt[k] + k.length, `\`${k}\``);
+}
+
+// attr.overridden for an attribute line's id or key that a later group on the
+// same block writes again (the later one wins).
+function overridden(at, was, now) {
+  const e = src[at] === '#' ? matchAt(IDENT, src, at + 1) : at + 2;
+  report('attr.overridden', at, Math.max(e, at + 1), `the id "${was}" is replaced by "${now}", written later for the same block; an element has one id`, `keep one: remove {#${was}}, or {#${now}}`);
+}
+function overriddenKey(at, key) {
+  report('attr.overridden', at, at + key.length, `\`${key}\` is written again later for the same block, and that value wins`, 'keep one of them');
 }
 
 // A schema entry with `body: 'raw'` makes the body verbatim, as `{raw}` does.
@@ -1194,7 +1252,7 @@ function unclosedDir(f, extra) {
 
 // ------------------------------------------------------------ metadata
 
-// A top-level `:::meta` body: `key: value` lines into root.data.tern.meta.
+// A top-level `:::meta` body: `key: value` lines into root.data.luccet.meta.
 // The first value of a key wins, and a value the preserved head sets wins
 // over it (meta.conflict).
 function readMeta(v) {
@@ -1205,7 +1263,7 @@ function readMeta(v) {
     const m = metaLine(s);
     const value = m && m[2].replace(/[ \t]+$/, '');
     if (!/[^ \t]/.test(s)) return;
-    if (!m) return report('meta.malformed', at, at + s.replace(/[ \t]+$/, '').length, 'a `:::meta` line is `key: value`', 'write `key: value`, unindented, the key starting with a letter');
+    if (!m) return report('meta.malformed', at, at + s.replace(/[ \t]+$/, '').length, 'a `:::meta` line is `key: value`', 'write `key: value`, indented no further than `:::meta`, the key starting with a letter');
     if (m[1] in meta) return report('meta.duplicate', at, at + m[1].length, `\`${m[1]}\` is already set; the first value wins`, 'remove one of them');
     const h = headValue(m[1]);
     const differs = h !== undefined && (m[1] === 'lang' ? h.toLowerCase() !== value.toLowerCase() : h !== value);
@@ -1215,7 +1273,7 @@ function readMeta(v) {
 }
 
 // A leading `:::use` body: the add-ons the note loads, one or more per line,
-// into root.data.tern.use as [{url, position}]. The runtime and the tools read
+// into root.data.luccet.use as [{url, position}]. The runtime and the tools read
 // the same block from the text (src/use.js), before parsing, to load them.
 // Leading: at the top level, before any content; only `:::meta`, blank lines
 // and other `:::use` blocks may come first. One elsewhere is use.late and
@@ -1279,7 +1337,7 @@ function parseBlocks(c) {
   if (leaf) closeLeaf(-1);
   closeFrames(1, null);
   root.position = ctx.position(0, N);
-  if (meta || use) root.data = { tern: Object.assign(meta ? { meta } : {}, use ? { use } : {}) };
+  if (meta || use) root.data = { luccet: Object.assign(meta ? { meta } : {}, use ? { use } : {}) };
   const out = root;
   (ctx = root = stack = rl = meta = use = head = front = null), (src = ''), (cells.length = 0); // keep nothing of this note alive
   return out;

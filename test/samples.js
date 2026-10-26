@@ -18,11 +18,11 @@ const fixture = require('./fixtures/schema');
 const DIR = path.join(__dirname, 'samples');
 const verbose = process.argv.includes('--verbose');
 
-// The note is everything after the line holding the tern.js script tag; the
+// The note is everything after the line holding the luccet.js script tag; the
 // head is everything before the tag.
 function splitFile(text) {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
-  const i = lines.findIndex((l) => /<script\b[^>]*\bsrc=["']?[^"' >]*tern\.js/i.test(l));
+  const i = lines.findIndex((l) => /<script\b[^>]*\bsrc=["']?[^"' >]*luccet\.js/i.test(l));
   if (i < 0) return { head: '', note: text };
   const tag = lines[i].search(/<script\b/i);
   return { head: [...lines.slice(0, i), lines[i].slice(0, tag)].join('\n'), note: lines.slice(i + 1).join('\n') };
@@ -37,8 +37,8 @@ function fragments(excerpt) {
 }
 
 function main() {
-  const { tern, why } = engine.load();
-  if (!tern) {
+  const { luccet, why } = engine.load();
+  if (!luccet) {
     console.log(`✗ ${why}`);
     process.exit(2);
   }
@@ -52,9 +52,9 @@ function main() {
     const { head, note } = splitFile(fs.readFileSync(path.join(DIR, `${name}.html`), 'utf8'));
     const opts = { schema: fixture, head };
     const problems = [];
-    const errors = tern.check(note, opts).filter((d) => d.severity === 'error');
+    const errors = luccet.check(note, opts).filter((d) => d.severity === 'error');
     for (const d of errors) problems.push(`error ${d.code} at ${d.position.start.line}:${d.position.start.column}: ${d.message}`);
-    const out = normalize(tern.toHTML(note, { ...opts, positions: false }));
+    const out = normalize(luccet.toHTML(note, { ...opts, positions: false }));
     let at = 0;
     for (const f of fragments(fs.readFileSync(path.join(DIR, `${name}.excerpt.html`), 'utf8'))) {
       const k = out.indexOf(f, at);

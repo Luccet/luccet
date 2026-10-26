@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// cli/language.js, the language features `tern lsp` and editors share,
+// cli/language.js, the language features `luccet lsp` and editors share,
 // called directly. Expectations are stated from the note's text (positions
 // found by searching it, in UTF-16 code units) and from the engine, never
 // from the module:
@@ -25,7 +25,7 @@ const language = require('../cli/language');
 
 const ROOT = path.join(__dirname, '..');
 const verbose = process.argv.includes('--verbose');
-const { tern } = note;
+const { luccet } = note;
 
 // ---------------------------------------------------------------- fixtures
 
@@ -37,12 +37,12 @@ const { tern } = note;
 const TEXT = `<!doctype html><meta charset="utf-8">
 <title>Language</title>
 <script>
-window.TERN = { schema: {
+window.LUCCET = { schema: {
   block: { theorem: { tag: 'section', counter: 'theorem', label: 'Theorem' }, proof: { label: 'Proof' } },
   inline: { hl: { tag: 'mark' } },
 } };
 </script>
-<script src="tern.js"></script>
+<script src="luccet.js"></script>
 :::meta
 description: @rn in meta
 :::
@@ -155,15 +155,15 @@ check('no Node built-ins: the module runs in a bare context, from an analysis bu
   };
   const L = load(path.join(ROOT, 'cli', 'language.js'));
   const files = [...cache.keys()].map((f) => path.relative(ROOT, f).split(path.sep).join('/'));
-  assert.deepStrictEqual(files.sort(), ['cli/language.js', 'src/scan.js', 'src/schema.js', 'tern.js']);
-  // An editor's analysis: the text after the tern.js line, parsed and
+  assert.deepStrictEqual(files.sort(), ['cli/language.js', 'luccet.js', 'src/scan.js', 'src/schema.js']);
+  // An editor's analysis: the text after the luccet.js line, parsed and
   // transformed with the vocabulary, in the context's own engine.
-  const T = load(path.join(ROOT, 'tern.js'));
+  const T = load(path.join(ROOT, 'luccet.js'));
   const split = note.split(TEXT);
   const opts = { schema: JSON.parse(JSON.stringify(A.schema)), head: split.head };
   const { ast, diagnostics } = T.parse(split.note, opts);
   T.transform(ast, opts);
-  const a = { note: split.note, line: split.line, ast, diagnostics: diagnostics.concat(ast.data.tern.diagnostics), schema: opts.schema };
+  const a = { note: split.note, line: split.line, ast, diagnostics: diagnostics.concat(ast.data.luccet.diagnostics), schema: opts.schema };
   const d = L.index(a);
   const same = (name, x, y) => assert.strictEqual(JSON.stringify(x), JSON.stringify(y), name);
   const call = (fn) => {
@@ -197,7 +197,7 @@ check('esbuild bundles it for the browser', () => {
     return 'esbuild is not installed';
   }
   const r = esbuild.buildSync({
-    stdin: { contents: "self.tern = require('./tern.js'); self.language = require('./cli/language.js');", resolveDir: ROOT, sourcefile: 'worker.js' },
+    stdin: { contents: "self.luccet = require('./luccet.js'); self.language = require('./cli/language.js');", resolveDir: ROOT, sourcefile: 'worker.js' },
     bundle: true,
     platform: 'browser',
     format: 'iife',
@@ -206,14 +206,14 @@ check('esbuild bundles it for the browser', () => {
     logLevel: 'silent',
   });
   const inputs = Object.keys(r.metafile.inputs).filter((f) => f !== 'worker.js');
-  assert.deepStrictEqual(inputs.map((f) => path.relative(ROOT, path.resolve(f)).split(path.sep).join('/')).sort(), ['cli/language.js', 'src/scan.js', 'src/schema.js', 'tern.js']);
+  assert.deepStrictEqual(inputs.map((f) => path.relative(ROOT, path.resolve(f)).split(path.sep).join('/')).sort(), ['cli/language.js', 'luccet.js', 'src/scan.js', 'src/schema.js']);
   const context = vm.createContext({});
   context.self = context;
   vm.runInContext(r.outputFiles[0].text, context);
   const out = vm.runInContext(
     `const note = '# Top\\n\\nSee @top.\\n';
-    const { ast, diagnostics } = tern.parse(note);
-    tern.transform(ast);
+    const { ast, diagnostics } = luccet.parse(note);
+    luccet.transform(ast);
     JSON.stringify(language.highlights(language.index({ note, line: 3, ast, diagnostics }), { line: 5, character: 5 }));`,
     context,
   );
@@ -225,8 +225,8 @@ check('esbuild bundles it for the browser', () => {
 
 check('an analysis by hand of a bare note: no head, line 0, the engine’s registry when no schema is given', () => {
   const src = '# Top\n\nSee @top and :::x\n';
-  const { ast, diagnostics } = tern.parse(src);
-  tern.transform(ast);
+  const { ast, diagnostics } = luccet.parse(src);
+  luccet.transform(ast);
   const d = language.index({ note: src, line: 0, ast, diagnostics });
   assert.deepStrictEqual(language.definition(d, { line: 2, character: 5 }), { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } });
   assert.deepStrictEqual(language.outline({ note: src, line: 0, ast, diagnostics }).headings[0].line, 1);
@@ -370,7 +370,7 @@ check('rename: an id with its declaration and every reference, none in code, mat
     lines[e.range.start.line] = l.slice(0, e.range.start.character) + e.newText + l.slice(e.range.end.character);
   }
   const b = note.analyse(lines.join('\n'), null);
-  assert.ok(b.ast.data.tern.ids.rank && !b.ast.data.tern.ids.rn);
+  assert.ok(b.ast.data.luccet.ids.rank && !b.ast.data.luccet.ids.rn);
   assert.deepStrictEqual(b.diagnostics.map((d) => d.code), ['ref.dangling']);
   assert.strictEqual((lines.join('\n').match(/@rn\b/g) || []).length, 5, 'meta, a code span, the fence, the math, raw HTML');
   // The same name is allowed; a heading slug gains an explicit id.
@@ -378,8 +378,8 @@ check('rename: an id with its declaration and every reference, none in code, mat
   const pos = at('## Kernel', { plus: 4 });
   assert.deepStrictEqual(sorted(language.rename(D, pos, 'ker')), sorted([R('{#kernel}', 2, 8), R('@kernel', 1, 7)].map((range) => ({ range, newText: 'ker' }))), 'an explicit heading id');
   const slug = '# Top\n\nSee @top.\n';
-  const s = tern.parse(slug);
-  tern.transform(s.ast);
+  const s = luccet.parse(slug);
+  luccet.transform(s.ast);
   const d = language.index({ note: slug, line: 0, ast: s.ast, diagnostics: s.diagnostics });
   assert.deepStrictEqual(sorted(language.rename(d, { line: 0, character: 3 }, 'head')), sorted([
     { range: { start: { line: 0, character: 5 }, end: { line: 0, character: 5 } }, newText: ' {#head}' },
@@ -459,8 +459,8 @@ check('completion: nothing inside code, math, raw HTML or a raw body', () => {
   // And it does offer, just outside them.
   assert.ok(language.completion(D, at('| @rn', { plus: 3 })).some((i) => i.label === 'rn'), 'a table cell is not code');
   const math = 'x $a @' ;
-  const s = tern.parse(math);
-  tern.transform(s.ast);
+  const s = luccet.parse(math);
+  luccet.transform(s.ast);
   assert.deepStrictEqual(language.completion(language.index({ note: math, line: 0, ast: s.ast, diagnostics: s.diagnostics }), { line: 0, character: 6 }), [], 'unclosed inline math is text, still not offered');
 });
 
@@ -512,9 +512,9 @@ check('folds: blocks over two lines or more, and heading sections, in 0-based fi
   assert.ok(language.folds(D).every((f) => Object.keys(f).join() === 'startLine,endLine'));
 });
 
-check('outline: tern.outline with 1-based file lines', () => {
+check('outline: luccet.outline with 1-based file lines', () => {
   const o = language.outline(A);
-  const raw = tern.outline(A.ast);
+  const raw = luccet.outline(A.ast);
   assert.deepStrictEqual(Object.keys(o), Object.keys(raw));
   assert.deepStrictEqual(o.headings.map((h) => [h.text, h.line]), [['Notes', L1('# Notes')], ['Kernel', L1('## Kernel')], ['Image', L1('## Image')], ['Deeper', L1('### Deeper')], ['Plain', L1('## Plain')]]);
   const theorem = o.blocks.find((b) => b.name === 'theorem');

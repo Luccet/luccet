@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: MIT */
+/* Nord for Luccet, after Arctic Ice Studio's Nord (https://www.nordtheme.com).
+   Dark for every reader. Use after classic.css, for its column and type:
+   <script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
+   Alone, it colours a plain note: its background and text, links and highlights.
+   Raised to 4.5:1 contrast: muted, line-strong, error, warn, code comment, code keyword, code number, code type, code meta, code deleted.
+   Built by build.js in github.com/Luccet/themes; edit that, not this file. */
+:root {
+  color-scheme: dark;
+  --t-bg: #2e3440; --t-fg: #d8dee9; --t-muted: #a7aebc; --t-line: #434c5e; --t-line-strong: #787e8b;
+  --t-soft: #3b4252; --t-link: #88c0d0; --t-mark: #7e5b16; --t-error: #d79da3; --t-error-bg: #483c48;
+  --t-warn: #d28c76; --t-code-comment: #b0b7c4; --t-code-keyword: #9fb8d0; --t-code-string: #a3be8c; --t-code-number: #c9aec4;
+  --t-code-function: #88c0d0; --t-code-type: #91bdbc; --t-code-variable: #d8dee9; --t-code-meta: #a5b8d1; --t-code-inserted: #a3be8c;
+  --t-code-deleted: #dcaaaf;
+}
+@media (prefers-contrast: more) {
+  :root { --t-muted: #d8dee9; --t-line: #787e8b; }
+}
+html { background: var(--t-bg); color: var(--t-fg); }
+.luccet a { color: var(--t-link); }
+.luccet mark, .luccet mark a { color: var(--t-fg); }
+.luccet mark { background: var(--t-mark); }

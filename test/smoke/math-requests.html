@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/test/smoke/fence-addon.js"></script>
+
+# Smoke: math loads nothing
+
+:::macros
+\newcommand{\RR}{\mathbb{R}}
+:::
+
+Inline $x^2 + 1$, a macro $f\colon \RR \to \RR$, text $\text{if } x > 0$ and a
+root $\sqrt[3]{2}$; then display:
+
+$$
+\sum_{n=1}^\infty \frac{1}{n^2} = \frac{\pi^2}{6}
+$$ {#eq-basel}
+
+$$
+\begin{pmatrix} a & b \\ c & d \end{pmatrix}
+\begin{aligned} x &= 1 \\ y &= 2 \end{aligned}
+$$

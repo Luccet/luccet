@@ -8,8 +8,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ID = /^[a-z][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
-const KINDS = new Set(['tern', 'tern js', 'html', 'html head', 'json ast', 'json transformed', 'json diagnostics', 'diagnostics']);
-const OPTIONS = new Set(['schema=fixture', 'schema=none', 'schema=extended', 'strict', 'safe', 'diagnostics=any', 'diagnostics=partial', 'escaped', 'noeol']);
+const KINDS = new Set(['luccet', 'luccet js', 'html', 'html head', 'json ast', 'json transformed', 'json diagnostics', 'diagnostics']);
+const OPTIONS = new Set(['schema=fixture', 'schema=none', 'schema=extended', 'strict', 'safe', 'diagnostics=any', 'diagnostics=partial', 'escaped', 'noeol', 'math=tex']);
 const SEVERITY = { error: 'error', warning: 'warning', info: 'info', E: 'error', W: 'warning', I: 'info' };
 
 class CorpusError extends Error {
@@ -89,26 +89,26 @@ function decodeEscapes(s) {
 
 function finish(c, err) {
   const b = c.blocks;
-  if (b.tern && b['tern js']) err(c.line, `${c.id}: give either a "tern" or a "tern js" block, not both`);
-  if (!b.tern && !b['tern js']) err(c.line, `${c.id}: no "tern" source block`);
+  if (b.luccet && b['luccet js']) err(c.line, `${c.id}: give either a "luccet" or a "luccet js" block, not both`);
+  if (!b.luccet && !b['luccet js']) err(c.line, `${c.id}: no "luccet" source block`);
   if (b['json diagnostics'] && b.diagnostics) err(c.line, `${c.id}: give either "diagnostics" or "json diagnostics", not both`);
   const expects = ['html', 'json ast', 'json transformed', 'json diagnostics', 'diagnostics'].filter((k) => b[k]);
   if (!expects.length) err(c.line, `${c.id}: no expectation (html, json ast, json transformed or diagnostics)`);
   if (!c.spec.length) err(c.line, `${c.id}: no "spec:" line`);
 
   try {
-    if (b['tern js']) {
+    if (b['luccet js']) {
       // eslint-disable-next-line no-new-func
-      const v = new Function(`"use strict"; return (${b['tern js'].text});`)();
+      const v = new Function(`"use strict"; return (${b['luccet js'].text});`)();
       if (typeof v !== 'string') throw new Error('the expression did not produce a string');
       c.source = v;
-    } else if (b.tern) {
-      let s = b.tern.text;
+    } else if (b.luccet) {
+      let s = b.luccet.text;
       if (c.options.has('escaped')) s = decodeEscapes(s);
       c.source = c.options.has('noeol') ? s : s + '\n';
     }
   } catch (e) {
-    err(b['tern js'].line, `${c.id}: tern js: ${e.message}`);
+    err(b['luccet js'].line, `${c.id}: luccet js: ${e.message}`);
   }
   if (b['html head']) c.head = b['html head'].text;
   if (b.html) c.html = b.html.text;

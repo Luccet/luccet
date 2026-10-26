@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Diagnostics · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Diagnostics · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: Every diagnostic Tern reports: its severity, what triggers it, where it points, what happens to the content, the engine's message and hint, and the fix, each with a live example.
+description: Every diagnostic Luccet reports: its severity, what triggers it, where it points, what happens to the content, the engine's message and hint, and the fix, each with a live example.
 :::
 
 ::site-nav
@@ -10,7 +10,7 @@ description: Every diagnostic Tern reports: its severity, what triggers it, wher
 
 ::toc
 
-Tern never drops what you wrote without telling you. When something is malformed, Tern keeps it visible where you wrote it and reports a *diagnostic*: a code such as `block.unclosed`, a severity, a message, a position and a hint that quotes the fix in Tern's own syntax.
+Luccet never drops what you wrote without telling you. When something is malformed, Luccet keeps it visible where you wrote it and reports a *diagnostic*: a code such as `block.unclosed`, a severity, a message, a position and a hint that quotes the fix in Luccet's own syntax.
 
 This page lists every diagnostic. For each one it says:
 
@@ -25,7 +25,7 @@ Each code has a live example that triggers it, and a second one with the fix. Bo
 
 ## At a glance {#summary}
 
-The first 54 codes come from the parser and the transforms, so `tern.check`, `tern check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, `math.error` from `tern build --math`, `diagram.error` from `tern build --diagrams`, and `output.limit` from the emitter, wherever it runs.
+The first 64 codes come from the parser and the transforms, so `luccet.check`, `luccet check` and your editor report them. The four runtime codes come from the browser; `addon.failed` also comes from a transform that throws, and from the command line. `head.script`, `addon.remote`, `link.missing` and `link.dangling` come from the command line and the language server only, and `output.limit` from the emitter, wherever it runs.
 
 | Code | Severity | What it means |
 |---|---|---|
@@ -38,19 +38,29 @@ The first 54 codes come from the parser and the transforms, so `tern.check`, `te
 | [`block.spaced-name`](#block-spaced-name) | warning | A space separates the colons from the name. |
 | [`block.unclosed-fence`](#block-unclosed-fence) | error | A fenced code block has no closing fence. |
 | [`fence.info-junk`](#fence-info-junk) | warning | A fence's info has something besides a language, a title and a group. |
-| [`html.unclosed`](#html-unclosed) | error | A raw HTML block never reaches its end. |
+| [`html.unclosed`](#html-unclosed) | error | Raw HTML never reaches its end, or holds something that would hide the rest of the page. |
+| [`html.self-closed`](#html-self-closed) | error | Raw HTML closes an element with `/>` that HTML does not close that way. |
 | [`html.stray-closer`](#html-stray-closer) | info | An end tag closes nothing that is open. |
-| [`html.wrapper`](#html-wrapper) | warning | Tern written inside a raw HTML block is shown as HTML, not parsed. |
+| [`html.wrapper`](#html-wrapper) | warning | Luccet written inside a raw HTML block is shown as HTML, not parsed. |
 | [`html.inline-unclosed`](#html-inline-unclosed) | warning | Inline content opens a tag it never closes. |
 | [`html.inline-escaped`](#html-inline-escaped) | info | A tag in inline content is shown as text. |
 | [`math.unclosed`](#math-unclosed) | error | A display-math block has no closing `$$`. |
 | [`math.opener-tail`](#math-opener-tail) | error | Attributes on the opening `$$` line. |
 | [`math.closer-tail`](#math-closer-tail) | warning | Text after the closing `$$`. |
-| [`math.inline-display`](#math-inline-display) | info | `$$` in the middle of a line is text. |
-| [`math.unclosed-inline`](#math-unclosed-inline) | info | A `$` followed by TeX never closes. |
-| [`math.bracket`](#math-bracket) | info | An interval in French notation is not math. |
+| [`math.inline-display`](#math-inline-display) | warning | `$$` in the middle of a line is text. |
+| [`math.unclosed-inline`](#math-unclosed-inline) | warning | A `$` followed by TeX never closes. |
+| [`math.bracket`](#math-bracket) | warning | An interval in French notation is not math. |
 | [`math.suspect-price`](#math-suspect-price) | warning | A formula starts with a digit and holds words. |
+| [`tex.unknown`](#tex-unknown) | error | A formula uses a command Luccet does not know. |
+| [`tex.unsupported`](#tex-unsupported) | error | A formula uses a LaTeX command Luccet does not do. |
+| [`tex.unbalanced`](#tex-unbalanced) | error | A brace, `\left` or `\begin` in a formula is never closed, or closes nothing. |
+| [`tex.argument`](#tex-argument) | error | A command in a formula is missing an argument, or has one it cannot read. |
+| [`tex.script`](#tex-script) | error | A second superscript or subscript on the same base. |
+| [`tex.misplaced`](#tex-misplaced) | error | Something in a formula stands where it cannot: `&` or `\\` outside an environment. |
+| [`tex.macro`](#tex-macro) | error | A macro definition does not work. |
+| [`tex.limit`](#tex-limit) | error | A formula's macros expand without end, or its groups nest too deep. |
 | [`attr.malformed`](#attr-malformed) | warning | An attribute group does not parse, or a reserved key has a bad value. |
+| [`attr.overridden`](#attr-overridden) | warning | An id or a key is written twice for one element, and the later one wins. |
 | [`attributes.orphan`](#attributes-orphan) | warning | An attribute line has no block to attach to. |
 | [`attributes.raw`](#attributes-raw) | warning | An attribute line before raw HTML. |
 | [`table.stray-delimiter`](#table-stray-delimiter) | warning | A paragraph line is shaped like a table's delimiter row. |
@@ -58,23 +68,23 @@ The first 54 codes come from the parser and the transforms, so `tern.check`, `te
 | [`table.misplaced-separator`](#table-misplaced-separator) | warning | A second delimiter row inside a table. |
 | [`table.extra-cell`](#table-extra-cell) | warning | A row has more cells than the header. |
 | [`cell.orphan`](#cell-orphan) | warning | A `+++` line outside a container's own level. |
-| [`leaf.demoted`](#leaf-demoted) | info | A line starts like a leaf but is not one. |
+| [`leaf.demoted`](#leaf-demoted) | warning | A line starts like a leaf but is not one. |
 | [`leaf.void-content`](#leaf-void-content) | warning | A void element was given content. |
 | [`inline.unclosed`](#inline-unclosed) | warning | A named inline element is never closed. |
-| [`inline.glued`](#inline-glued) | info | A named inline element is glued to a word. |
+| [`inline.glued`](#inline-glued) | warning | A named inline element is glued to a word. |
 | [`footnote.undefined`](#footnote-undefined) | warning | A footnote reference has no definition. |
-| [`footnote.duplicate`](#footnote-duplicate) | warning | A footnote label is defined twice. |
+| [`footnote.duplicate`](#footnote-duplicate) | error | A footnote label is defined twice. |
 | [`footnote.nested`](#footnote-nested) | warning | A footnote reference inside a footnote definition. |
 | [`footnote.unused`](#footnote-unused) | info | A footnote definition is never referenced. |
-| [`latex.delimiters`](#latex-delimiters) | info | LaTeX's math delimiters are not math here. |
-| [`latex.linebreak`](#latex-linebreak) | info | `\\` at the end of a line is not a line break. |
+| [`latex.delimiters`](#latex-delimiters) | warning | LaTeX's math delimiters are not math here. |
+| [`latex.linebreak`](#latex-linebreak) | warning | `\\` at the end of a line is not a line break. |
 | [`nesting.limit`](#nesting-limit) | error | Blocks nest more than 64 deep. |
-| [`doc.frontmatter`](#doc-frontmatter) | info | YAML front matter is not supported. |
+| [`doc.frontmatter`](#doc-frontmatter) | warning | YAML front matter is not supported. |
 | [`meta.conflict`](#meta-conflict) | warning | The head and `:::meta` set the same key to different values. |
 | [`meta.duplicate`](#meta-duplicate) | warning | A metadata key is set twice. |
-| [`meta.malformed`](#meta-malformed) | warning | A `:::meta` line is not `key: value`. |
-| [`meta.nested`](#meta-nested) | warning | `:::meta` is not at the top level. |
-| [`use.late`](#use-late) | warning | `:::use` is not at the top of the note. |
+| [`meta.malformed`](#meta-malformed) | error | A `:::meta` line is not `key: value`. |
+| [`meta.nested`](#meta-nested) | error | `:::meta` is not at the top level. |
+| [`use.late`](#use-late) | error | `:::use` is not at the top of the note. |
 | [`name.reserved`](#name-reserved) | warning | A reserved name, key or class. |
 | [`tag.not-allowed`](#tag-not-allowed) | warning | `tag=`, or a schema's `tag`, names an element the level cannot be. |
 | [`table.body`](#table-body) | warning | A `:::table` whose body is not exactly one pipe table. |
@@ -87,8 +97,6 @@ The first 54 codes come from the parser and the transforms, so `tern.check`, `te
 | [`script.document-write`](#script-document-write) | error | A note script called `document.write`. |
 | [`script.domcontentloaded`](#script-domcontentloaded) | error | A note script listens for `DOMContentLoaded`. |
 | [`doc.quirks`](#doc-quirks) | error | The file has no `<!doctype html>`. |
-| [`math.error`](#math-error) | warning | `tern build --math` cannot pre-render a formula. |
-| [`diagram.error`](#diagram-error) | warning | `tern build --diagrams` cannot draw a diagram. |
 | [`output.limit`](#output-limit) | error | The note's HTML is longer than the emitter's budget and was cut short. |
 | [`head.script`](#head-script) | info or warning | A head script was not run under node. |
 | [`addon.remote`](#addon-remote) | info | A remote add-on was not loaded under node. |
@@ -118,25 +126,25 @@ Every diagnostic is a plain object with five fields. This is the one the first e
 | `severity` | `error`, `warning` or `info` ([Severity](#severity)). |
 | `message` | What went wrong, in one sentence. When it names a line, that is a note line ([Positions](#positions)). |
 | `position` | Where it went wrong: a `start` and an `end` ([Positions](#positions)). |
-| `hint` | How to fix it, quoting the fix in Tern's syntax. The field is absent when there is no hint, as for the command line's `head.script` and `addon.remote`. |
+| `hint` | How to fix it, quoting the fix in Luccet's syntax. The field is absent when there is no hint, as for the command line's `head.script` and `addon.remote`. |
 
 Tools and tests match on `code`. The message and the hint are written for people.
 
 ### Severity {#severity}
 
-Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)):
+Severity is graded by consequence ([rule R7](syntax-blocks.html#r7)): each code declares what happens to what you wrote, its *effect*, and the severity follows from it.
 
-| Severity | Means | For example |
-|---|---|---|
-| `error` | Content was lost, or its meaning changed. | [`block.unclosed`](#block-unclosed): everything after the missing closer went into the block. |
-| `warning` | Probably not what you meant. Everything is still shown. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. |
-| `info` | A hint. The output is likely what you meant, or a habit from another syntax was noticed. | [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
+| Severity | Effect | Means | For example |
+|---|---|---|---|
+| `error` | lost, changed | Something you wrote does not reach the page, or reaches it with another structure or meaning. | [`block.unclosed`](#block-unclosed): everything after the missing closer went into the block. [`footnote.duplicate`](#footnote-duplicate): the second definition is dropped. |
+| `warning` | kept | Everything you wrote reaches the page, as text or with an attribute not applied, which is probably not what you meant. | [`ref.dangling`](#ref-dangling): `@alice` names no id, so it stays text. [`latex.delimiters`](#latex-delimiters): `\(x\)` is not math here. |
+| `info` | hint | The page is what you meant. | [`footnote.unused`](#footnote-unused): a definition nothing refers to is still shown, after the others. |
 
-Of the 54 parser and transform codes, 8 are errors, 33 are warnings and 13 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `tern.js` the note loads and a warning otherwise. The four runtime codes are all errors, `addon.remote` is an info, and `link.dangling`, `math.error` and `diagram.error` are warnings.
+The effects are declared in the engine's table (`src/diag.js`), which a test checks against this page. Of the 64 parser and transform codes, 21 are errors, 38 are warnings and 5 are infos. Each code always has the same severity, with two exceptions: `head.script` is an info for a remote script and a warning otherwise, and `link.missing` is an error for the `luccet.js` the note loads and a warning otherwise. The four runtime codes are all errors, `output.limit` is an error, `addon.remote` is an info, and `link.dangling` is a warning.
 
 Severity decides how each tool treats a diagnostic:
 
-- `tern check` exits with 1 when it finds a diagnostic at or above `--fail-on`, which is `error` by default ([tools](tools.html#check)).
+- `luccet check` exits with 1 when it finds a diagnostic at or above `--fail-on`, which is `error` by default ([tools](tools.html#check)).
 - The console prints errors and warnings with `console.warn`, and infos with `console.info`.
 - The on-page panel opens itself when there is an error.
 - The language server sends severity 1 for an error, 2 for a warning and 3 for an info, which editors show as Error, Warning and Information.
@@ -145,7 +153,7 @@ Severity decides how each tool treats a diagnostic:
 
 A position has a `start` and an `end`, each `{line, column, offset}`:
 
-- **line** is 1-based and counts *note lines*: line 1 is the first line after the `tern.js` line.
+- **line** is 1-based and counts *note lines*: line 1 is the first line after the `luccet.js` line.
 - **column** is 1-based and counts UTF-16 code units, as JavaScript strings and the language server do. A tab counts as one column, and an emoji such as 😀 counts as two.
 - **offset** is the 0-based index into the note, after `\r\n` and `\r` have become `\n`.
 - **end** is exclusive: the column just after the last character.
@@ -162,29 +170,29 @@ The sections below use three phrases:
 
 Here the closer is inside a list item inside a quote. Its remainder starts after `> - `, so the diagnostic points at column 5, not column 1:
 
-```tern {.live expect="block.stray-closer"}
+```luccet {.live expect="block.stray-closer"}
 > - :::
 ```
 
-**Note lines and file lines.** Your editor counts *file lines*, from the top of the file. A file line is the note line plus the number of lines up to and including the `tern.js` line, so with the usual one-line head, file line 2 is note line 1. Each tool says which it means:
+**Note lines and file lines.** Your editor counts *file lines*, from the top of the file. A file line is the note line plus the number of lines up to and including the `luccet.js` line, so with the usual one-line head, file line 2 is note line 1. Each tool says which it means:
 
-- `tern check` prints file lines, `note.html:2:9`. The message still cites note lines, as the engine wrote it.
+- `luccet check` prints file lines, `note.html:2:9`. The message still cites note lines, as the engine wrote it.
 - The panel shows both: `line 1:9 (file line 2)`.
 - The language server sends file lines, converted to the editor's 0-based lines.
-- `tern.check`, `tern.parse` and `tern.diagnostics` hold note positions.
-- The codes that concern the `tern.js` line or the head (`doc.quirks`, `addon.failed`) are at line 0, column 0, the line before the note's first. The panel shows them as `the tern.js line (file line 1)`.
+- `luccet.check`, `luccet.parse` and `luccet.diagnostics` hold note positions.
+- The codes that concern the `luccet.js` line or the head (`doc.quirks`, `addon.failed`) are at line 0, column 0, the line before the note's first. The panel shows them as `the luccet.js line (file line 1)`.
 
-For example, `tern check` on a note whose first line is the usual head:
+For example, `luccet check` on a note whose first line is the usual head:
 
 ```sh
-$ tern check note.html
+$ luccet check note.html
 note.html:2:9: error block.opener-junk: this is not part of the opener; it is shown as an error paragraph
     a title goes in brackets: `:::note[Danger]`
-tern check: 1 note: 1 error, 0 warnings, 0 infos
+luccet check: 1 note: 1 error, 0 warnings, 0 infos
 ```
 
 :::note
-In the browser, the file line can read too low when the head puts `<!doctype html>` and `<html …>` on lines of their own: the HTML parser drops the line breaks after them before tern.js can count them. With both on lines of their own, the panel's file line is 2 lower than the real one. `tern check` and the language server count from the file itself and are exact.
+In the browser, the file line can read too low when the head puts `<!doctype html>` and `<html …>` on lines of their own: the HTML parser drops the line breaks after them before luccet.js can count them. With both on lines of their own, the panel's file line is 2 lower than the real one. `luccet check` and the language server count from the file itself and are exact.
 :::
 
 ### Where diagnostics appear {#console-and-panel}
@@ -193,22 +201,22 @@ The same diagnostics reach six places:
 
 | Where | What you get | When |
 |---|---|---|
-| The console | One collapsed group, `tern: N problems` | Every time a note renders |
+| The console | One collapsed group, `luccet: N problems` | Every time a note renders |
 | The panel | A list after the note | On `file:` and local hosts, or with `data-diagnostics`; never with `data-quiet` |
-| `tern.diagnostics` | A live array | On the page |
-| `tern.on('diagnostic', fn)` | Each runtime diagnostic as it is reported | On the page |
-| `tern check` | `file:line:col: severity code: message` | On the command line |
+| `luccet.diagnostics` | A live array | On the page |
+| `luccet.on('diagnostic', fn)` | Each runtime diagnostic as it is reported | On the page |
+| `luccet check` | `file:line:col: severity code: message` | On the command line |
 | The language server | `textDocument/publishDiagnostics` | In your editor |
 
-**The console.** When a note has rendered, tern.js prints one collapsed group named `tern: N problems`, even when N is 0. Its first line gives the time each stage took. Then each diagnostic is one line, for example:
+**The console.** When a note has rendered, luccet.js prints one collapsed group named `luccet: N problems`, even when N is 0. Its first line gives the time each stage took. Then each diagnostic is one line, for example:
 
 ```
-error addon.failed at the tern.js line (file line 1): the add-on missing.js did not load; the note renders without it (check the path in data-use)
+error addon.failed at the luccet.js line (file line 1): the add-on missing.js did not load; the note renders without it (check the path in data-use)
 ```
 
-Errors and warnings use `console.warn`, infos `console.info`, and never `console.error`, so a note's own problems do not read as page errors. A diagnostic reported after the group, such as one a later `tern.render` call reports, gets one `console.warn` line of its own, starting with `tern: `.
+Errors and warnings use `console.warn`, infos `console.info`, and never `console.error`, so a note's own problems do not read as page errors. A diagnostic reported after the group, such as one a later `luccet.render` call reports, gets one `console.warn` line of its own, starting with `luccet: `.
 
-**The panel.** An `<aside class="t-diagnostics" role="status">` after the note lists every diagnostic, of every severity: the severity, the code, `line L:C (file line F)`, the message and the hint. Its summary reads like `tern: 3 problems (2 errors, 1 info)`, and it opens itself when there is an error. It updates live, it is hidden when you print, and it appears only when there is at least one diagnostic. Whether it shows depends on where the page is open:
+**The panel.** An `<aside class="t-diagnostics" role="status">` after the note lists every diagnostic, of every severity: the severity, the code, `line L:C (file line F)`, the message and the hint. Its summary reads like `luccet: 3 problems (2 errors, 1 info)`, and it opens itself when there is an error. It updates live, it is hidden when you print, and it appears only when there is at least one diagnostic. Whether it shows depends on where the page is open:
 
 | The page is open | The panel |
 |---|---|
@@ -217,23 +225,23 @@ Errors and warnings use `console.warn`, infos `console.info`, and never `console
 | on any other host | is hidden, unless the tag has `data-diagnostics` |
 | with `data-quiet` on the tag | is hidden everywhere, even with `data-diagnostics` |
 
-So you see the panel while you write, and the readers of a published note do not. To see it on a published page, add `data-diagnostics` to the `tern.js` tag:
+So you see the panel while you write, and the readers of a published note do not. To see it on a published page, add `data-diagnostics` to the `luccet.js` tag:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-diagnostics></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-diagnostics></script>
 ```
 
 - `data-diagnostics` and `data-quiet` are booleans: present means on, and the values `false`, `0`, `off` and `no` turn them off.
-- `window.TERN = {diagnostics: true}` or `{quiet: true}`, set in a head script before the `tern.js` line, does the same; the tag's `data-*` wins over `window.TERN`.
+- `window.LUCCET = {diagnostics: true}` or `{quiet: true}`, set in a head script before the `luccet.js` line, does the same; the tag's `data-*` wins over `window.LUCCET`.
 - The console group prints whatever these say.
 
-**`tern.diagnostics`.** A live array on the page ([API](api.html#diagnostics)). When the note mounts it holds the line-0 diagnostics first, then the parse and transform diagnostics sorted by position. Runtime diagnostics are appended as they happen. `tern.render(root, source)` replaces it, keeping the line-0 ones, when `root` is the note's `main.tern`. Under node, `tern.check(source, opts)` returns every parse and transform diagnostic of a source, sorted the same way ([API](api.html#check)).
+**`luccet.diagnostics`.** A live array on the page ([API](api.html#diagnostics)). When the note mounts it holds the line-0 diagnostics first, then the parse and transform diagnostics sorted by position. Runtime diagnostics are appended as they happen. `luccet.render(root, source)` replaces it, keeping the line-0 ones, when `root` is the note's `main.luccet`. Under node, `luccet.check(source, opts)` returns every parse and transform diagnostic of a source, sorted the same way ([API](api.html#check)).
 
-**`tern.on('diagnostic', fn)`.** Calls `fn` with each runtime diagnostic as it is reported ([API](api.html#on)). Parse and transform diagnostics are not events: read them from `tern.diagnostics`, for example after `await tern.ready`.
+**`luccet.on('diagnostic', fn)`.** Calls `fn` with each runtime diagnostic as it is reported ([API](api.html#on)). Parse and transform diagnostics are not events: read them from `luccet.diagnostics`, for example after `await luccet.ready`.
 
-**`tern check`.** Prints each diagnostic as `file:line:col: severity code: message`, with the hint on the next line, indented, and a summary on stderr ([tools](tools.html#check)). `--json` prints one array instead, `--fail-on` sets the severity that makes it exit with 1, and `--quiet` prints only the diagnostics at or above it. It also loads the note's vocabulary, its add-ons and head scripts, and reports [`addon.failed`](#addon-failed), [`addon.remote`](#addon-remote) and [`head.script`](#head-script) when it cannot. And it checks each note's links to other files, reporting [`link.missing`](#link-missing) and [`link.dangling`](#link-dangling) ([links between files](tools.html#check-links)); so does the language server ([links in the editor](tools.html#lsp-links)). `tern build` prints the same diagnostics to stderr and writes the page anyway; the built page shows them in its own panel and console.
+**`luccet check`.** Prints each diagnostic as `file:line:col: severity code: message`, with the hint on the next line, indented, and a summary on stderr ([tools](tools.html#check)). `--json` prints one array instead, `--fail-on` sets the severity that makes it exit with 1, and `--quiet` prints only the diagnostics at or above it. It also loads the note's vocabulary, its add-ons and head scripts, and reports [`addon.failed`](#addon-failed), [`addon.remote`](#addon-remote) and [`head.script`](#head-script) when it cannot. And it checks each note's links to other files, reporting [`link.missing`](#link-missing) and [`link.dangling`](#link-dangling) ([links between files](tools.html#check-links)); so does the language server ([links in the editor](tools.html#lsp-links)). `luccet build` prints the same diagnostics to stderr and writes the page anyway; the built page shows them in its own panel and console.
 
-**The language server.** Publishes the same diagnostics as `textDocument/publishDiagnostics` when you open or change a note ([tools](tools.html#lsp)). Each has the range, the severity (1, 2 or 3), the `code`, `source: "tern"`, and the message followed by a line break and the hint; the hint is also in `data.hint`.
+**The language server.** Publishes the same diagnostics as `textDocument/publishDiagnostics` when you open or change a note ([tools](tools.html#lsp)). Each has the range, the severity (1, 2 or 3), the `code`, `source: "luccet"`, and the message followed by a line break and the hint; the hint is also in `data.hint`.
 
 ## The three most likely mistakes {#three-mistakes}
 
@@ -241,7 +249,7 @@ Three mistakes are the most likely. Each is loud, and each leaves the rest of th
 
 **1. Braceless attributes.** Attributes always go in braces. This example uses the demo schema, which declares `theorem` ([the demo schema](schema.html#demo-schema)):
 
-```tern {.live schema=demo expect="block.opener-junk"}
+```luccet {.live schema=demo expect="block.opener-junk"}
 :::theorem[T] #rn .big
 Every linear map has a kernel.
 :::
@@ -254,7 +262,7 @@ The engine reports `block.opener-junk` (error) at 1:15:
 
 The block still opens as a theorem, and the junk is shown in red as its first paragraph. Put the attributes in braces:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[T]{#rn .big}
 Every linear map has a kernel.
 :::
@@ -262,7 +270,7 @@ Every linear map has a kernel.
 
 **2. A forgotten closer.** Here `:::proof` has no closer, and `:::/section` closes the section:
 
-```tern {.live expect="block.unclosed"}
+```luccet {.live expect="block.unclosed"}
 :::section
 :::proof
 The proof.
@@ -276,7 +284,7 @@ The engine reports `block.unclosed` (error) at 2:1:
 
 The error lands on the proof, line 2, not on the section: the named closer closed both, and only the proof was missing its closer. Add it:
 
-```tern {.live}
+```luccet {.live}
 :::section
 :::proof
 The proof.
@@ -286,7 +294,7 @@ The proof.
 
 **3. A blank line in `$$`.** TeX forbids blank lines in display math, so a blank line ends the block:
 
-```tern {.live expect="math.unclosed"}
+```luccet {.live expect="math.unclosed"}
 $$
 a^2 + b^2 = c^2
 
@@ -300,7 +308,7 @@ The engine reports `math.unclosed` (error) at 1:1:
 
 The source of the equation is shown in red, and the heading after it survives. Close the block:
 
-```tern {.live}
+```luccet {.live}
 $$
 a^2 + b^2 = c^2
 $$
@@ -324,7 +332,7 @@ These concern containers (`:::name` … `:::`), their closers and the spelling o
 - **Content.** Nothing is lost, but the meaning changes: the block runs to where it was closed, so everything after the missing closer is inside it.
 - **Message.** It names the line where the container was found still open. The hint adds a reason when the engine knows one: a fence or a raw `<script>` left open inside, or a closer left of a list item's content column.
 
-```tern {.live expect="block.unclosed"}
+```luccet {.live expect="block.unclosed"}
 :::note
 A note with no closer.
 
@@ -338,7 +346,7 @@ The engine reports `block.unclosed` (error) at 1:1:
 
 **Fix.** Add `:::` or `:::/note` where the block ends:
 
-```tern {.live}
+```luccet {.live}
 :::note
 A note with a closer.
 :::
@@ -348,7 +356,7 @@ This paragraph is after the note.
 
 Inside a list item, a closer must be indented to the item's content column. At column 1 it is outside the item, so the note ends with the item and the closer is stray:
 
-```tern {.live expect="block.unclosed block.stray-closer"}
+```luccet {.live expect="block.unclosed block.stray-closer"}
 - An item
   :::note
   Inside the item.
@@ -362,7 +370,7 @@ The engine reports `block.unclosed` (error) at 2:3:
 
 Indent the closer:
 
-```tern {.live}
+```luccet {.live}
 - An item
   :::note
   Inside the item.
@@ -371,7 +379,7 @@ Indent the closer:
 
 A fence left open inside a container swallows its closer, since a fence's content may hold `:::` lines. The hint says so:
 
-````tern {.live expect="block.unclosed block.unclosed-fence"}
+````luccet {.live expect="block.unclosed block.unclosed-fence"}
 :::note
 ```js
 let x = 1;
@@ -394,7 +402,7 @@ The engine reports `block.unclosed` (error) at 1:1:
 - **Content.** The line becomes paragraph text. The container it was meant to close stays open, so it usually gets [`block.unclosed`](#block-unclosed) too.
 - **Message.** It lists the containers that are open, or `none`. The hint offers the named closer of the innermost one, or says to remove the line when nothing is open.
 
-```tern {.live expect="block.closer-mismatch block.unclosed"}
+```luccet {.live expect="block.closer-mismatch block.unclosed"}
 :::note
 A note.
 :::/box
@@ -407,7 +415,7 @@ The engine reports `block.closer-mismatch` (error) at 3:1:
 
 **Fix.** Name the block you opened, or use a bare `:::`:
 
-```tern {.live}
+```luccet {.live}
 :::note
 A note.
 :::/note
@@ -415,7 +423,7 @@ A note.
 
 Case matters:
 
-```tern {.live expect="block.closer-mismatch block.unclosed"}
+```luccet {.live expect="block.closer-mismatch block.unclosed"}
 :::Box
 Names are case-sensitive.
 :::/box
@@ -436,7 +444,7 @@ The engine reports `block.closer-mismatch` (error) at 3:1:
 - **Position.** The line.
 - **Content.** The line becomes paragraph text. It ends the paragraph before it, and the lines after it continue the new paragraph.
 
-```tern {.live expect="block.stray-closer"}
+```luccet {.live expect="block.stray-closer"}
 A paragraph.
 :::
 ```
@@ -448,7 +456,7 @@ The engine reports `block.stray-closer` (warning) at 2:1:
 
 **Fix.** Remove the line, or open the container it was meant to close:
 
-```tern {.live}
+```luccet {.live}
 :::note
 A paragraph.
 :::
@@ -456,7 +464,7 @@ A paragraph.
 
 A closer inside a quote does not reach the note around the quote:
 
-```tern {.live expect="block.stray-closer"}
+```luccet {.live expect="block.stray-closer"}
 :::note
 > A quote.
 > :::
@@ -479,7 +487,7 @@ The engine reports `block.stray-closer` (warning) at 3:3:
 - **Content.** The innermost container closes as usual.
 - **Hint.** It names a closer to write instead: the open container whose colon count matches the closer's, if there is one, else the one that was closed.
 
-```tern {.live expect="block.closer-count"}
+```luccet {.live expect="block.closer-count"}
 ::::outer
 :::inner
 Text.
@@ -496,7 +504,7 @@ The first `::::` closed `inner`, not `outer`, and the second closed `outer`. The
 
 **Fix.** Name the blocks, or match the counts:
 
-```tern {.live}
+```luccet {.live}
 ::::outer
 :::inner
 Text.
@@ -512,10 +520,10 @@ Text.
 
 - **Trigger.** After `:::NAME`, anything but an optional `[title]`, then an optional `{…}` group, then the end of the line: attributes without braces, a title without brackets, an unclosed `[`, a group that does not parse, or text after the group.
 - **Position.** From the first junk column to the end of the line.
-- **Content.** The block still opens, with its name and whatever parsed before the junk. The junk becomes the block's first child, a `<p class="t-error">`, shown as escaped text and never parsed as Tern. Since the attributes or title were lost, this is an error.
+- **Content.** The block still opens, with its name and whatever parsed before the junk. The junk becomes the block's first child, a `<p class="t-error">`, shown as escaped text and never parsed as Luccet. Since the attributes or title were lost, this is an error.
 - **Hint.** It depends on the junk. The examples below show each.
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::note Danger
 Mind the gap.
 :::
@@ -528,7 +536,7 @@ The engine reports `block.opener-junk` (error) at 1:9:
 
 **Fix.** A title goes in brackets:
 
-```tern {.live}
+```luccet {.live}
 :::note[Danger]
 Mind the gap.
 :::
@@ -536,7 +544,7 @@ Mind the gap.
 
 An unclosed bracket:
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::note[Danger
 Mind the gap.
 :::
@@ -549,7 +557,7 @@ The engine reports `block.opener-junk` (error) at 1:8:
 
 A group that does not parse. A bad group on an opener is this error, not [`attr.malformed`](#attr-malformed):
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::note{#gap!}
 Mind the gap.
 :::
@@ -562,7 +570,7 @@ The engine reports `block.opener-junk` (error) at 1:8:
 
 Text after a title and a group. The opener already has a title, so the hint offers the title or the body:
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::note[Danger]{.big} mind the gap
 Body.
 :::
@@ -586,7 +594,7 @@ An editor's auto-wrap that breaks a long opener line causes this error too: the 
 - **Content.** The line is paragraph text, and the closer meant for it usually becomes [`block.stray-closer`](#block-stray-closer).
 - **Hint.** For a line that starts with a group, `:::div` with that group; otherwise, that a name starts with a letter.
 
-```tern {.live expect="block.bad-opener block.stray-closer"}
+```luccet {.live expect="block.bad-opener block.stray-closer"}
 :::{.warning}
 An anonymous block.
 :::
@@ -599,7 +607,7 @@ The engine reports `block.bad-opener` (warning) at 1:1:
 
 **Fix.** Every block has a name. For a plain `div`, write `div`:
 
-```tern {.live}
+```luccet {.live}
 :::div{.warning}
 An anonymous block.
 :::
@@ -607,7 +615,7 @@ An anonymous block.
 
 A name cannot start with a digit:
 
-```tern {.live expect="block.bad-opener"}
+```luccet {.live expect="block.bad-opener"}
 :::2col
 ```
 
@@ -627,7 +635,7 @@ The engine reports `block.bad-opener` (warning) at 1:1:
 - **Content.** The line is an ordinary paragraph line, so the lines after it continue the paragraph.
 - **Hint.** The spelling without the space.
 
-```tern {.live expect="block.spaced-name block.stray-closer"}
+```luccet {.live expect="block.spaced-name block.stray-closer"}
 ::: note
 Body.
 :::
@@ -640,7 +648,7 @@ The engine reports `block.spaced-name` (warning) at 1:1:
 
 **Fix.** Glue the name to the colons:
 
-```tern {.live}
+```luccet {.live}
 :::note
 Body.
 :::
@@ -648,7 +656,7 @@ Body.
 
 The same for a leaf:
 
-```tern {.live expect="block.spaced-name"}
+```luccet {.live expect="block.spaced-name"}
 :: toc
 ```
 
@@ -672,7 +680,7 @@ These concern [fenced code](syntax-blocks.html#fence), the [raw HTML fence](synt
 - **Content.** Everything up to that end is code: `:::` closers, headings and blank lines included, since a fence may legitimately hold them. A container whose closer was swallowed also gets [`block.unclosed`](#block-unclosed), with a hint naming the fence.
 - **Hint.** The closing fence to add.
 
-````tern {.live expect="block.unclosed-fence"}
+````luccet {.live expect="block.unclosed-fence"}
 ```js
 let x = 1;
 
@@ -686,7 +694,7 @@ The engine reports `block.unclosed-fence` (error) at 1:1:
 
 **Fix.** Close the fence with at least as many backticks:
 
-````tern {.live}
+````luccet {.live}
 ```js
 let x = 1;
 ```
@@ -696,7 +704,7 @@ let x = 1;
 
 In a quote, the fence ends with the quote:
 
-````tern {.live expect="block.unclosed-fence"}
+````luccet {.live expect="block.unclosed-fence"}
 > ```js
 > let x = 1;
 
@@ -718,7 +726,7 @@ The engine reports `block.unclosed-fence` (error) at 1:3:
 - **Position.** From the first junk character to the end of the line.
 - **Content.** The fence is still code. The junk is kept verbatim in `data-meta`, on the `<pre>`, or on the `<figure>` of a titled fence. A raw `=html` fence emits no element of its own, so there its junk is dropped.
 
-````tern {.live expect="fence.info-junk"}
+````luccet {.live expect="fence.info-junk"}
 ```python linenos
 print("hi")
 ```
@@ -731,7 +739,7 @@ The engine reports `fence.info-junk` (warning) at 1:11:
 
 **Fix.** Line numbers are the reserved key `lines`, in braces:
 
-````tern {.live}
+````luccet {.live}
 ```python {lines}
 print("hi")
 ```
@@ -739,7 +747,7 @@ print("hi")
 
 A title after the group is out of order:
 
-````tern {.live expect="fence.info-junk"}
+````luccet {.live expect="fence.info-junk"}
 ```js {lines} [Setup]
 let x = 1;
 ```
@@ -754,7 +762,7 @@ Put the title first: ```` ```js[Setup]{lines} ````.
 
 A raw `=html` fence takes no attributes; put them in the HTML:
 
-````tern {.live expect="fence.info-junk"}
+````luccet {.live expect="fence.info-junk"}
 ```=html {.box}
 <b>raw</b>
 ```
@@ -769,21 +777,29 @@ The engine reports `fence.info-junk` (warning) at 1:10:
 
 ### `html.unclosed` {#html-unclosed}
 
-**Error.** A raw HTML block never reaches its end.
+**Error.** Raw HTML never reaches its end, or holds something that would hide the rest of the page.
 
-- **Trigger.** It depends on the kind of block, fixed by its first line:
-  - a comment, `<!--`, with no `-->`;
-  - a raw-text element, `<script>`, `<style>`, `<pre>` or `<textarea>`, with no matching end tag, in any case, with optional spaces or tabs before its `>` (`</script >` counts);
-  - a generic block-level or custom element whose openings and closings never balance.
+- **Trigger.** Any of these:
+  - **A block never ends.** It depends on the kind of block, fixed by its first line:
+    - a comment, `<!--`, with no `-->`;
+    - a raw-text element, `<script>`, `<style>`, `<pre>` or `<textarea>`, with no matching end tag, in any case, with optional spaces or tabs before its `>` (`</script >` counts);
+    - a generic block-level or custom element whose openings and closings never balance.
 
-  A comment or raw-text block runs to the end of the innermost quote, list item or footnote definition, or to the end of the note, through `:::` lines, since it may legitimately hold them. A generic block also stops at the first `:::` opener or closer line, which is then read normally.
-- **Position.** The first line of the block.
+    A comment or raw-text block runs to the end of the innermost quote, list item or footnote definition, or to the end of the note, through `:::` lines, since it may legitimately hold them. A generic block also stops at the first `:::` opener or closer line, which is then read normally.
+  - **A block or an `=html` fence holds a hazard** further in, read as the browser reads HTML ([Raw HTML](elements.html#raw-hazards)):
+    - a comment never closed, or a `<![CDATA[` in svg or math;
+    - a tag never ended with `>`, such as one with an open quote;
+    - an element whose content is text, `<script>`, `<style>`, `<textarea>`, `<title>`, `<xmp>`, `<iframe>`, `<noembed>`, `<noframes>` or `<noscript>`, without its end tag, or a `<plaintext>`, which has none;
+    - a `<template>` or a `<select>` left open.
+  - **Inline**, an `<iframe>` or a `<select>` never closed in its paragraph.
+- **Position.** For a block that never ends, its first line; for a hazard, the construct.
 - **Content.**
-  - An unclosed comment or raw-text block is **not** emitted as HTML: in the browser it would turn the rest of the page into a comment, a script or a stylesheet. It is shown as escaped source in a `<pre class="t-error">`, from its first line to the last line it held.
+  - An unclosed comment or raw-text block, and a block or fence with a hazard, is **not** emitted as HTML: in the browser it would turn the rest of the page into a comment, a script's text, a template's hidden content. It is shown as escaped source in a `<pre class="t-error">`, from its first line to the last line it held.
+  - An unclosed `<iframe>` or `<select>` inline is shown as text.
   - An unclosed generic block is still emitted as raw HTML, up to where it stopped. The browser then balances the tags itself, which can change what ends up inside what.
-- **Hint.** The end tag to add.
+- **Hint.** The end to add.
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 :::note
 <div class="box">
 Boxed text.
@@ -799,7 +815,7 @@ The engine reports `html.unclosed` (error) at 2:1:
 
 **Fix.** Close the element:
 
-```tern {.live}
+```luccet {.live}
 :::note
 <div class="box">
 Boxed text.
@@ -811,7 +827,7 @@ After the note.
 
 An unclosed comment shows the rest of the note as source, so nothing is hidden:
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 <!-- TODO: finish this
 
 ## Results
@@ -824,7 +840,7 @@ The engine reports `html.unclosed` (error) at 1:1:
 
 A raw-text block inside a container swallows its closer, and the container's hint says why:
 
-```tern {.live expect="html.unclosed block.unclosed"}
+```luccet {.live expect="html.unclosed block.unclosed"}
 :::note
 <script>
 let x = 1;
@@ -836,7 +852,66 @@ The engine reports `block.unclosed` (error) at 1:1:
 - **Message:** `` `:::note` opened on line 1 is still open at line 4 ``
 - **Hint:** ``add `:::` or `:::/note`; the `<script>` opened on line 2 is unclosed``
 
-**Related.** [`html.wrapper`](#html-wrapper), [`html.stray-closer`](#html-stray-closer), [`block.unclosed`](#block-unclosed), [`block.unclosed-fence`](#block-unclosed-fence).
+A comment left open inside a block:
+
+```luccet {.live expect="html.unclosed"}
+<div class="box">
+<!-- the old version:
+<p>Old text.</p>
+</div>
+
+## Next section
+```
+
+The engine reports `html.unclosed` (error) at 2:1:
+
+- **Message:** ``this `<!--` is never closed, so the browser would hide everything after it; the raw HTML is shown as source``
+- **Hint:** `` end it with `-->` ``
+
+An `<iframe>` left open in a paragraph:
+
+```luccet {.live expect="html.unclosed"}
+See the map <iframe src="map.html"> below.
+
+## Next section
+```
+
+The engine reports `html.unclosed` (error) at 1:13:
+
+- **Message:** `<iframe> is never closed in this paragraph, so the browser would hide the rest of the page inside it; it is shown as text`
+- **Hint:** `close it with </iframe> before the paragraph ends`
+
+**Related.** [`html.self-closed`](#html-self-closed), [`html.wrapper`](#html-wrapper), [`html.stray-closer`](#html-stray-closer), [`block.unclosed`](#block-unclosed), [`block.unclosed-fence`](#block-unclosed-fence).
+
+### `html.self-closed` {#html-self-closed}
+
+**Error.** Raw HTML closes an element with `/>` that HTML does not close that way.
+
+- **Trigger.** In a raw HTML block or an `=html` fence, a start tag ending in `/>` on an element that is not void: `<video … />`, `<iframe … />`, `<div/>`, `<my-widget/>`. HTML ignores the `/` there, so the element stays open and the rest of the page becomes its content: a video's or an iframe's fallback, which the browser does not show. Void elements (`<br/>`, `<img … />`, `<hr/>` …) are fine, and so is anything inside `<svg>` or `<math>`, where `/>` does close.
+- **Position.** The tag.
+- **Content.** The block or fence is shown as escaped source in a `<pre class="t-error">`.
+- **Hint.** The element with its end tag.
+
+```luccet {.live expect="html.self-closed"}
+<video src="talk.mp4" controls />
+
+The talk's notes.
+```
+
+The engine reports `html.self-closed` (error) at 1:1:
+
+- **Message:** ``` ``/>` does not close a `<video>`: HTML ignores it on an element that is not void, so the rest of the page would be its content; the raw HTML is shown as source`` ```
+- **Hint:** `` write `<video …></video>` ``
+
+**Fix.** Write the end tag:
+
+```luccet {.live}
+<video src="talk.mp4" controls></video>
+
+The talk's notes.
+```
+
+**Related.** [`html.unclosed`](#html-unclosed).
 
 ### `html.stray-closer` {#html-stray-closer}
 
@@ -851,7 +926,7 @@ The engine reports `block.unclosed` (error) at 1:1:
 
 An end tag that does not pass through, such as `</div>` in the middle of a paragraph, or `</B>`, is plain text with no diagnostic.
 
-```tern {.live expect="html.stray-closer"}
+```luccet {.live expect="html.stray-closer"}
 Some text.
 
 </div>
@@ -860,11 +935,11 @@ Some text.
 The engine reports `html.stray-closer` (info) at 3:1:
 
 - **Message:** `` `</div>` closes nothing that is open; it is passed through ``
-- **Hint:** `` to wrap Tern content write `:::div{…}` … `:::` ``
+- **Hint:** `` to wrap Luccet content write `:::div{…}` … `:::` ``
 
-**Fix.** Remove it. To wrap Tern content in an element, use a container:
+**Fix.** Remove it. To wrap Luccet content in an element, use a container:
 
-```tern {.live}
+```luccet {.live}
 :::div{.box}
 Some text.
 :::
@@ -872,7 +947,7 @@ Some text.
 
 Inline:
 
-```tern {.live expect="html.stray-closer"}
+```luccet {.live expect="html.stray-closer"}
 Some text</b> here.
 ```
 
@@ -883,7 +958,7 @@ The engine reports `html.stray-closer` (info) at 1:10:
 
 A tag opened in one paragraph and closed in the next is unclosed in the first and stray in the second:
 
-```tern {.live expect="html.inline-unclosed html.stray-closer"}
+```luccet {.live expect="html.inline-unclosed html.stray-closer"}
 Start <b>bold
 
 end</b> here.
@@ -893,18 +968,18 @@ end</b> here.
 
 ### `html.wrapper` {#html-wrapper}
 
-**Warning.** Tern written inside a raw HTML block is shown as HTML, not parsed.
+**Warning.** Luccet written inside a raw HTML block is shown as HTML, not parsed.
 
 - **Trigger.** In a generic raw block only, the first line inside the block (not its first line) that, after leading whitespace, does not begin with `<`, and either:
   - follows a blank line inside the block (a line of spaces counts as blank); or
-  - holds Tern syntax: any of `*`, a backtick, `$`, `[` or `:::`, or begins with a heading marker, a list marker, `>` or `|`.
+  - holds Luccet syntax: any of `*`, a backtick, `$`, `[` or `:::`, or begins with a heading marker, a list marker, `>` or `|`.
 
   It fires at most once per block. Comments and raw-text blocks never get it.
 - **Position.** The line, from its first non-space character.
-- **Content.** Verbatim. The whole block is one raw HTML node, and nothing in it is parsed: Tern has no CommonMark-style `<div>`, blank line, Markdown, `</div>` interleave.
+- **Content.** Verbatim. The whole block is one raw HTML node, and nothing in it is parsed: Luccet has no CommonMark-style `<div>`, blank line, Markdown, `</div>` interleave.
 - **Hint.** The container to write instead.
 
-```tern {.live expect="html.wrapper"}
+```luccet {.live expect="html.wrapper"}
 <div class="box">
 Some **bold** text.
 </div>
@@ -912,12 +987,12 @@ Some **bold** text.
 
 The engine reports `html.wrapper` (warning) at 2:1:
 
-- **Message:** ``This line is inside the raw `<div>` opened on line 1 and is shown as HTML, not parsed as Tern.``
-- **Hint:** ``To put Tern inside an element write `:::div{…}` … `:::`.``
+- **Message:** ``This line is inside the raw `<div>` opened on line 1 and is shown as HTML, not parsed as Luccet.``
+- **Hint:** ``To put Luccet inside an element write `:::div{…}` … `:::`.``
 
-**Fix.** A container holds Tern, and `{.box}` gives it the class:
+**Fix.** A container holds Luccet, and `{.box}` gives it the class:
 
-```tern {.live}
+```luccet {.live}
 :::div{.box}
 Some **bold** text.
 :::
@@ -925,7 +1000,7 @@ Some **bold** text.
 
 A blank line inside the block is enough:
 
-```tern {.live expect="html.wrapper"}
+```luccet {.live expect="html.wrapper"}
 <details>
 <summary>More</summary>
 
@@ -935,12 +1010,12 @@ Plain text after a blank line.
 
 The engine reports `html.wrapper` (warning) at 4:1:
 
-- **Message:** ``This line is inside the raw `<details>` opened on line 1 and is shown as HTML, not parsed as Tern.``
-- **Hint:** ``To put Tern inside an element write `:::details{…}` … `:::`.``
+- **Message:** ``This line is inside the raw `<details>` opened on line 1 and is shown as HTML, not parsed as Luccet.``
+- **Hint:** ``To put Luccet inside an element write `:::details{…}` … `:::`.``
 
 Here the container is `details`, with the title as its summary:
 
-```tern {.live}
+```luccet {.live}
 :::details[More]
 Plain text, now *parsed*.
 :::
@@ -952,12 +1027,12 @@ Plain text, now *parsed*.
 
 **Warning.** Inline content opens a tag it never closes.
 
-- **Trigger.** A paragraph, heading, table cell or title opens a non-void phrasing tag, such as `<b>` or `<span>`, or a custom element, such as `<my-tag>`, and never closes it. Void elements (`<br>`, `<img>`, `<input>` …) are exempt, and so are those whose end tag HTML lets you omit: `rt`, `rp`, `option`, `optgroup`.
+- **Trigger.** A paragraph, heading, table cell or title opens a non-void phrasing tag, such as `<b>` or `<span>`, or a custom element, such as `<my-tag>`, and never closes it. Void elements (`<br>`, `<img>`, `<input>` …) are exempt, and so are those whose end tag HTML lets you omit: `rt`, `rp`, `option`, `optgroup`. An `<iframe>` or a `<select>`, which would take the rest of the page with it, is [`html.unclosed`](#html-unclosed) instead.
 - **Position.** The open tag.
 - **Content.** Verbatim. The browser would carry a formatting tag such as `<b>` on into the paragraphs that follow.
 - **Hint.** The end tag to add, and where.
 
-```tern {.live expect="html.inline-unclosed"}
+```luccet {.live expect="html.inline-unclosed"}
 Some <b>bold text.
 
 The next paragraph.
@@ -968,9 +1043,9 @@ The engine reports `html.inline-unclosed` (warning) at 1:6:
 - **Message:** `<b> is never closed in this paragraph`
 - **Hint:** `close it with </b> before the paragraph ends`
 
-**Fix.** Close the tag in the same paragraph, or use Tern's own spelling:
+**Fix.** Close the tag in the same paragraph, or use Luccet's own spelling:
 
-```tern {.live}
+```luccet {.live}
 Some <b>bold</b> text, or some **bold** text.
 
 The next paragraph.
@@ -992,7 +1067,7 @@ The next paragraph.
 - **Content.** Text: the `<` is escaped.
 - **Hint.** For a lower-case name, to put block HTML on its own line; for an upper-case one, the lower-case spelling.
 
-```tern {.live expect="html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped"}
 Make it <B>bold</B>.
 ```
 
@@ -1003,13 +1078,13 @@ The engine reports `html.inline-escaped` (info) at 1:9:
 
 **Fix.** Inline tags are lower-case:
 
-```tern {.live}
+```luccet {.live}
 Make it <b>bold</b>, or make it **bold**.
 ```
 
 A block tag in a sentence:
 
-```tern {.live expect="html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped"}
 Put <div> here.
 ```
 
@@ -1020,7 +1095,7 @@ The engine reports `html.inline-escaped` (info) at 1:5:
 
 Generics stay silent:
 
-```tern {.live}
+```luccet {.live}
 A Box<A> holds a Vec<T>.
 ```
 
@@ -1028,7 +1103,7 @@ A Box<A> holds a Vec<T>.
 
 ## Math {#math}
 
-These concern [display math](syntax-blocks.html#display-math), [inline math](syntax-inline.html#inline-math) and [verbatim math](syntax-inline.html#verbatim-math). A formula a [math add-on](addons.html#katex) cannot parse is a console warning, not a diagnostic; `tern build --math` reports one it cannot pre-render as [`math.error`](#math-error).
+These concern [display math](syntax-blocks.html#display-math), [inline math](syntax-inline.html#inline-math) and [verbatim math](syntax-inline.html#verbatim-math): where a formula starts and ends. The TeX inside a formula has codes of its own, [`tex.*`](#tex).
 
 ### `math.unclosed` {#math-unclosed}
 
@@ -1047,7 +1122,7 @@ These concern [display math](syntax-blocks.html#display-math), [inline math](syn
 - **Content.** The block is emitted as `<div class="t-eq t-error">` holding its escaped source, opening `$$` included. The terminating line is then read normally, so an unclosed `$$` swallows at most one paragraph and never a heading.
 - **Message.** It names the line that ended the block.
 
-```tern {.live expect="math.unclosed"}
+```luccet {.live expect="math.unclosed"}
 $$
 x + y
 :::note
@@ -1062,7 +1137,7 @@ The engine reports `math.unclosed` (error) at 1:1:
 
 **Fix.** Add a line holding `$$`:
 
-```tern {.live}
+```luccet {.live}
 $$
 x + y
 $$
@@ -1073,7 +1148,7 @@ A note.
 
 The [third likely mistake](#three-mistakes) shows the blank-line case.
 
-**Related.** [`math.closer-tail`](#math-closer-tail), [`math.opener-tail`](#math-opener-tail), [`math.inline-display`](#math-inline-display), [`math.error`](#math-error).
+**Related.** [`math.closer-tail`](#math-closer-tail), [`math.opener-tail`](#math-opener-tail), [`math.inline-display`](#math-inline-display).
 
 ### `math.opener-tail` {#math-opener-tail}
 
@@ -1081,10 +1156,10 @@ The [third likely mistake](#three-mistakes) shows the blank-line case.
 
 - **Trigger.** A multi-line `$$` whose opening line holds, after `$$`, a strong group starting with `#` or `.`.
 - **Position.** The group.
-- **Content.** The group is not attributes: it stays in the TeX, as its first line. The equation gets no id and no number. In the browser, a group with a `#` makes KaTeX reject the formula ([`math.error`](#math-error)); a group of classes is typeset as letters.
+- **Content.** The group is not attributes: it stays in the TeX, as its first line. The equation gets no id and no number. A group with a `#` makes the formula [`tex.misplaced`](#tex-misplaced) as well, so it is shown as its TeX; a group of classes is TeX letters, shown in the formula.
 - **Hint.** Attributes go after the closing `$$`.
 
-```tern {.live expect="math.opener-tail"}
+```luccet {.live expect="math.opener-tail tex.misplaced"}
 $$ {#eq-pythagoras}
 a^2 + b^2 = c^2
 $$
@@ -1095,15 +1170,17 @@ The engine reports `math.opener-tail` (error) at 1:4:
 - **Message:** ``a group on the opening `$$` line is TeX, not attributes``
 - **Hint:** `` attributes go after the closing `$$`: `$$ {#eq}` ``
 
+and, for the `#` in the TeX, [`tex.misplaced`](#tex-misplaced) (error) at 1:5.
+
 **Fix.** Move the group after the closing `$$`:
 
-```tern {.live}
+```luccet {.live}
 $$
 a^2 + b^2 = c^2
 $$ {#eq-pythagoras}
 ```
 
-**Related.** [`math.closer-tail`](#math-closer-tail), [`attributes.orphan`](#attributes-orphan).
+**Related.** [`math.closer-tail`](#math-closer-tail), [`attributes.orphan`](#attributes-orphan), [`tex.misplaced`](#tex-misplaced).
 
 ### `math.closer-tail` {#math-closer-tail}
 
@@ -1113,7 +1190,7 @@ $$ {#eq-pythagoras}
 - **Position.** The junk, to the end of the line.
 - **Content.** The equation is complete. The junk is emitted as a paragraph after it, which continues on the following lines by the usual paragraph rules. When the junk starts with a group, the equation gets no id.
 
-```tern {.live expect="math.closer-tail"}
+```luccet {.live expect="math.closer-tail"}
 $$
 E = mc^2
 $$ where m is the mass.
@@ -1126,7 +1203,7 @@ The engine reports `math.closer-tail` (warning) at 3:4:
 
 **Fix.** Start the text on a line of its own:
 
-```tern {.live}
+```luccet {.live}
 $$
 E = mc^2
 $$
@@ -1136,7 +1213,7 @@ where $m$ is the mass.
 
 A group followed by text is junk, group included:
 
-```tern {.live expect="math.closer-tail"}
+```luccet {.live expect="math.closer-tail"}
 $$
 E = mc^2
 $$ {#eq-energy} (Einstein)
@@ -1151,25 +1228,25 @@ The engine reports `math.closer-tail` (warning) at 3:4:
 
 ### `math.inline-display` {#math-inline-display}
 
-**Info.** `$$` in the middle of a line is text.
+**Warning.** `$$` in the middle of a line is text.
 
 - **Trigger.** Two adjacent dollars inside inline content, once per `$$` run. Display math goes on its own lines. This includes a line that starts with `$$` and has text after a second `$$`: the whole line is then a paragraph.
 - **Position.** The `$$`.
 - **Content.** Text. Nothing opens.
 - **Hint.** For a display-style formula inside a sentence, `\displaystyle`.
 
-```tern {.live expect="math.inline-display math.inline-display"}
+```luccet {.live expect="math.inline-display math.inline-display"}
 The energy $$E = mc^2$$ is famous.
 ```
 
-The engine reports `math.inline-display` (info) at 1:12 and 1:22:
+The engine reports `math.inline-display` (warning) at 1:12 and 1:22:
 
 - **Message:** `` `$$` inside a line is text: display math goes on its own lines ``
 - **Hint:** `` for an inline display style write `$\displaystyle …$` ``
 
 **Fix.** Inline math takes one dollar, and display math goes on its own lines:
 
-```tern {.live}
+```luccet {.live}
 The energy $E = mc^2$ is famous, or $\displaystyle E = mc^2$ in display style.
 
 $$
@@ -1181,36 +1258,36 @@ $$
 
 ### `math.unclosed-inline` {#math-unclosed-inline}
 
-**Info.** A `$` followed by TeX never closes.
+**Warning.** A `$` followed by TeX never closes.
 
 - **Trigger.** An opening `$` followed by a backslash, with no closer. The candidate closer is the next unescaped `$`, and it is the only candidate: when the rules reject it, this fires too. Prices, a `$` followed by a digit, make no noise.
 - **Position.** The `$`.
 - **Content.** Text.
 
-```tern {.live expect="math.unclosed-inline"}
+```luccet {.live expect="math.unclosed-inline"}
 The $\alpha never closes.
 ```
 
-The engine reports `math.unclosed-inline` (info) at 1:5:
+The engine reports `math.unclosed-inline` (warning) at 1:5:
 
 - **Message:** ``this `$` is followed by TeX, but nothing closes it``
 - **Hint:** ``close the formula with `$`, or write `\$` for a dollar sign``
 
 **Fix.** Close the formula, or escape the dollar:
 
-```tern {.live}
+```luccet {.live}
 The $\alpha$ closes, and \$\alpha is a dollar.
 ```
 
 The only candidate closer comes right after a `{`, which the bracket clause rejects:
 
-```tern {.live expect="math.unclosed-inline"}
+```luccet {.live expect="math.unclosed-inline"}
 Half is $\frac{1}{$ two.
 ```
 
 Prices are silent:
 
-```tern {.live}
+```luccet {.live}
 Costs $5 and $10.
 ```
 
@@ -1218,25 +1295,25 @@ Costs $5 and $10.
 
 ### `math.bracket` {#math-bracket}
 
-**Info.** An interval in French notation is not math.
+**Warning.** An interval in French notation is not math.
 
 - **Trigger.** The bracket clause rejected a span only because a `]` follows the opening `$` or a `[` comes before the closing `$`. These are intervals like `]0,1[`. Cases with `(` or `)` are prices and stay silent.
 - **Position.** The opening `$`.
 - **Content.** Text.
 - **Hint.** The same interval as verbatim math.
 
-```tern {.live expect="math.bracket"}
+```luccet {.live expect="math.bracket"}
 The interval $]0,1[$ is open.
 ```
 
-The engine reports `math.bracket` (info) at 1:14:
+The engine reports `math.bracket` (warning) at 1:14:
 
 - **Message:** ``a `]` after the opening `$` or a `[` before the closing one keeps this from being math``
 - **Hint:** `` for an interval write verbatim math: $`]0,1[` ``
 
 **Fix.** Verbatim math, `` $` `` … `` ` ``, is always math:
 
-```tern {.live}
+```luccet {.live}
 The interval $`]0,1[` is open.
 ```
 
@@ -1248,9 +1325,9 @@ The interval $`]0,1[` is open.
 
 - **Trigger.** An inline-math span whose opener is followed by a digit, and that holds a run of three or more ASCII letters preceded by whitespace, which is neither a TeX control word nor inside a braced argument that directly follows a control word: `\text{…}`, `\mbox{…}`, `\operatorname{…}`, both arguments of `\frac{…}{…}`, and so on. It catches a price that found a later `$`.
 - **Position.** The opening `$`.
-- **Content.** Math, as written: the span is typeset.
+- **Content.** Math, as written: the span is a formula.
 
-```tern {.live expect="math.suspect-price"}
+```luccet {.live expect="math.suspect-price"}
 Costs $5 then x$ more.
 ```
 
@@ -1261,17 +1338,243 @@ The engine reports `math.suspect-price` (warning) at 1:7:
 
 **Fix.** Escape the price:
 
-```tern {.live}
+```luccet {.live}
 Costs \$5 then $x$ more.
 ```
 
 Words inside a control word's argument are fine:
 
-```tern {.live}
+```luccet {.live}
 Pay $5 \text{ per item}$, or $3 \frac{apples}{day}$.
 ```
 
 **Related.** [`math.unclosed-inline`](#math-unclosed-inline), [`math.bracket`](#math-bracket).
+
+## Inside a formula {#tex}
+
+Luccet turns each formula's TeX into MathML itself ([Math](math.html)). When a formula's TeX does not translate, the formula is shown as its TeX, marked as an error, and one of these codes points at the command at fault: the first problem in the formula, at its line and column. The rest of the note is not affected.
+
+### `tex.unknown` {#tex-unknown}
+
+**Error.** A formula uses a command Luccet does not know.
+
+- **Trigger.** A command that is not one of Luccet's ([the commands](math.html#commands)), not a macro of the note's and not a known LaTeX command Luccet leaves out (that is [`tex.unsupported`](#tex-unsupported)). Usually a typo.
+- **Position.** The command.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.unknown"}
+The angle is $\thetha$.
+```
+
+The engine reports `tex.unknown` (error) at 1:15:
+
+- **Message:** `\thetha is not a command Luccet knows`
+- **Hint:** ``did you mean `\theta`? Or define it in a :::macros block``
+
+**Fix.** Correct the spelling, or define the command as a [macro](math.html#macros):
+
+```luccet {.live}
+The angle is $\theta$.
+```
+
+**Related.** [`tex.unsupported`](#tex-unsupported), [`tex.macro`](#tex-macro).
+
+### `tex.unsupported` {#tex-unsupported}
+
+**Error.** A formula uses a LaTeX command that Luccet does not do.
+
+- **Trigger.** A command Luccet knows of and leaves out ([what is left out](math.html#unsupported)): equation tags and labels, which Luccet does its own way; links, images and HTML attributes, which a formula never writes; chemistry; and a few rare commands.
+- **Position.** The command.
+- **Content.** Changed: the formula is shown as its TeX.
+
+````luccet {.live expect="tex.unsupported"}
+$$
+E = mc^2 \tag{1}
+$$
+````
+
+The engine reports `tex.unsupported` (error) at 2:10:
+
+- **Message:** `\tag is not supported`
+- **Hint:** ``number and refer to equations the Luccet way: an id after the closing `$$`, as `$$ {#eq-name}`, and `@eq-name` in the text``
+
+**Fix.** Follow the hint. For an equation number, give the equation an id:
+
+````luccet {.live}
+$$
+E = mc^2
+$$ {#eq-energy}
+
+By @eq-energy, mass is energy.
+````
+
+**Related.** [`tex.unknown`](#tex-unknown), [equation numbers](elements.html#numbering).
+
+### `tex.unbalanced` {#tex-unbalanced}
+
+**Error.** A brace, a `\left` or a `\begin` in a formula is never closed, or something closes what was never opened.
+
+- **Trigger.** A `{` without its `}`, or a `}` that closes nothing; `\left` without `\right`, or `\right` without `\left`; `\begin{…}` without its `\end{…}`, or ending with another environment's `\end`.
+- **Position.** The opener that is never closed, or the closer that closes nothing.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.unbalanced"}
+Half of it is $\frac{a}{b$.
+```
+
+The engine reports `tex.unbalanced` (error) at 1:24:
+
+- **Message:** ``this `{` is never closed``
+- **Hint:** ``add the `}` that closes it``
+
+**Fix.** Close it:
+
+```luccet {.live}
+Half of it is $\frac{a}{b}$.
+```
+
+**Related.** [`tex.argument`](#tex-argument).
+
+### `tex.argument` {#tex-argument}
+
+**Error.** A command in a formula is missing an argument, or has one it cannot read.
+
+- **Trigger.** A command that takes arguments and the formula ends, or a group closes, before them (`\frac{1}`); a colour that is not a CSS colour name or a hex colour; a length without a unit; a delimiter after `\left` that is not one; an `array` column that is not `l`, `c`, `r` or `|`.
+- **Position.** The command.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.argument"}
+A ratio $\frac{1}$ alone.
+```
+
+The engine reports `tex.argument` (error) at 1:10:
+
+- **Message:** `the denominator of \frac is missing`
+- **Hint:** ``give it in braces, as `{…}` ``
+
+**Fix.** Give every argument, each in braces:
+
+```luccet {.live}
+A ratio $\frac{1}{2}$ alone.
+```
+
+**Related.** [`tex.unbalanced`](#tex-unbalanced).
+
+### `tex.script` {#tex-script}
+
+**Error.** A base has a second superscript, a second subscript, or a prime after its superscript.
+
+- **Trigger.** `x^a^b`, `x_a_b`, `f^2'`: TeX gives a base one superscript and one subscript.
+- **Position.** The second `^` or `_`, or the prime.
+- **Content.** Changed: the formula is shown as its TeX.
+
+```luccet {.live expect="tex.script"}
+Not $x^2^3$ but this.
+```
+
+The engine reports `tex.script` (error) at 1:9:
+
+- **Message:** `a second superscript`
+- **Hint:** ``write `x^{ab}` for one superscript, or `{x^a}^b` for a superscript on a superscript``
+
+**Fix.** Group what you mean:
+
+```luccet {.live}
+Not $x^{23}$ but $\left(x^2\right)^3$.
+```
+
+**Related.** [scripts and primes](math.html#scripts).
+
+### `tex.misplaced` {#tex-misplaced}
+
+**Error.** Something in a formula stands where it cannot.
+
+- **Trigger.** `&` or `\\` outside an environment; `#` outside a macro definition; `$` inside a formula; `\middle` outside `\left` … `\right`; `\limits` after something that is not an operator; a text-only command such as `\textbackslash` in math; `^` or `_` in `\text{…}`; an environment for display math, such as `align*`, in an inline formula.
+- **Position.** What is misplaced.
+- **Content.** Changed: the formula is shown as its TeX.
+
+````luccet {.live expect="tex.misplaced"}
+$$
+a &= b \\
+  &= c
+$$
+````
+
+The engine reports `tex.misplaced` (error) at 2:3:
+
+- **Message:** `` `&` outside an environment ``
+- **Hint:** ``to align lines, put them in `\begin{aligned}` … `\end{aligned}`; for an ampersand write `\&` ``
+
+**Fix.** Put aligned lines in `aligned`, and write a literal `&` as `\&`:
+
+````luccet {.live}
+$$
+\begin{aligned}
+a &= b \\
+  &= c
+\end{aligned}
+$$
+````
+
+**Related.** [environments](math.html#environments).
+
+### `tex.macro` {#tex-macro}
+
+**Error.** A macro definition does not work.
+
+- **Trigger.** `\newcommand` for a command that already exists (use `\renewcommand`), or `\renewcommand` for one that does not; a definition with no name or no body; `#3` in a macro of two parameters; `\def` with delimited parameters; a page macro in `window.LUCCET.macros` that is not a name and a body.
+- **Position.** The macro's name, in the `:::macros` block or the formula that defines it.
+- **Content.** Changed: the definition is not made, and the formulas that use it fail or use the command's own meaning.
+
+````luccet {.live expect="tex.macro"}
+:::macros
+\newcommand{\sin}{s}
+:::
+
+Then $\sin x$.
+````
+
+The engine reports `tex.macro` (error) at 2:13:
+
+- **Message:** `in this :::macros block, \sin is already defined`
+- **Hint:** `use \renewcommand to redefine it`
+
+**Fix.** Choose a new name, or redefine the command on purpose with `\renewcommand`:
+
+````luccet {.live}
+:::macros
+\newcommand{\sn}{\operatorname{sn}}
+:::
+
+Then $\sn x$.
+````
+
+**Related.** [macros](math.html#macros), [`tex.limit`](#tex-limit).
+
+### `tex.limit` {#tex-limit}
+
+**Error.** A formula's macros expand without end, or its groups nest too deep.
+
+- **Trigger.** Macros that grow a formula past what its page allows, as a macro that uses itself does: a formula's macros may produce ten tokens for each character of the formula, and past those they draw on a reserve of 5,000 that all the page's formulas share. Also macros expanded more than 10,000 times in one formula, and groups nested more than 100 deep.
+- **Position.** The macro that went over the limit, or the group.
+- **Content.** Changed: the formula is shown as its TeX. The limit keeps the page from hanging.
+
+````luccet {.live expect="tex.limit"}
+:::macros
+\gdef\again{\again}
+:::
+
+Then $\again$.
+````
+
+The engine reports `tex.limit` (error) at 5:7:
+
+- **Message:** `the macros in this formula grow it past 5,060 tokens, all the page has left for it`
+- **Hint:** `a macro that uses itself grows without end: check its definition`
+
+**Fix.** Give the macro a body that ends.
+
+**Related.** [`tex.macro`](#tex-macro).
 
 ## Attributes {#attributes}
 
@@ -1302,7 +1605,7 @@ These concern [attribute groups](syntax-blocks.html#attributes), `{#id .class ke
 - **Position.** The first bad column; for a bad value, the value; for a key where it does not apply, the key; on `:::meta`, each id, class and key.
 - **Content.** As in the table; dropped, for a reserved key out of place and for `:::meta`.
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ## Results {#results!}
 ```
 
@@ -1313,13 +1616,13 @@ The engine reports `attr.malformed` (warning) at 1:21:
 
 **Fix.** An id starts with a letter or `_`, and holds letters, digits, `_` and `-`:
 
-```tern {.live}
+```luccet {.live}
 ## Results {#results}
 ```
 
 After a span:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 See [the term]{.term!}.
 ```
 
@@ -1330,7 +1633,7 @@ The engine reports `attr.malformed` (warning) at 1:21:
 
 An attribute line:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 {#intro .lead!}
 A paragraph.
 ```
@@ -1342,7 +1645,7 @@ The engine reports `attr.malformed` (warning) at 1:14:
 
 A leaf line:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ::spacer{#gap %}
 ```
 
@@ -1353,7 +1656,7 @@ The engine reports `attr.malformed` (warning) at 1:15:
 
 An id must start with a letter or `_`. Compare [`ref.unreferenceable`](#ref-unreferenceable), for `id=2024`:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 [the plan]{#2024}
 ```
 
@@ -1364,7 +1667,7 @@ The engine reports `attr.malformed` (warning) at 1:13:
 
 A bad `cols`:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 :::row{cols=0}
 One.
 :::
@@ -1377,7 +1680,7 @@ The engine reports `attr.malformed` (warning) at 1:13:
 
 A bad `ref`:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ## Results {#results}
 
 See @results{ref=page}.
@@ -1390,7 +1693,7 @@ The engine reports `attr.malformed` (warning) at 3:18:
 
 A `ref=` off a reference:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 See [the results]{ref=title}.
 ```
 
@@ -1401,7 +1704,7 @@ The engine reports `attr.malformed` (warning) at 1:19:
 
 A `cols=` on a span, which has no grid:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 [Two columns]{cols=2}
 ```
 
@@ -1412,7 +1715,7 @@ The engine reports `attr.malformed` (warning) at 1:15:
 
 A `tag=` on a reserved name, which gets [`name.reserved`](#name-reserved) as well:
 
-```tern {.live expect="name.reserved attr.malformed"}
+```luccet {.live expect="name.reserved attr.malformed"}
 :::main{tag=section}
 The main content.
 :::
@@ -1425,7 +1728,7 @@ The engine reports `attr.malformed` (warning) at 1:9:
 
 Attributes on `:::meta`, one diagnostic each:
 
-```tern {.live expect="attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed"}
 :::meta{#info .wide}
 title: Linear maps
 :::
@@ -1438,11 +1741,41 @@ The engine reports `attr.malformed` (warning) at 1:9 and 1:15:
 
 Weak groups, and groups glued to code that do not start with `#` or `.`, are silent text:
 
-```tern {.live}
+```luccet {.live}
 The set {1, 2}, the call `f`{x}, and [x]{}.
 ```
 
 **Related.** [`attributes.orphan`](#attributes-orphan), [`block.opener-junk`](#block-opener-junk), [`fence.info-junk`](#fence-info-junk).
+
+### `attr.overridden` {#attr-overridden}
+
+**Warning.** An id or a key is written twice for one element, and the later one wins.
+
+- **Trigger.** A second id for the same element: an attribute line's and the block's own group (`{#a}` above `:::note{#b}`), or two in one group (`{#a #b}`, `{#a id=b}`). A key written twice: in one group (`{k=1 k=2}`, `{Title=a title=b}`, as keys are not case-sensitive), or on an attribute line and again on its block. An element has one id, and an attribute one value.
+- **Position.** The one replaced: the earlier id or key.
+- **Content.** Kept: the later value applies, the earlier one is dropped.
+
+````luccet {.live expect="attr.overridden"}
+{#intro}
+:::note{#summary}
+Short.
+:::
+````
+
+The engine reports `attr.overridden` (warning) at 1:2:
+
+- **Message:** `the id "intro" is replaced by "summary", written later for the same block; an element has one id`
+- **Hint:** ``keep one: remove {#intro}, or {#summary}``
+
+**Fix.** Keep the one you mean:
+
+````luccet {.live}
+:::note{#summary}
+Short.
+:::
+````
+
+**Related.** [`attr.malformed`](#attr-malformed), [`id.duplicate`](#id-duplicate).
 
 ### `attributes.orphan` {#attributes-orphan}
 
@@ -1452,7 +1785,7 @@ The set {1, 2}, the call `f`{x}, and [x]{}.
 - **Position.** The line. Consecutive orphan lines get one diagnostic, at the first.
 - **Content.** The line is shown as paragraph text. Consecutive orphan lines form one paragraph.
 
-```tern {.live expect="attributes.orphan"}
+```luccet {.live expect="attributes.orphan"}
 {.lead}
 
 The opening paragraph.
@@ -1465,14 +1798,14 @@ The engine reports `attributes.orphan` (warning) at 1:1:
 
 **Fix.** An attribute line attaches to the block on the very next line:
 
-```tern {.live}
+```luccet {.live}
 {.lead}
 The opening paragraph.
 ```
 
 An auto-wrap that moves the group of `$$ {#eq}` onto the next line makes an orphan:
 
-```tern {.live expect="attributes.orphan"}
+```luccet {.live expect="attributes.orphan"}
 $$
 E = mc^2
 $$
@@ -1489,7 +1822,7 @@ $$
 - **Position.** The line.
 - **Content.** The line is shown as text; the raw HTML is unchanged.
 
-```tern {.live expect="attributes.raw"}
+```luccet {.live expect="attributes.raw"}
 {.note}
 <div>Raw HTML.</div>
 ```
@@ -1501,7 +1834,7 @@ The engine reports `attributes.raw` (warning) at 1:1:
 
 **Fix.** Put the attributes in the tag:
 
-```tern {.live}
+```luccet {.live}
 <div class="note">Raw HTML.</div>
 ```
 
@@ -1520,7 +1853,7 @@ These concern [pipe tables](syntax-blocks.html#tables) and [cells](syntax-blocks
 - **Content.** Paragraph text.
 - **Hint.** When the line above ends with `\`, that the header row cannot continue; otherwise, that table rows start with `|`.
 
-```tern {.live expect="table.stray-delimiter"}
+```luccet {.live expect="table.stray-delimiter"}
 Keys | Action
 ---|---
 :w | write
@@ -1533,7 +1866,7 @@ The engine reports `table.stray-delimiter` (warning) at 2:1:
 
 **Fix.** Every row starts with `|`:
 
-```tern {.live}
+```luccet {.live}
 | Keys | Action |
 |---|---|
 | :w | write |
@@ -1541,7 +1874,7 @@ The engine reports `table.stray-delimiter` (warning) at 2:1:
 
 A header row cannot continue onto the next line:
 
-```tern {.live expect="table.stray-delimiter"}
+```luccet {.live expect="table.stray-delimiter"}
 | Keys | Action \
 |---|---|
 ```
@@ -1561,7 +1894,7 @@ The engine reports `table.stray-delimiter` (warning) at 2:1:
 - **Position.** The row's line.
 - **Content.** The `\` is literal and stays in the last cell. The table ends as usual. A row that ends in `\\` is a literal backslash, with no diagnostic.
 
-```tern {.live expect="table.row-unterminated"}
+```luccet {.live expect="table.row-unterminated"}
 | Key | Action |
 |---|---|
 | :w | write \
@@ -1576,7 +1909,7 @@ The engine reports `table.row-unterminated` (warning) at 3:1:
 
 **Fix.** Continue the row on the next line, or remove the `\`:
 
-```tern {.live}
+```luccet {.live}
 | Key | Action |
 |---|---|
 | :w | write the file \
@@ -1593,7 +1926,7 @@ The engine reports `table.row-unterminated` (warning) at 3:1:
 - **Position.** The line.
 - **Content.** It is rendered as a text row, with cells holding `---`.
 
-```tern {.live expect="table.misplaced-separator"}
+```luccet {.live expect="table.misplaced-separator"}
 | Key | Action |
 |---|---|
 | :w | write |
@@ -1608,7 +1941,7 @@ The engine reports `table.misplaced-separator` (warning) at 4:1:
 
 **Fix.** Remove it, or end the table with a blank line and start another.
 
-```tern {.live}
+```luccet {.live}
 | Key | Action |
 |---|---|
 | :w | write |
@@ -1627,7 +1960,7 @@ The engine reports `table.misplaced-separator` (warning) at 4:1:
 
 An unescaped `|` in a cell's text is the usual cause:
 
-```tern {.live expect="table.extra-cell"}
+```luccet {.live expect="table.extra-cell"}
 | Expression | Meaning |
 |---|---|
 | a | b | a or b |
@@ -1640,7 +1973,7 @@ The engine reports `table.extra-cell` (warning) at 3:9:
 
 **Fix.** Escape the pipe, or put it in code, where it needs no escape:
 
-```tern {.live}
+```luccet {.live}
 | Expression | Meaning |
 |---|---|
 | a \| b | a or b |
@@ -1657,7 +1990,7 @@ The engine reports `table.extra-cell` (warning) at 3:9:
 - **Position.** The line.
 - **Content.** Paragraph text. It ends the paragraph before it, and the lines after it continue the new paragraph.
 
-```tern {.live expect="cell.orphan"}
+```luccet {.live expect="cell.orphan"}
 Left.
 +++
 Right.
@@ -1670,7 +2003,7 @@ The engine reports `cell.orphan` (warning) at 2:1:
 
 **Fix.** Put the cells in a container:
 
-```tern {.live}
+```luccet {.live}
 :::row
 Left.
 +++
@@ -1680,7 +2013,7 @@ Right.
 
 Inside a quote within a container:
 
-```tern {.live expect="cell.orphan"}
+```luccet {.live expect="cell.orphan"}
 :::row
 > A quote.
 > +++
@@ -1700,36 +2033,36 @@ These concern [leaves](syntax-blocks.html#leaf), `::name[…]{…}`, and [named 
 
 ### `leaf.demoted` {#leaf-demoted}
 
-**Info.** A line starts like a leaf but is not one.
+**Warning.** A line starts like a leaf but is not one.
 
 - **Trigger.** A line starts with `::NAME`, but the rest is not what a leaf accepts: there is text after it, or an unclosed `[`. A leaf must fill its line. Not for `::` alone (silent), `:: name` ([`block.spaced-name`](#block-spaced-name)) or a group that does not parse ([`attr.malformed`](#attr-malformed)).
 - **Position.** The `::` and the name.
 - **Content.** Paragraph text. It does not interrupt a paragraph; it continues one.
 - **Hint.** The one-line and the block spellings of that name.
 
-```tern {.live expect="leaf.demoted"}
+```luccet {.live expect="leaf.demoted"}
 ::before and ::after are pseudo-elements.
 ```
 
-The engine reports `leaf.demoted` (info) at 1:1:
+The engine reports `leaf.demoted` (warning) at 1:1:
 
 - **Message:** `` `::before` is a leaf only when it fills the line; this is text ``
 - **Hint:** `` write `::before[…]` for a one-line element, or `:::before` … `:::` ``
 
 **Fix.** Here the line is prose, so escape the colons:
 
-```tern {.live}
+```luccet {.live}
 \::before and ::after are pseudo-elements.
 ```
 
 A leaf broken over two lines, by hand or by an auto-wrap:
 
-```tern {.live expect="leaf.demoted"}
+```luccet {.live expect="leaf.demoted"}
 ::video{src=tide.mp4
 controls}
 ```
 
-The engine reports `leaf.demoted` (info) at 1:1:
+The engine reports `leaf.demoted` (warning) at 1:1:
 
 - **Message:** `` `::video` is a leaf only when it fills the line; this is text ``
 - **Hint:** `` write `::video[…]` for a one-line element, or `:::video` … `:::` ``
@@ -1745,7 +2078,7 @@ The engine reports `leaf.demoted` (info) at 1:1:
 - **Content.** The content is emitted after the element: a leaf's in a paragraph of its own, an inline element's right after it in the text.
 - **Hint.** To remove the brackets, or to choose an element that holds content.
 
-```tern {.live expect="leaf.void-content"}
+```luccet {.live expect="leaf.void-content"}
 ::hr[Part two]
 ```
 
@@ -1756,7 +2089,7 @@ The engine reports `leaf.void-content` (warning) at 1:1:
 
 **Fix.** Keep the element and the text apart:
 
-```tern {.live}
+```luccet {.live}
 ::hr
 
 ## Part two
@@ -1772,7 +2105,7 @@ The engine reports `leaf.void-content` (warning) at 1:1:
 - **Position.** The `[`.
 - **Content.** Text, as written.
 
-```tern {.live expect="inline.unclosed"}
+```luccet {.live expect="inline.unclosed"}
 Press :kbd[Ctrl and S.
 ```
 
@@ -1783,19 +2116,19 @@ The engine reports `inline.unclosed` (warning) at 1:11:
 
 **Fix.** Close each element:
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[Ctrl]+:kbd[S].
 ```
 
 A lone backtick pairs with the next one:
 
-```tern {.live expect="inline.unclosed"}
+```luccet {.live expect="inline.unclosed"}
 Press :kbd[`] then type `x`.
 ```
 
 Escape it:
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[\`] then type `x`.
 ```
 
@@ -1803,24 +2136,24 @@ Press :kbd[\`] then type `x`.
 
 ### `inline.glued` {#inline-glued}
 
-**Info.** A named inline element is glued to a word.
+**Warning.** A named inline element is glued to a word.
 
 - **Trigger.** `:NAME[` where the `:` follows an ASCII letter or digit. After `_`, `:` or `/` the text is silent, as in times and URLs. The test is ASCII on purpose, so in Chinese, Japanese or Thai text an element right after a word still works.
 - **Position.** The `:`.
 - **Content.** Text.
 
-```tern {.live expect="inline.glued"}
+```luccet {.live expect="inline.glued"}
 Then press:kbd[S] to save.
 ```
 
-The engine reports `inline.glued` (info) at 1:11:
+The engine reports `inline.glued` (warning) at 1:11:
 
 - **Message:** `":kbd[" follows a letter or digit, so it is text`
 - **Hint:** `put a space before ":kbd["`
 
 **Fix.** Put a space before the colon:
 
-```tern {.live}
+```luccet {.live}
 Then press :kbd[S] to save. これは:kbd[S]です.
 ```
 
@@ -1838,7 +2171,7 @@ These concern [footnote references](syntax-inline.html#footnote-reference), `[^l
 - **Position.** The reference.
 - **Content.** The reference stays literal text.
 
-```tern {.live expect="footnote.undefined"}
+```luccet {.live expect="footnote.undefined"}
 A claim.[^src]
 ```
 
@@ -1849,7 +2182,7 @@ The engine reports `footnote.undefined` (warning) at 1:9:
 
 **Fix.** Add the definition:
 
-```tern {.live}
+```luccet {.live}
 A claim.[^src]
 
 [^src]: The source.
@@ -1857,7 +2190,7 @@ A claim.[^src]
 
 A definition needs a space after its colon. Without it, the line is a paragraph holding a second reference:
 
-```tern {.live expect="footnote.undefined footnote.undefined"}
+```luccet {.live expect="footnote.undefined footnote.undefined"}
 A claim.[^src]
 
 [^src]:The source.
@@ -1867,27 +2200,27 @@ A claim.[^src]
 
 ### `footnote.duplicate` {#footnote-duplicate}
 
-**Warning.** A footnote label is defined twice.
+**Error.** A footnote label is defined twice.
 
 - **Trigger.** A second definition with the same label. Labels compare case-insensitively, so `[^a]:` and `[^A]:` are the same.
 - **Position.** Each later definition's `[^label]:`. The first gets none.
 - **Content.** The first wins. Each later one is dropped from the output.
 
-```tern {.live expect="footnote.duplicate"}
+```luccet {.live expect="footnote.duplicate"}
 A claim.[^a]
 
 [^a]: First.
 [^A]: Second.
 ```
 
-The engine reports `footnote.duplicate` (warning) at 4:1:
+The engine reports `footnote.duplicate` (error) at 4:1:
 
 - **Message:** `[^A] is already defined on line 3; this definition is dropped`
 - **Hint:** `merge the two definitions, or give one another label`
 
 **Fix.** Merge them, or give one another label:
 
-```tern {.live}
+```luccet {.live}
 A claim.[^a] Another.[^b]
 
 [^a]: First.
@@ -1904,7 +2237,7 @@ A claim.[^a] Another.[^b]
 - **Position.** The reference.
 - **Content.** The reference stays literal text. If it was the only reference to its definition, that definition is also [unused](#footnote-unused).
 
-```tern {.live expect="footnote.nested footnote.unused"}
+```luccet {.live expect="footnote.nested footnote.unused"}
 A claim.[^a]
 
 [^a]: See also[^b].
@@ -1918,7 +2251,7 @@ The engine reports `footnote.nested` (warning) at 3:15:
 
 **Fix.** Put the text in the one footnote, or move the reference into the main text:
 
-```tern {.live}
+```luccet {.live}
 A claim.[^a] See also.[^b]
 
 [^a]: The source.
@@ -1935,7 +2268,7 @@ A claim.[^a] See also.[^b]
 - **Position.** The definition's `[^label]:`.
 - **Content.** It is still emitted, after the referenced footnotes, with no back link.
 
-```tern {.live expect="footnote.unused"}
+```luccet {.live expect="footnote.unused"}
 Text.
 
 [^a]: Never used.
@@ -1948,7 +2281,7 @@ The engine reports `footnote.unused` (info) at 3:1:
 
 **Fix.** Reference it, or remove it:
 
-```tern {.live}
+```luccet {.live}
 Text.[^a]
 
 [^a]: Now used.
@@ -1962,7 +2295,7 @@ These are hints for habits from LaTeX. See [escapes](syntax-inline.html#escape) 
 
 ### `latex.delimiters` {#latex-delimiters}
 
-**Info.** LaTeX's math delimiters are not math here.
+**Warning.** LaTeX's math delimiters are not math here.
 
 - **Trigger.** Once per note, the first of these:
   - `\(` followed later in the same inline content by `\)`, with something between them besides whitespace and escape pairs;
@@ -1973,30 +2306,30 @@ These are hints for habits from LaTeX. See [escapes](syntax-inline.html#escape) 
 - **Position.** The backslash and the character after it.
 - **Content.** The escape applies: `\(` renders `(`, and `\[` renders `[`. `\begin{…}` stays text.
 
-```tern {.live expect="latex.delimiters"}
+```luccet {.live expect="latex.delimiters"}
 Let \(x^2\) be small.
 ```
 
-The engine reports `latex.delimiters` (info) at 1:5:
+The engine reports `latex.delimiters` (warning) at 1:5:
 
-- **Message:** `LaTeX's delimiters are not math in tern; the backslash is an escape`
+- **Message:** `LaTeX's delimiters are not math in luccet; the backslash is an escape`
 - **Hint:** `` math is `$…$` and `$$` ``
 
 **Fix.** Math is `$…$` inline and `$$` on its own lines:
 
-```tern {.live}
+```luccet {.live}
 Let $x^2$ be small.
 ```
 
 An environment goes inside display math:
 
-```tern {.live expect="latex.delimiters"}
+```luccet {.live expect="latex.delimiters"}
 \begin{aligned}
 a &= b
 \end{aligned}
 ```
 
-```tern {.live}
+```luccet {.live}
 $$
 \begin{aligned}
 a &= b
@@ -2006,7 +2339,7 @@ $$
 
 Escapes are silent:
 
-```tern {.live}
+```luccet {.live}
 \[not a span\] and \( \) stay text.
 ```
 
@@ -2014,25 +2347,25 @@ Escapes are silent:
 
 ### `latex.linebreak` {#latex-linebreak}
 
-**Info.** `\\` at the end of a line is not a line break.
+**Warning.** `\\` at the end of a line is not a line break.
 
 - **Trigger.** A paragraph line ends with `\\` and the paragraph continues on the next line, so a line break was lost. Never at the end of a table row, where `\\` is a literal backslash.
 - **Position.** The first of the two backslashes.
 - **Content.** A literal backslash, then a soft break.
 
-```tern {.live expect="latex.linebreak"}
+```luccet {.live expect="latex.linebreak"}
 Roses are red,\\
 violets are blue.
 ```
 
-The engine reports `latex.linebreak` (info) at 1:15:
+The engine reports `latex.linebreak` (warning) at 1:15:
 
 - **Message:** `` `\\` at the end of a line is a backslash followed by a soft break, not a line break ``
 - **Hint:** `` a line break is a single trailing `\` ``
 
 **Fix.** A line break is a single trailing `\`:
 
-```tern {.live}
+```luccet {.live}
 Roses are red,\
 violets are blue.
 ```
@@ -2051,7 +2384,7 @@ violets are blue.
 
 This line has 65 `>` markers. The 65th, at column 129, would open the 65th level:
 
-```tern {.live expect="nesting.limit"}
+```luccet {.live expect="nesting.limit"}
 > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > Too deep.
 ```
 
@@ -2062,7 +2395,7 @@ The engine reports `nesting.limit` (error) at 1:129:
 
 **Fix.** Flatten the structure. Sixty-four levels are allowed:
 
-```tern {.live}
+```luccet {.live}
 > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > Deep enough.
 ```
 
@@ -2070,13 +2403,13 @@ The engine reports `nesting.limit` (error) at 1:129:
 
 ### `doc.frontmatter` {#doc-frontmatter}
 
-**Info.** YAML front matter is not supported.
+**Warning.** YAML front matter is not supported.
 
 - **Trigger.** The note's first block, after any blank lines, is `---`, then `key: value` lines, then `---`.
 - **Position.** The opening `---`.
 - **Content.** A thematic break, a paragraph and a thematic break.
 
-```tern {.live expect="doc.frontmatter"}
+```luccet {.live expect="doc.frontmatter"}
 ---
 title: Linear maps
 lang: en
@@ -2085,14 +2418,14 @@ lang: en
 # Linear maps
 ```
 
-The engine reports `doc.frontmatter` (info) at 1:1:
+The engine reports `doc.frontmatter` (warning) at 1:1:
 
 - **Message:** `front matter is not supported: this is a rule, a paragraph and a rule`
 - **Hint:** ``write metadata in a `:::meta` block``
 
 **Fix.** Metadata goes in a [`:::meta` block](elements.html#metadata):
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: Linear maps
 lang: en
@@ -2107,7 +2440,7 @@ The same lines after the first block are ordinary rules and text, with no hint.
 
 ## Metadata {#metadata}
 
-These concern [`:::meta`](elements.html#metadata). The examples that involve the preserved head, the HTML before the `tern.js` line, declare it for the example.
+These concern [`:::meta`](elements.html#metadata). The examples that involve the preserved head, the HTML before the `luccet.js` line, declare it for the example.
 
 ### `meta.conflict` {#meta-conflict}
 
@@ -2119,7 +2452,7 @@ These concern [`:::meta`](elements.html#metadata). The examples that involve the
 
 This example's head is `<title>Old title</title>`:
 
-```tern {.live expect="meta.conflict" head="<title>Old title</title>"}
+```luccet {.live expect="meta.conflict" head="<title>Old title</title>"}
 :::meta
 title: New title
 :::
@@ -2134,7 +2467,7 @@ The engine reports `meta.conflict` (warning) at 2:1:
 
 **Fix.** Set each key in one place: remove it from the head or from `:::meta`. A `lang` that differs only in case is no conflict:
 
-```tern {.live head='<html lang="en">'}
+```luccet {.live head='<html lang="en">'}
 :::meta
 lang: EN
 :::
@@ -2150,7 +2483,7 @@ lang: EN
 - **Position.** The later key.
 - **Content.** The first value wins.
 
-```tern {.live expect="meta.duplicate"}
+```luccet {.live expect="meta.duplicate"}
 :::meta
 title: One
 :::
@@ -2167,7 +2500,7 @@ The engine reports `meta.duplicate` (warning) at 6:1:
 
 **Fix.** Keep one:
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: One
 :::
@@ -2177,13 +2510,13 @@ title: One
 
 ### `meta.malformed` {#meta-malformed}
 
-**Warning.** A `:::meta` line is not `key: value`.
+**Error.** A `:::meta` line is not `key: value`.
 
 - **Trigger.** A non-blank line in a top-level `:::meta` block that is not a key, a colon, a space and a value. A key starts with a letter and holds letters, digits, `_`, `.`, `:` and `-`, and does not end in `:`, so `og:title: …` is fine. An indented line is malformed. Blank lines are ignored.
 - **Position.** The line.
 - **Content.** The line is ignored.
 
-```tern {.live expect="meta.malformed meta.malformed meta.malformed"}
+```luccet {.live expect="meta.malformed meta.malformed meta.malformed"}
 :::meta
 title Linear maps
   author: O. Carrera
@@ -2191,14 +2524,14 @@ date:2026-10-07
 :::
 ```
 
-The engine reports `meta.malformed` (warning) at 2:1, 3:1 and 4:1:
+The engine reports `meta.malformed` (error) at 2:1, 3:1 and 4:1:
 
 - **Message:** `` a `:::meta` line is `key: value` ``
-- **Hint:** ``write `key: value`, unindented, the key starting with a letter``
+- **Hint:** ``write `key: value`, indented no further than `:::meta`, the key starting with a letter``
 
-**Fix.** One `key: value` per line, unindented:
+**Fix.** One `key: value` per line, indented no further than `:::meta`:
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: Linear maps
 author: O. Carrera
@@ -2210,13 +2543,13 @@ date: 2026-10-07
 
 ### `meta.nested` {#meta-nested}
 
-**Warning.** `:::meta` is not at the top level.
+**Error.** `:::meta` is not at the top level.
 
 - **Trigger.** A `:::meta` block inside a container, a quote, a list item or a footnote definition.
 - **Position.** The opener.
 - **Content.** The block is ignored. Its body is still verbatim, and nothing is emitted for it.
 
-```tern {.live expect="meta.nested"}
+```luccet {.live expect="meta.nested"}
 :::note
 :::meta
 title: Linear maps
@@ -2224,14 +2557,14 @@ title: Linear maps
 :::
 ```
 
-The engine reports `meta.nested` (warning) at 2:1:
+The engine reports `meta.nested` (error) at 2:1:
 
 - **Message:** `` `:::meta` counts only at the top level; this one is ignored ``
 - **Hint:** `move it to the top of the note`
 
 **Fix.** Move it to the top of the note:
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: Linear maps
 :::
@@ -2249,30 +2582,30 @@ These concern how a name becomes an element: [names](elements.html#names), [allo
 
 ### `use.late` {#use-late}
 
-**Warning.** `:::use` is not at the top of the note.
+**Error.** `:::use` is not at the top of the note.
 
 - **Trigger.** A `:::use` block after any content, or inside a container, a quote, a list item or a footnote definition. Only `:::meta`, blank lines and other `:::use` blocks may come before it.
 - **Position.** The opener.
 - **Content.** The block is ignored: its add-ons are not loaded, since the runtime reads the leading block from the file as it arrives, and the tools read it before they analyse. Its body is still verbatim, and nothing is emitted for it.
 
-```tern {.live expect="use.late"}
+```luccet {.live expect="use.late"}
 Some text first.
 
 :::use
-addons/katex.js
+lib/callout.js
 :::
 ```
 
-The engine reports `use.late` (warning) at 3:1:
+The engine reports `use.late` (error) at 3:1:
 
 - **Message:** `` `:::use` counts only at the top of the note, before any content; this one is ignored ``
 - **Hint:** `` move it to the top of the note, after `:::meta` at most ``
 
 **Fix.** Move it to the top of the note:
 
-```tern {.live}
+```luccet {.live}
 :::use
-addons/katex.js
+lib/callout.js
 :::
 
 Some text first.
@@ -2283,21 +2616,21 @@ Some text first.
 **Warning.** A reserved name, key or class.
 
 - **Trigger.** Any of these:
-  - a container, leaf or inline name that is reserved: `base body head html link main meta noscript script style template title`, `tern`, any name starting with `t-`, and `end`;
+  - a container, leaf or inline name that is reserved: `base body head html link main meta noscript script style template title`, `luccet`, any name starting with `t-`, and `end`;
   - `{tag=x}` with a reserved `x`;
   - a schema entry whose `tag` is reserved, such as `tag: 'main'`;
   - the key `data-t`, in any case;
-  - the class `tern` or any class starting with `t-`. Class names are case-sensitive, so `.Tern` is an ordinary class.
+  - the class `luccet` or any class starting with `t-`. Class names are case-sensitive, so `.Luccet` is an ordinary class.
 
   `:::meta` is the metadata block, so only `::meta` and `:meta[…]` count as reserved.
 - **Position.** The name, the key, or a class's `.`; for `tag=`, the key; for a schema's `tag`, the name.
 - **Content.**
-  - A reserved name falls back to `div` (container or leaf) or `span` (inline), **without** the name as its class, so `:::tern` cannot produce `class="tern"`. It keeps `data-t="NAME"`.
+  - A reserved name falls back to `div` (container or leaf) or `span` (inline), **without** the name as its class, so `:::luccet` cannot produce `class="luccet"`. It keeps `data-t="NAME"`.
   - `:::script`, `:::style` and `:::html` have a verbatim body, shown as `<pre class="t-error">` and never run. The `<pre>` carries the block's id, classes and keys.
-  - `:::end` is read as a bare closer.
+  - `:::end` alone on its line is read as a bare closer. With text after it, the line is text, and the block stays open.
   - A reserved key or class is dropped. A reserved `tag=` or schema `tag` is ignored, and the next rule decides the element. A `tag=` on a reserved name is dropped too, with [`attr.malformed`](#attr-malformed).
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::main
 The main content.
 :::
@@ -2310,7 +2643,7 @@ The engine reports `name.reserved` (warning) at 1:4:
 
 **Fix.** Choose another name:
 
-```tern {.live}
+```luccet {.live}
 :::article
 The main content.
 :::
@@ -2318,18 +2651,18 @@ The main content.
 
 A reserved class:
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 [x]{.t-box}
 ```
 
 The engine reports `name.reserved` (warning) at 1:5:
 
-- **Message:** `the class "t-box" is reserved for tern's own use and is dropped`
-- **Hint:** `choose a class that is not "tern" and does not start with "t-"`
+- **Message:** `the class "t-box" is reserved for luccet's own use and is dropped`
+- **Hint:** `choose a class that is not "luccet" and does not start with "t-"`
 
 A script is raw HTML, not a container:
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::script
 console.log('hi')
 :::
@@ -2342,7 +2675,7 @@ The engine reports `name.reserved` (warning) at 1:4:
 
 A reserved `tag=`:
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::box{tag=main}
 Boxed.
 :::
@@ -2353,14 +2686,14 @@ The engine reports `name.reserved` (warning) at 1:8:
 - **Message:** `` `tag=main` names a reserved element and is ignored ``
 - **Hint:** `choose another element`
 
-A schema entry with a reserved `tag`, such as `tern.block('box', {tag: 'main'})`, reports at the name, `box`:
+A schema entry with a reserved `tag`, such as `luccet.block('box', {tag: 'main'})`, reports at the name, `box`:
 
 - **Message:** `` the schema gives `box` the element `main`, which is reserved and never produced; the next rule decides ``
 - **Hint:** `choose a flow element such as section, aside or div`
 
 `:::end` closes a block, with a warning:
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :::note
 A note.
 :::end
@@ -2384,7 +2717,7 @@ The engine reports `name.reserved` (warning) at 3:4:
 - **Content.** Outside the allowlist, the `tag` is ignored, and the next rule decides the element: the schema's `tag`, a custom-element name, the allowlist, then `div` or `span` with the name as class. Off a named element, the `tag=` is dropped.
 - **Hint.** Elements this level can be.
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 :::aside{tag=span}
 Aside text.
 :::
@@ -2397,7 +2730,7 @@ The engine reports `tag.not-allowed` (warning) at 1:10:
 
 **Fix.** Choose an element the level allows. Here the name alone is enough, since `aside` is in the container allowlist:
 
-```tern {.live}
+```luccet {.live}
 :::aside
 Aside text.
 :::
@@ -2405,7 +2738,7 @@ Aside text.
 
 On an inline element:
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 A :note[remark]{tag=div}.
 ```
 
@@ -2416,7 +2749,7 @@ The engine reports `tag.not-allowed` (warning) at 1:17:
 
 Off a named element, on a span:
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 Press [Ctrl]{tag=kbd}.
 ```
 
@@ -2427,7 +2760,7 @@ The engine reports `tag.not-allowed` (warning) at 1:14:
 
 **Fix.** Name the element instead:
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[Ctrl].
 ```
 
@@ -2441,7 +2774,7 @@ Press :kbd[Ctrl].
 - **Position.** The name.
 - **Content.** It becomes a `div` with its body as written. With a schema, it keeps its label and counter ([table captions](elements.html#table-caption)).
 
-```tern {.live expect="table.body"}
+```luccet {.live expect="table.body"}
 :::table[Phases]
 Two phases, described in prose.
 :::
@@ -2454,7 +2787,7 @@ The engine reports `table.body` (warning) at 1:4:
 
 **Fix.** Put exactly one pipe table in it; the title becomes the `<caption>`:
 
-```tern {.live}
+```luccet {.live}
 :::table[Phases]
 | Phase | Weeks |
 |---|---|
@@ -2477,26 +2810,26 @@ A raw `<table>` keeps its own `<caption>`; write it without the container.
 
 The live examples on this page run without `strict`, so this one shows the fallback with no diagnostic:
 
-```tern {.live}
+```luccet {.live}
 :::theorm
 A typo.
 :::
 ```
 
-`strict` is a field of the schema. A note turns it on in a head script before the `tern.js` line ([`window.TERN`](schema.html#window-tern)):
+`strict` is a field of the schema. A note turns it on in a head script before the `luccet.js` line ([`window.LUCCET`](schema.html#window-luccet)):
 
 ```html
-<script>window.TERN = {schema: {strict: true}}</script>
+<script>window.LUCCET = {schema: {strict: true}}</script>
 ```
 
-An add-on listed in `data-use` can turn it on too, with `tern.schema.strict = true`, since add-ons run before the note is parsed. The note's own setting wins, so `strict: false` in `window.TERN.schema` turns it off whatever an add-on says. The browser, `tern check` and the language server all honour it.
+An add-on listed in `data-use` can turn it on too, with `luccet.schema.strict = true`, since add-ons run before the note is parsed. The note's own setting wins, so `strict: false` in `window.LUCCET.schema` turns it off whatever an add-on says. The browser, `luccet check` and the language server all honour it.
 
 With it, the example above reports, at 1:4:
 
 - **Message:** `` `theorm` has no schema entry and names no element, so it is a div ``
-- **Hint:** `check the spelling, or declare the name with tern.block, tern.leaf or tern.inline`
+- **Hint:** `check the spelling, or declare the name with luccet.block, luccet.leaf or luccet.inline`
 
-Under node, pass it in the schema: `tern.check(source, {schema: {...tern.schema, strict: true}})`.
+Under node, pass it in the schema: `luccet.check(source, {schema: {...luccet.schema, strict: true}})`.
 
 **Fix.** Correct the spelling, or declare the name ([schemas](schema.html#schema)).
 
@@ -2514,7 +2847,7 @@ These concern [ids](elements.html#ids) and [references](elements.html#references
 - **Position.** The first letter of `id=`.
 - **Content.** The id is dropped. A heading that loses its id gets its slug instead.
 
-```tern {.live expect="id.invalid"}
+```luccet {.live expect="id.invalid"}
 ## Results {id="final results"}
 ```
 
@@ -2525,7 +2858,7 @@ The engine reports `id.invalid` (warning) at 1:13:
 
 **Fix.** An id has no spaces:
 
-```tern {.live}
+```luccet {.live}
 ## Results {#final-results}
 ```
 
@@ -2535,14 +2868,16 @@ The engine reports `id.invalid` (warning) at 1:13:
 
 **Warning.** Two elements have the same id.
 
-- **Trigger.** Two *fixed* ids collide. Fixed ids are those you wrote, with `#id` or `id=`, anywhere, and the footnote ids `fn-LABEL`, `fnref-LABEL` and `fnref-LABEL-N`. Heading slugs never collide: a slug that is taken becomes `kernel-2`, silently.
+- **Trigger.** Two *fixed* ids collide. Fixed ids are those you wrote, with `#id` or `id=`, anywhere, the ids in raw HTML's start tags, and the footnote ids `fn-LABEL`, `fnref-LABEL` and `fnref-LABEL-N`. Heading slugs never collide: a slug that is taken becomes `kernel-2`, silently.
 
-  Tern's own ids are taken before any of these: `tern-style`, `tern-color-scheme`, `tern-source` and `tern-diagnostics`, which tern.js gives elements of its own in the page. An id you write that is one of them gets this diagnostic once, and a slug yields to them silently (`tern-style-2`).
+  Luccet's own ids are taken before any of these: `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics`, which luccet.js gives elements of its own in the page. An id you write that is one of them gets this diagnostic once, and a slug yields to them silently (`luccet-style-2`).
 - **Position.** The id, at every element that has it: the first and each later one.
 - **Content.** The first keeps the id, and references resolve to it. Each later element drops its `id` attribute, which keeps the HTML valid. A heading that loses its id gets its slug instead.
-- **Message.** The first says the id is used again and this element keeps it; each later one says it is already used and this element drops it.
 
-```tern {.live expect="id.duplicate id.duplicate"}
+  Raw HTML is the exception: it is written out as it stands, so it keeps its ids. Its ids count as first, wherever they stand, and an element of the note's own that repeats one drops its id. Two raw HTML elements with one id both keep it, and the browser finds the first.
+- **Message.** The first says the id is used again and this element keeps it; each later one says it is already used and this element drops it. Between two raw HTML elements, the later one says the browser finds the first.
+
+```luccet {.live expect="id.duplicate id.duplicate"}
 ## One {#part}
 
 ## Two {#part}
@@ -2555,27 +2890,37 @@ The engine reports `id.duplicate` (warning) at 1:9 and 3:9:
 
 **Fix.** Give each element its own id:
 
-```tern {.live}
+```luccet {.live}
 ## One {#part-one}
 
 ## Two {#part-two}
 ```
 
-One of Tern's own ids:
+One of Luccet's own ids:
 
-```tern {.live expect="id.duplicate"}
-{#tern-style}
+```luccet {.live expect="id.duplicate"}
+{#luccet-style}
 A paragraph.
 ```
 
 The engine reports `id.duplicate` (warning) at 1:2:
 
-- **Message:** `the id "tern-style" belongs to tern itself, which gives it to an element of its own in the page; this element drops it`
+- **Message:** `the id "luccet-style" belongs to luccet itself, which gives it to an element of its own in the page; this element drops it`
 - **Hint:** `choose another id`
+
+Raw HTML keeps its id, and the heading drops it:
+
+```luccet {.live expect="id.duplicate id.duplicate"}
+<div id="intro">Raw.</div>
+
+## Introduction {#intro}
+```
+
+The engine reports `id.duplicate` (warning) at both: at 1:6, `the id "intro" is used again on line 3; this element keeps it`, and at 3:18, `the id "intro" is already used on line 1; this element drops it`.
 
 An id you write wins over a heading's slug, with no diagnostic:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel
 
 :::definition{#kernel}
@@ -2589,12 +2934,12 @@ The kernel of a map.
 
 **Warning.** A reference points at no id.
 
-- **Trigger.** A reference `@id`, or a fragment link `[text](#id)`, whose id names nothing in the note. The usual cause is a mention, such as `@alice`, or a typo.
+- **Trigger.** A reference `@id`, or a fragment link `[text](#id)`, whose id names nothing in the note. The usual cause is a mention, such as `@alice`, or a typo. Also an `@id` whose id is in raw HTML: raw HTML has no label or number for the reference to show. A fragment link reaches it.
 - **Position.** The reference, with its group; for a link, its `[`.
-- **Content.** `@id` stays literal text, and a group after it is consumed. A fragment link stays a link.
-- **Hint.** For `@`, the escape; for a link, to check the id.
+- **Content.** `@id` stays literal text. A group after it is kept: the text goes in a `<span>` that carries its attributes. A fragment link stays a link.
+- **Hint.** For `@`, the escape; for a raw HTML id, a link of your own; for a link, to check the id.
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 Thanks to @alice for the review.
 ```
 
@@ -2605,13 +2950,13 @@ The engine reports `ref.dangling` (warning) at 1:11:
 
 **Fix.** Escape a mention:
 
-```tern {.live}
+```luccet {.live}
 Thanks to \@alice for the review.
 ```
 
 A fragment link:
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 See [the proof](#proof).
 ```
 
@@ -2620,17 +2965,30 @@ The engine reports `ref.dangling` (warning) at 1:5:
 - **Message:** `the link points to #proof, which names no id in this note`
 - **Hint:** `check the id, or give the target that id`
 
+An id in raw HTML:
+
+```luccet {.live expect="ref.dangling"}
+<div id="fig-a">A figure.</div>
+
+See @fig-a.
+```
+
+The engine reports `ref.dangling` (warning) at 3:5:
+
+- **Message:** `the id "fig-a" is in raw HTML, which has no label or number for @ to show, so the reference stays text`
+- **Hint:** `link to it with text of your own: [see this](#fig-a)`
+
 **Related.** [`ref.unreferenceable`](#ref-unreferenceable), [`id.duplicate`](#id-duplicate), [`link.dangling`](#link-dangling).
 
 ### `ref.unreferenceable` {#ref-unreferenceable}
 
 **Warning.** An id that `@` cannot reach.
 
-- **Trigger.** An `id=` value that is a valid HTML id but not a Tern identifier: it starts with a digit, or holds `:` or `.`, as `id=2024` or `id=a.b`. A `#2024` is [`attr.malformed`](#attr-malformed) instead.
+- **Trigger.** An `id=` value that is a valid HTML id but not a Luccet identifier: it starts with a digit, or holds `:` or `.`, as `id=2024` or `id=a.b`. A `#2024` is [`attr.malformed`](#attr-malformed) instead.
 - **Position.** The first letter of `id=`.
 - **Content.** The id is kept. A fragment link, `[text](#2024)`, still reaches it.
 
-```tern {.live expect="ref.unreferenceable"}
+```luccet {.live expect="ref.unreferenceable"}
 [The plan]{id=2024}
 ```
 
@@ -2641,7 +2999,7 @@ The engine reports `ref.unreferenceable` (warning) at 1:12:
 
 **Fix.** Start the id with a letter:
 
-```tern {.live}
+```luccet {.live}
 [The plan]{#plan-2024}, see @plan-2024.
 ```
 
@@ -2649,9 +3007,9 @@ The engine reports `ref.unreferenceable` (warning) at 1:12:
 
 ## Runtime {#runtime}
 
-The browser reports these while it renders a note, after parsing. A live example cannot produce them, so their examples below are plain source. All four are errors. Each appears in the console, in the panel when it shows, and in `tern.diagnostics`, and each is passed to `tern.on('diagnostic', fn)` ([the lifecycle](api.html#lifecycle)).
+The browser reports these while it renders a note, after parsing. A live example cannot produce them, so their examples below are plain source. All four are errors. Each appears in the console, in the panel when it shows, and in `luccet.diagnostics`, and each is passed to `luccet.on('diagnostic', fn)` ([the lifecycle](api.html#lifecycle)).
 
-The engine renders no math itself, so a formula a [math add-on](addons.html#katex) cannot parse, or a library the add-on cannot load, is reported by that add-on to the console, not as a diagnostic — as the Mermaid and code add-ons report their own failures. The one math code that remains is [`math.error`](#math-error), a `tern build --math` build warning.
+A formula that does not translate is not among them: the engine translates the math, so its [`tex.*`](#tex) codes come from the parser and the transforms, and `luccet check` and your editor report them too. A library an add-on cannot load is the add-on's to report, usually in the console: it is not a diagnostic of Luccet's.
 
 ### `addon.failed` {#addon-failed}
 
@@ -2659,28 +3017,28 @@ The engine renders no math itself, so a formula a [math add-on](addons.html#kate
 
 - **Trigger.**
   - **In the browser:**
-    - a script or stylesheet listed in `data-use` fails to load, or is still loading 12 seconds after the note arrived (`tern.config.addonTimeout`): the note renders without the ones that failed, and the message says which it was. On a page written by `tern build`, only script add-ons are reported;
+    - a script or stylesheet listed in `data-use` fails to load, or is still loading 12 seconds after the note arrived (`luccet.config.addonTimeout`): the note renders without the ones that failed, and the message says which it was. On a page written by `luccet build`, only script add-ons are reported;
     - the stylesheet `data-css` names fails to load: the note renders without its base stylesheet;
     - a script add-on throws while it runs;
-    - a transform registered with `tern.transform(name, fn)` throws. The engine reports this one, so `tern.check` and the command line do too;
+    - a transform registered with `luccet.transform(name, fn)` throws. The engine reports this one, so `luccet.check` and the command line do too;
     - a schema's `label` function throws, once per element, which then keeps no label. The engine reports this one too.
   - **On the command line and in the language server,** which run a note's script add-ons under node to learn its vocabulary (every `data-use` entry that is not a `.css` file):
     - an add-on file that cannot be read, or is a directory;
-    - one that does not parse as a classic script, which is how tern.js runs an add-on;
+    - one that does not parse as a classic script, which is how luccet.js runs an add-on;
     - one that throws;
     - a transform it registers that throws;
-    - the note's scripts, run in the [sandbox](tools.html#sandbox), did not finish in 2 seconds or used too much memory; none of its vocabulary or transforms is then applied;
+    - the note's scripts, run in the [sandbox](tools.html#sandbox), did not finish in 2 seconds or used too much memory; none of its vocabulary or transforms is then applied. The 2 seconds also cover the parse and the transforms the sandbox runs with the code, when the code adds a transform or a label function, and the message says which took the time (`the note's code ran, but the transforms … did not finish in the 2 s the sandbox gives both`);
     - the sandbox's breaker is tripped: its process died three times in a row before answering, so for a minute no note's scripts are run (`the script sandbox died three times in a row, so the note's scripts were not run for a minute`). In the language server, the vocabulary of the note's last analysis whose scripts ran stands in while its head and add-ons are unchanged, and the message says `its vocabulary is kept from its last analysis` ([Vocabulary and the sandbox](tools.html#lsp-cache)).
 
     A remote add-on is [`addon.remote`](#addon-remote) instead.
-- **Position.** The `tern.js` line: line 0 in the browser, shown as `the tern.js line (file line 1)`; the file line of the tag, column 1, on the command line.
+- **Position.** The `luccet.js` line: line 0 in the browser, shown as `the luccet.js line (file line 1)`; the file line of the tag, column 1, on the command line.
 - **Content.**
   - An add-on that did not load: the note renders without it, so its names get the core output, with no label, counter or behaviour.
   - An add-on that threw: the note renders with what the add-on registered before the error.
   - A transform that threw: it is skipped, and the note renders without it.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="missing.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="missing.js"></script>
 Hello.
 ```
 
@@ -2696,24 +3054,24 @@ An add-on that throws while it runs, here `vocab.js` calling a function that doe
 
 From a page opened as a `file:` URL, a browser may give only `Script error.` as the error's text; the console shows the real one.
 
-A transform that throws, registered as `tern.transform('boom', fn)`:
+A transform that throws, registered as `luccet.transform('boom', fn)`:
 
 - **Message:** `the transform "boom" threw: bad; the note renders without it`
-- **Hint:** `` fix the function given to tern.transform("boom", …) ``
+- **Hint:** `` fix the function given to luccet.transform("boom", …) ``
 
-`tern check` prints the reason, with no hint:
+`luccet check` prints the reason, with no hint:
 
 ```sh
-$ tern check note.html
+$ luccet check note.html
 note.html:1:1: error addon.failed: the add-on missing.js did not load: cannot read /home/me/notes/missing.js
-note.html:1:1: error addon.failed: the add-on bad.js did not load: it does not parse as a classic script, which is how tern.js runs an add-on: Unexpected identifier 'is'
+note.html:1:1: error addon.failed: the add-on bad.js did not load: it does not parse as a classic script, which is how luccet.js runs an add-on: Unexpected identifier 'is'
 note.html:1:1: error addon.failed: the add-on throws.js did not load: it threw: undefinedFn is not defined
 note.html:1:1: error addon.failed: the transform "boom" of the add-on tx.js threw: bad
 ```
 
-A directory reads `/home/me/notes/dir.js is a directory`. `tern build` prints these as `tern build:` warnings, since the page itself is still written.
+A directory reads `/home/me/notes/dir.js is a directory`. `luccet build` prints these as `luccet build:` warnings, since the page itself is still written.
 
-**Fix.** Check the path in `data-use` or `:::use`. A relative path resolves from the note, as any URL in it does ([add-ons](schema.html#addons)). For an add-on or a transform that throws, fix its code.
+**Fix.** Check the path in `data-use` or `:::use`. A relative path resolves from the note, as any URL in it does ([Loading](addon-api.html#loading)). For an add-on or a transform that throws, fix its code.
 
 **Related.** [`addon.remote`](#addon-remote), [`head.script`](#head-script).
 
@@ -2721,13 +3079,13 @@ A directory reads `/home/me/notes/dir.js is a directory`. `tern build` prints th
 
 **Error.** A note script called `document.write`.
 
-- **Trigger.** A `<script>` in the note's raw HTML calls `document.write` or `document.writeln`. tern.js runs the note's scripts after the note has rendered, when the page is already parsed.
+- **Trigger.** A `<script>` in the note's raw HTML calls `document.write` or `document.writeln`. luccet.js runs the note's scripts after the note has rendered, when the page is already parsed.
 - **Position.** The script's `<script` tag, as written in the note. The position is left out when the scripts in the note and on the page do not match one for one.
-- **Content.** The output is dropped, and the script goes on running. A page written by `tern build` runs its scripts while it is parsed, so there `document.write` writes and nothing is reported.
+- **Content.** The output is dropped, and the script goes on running. A page written by `luccet build` runs its scripts while it is parsed, so there `document.write` writes and nothing is reported.
 - **Message.** It quotes the written text, with whitespace collapsed, cut at 60 characters.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 Hello.
 
 <script>
@@ -2758,10 +3116,10 @@ document.currentScript.after(p);
 
 - **Trigger.** A `<script>` in the note's raw HTML calls `addEventListener('DOMContentLoaded', …)` on `document` or `window`. The event fired before note scripts run.
 - **Position.** The script's `<script` tag, as for [`script.document-write`](#script-document-write).
-- **Content.** The listener is not registered, so it never runs. A page written by `tern build` runs it normally.
+- **Content.** The listener is not registered, so it never runs. A page written by `luccet build` runs it normally.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 Hello.
 
 <script>
@@ -2772,13 +3130,13 @@ document.addEventListener('DOMContentLoaded', () => setup());
 The panel shows, at `line 3:1 (file line 4)`:
 
 - **Message:** `a note script listens for DOMContentLoaded, which fired before note scripts run, so the listener never runs`
-- **Hint:** `use tern.on('ready', fn), or run the code directly`
+- **Hint:** `use luccet.on('ready', fn), or run the code directly`
 
-**Fix.** The note is in the page when a note script runs, so call the code directly, or wait for Tern's own `ready` event ([events](api.html#on)):
+**Fix.** The note is in the page when a note script runs, so call the code directly, or wait for Luccet's own `ready` event ([events](api.html#on)):
 
 ```html
 <script>
-tern.on('ready', () => setup());
+luccet.on('ready', () => setup());
 </script>
 ```
 
@@ -2789,78 +3147,38 @@ tern.on('ready', () => setup());
 **Error.** The file has no `<!doctype html>`.
 
 - **Trigger.** The page is in quirks mode, which is what a browser does with a file that does not start with `<!doctype html>`.
-- **Position.** The `tern.js` line (line 0).
+- **Position.** The `luccet.js` line (line 0).
 - **Content.** The note still renders in place, but in quirks mode the layout and some add-ons misbehave, and a page cannot leave quirks mode without replacing the document.
 - **Hint.** The canonical first line, with your `src` and `data-use`.
 
 ```html
-<meta charset="utf-8"><script src="tern.js"></script>
+<meta charset="utf-8"><script src="luccet.js"></script>
 Math $x^2$ here.
 ```
 
 The panel shows:
 
 - **Message:** `the file has no <!doctype html>, so the browser renders it in quirks mode, where the layout and some add-ons misbehave`
-- **Hint:** `make the first line <!doctype html><meta charset="utf-8"><script src="tern.js"></script>`
+- **Hint:** `make the first line <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>`
 
-**Fix.** Start the file with the canonical first line, which `tern new` writes ([the file](publishing.html#the-file)):
+**Fix.** Start the file with the canonical first line, which `luccet new` writes ([the file](publishing.html#the-file)):
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 ```
 
 **Related.** [`addon.failed`](#addon-failed), [`doc.frontmatter`](#doc-frontmatter).
 
 ## Command line and editors {#tools-codes}
 
-### `math.error` {#math-error}
-
-**Warning.** `tern build --math` cannot pre-render a formula.
-
-- **Trigger.** With `--math=katex` (KaTeX) or `--math=mathml` (Temml), the pre-renderer rejects the TeX of an inline or display formula, or of a `:::macros` block ([pre-rendered math](tools.html#build-katex)). Tern passes TeX to the library unchanged, so this is a TeX error, not a Tern one.
-- **Position.** The formula's start, from its element's `data-pos`: the `$` of inline math, the line of a display block's opening `$$`, or a `:::macros` block's opener.
-- **Content.** The formula is left as its TeX in the built page; the build pre-renders every other formula and still writes the page. It renders at view time only if the note's `data-use` loads a [math add-on](addons.html#katex).
-- **Where.** `tern build` only. At runtime the engine renders no math, so a math add-on reports a formula it cannot parse to the console instead ([Runtime](#runtime)).
-
-```sh
-$ tern build notes/bad.html --math=katex
-notes/bad.html:2:15: warning math.error: KaTeX cannot typeset this formula, so tern.js will: KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \frac{a}
-```
-
-A `:::macros` block that does not parse reads `the :::macros block does not parse: ` followed by the library's message. With `--math=mathml`, Temml's message reads `Temml cannot render this formula, so it stays as its TeX source: ` and the reason.
-
-**Fix.** Correct the TeX, such as `$\frac{a}{b}$`, or leave the formula to a math add-on in the browser.
-
-**Related.** [`math.opener-tail`](#math-opener-tail), [`addon.failed`](#addon-failed).
-
-### `diagram.error` {#diagram-error}
-
-**Warning.** `tern build --diagrams` cannot draw a diagram.
-
-- **Trigger.** With `--diagrams`, the Mermaid add-on, run in the build's headless browser, rejects a `mermaid` fence's text, or the fence was not drawn before the build stopped waiting ([diagrams drawn ahead](tools.html#build-diagrams)). Tern passes the text to Mermaid unchanged, so this is a Mermaid error, not a Tern one.
-- **Position.** The fence's opening line, from its element's `data-pos`.
-- **Content.** The fence is kept as a fence in the built page; the build draws every other diagram and still writes the page. At view time the add-on draws the fence again, loading Mermaid, and shows its error after the fence.
-- **Where.** `tern build` only. At runtime the add-on reports a diagram it cannot draw in the page and to the console, not as a diagnostic ([Runtime](#runtime)).
-
-```sh
-$ tern build notes/flow.html --diagrams
-notes/flow.html:15:1: warning diagram.error: Mermaid cannot draw this diagram, so the page keeps the fence: No diagram type detected matching given configuration for text: not a diagram ((
-```
-
-A fence that was not drawn in time reads `this diagram was not drawn in time, so the page keeps the fence`.
-
-**Fix.** Correct the diagram, or leave it to the add-on in the browser.
-
-**Related.** [`math.error`](#math-error), [`addon.failed`](#addon-failed).
-
 ### `output.limit` {#output-limit}
 
 **Error.** The note's HTML is longer than the emitter's budget, and was cut short there.
 
-- **Trigger.** The emitter writes more than `maxOutput` characters ([`tern.emit`](api.html#emit)), 64 million by default. A note that reaches it repeats something very large. A reference copies its target's title and a toc entry a heading's text, each at most 200 characters, so a long title referenced many times stays small; it takes a note built for it, such as a huge raw HTML block or tens of megabytes of text.
+- **Trigger.** The emitter writes more than `maxOutput` characters ([`luccet.emit`](api.html#emit)), 64 million by default. A note that reaches it repeats something very large. A reference copies its target's title and a toc entry a heading's text, each at most 200 characters, so a long title referenced many times stays small; it takes a note built for it, such as a huge raw HTML block or tens of megabytes of text.
 - **Position.** Line 1, column 1: the note as a whole.
 - **Content.** The HTML stops at the budget, which may be inside an element, and the diagnostic says so. The engine used to throw a `RangeError` and render nothing.
-- **Where.** `tern.emit`, `tern.toHTML`, the runtime and `tern build`, which report it with the transforms' diagnostics. `tern.check` and `tern check` do not emit, so they never report it.
+- **Where.** `luccet.emit`, `luccet.toHTML`, the runtime and `luccet build`, which report it with the transforms' diagnostics. `luccet.check` and `luccet check` do not emit, so they never report it.
 
 **Fix.** Shorten what repeats, or raise `maxOutput` where you call the emitter.
 
@@ -2870,11 +3188,11 @@ A fence that was not drawn in time reads `this diagram was not drawn in time, so
 
 **Info or warning.** A head script was not run under node.
 
-- **Trigger.** The command line and the language server run the classic scripts in the head, before the `tern.js` line, to learn the vocabulary they declare in `window.TERN.schema` ([`window.TERN`](schema.html#window-tern)). Inline scripts and local files run; `async`, `defer` and module scripts are left out. This fires for a head script they could not run:
+- **Trigger.** The command line and the language server run the classic scripts in the head, before the `luccet.js` line, to learn the vocabulary they declare in `window.LUCCET.schema` ([`window.LUCCET`](schema.html#window-luccet)). Inline scripts and local files run; `async`, `defer` and module scripts are left out. This fires for a head script they could not run:
   - **info:** a remote script, which they never load;
   - **warning:** a local script that cannot be read, or a script that throws.
 
-  `tern check` and the language server report it. `tern build` prints the warnings among its own `tern build:` lines. The browser runs head scripts itself, so it never reports this code.
+  `luccet check` and the language server report it. `luccet build` prints the warnings among its own `luccet build:` lines. The browser runs head scripts itself, so it never reports this code.
 - **Position.** The script's `<script` tag, as a file position. It has no note position and no hint.
 - **Content.** The note is checked without what that script declares, so its names get the core output there. The page in the browser is not affected.
 
@@ -2882,17 +3200,17 @@ A fence that was not drawn in time reads `this diagram was not drawn in time, so
 <!doctype html><meta charset="utf-8">
 <script src="https://example.com/vocab.js"></script>
 <script src="vocab.js"></script>
-<script src="tern.js"></script>
+<script src="luccet.js"></script>
 :::theorem
 …
 :::
 ```
 
-When `vocab.js` is missing, `tern check` prints:
+When `vocab.js` is missing, `luccet check` prints:
 
 ```sh
-$ tern check note.html
-note.html:2:1: info head.script: the head script https://example.com/vocab.js is not run under node, so vocabulary it declares in window.TERN.schema is unknown here
+$ luccet check note.html
+note.html:2:1: info head.script: the head script https://example.com/vocab.js is not run under node, so vocabulary it declares in window.LUCCET.schema is unknown here
 note.html:3:1: warning head.script: the head script vocab.js cannot be read (/home/me/notes/vocab.js)
 ```
 
@@ -2907,18 +3225,18 @@ A script that throws reads `the head script vocab.js threw under node: ` and the
 **Info.** A remote add-on was not loaded under node.
 
 - **Trigger.** A `data-use` entry with a remote URL, such as `https://…`. The command line and the language server load nothing from the network, so they do not learn the names the add-on declares. The browser loads it as usual, so it never reports this code.
-- **Position.** The `tern.js` line, as a file position: the file line of the tag, column 1. It has no note position and no hint.
-- **Content.** The note is checked without the add-on's vocabulary, so its names get the core output there. The page in the browser is not affected. Being an info, it does not make `tern check` fail; `tern build` prints it as a `tern build:` warning, since the page it writes uses those names without their schema.
+- **Position.** The `luccet.js` line, as a file position: the file line of the tag, column 1. It has no note position and no hint.
+- **Content.** The note is checked without the add-on's vocabulary, so its names get the core output there. The page in the browser is not affected. Being an info, it does not make `luccet check` fail; `luccet build` prints it as a `luccet build:` warning, since the page it writes uses those names without their schema.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="https://example.com/vocab.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://example.com/vocab.js"></script>
 Hello.
 ```
 
 ```sh
-$ tern check note.html
-note.html:1:1: info addon.remote: the add-on https://example.com/vocab.js is not loaded under node; names it declares are unknown to tern check
-tern check: 1 note: 0 errors, 0 warnings, 1 info
+$ luccet check note.html
+note.html:1:1: info addon.remote: the add-on https://example.com/vocab.js is not loaded under node; names it declares are unknown to luccet check
+luccet check: 1 note: 0 errors, 0 warnings, 1 info
 ```
 
 **Fix.** Nothing is wrong with the page. To check the note with its vocabulary, keep a local copy of the add-on and list that in `data-use`.
@@ -2929,17 +3247,17 @@ tern check: 1 note: 0 errors, 0 warnings, 1 info
 
 **Error or warning.** A link names a file that does not exist.
 
-- **Trigger.** `tern check` resolves each relative URL of a note from the note's folder, as a browser does ([which URLs](tools.html#check-links)), and finds that:
+- **Trigger.** `luccet check` resolves each relative URL of a note from the note's folder, as a browser does ([which URLs](tools.html#check-links)), and finds that:
   - no file or folder has that path;
   - it names a folder with no `index.html`;
   - a file has the name only in another case, such as `maps.html` for `Maps.html`. A disk that ignores case, as on a Mac or Windows, finds it; a host that tells case apart, as most do, does not.
 
   The browser never reports it: a broken link shows only when someone follows it. The language server reports it as you type, reading notes open in the editor as they are there ([links in the editor](tools.html#lsp-links)).
-- **Position.** The link: a Tern link or image at its `[` or `!`, an element at its start, a raw HTML tag at its `<`. A tag in the head has only a file position, and so do the `tern.js` line's own URLs: its line, column 1.
-- **Content.** None: the note renders as it would. A reader who follows the link gets a missing page, image or stylesheet. A warning, except for the `tern.js` the note loads: without it the note does not render at all, so a wrong path to it, or one in another case, is an error, and the message says so.
+- **Position.** The link: a Luccet link or image at its `[` or `!`, an element at its start, a raw HTML tag at its `<`. A tag in the head has only a file position, and so do the `luccet.js` line's own URLs: its line, column 1.
+- **Content.** None: the note renders as it would. A reader who follows the link gets a missing page, image or stylesheet. A warning, except for the `luccet.js` the note loads: without it the note does not render at all, so a wrong path to it, or one in another case, is an error, and the message says so.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="../tern.js" data-use="themes/nrd.css"></script>
+<!doctype html><meta charset="utf-8"><script src="../luccet.js" data-use="themes/nrd.css"></script>
 # Notes
 
 See [the kernel](kernal.html), [rank](Maps.html#thm-rn) and the [vectors](vectors/).
@@ -2948,7 +3266,7 @@ See [the kernel](kernal.html), [rank](Maps.html#thm-rn) and the [vectors](vector
 ```
 
 ```sh
-$ tern check notes/index.html
+$ luccet check notes/index.html
 notes/index.html:1:1: warning link.missing: the add-on themes/nrd.css does not exist
     fix the path: it resolves from the folder of this note
 notes/index.html:4:5: warning link.missing: kernal.html does not exist
@@ -2959,7 +3277,7 @@ notes/index.html:4:65: warning link.missing: vectors/ has no index.html
     link to a file in the folder, or add its index.html
 notes/index.html:6:1: warning link.missing: the image img/kernel.png does not exist
     fix the path: it resolves from the folder of this note
-tern check: 1 note: 0 errors, 5 warnings, 0 infos
+luccet check: 1 note: 0 errors, 5 warnings, 0 infos
 ```
 
 **Fix.** Correct the path, relative to the note's folder, or add the file. Write a name in the case the disk gives it.
@@ -2970,17 +3288,17 @@ tern check: 1 note: 0 errors, 5 warnings, 0 infos
 
 **Warning.** A link's fragment names no id in its file.
 
-- **Trigger.** `tern check` finds the file a link names, but the part after `#` names nothing in it:
+- **Trigger.** `luccet check` finds the file a link names, but the part after `#` names nothing in it:
   - in a note, no id its HTML would have: an `{#id}`, a heading's id, an id in raw HTML;
   - in another HTML file, no `id` and no `<a name>`;
   - in a Markdown file, no heading whose GitHub anchor it is.
 
-  `#top` always counts, since every browser takes it to the top of the page. A fragment in any other kind of file, such as `paper.pdf#page=3`, is not checked. A Tern link to `#id` in the note itself is [`ref.dangling`](#ref-dangling), the engine's; one in raw HTML or an attribute is this code, for "this note".
+  `#top` always counts, since every browser takes it to the top of the page. A fragment in any other kind of file, such as `paper.pdf#page=3`, is not checked. A Luccet link to `#id` in the note itself is [`ref.dangling`](#ref-dangling), the engine's; one in raw HTML or an attribute is this code, for "this note".
 - **Position.** As for [`link.missing`](#link-missing).
 - **Content.** None: following the link opens the page at its top.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="../tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script>
 # Rank
 
 By [rank–nullity](maps.html#thm-rank), as in [the README](../README.md#install).
@@ -2989,16 +3307,16 @@ By [rank–nullity](maps.html#thm-rank), as in [the README](../README.md#install
 ```
 
 ```sh
-$ tern check notes/rank.html
+$ luccet check notes/rank.html
 notes/rank.html:4:4: warning link.dangling: maps.html has no element with the id thm-rank
     check the id after #: ids are case-sensitive
 notes/rank.html:4:46: warning link.dangling: ../README.md has no heading with the anchor install
     check the anchor after #: GitHub makes it from the heading, in lower case with hyphens
 notes/rank.html:6:1: warning link.dangling: this note has no element with the id proof
     check the id after #: ids are case-sensitive
-tern check: 1 note: 0 errors, 3 warnings, 0 infos
+luccet check: 1 note: 0 errors, 3 warnings, 0 infos
 ```
 
-**Fix.** Correct the id after `#`, or give the element that id: `:::theorem{#thm-rank}`. Ids are case-sensitive. An id that a script adds when the page runs is not known to `tern check`; link to an id in the note's source instead.
+**Fix.** Correct the id after `#`, or give the element that id: `:::theorem{#thm-rank}`. Ids are case-sensitive. An id that a script adds when the page runs is not known to `luccet check`; link to an id in the note's source instead.
 
 **Related.** [`ref.dangling`](#ref-dangling), [`link.missing`](#link-missing).

@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Guide · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: A complete tutorial for Tern, from the first line of a note to vocabularies, styling, diagnostics, the command line and publishing, with live examples throughout.
+description: A complete tutorial for Luccet, from the first line of a note to vocabularies, styling, diagnostics, the command line and publishing, with live examples throughout.
 :::
 
 ::site-nav
@@ -14,24 +14,24 @@ This guide takes you from an empty file to a finished note. It starts with the o
 
 ## How to read this guide {#reading}
 
-Most examples on this page are live. Each one shows its source, the result, the HTML Tern made from it, and its diagnostics. All four are computed by `tern.js` in your browser while you read, so they are always the engine's real output.
+Most examples on this page are live. Each one shows its source, the result, the HTML Luccet made from it, and its diagnostics. All four are computed by `luccet.js` in your browser while you read, so they are always the engine's real output.
 
-```tern {.live}
+```luccet {.live}
 A *short* example with a formula, $x^2$.
 ```
 
 - **No vocabulary.** An example renders as a plain note does, with no vocabulary. Some features, such as "Theorem 1" labels, only appear when a note declares a vocabulary. Examples that need one say so, and use the *demo vocabulary* listed on [the Vocabulary page](schema.html#demo-schema).
-- **Problems on purpose.** Some examples show a mistake. Their diagnostics panel lists what Tern reports, and the text explains it.
+- **Problems on purpose.** Some examples show a mistake. Their diagnostics panel lists what Luccet reports, and the text explains it.
 - **Ids.** The ids inside an example's result are prefixed, so they never clash with this page's own.
 
 ## Your first note {#first-note}
 
-A note is one HTML file. Its first line loads `tern.js`. Everything after that line is the note, written in Tern's syntax. When the browser opens the file, `tern.js` reads the note and renders it in place, as real HTML.
+A note is one HTML file. Its first line loads `luccet.js`. Everything after that line is the note, written in Luccet's syntax. When the browser opens the file, `luccet.js` reads the note and renders it in place, as real HTML.
 
 ### The one line {#one-line}
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 ```
 
 That line is the whole setup. It has three parts:
@@ -40,17 +40,17 @@ That line is the whole setup. It has three parts:
 |---|---|
 | `<!doctype html>` | Standards mode. Without it the browser uses quirks mode: the note still renders, but the layout and some add-ons misbehave and you get a `doc.quirks` error. |
 | `<meta charset="utf-8">` | The file is read as UTF-8, so accents, CJK text and symbols survive, wherever the file is served from. |
-| `<script src="tern.js"></script>` | Loads the engine. The path is relative to the note: `../tern.js` from a subfolder. |
+| `<script src="luccet.js"></script>` | Loads the engine. The path is relative to the note: `../luccet.js` from a subfolder. |
 
-The script tag must be a plain one. With `async`, `defer` or `type="module"`, `tern.js` cannot read the rest of the file, and the note is not rendered.
+The script tag must be a plain one. With `async`, `defer` or `type="module"`, `luccet.js` cannot read the rest of the file, and the note is not rendered.
 
 ### Writing and opening a note {#opening}
 
-1. Download [`tern.js`](../tern.js), and [`addons/katex.js`](../addons/katex.js) for the math (keep it in an `addons/` subfolder), and put them in a folder.
+1. Download [`luccet.js`](../luccet.js) and put it in a folder.
 2. Next to it, create `hello.html` with this content:
 
    ```html
-   <!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/katex.js"></script>
+   <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
    # Hello
 
@@ -61,39 +61,39 @@ The script tag must be a plain one. With `async`, `defer` or `type="module"`, `t
 
 The rendered result:
 
-```tern {.live}
+```luccet {.live}
 # Hello
 
 This is my first note. It has *emphasis*, a [link](https://example.com)
 and a formula, $e^{i\pi} + 1 = 0$.
 ```
 
-When you open a note from disk, a small panel in the corner lists any problems Tern found, with their line numbers. Readers of a published note do not see it. [Diagnostics and the panel](#diagnostics) explains it.
+When you open a note from disk, a small panel in the corner lists any problems Luccet found, with their line numbers. Readers of a published note do not see it. [Diagnostics and the panel](#diagnostics) explains it.
 
 :::note
-The engine renders no math itself: it leaves each formula as its TeX. The `addons/katex.js` in `data-use` above typesets it with KaTeX, loaded from a CDN (jsDelivr); drop the add-on and the formula stays as `$e^{i\pi} + 1 = 0$`. See [Add-ons](addons.html#katex) for the math add-ons, and [Publishing](publishing.html#katex) for a copy of your own.
+The formula needs nothing more: Luccet turns its TeX into MathML itself, and the browser lays it out. There is no add-on to load and no network to reach, so the note works from disk. [Math](math.html#top) lists the TeX a formula can use.
 :::
 
 ### What happens when the file opens {#how-it-works}
 
-- **The head.** Everything before the `tern.js` tag, the doctype and charset on its line included, is ordinary HTML that the browser reads first: a `<title>`, `<html lang>`, icons, stylesheets. Tern keeps it, and adds only what a `:::meta` block sets (see [Metadata](#metadata)) and a few defaults, such as a viewport.
-- **The note.** Everything after the line is the note. `tern.js` takes it as text, so the browser never sees it as HTML.
-- **Rendering.** Tern parses the note, works out ids, numbers and references, writes HTML, and puts it in the page inside `<main class="tern">`. Scripts in the note then run, in order. If a [math add-on](addons.html#katex) is loaded, it typesets the formulas; otherwise each stays as its TeX.
+- **The head.** Everything before the `luccet.js` tag, the doctype and charset on its line included, is ordinary HTML that the browser reads first: a `<title>`, `<html lang>`, icons, stylesheets. Luccet keeps it, and adds only what a `:::meta` block sets (see [Metadata](#metadata)) and a few defaults, such as a viewport.
+- **The note.** Everything after the line is the note. `luccet.js` takes it as text, so the browser never sees it as HTML.
+- **Rendering.** Luccet parses the note, works out ids, numbers and references, turns each formula into MathML, writes HTML, and puts it in the page inside `<main class="luccet">`. Scripts in the note then run, in order.
 - **The same everywhere.** The command line and the editor use the same engine on the same file, so what they report is what the browser renders.
 
-You never need to write the line by hand: `tern new` writes it, with the right path to `tern.js` (see [The workflow](#workflow)).
+You never need to write the line by hand: `luccet new` writes it, with the right path to `luccet.js` (see [The workflow](#workflow)).
 
-**Reference:** [The file](publishing.html#the-file), [opening locally](publishing.html#local), [tern new](tools.html#new).
+**Reference:** [The file](publishing.html#the-file), [opening locally](publishing.html#local), [luccet new](tools.html#new).
 
 ## The eight rules {#rules}
 
-Every construct in Tern follows from eight rules. Learn them once, and the rest of the syntax stops surprising you.
+Every construct in Luccet follows from eight rules. Learn them once, and the rest of the syntax stops surprising you.
 
 ### 1. A block is decided by its first line {#rule-lines}
 
 You can tell what a line starts by looking at that line alone: `#` starts a heading, `:::` a block, `>` a quote, `-` a list item. The one exception is a table, whose first row needs the delimiter row under it. A block's end is fixed when it opens: a heading ends on its line, a fence at its closing fence, a `:::` block at its closer. Nothing further down can change what came before.
 
-```tern {.live}
+```luccet {.live}
 :::aside
 An aside opens on its first line and ends at its closer.
 :::
@@ -108,7 +108,7 @@ You can indent freely to make the source readable. Indentation matters in only t
 
 There are no indented code blocks: four spaces in front of a line change nothing.
 
-```tern {.live}
+```luccet {.live}
 :::aside
     Indented four spaces: still a paragraph.
 
@@ -118,13 +118,13 @@ There are no indented code blocks: four spaces in front of a line change nothing
 
 ### 3. Trailing whitespace means nothing {#rule-trailing}
 
-Lines are trimmed at the end before Tern looks at them, so your editor may strip trailing spaces freely. A line break is never two trailing spaces: it is a backslash at the end of the line (see [Paragraphs](#paragraphs)).
+Lines are trimmed at the end before Luccet looks at them, so your editor may strip trailing spaces freely. A line break is never two trailing spaces: it is a backslash at the end of the line (see [Paragraphs](#paragraphs)).
 
-### 4. Two alphabets: Tern's and TeX's {#rule-alphabets}
+### 4. Two alphabets: Luccet's and TeX's {#rule-alphabets}
 
-Tern's marks are `:` `[ ]` `{ }` `@` `#` `|` `>` `*` `~~` `==`, the backtick and `$`. TeX's are `\`, `{ }`, `^`, `_` and `&`. Inside math everything is TeX and Tern looks at nothing. Outside math, a backslash before a letter is just a backslash, so paths and TeX names in prose stay as you typed them.
+Luccet's marks are `:` `[ ]` `{ }` `@` `#` `|` `>` `*` `~~` `==`, the backtick and `$`. TeX's are `\`, `{ }`, `^`, `_` and `&`. Inside math everything is TeX and Luccet looks at nothing. Outside math, a backslash before a letter is just a backslash, so paths and TeX names in prose stay as you typed them.
 
-```tern {.live}
+```luccet {.live}
 Outside math, \alpha and C:\Users\me are text; inside, $\alpha$ is TeX.
 ```
 
@@ -132,7 +132,7 @@ Outside math, \alpha and C:\Users\me are text; inside, $\alpha$ is TeX.
 
 Attributes are always written in braces, `{#id .class key=value}`, and always in the same few places: after a link, image, span, inline element or reference; after a code span, formula or emphasis; at the end of a block's first line; at the end of a heading; or on a line of their own before a block.
 
-```tern {.live}
+```luccet {.live}
 ## Results {#results .wide}
 
 {.lead}
@@ -143,7 +143,7 @@ A paragraph with a [button](/go){.btn} and **bold**{.key} text.
 
 `:::name`, `::name` and `:name[…]` become the HTML element the name denotes: `:::aside` is an `<aside>`, `::video` a `<video>`, `:kbd[…]` a `<kbd>`. A lower-case name with a hyphen, such as `tide-chart`, is a custom element. Any other name becomes a `div` or `span` with the name as its class, ready for your CSS.
 
-```tern {.live}
+```luccet {.live}
 :::aside
 An aside.
 :::
@@ -157,9 +157,9 @@ Press :kbd[Esc] to leave insert mode.
 
 ### 7. Nothing is lost silently {#rule-diagnostics}
 
-Malformed markup stays visible where you wrote it, and Tern reports a *diagnostic*: a code, a severity, a message, a position, and a hint that spells the fix. When Tern has to drop something, such as a second definition of the same footnote, it says so. An **error** means content was lost or its meaning changed; a **warning** means it is probably not what you meant; an **info** is a hint.
+Malformed markup stays visible where you wrote it, and Luccet reports a *diagnostic*: a code, a severity, a message, a position, and a hint that spells the fix. When Luccet has to drop something, such as a second definition of the same footnote, it says so. An **error** means content was lost or its meaning changed; a **warning** means it is probably not what you meant; an **info** is a hint.
 
-```tern {.live expect="block.opener-junk"}
+```luccet {.live expect="block.opener-junk"}
 :::aside Danger
 The title should be in brackets: `:::aside[Danger]`.
 :::
@@ -182,7 +182,7 @@ Everything this guide teaches, on one screen.
 | Emphasis, strong | `*em*`, `**strong**` | `<em>`, `<strong>` |
 | Strikethrough, highlight | `~~gone~~`, `==key==` | `<del>`, `<mark>` |
 | Code span | `` `code` `` | `<code>` |
-| Inline math | `$x^2$`, or `` $`]0,1[` `` for awkward TeX | `span.t-math`, typeset by a [math add-on](addons.html#katex) |
+| Inline math | `$x^2$`, or `` $`]0,1[` `` for awkward TeX | `span.t-math` holding a `<math>` element |
 | Heading | `## Title {#id}` | `<h2 id="id">`, with an id made from the text when you give none |
 | Link | `[text](https://x.org "Title")` | `<a href>` |
 | Image | `![alt text](photo.jpg){width=50%}` | `<img>` |
@@ -213,7 +213,7 @@ Everything this guide teaches, on one screen.
 
 A paragraph is a run of lines that start nothing else. A blank line ends it. The lines of a paragraph are joined: a single line break in the source is a soft break, which the browser shows as a space.
 
-```tern {.live}
+```luccet {.live}
 A paragraph can span
 several lines in the source.
 
@@ -222,7 +222,7 @@ A blank line starts the next one.
 
 To force a line break, end the line with a backslash. In HTML it is a `<br>`.
 
-```tern {.live}
+```luccet {.live}
 Roses are red,\
 violets are blue.
 ```
@@ -231,11 +231,11 @@ violets are blue.
 - **A backslash on the last line** of a paragraph is a literal backslash: there is nothing after it to break to.
 - **Two trailing spaces** do nothing (rule 3). Use the backslash.
 
-`\\` at the end of a line is an escaped backslash, not a break. Tern prints one backslash and tells you, in case you meant a line break, as in LaTeX:
+`\\` at the end of a line is an escaped backslash, not a break. Luccet prints one backslash and tells you, in case you meant a line break, as in LaTeX:
 
-```tern {.live expect="latex.linebreak"}
+```luccet {.live expect="latex.linebreak"}
 In LaTeX this is a break,\\
-in Tern it is a backslash.
+in Luccet it is a backslash.
 ```
 
 **Reference:** [Paragraphs](syntax-blocks.html#paragraph), [hard breaks](syntax-inline.html#hard-break), [`latex.linebreak`](diagnostics.html#latex-linebreak).
@@ -251,7 +251,7 @@ in Tern it is a backslash.
 | `==highlight==` | ==highlight==, `<mark>` |
 | `` `code` `` | `code`, `<code>` |
 
-```tern {.live}
+```luccet {.live}
 Use *emphasis*, **strong**, ***both***, ~~strikethrough~~ and ==highlight==,
 or `code` for anything typed literally.
 ```
@@ -262,7 +262,7 @@ or `code` for anything typed literally.
 - **Spaces around** an asterisk make it text: `2 * 3 * 4` stays as typed.
 - **`~~` and `==`** take exactly two characters, and they do not open or close when glued to an ASCII letter or digit on the outside. `a==b` and `x == y` are text.
 
-```tern {.live}
+```luccet {.live}
 snake_case, __init__ and _private_ stay as typed.
 2 * 3 * 4 is arithmetic, a==b and x == y are comparisons,
 but (==this==) is highlighted.
@@ -270,7 +270,7 @@ but (==this==) is highlighted.
 
 Highlight and strikethrough work inside words of languages without spaces, because only ASCII letters and digits count as glue:
 
-```tern {.live}
+```luccet {.live}
 これは==重要==です。
 ```
 
@@ -278,7 +278,7 @@ Highlight and strikethrough work inside words of languages without spaces, becau
 
 A code span shows its content exactly, with nothing inside it interpreted. To put a backtick inside, wrap the span in a longer run of backticks; a space just inside each end is removed, so a span can start or end with a backtick.
 
-```tern {.live}
+```luccet {.live}
 `a < b && c > d`, ``a`b``, and a lone backtick: `` ` ``.
 ```
 
@@ -286,14 +286,14 @@ A code span shows its content exactly, with nothing inside it interpreted. To pu
 
 A backslash before any ASCII punctuation character makes that character literal: `\*`, `\$`, `\@`, `\[`, `\#`, `\\`. A backslash before anything else is just a backslash.
 
-```tern {.live}
+```luccet {.live}
 \*not emphasis\*, a price of \$5, an \@handle, \[not a link\](x),
 and a backslash: \\.
 ```
 
 At the start of a line, an escape stops a block from starting:
 
-```tern {.live}
+```luccet {.live}
 \# Not a heading.
 
 \- Not a list item.
@@ -319,7 +319,7 @@ Each section below ends its rules with the escape for its construct, when it has
 
 One to six `#`, a space, and the heading's text. A heading is always one line.
 
-```tern {.live}
+```luccet {.live}
 # A level-one heading
 ## Level two
 ### Level three
@@ -327,9 +327,9 @@ One to six `#`, a space, and the heading's text. A heading is always one line.
 
 ### Ids {#heading-ids}
 
-Every heading gets an `id`, so you can link to it. When you write none, Tern makes one from the heading's text: lower-cased, with runs of spaces and punctuation turned into `-`, and anything before the first letter dropped. Letters of every script are kept.
+Every heading gets an `id`, so you can link to it. When you write none, Luccet makes one from the heading's text: lower-cased, with runs of spaces and punctuation turned into `-`, and anything before the first letter dropped. Letters of every script are kept.
 
-```tern {.live}
+```luccet {.live}
 ## Kernel and image
 ## Überblick
 ## 2. Results
@@ -338,14 +338,14 @@ Every heading gets an `id`, so you can link to it. When you write none, Tern mak
 
 To choose the id yourself, put `{#id}` at the end of the line. Classes and other attributes can go in the same braces:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel and image {#kernel .wide}
 ```
 
 - **Collisions.** When a made-up id is already taken, the next heading gets `-2`, `-3` and so on, silently. An id you wrote yourself always wins over a made-up one.
 - **Choose ids for anything you link to.** A made-up id changes when you reword the heading; one you wrote does not.
 
-```tern {.live}
+```luccet {.live}
 ## Setup
 ## Setup
 ## Setup
@@ -354,10 +354,10 @@ To choose the id yourself, put `{#id}` at the end of the line. Classes and other
 ### What is not a heading {#not-a-heading}
 
 - `#hashtag` and `#1 priority`: the `#` must be followed by a space.
-- A line underlined with `===` or `---`: Tern has no underlined headings. `---` after a paragraph is a rule.
+- A line underlined with `===` or `---`: Luccet has no underlined headings. `---` after a paragraph is a rule.
 - A closing run of `#` is part of the text: `# C# #` keeps both.
 
-```tern {.live}
+```luccet {.live}
 #hashtag stays text.
 
 # C# #
@@ -372,7 +372,7 @@ Title
 
 A link is the text in brackets, then the destination in parentheses, with an optional title in quotes.
 
-```tern {.live}
+```luccet {.live}
 Read [the guide](guide.html), or [the spec](https://example.com/spec "Normative").
 ```
 
@@ -380,7 +380,7 @@ Read [the guide](guide.html), or [the spec](https://example.com/spec "Normative"
 - **Attributes** go in braces right after the link: `[Download](notes.pdf){.button download}`.
 - **No reference-style links.** `[text][label]` is plain text. Write the destination inline.
 
-```tern {.live}
+```luccet {.live}
 [my file](<my file.html>), [café](café.html), [Download](notes.pdf){.button download}.
 ```
 
@@ -388,7 +388,7 @@ Read [the guide](guide.html), or [the spec](https://example.com/spec "Normative"
 
 A URL in angle brackets becomes a link, and so does an e-mail address. A bare `http://` or `https://` URL is linked too. It stops at a space or a bracket, and trailing punctuation is left out, so a URL can end a sentence.
 
-```tern {.live}
+```luccet {.live}
 <https://example.com>, <me@example.org>, and a bare https://example.com/docs.
 Parentheses that belong to it stay: https://en.wikipedia.org/wiki/Tern_(bird).
 ```
@@ -397,9 +397,9 @@ To keep a URL as text, escape its colon: `https\://example.com`.
 
 ### Links inside the note {#fragment-links}
 
-`[text](#id)` links to an id in the same note. Tern checks it: a fragment that names no id gets a warning, and the link stays a link.
+`[text](#id)` links to an id in the same note. Luccet checks it: a fragment that names no id gets a warning, and the link stays a link.
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 ## Setup {#setup}
 
 See [the setup](#setup), and [nothing](#nowhere).
@@ -411,7 +411,7 @@ For a link whose text comes from its target, such as "Theorem 2", use a referenc
 
 An image is a link with `!` in front. The bracket text is the alternative text, read aloud by screen readers and shown when the image cannot load.
 
-```tern {.live}
+```luccet {.live}
 ![An osprey over the estuary](../examples/img/osprey.svg "Osprey"){width=320}
 
 A feather ![](../examples/img/feather.svg){width=24} can sit inside a sentence.
@@ -429,7 +429,7 @@ A feather ![](../examples/img/feather.svg){width=24} can sit inside a sentence.
 
 Bullet items start with `-`, numbered items with a number and `.` or `)`. Indent a nested list under the text of its item.
 
-```tern {.live}
+```luccet {.live}
 - Milk
 - Bread
   - white
@@ -445,7 +445,7 @@ Bullet items start with `-`, numbered items with a number and `.` or `)`. Indent
 - **One list or two.** Changing the bullet character (`-`, `*`, `+`) or the delimiter (`.` or `)`) starts a new list.
 - **Tight or loose.** A blank line between items makes the list loose: each item becomes a paragraph, with more space. (Below, the `*` bullets start a second list, so the first one stays tight.)
 
-```tern {.live}
+```luccet {.live}
 7. seven
 8. eight
 
@@ -461,7 +461,7 @@ Bullet items start with `-`, numbered items with a number and `.` or `)`. Indent
 
 An item that starts with `[ ]` or `[x]` is a task: it gets a checkbox, ticked or not, which the reader cannot change.
 
-```tern {.live}
+```luccet {.live}
 - [x] Motions
 - [ ] Operators
   - [x] `d`, `c`, `y`
@@ -473,7 +473,7 @@ An item that starts with `[ ]` or `[x]` is a task: it gets a checkbox, ticked or
 
 Anything can go inside an item: paragraphs, fences, tables, math, `:::` blocks. Indent it to where the item's text starts. Here the blank lines between the parts make the list loose.
 
-````tern {.live}
+````luccet {.live}
 1. Install the tools:
 
    ```sh
@@ -491,7 +491,7 @@ Anything can go inside an item: paragraphs, fences, tables, math, `:::` blocks. 
 
 A numbered item can interrupt a paragraph only when it is numbered 1, so a wrapped line that starts with a year stays prose. After a blank line, though, a line starting `2019.` is a list item; escape the dot to keep it text.
 
-```tern {.live}
+```luccet {.live}
 The project started in
 2019. It grew from there.
 
@@ -504,7 +504,7 @@ The project started in
 
 A quote is a run of lines starting with `>` and a space. Lines that merely continue a paragraph may leave out the `>`. Anything can go inside a quote, including lists and blocks.
 
-```tern {.live}
+```luccet {.live}
 > The best way to predict the future
 is to invent it.
 >
@@ -516,7 +516,7 @@ is to invent it.
 - **`>` needs a space** (or the end of the line) to open a quote, so `>5 people` and `>= 3` are text.
 - **Literally:** `\>` at the start of a line.
 
-```tern {.live}
+```luccet {.live}
 > :::aside
 > A block inside a quote.
 > :::
@@ -530,14 +530,14 @@ is to invent it.
 
 A fence is three backticks, an optional language, the code, and three backticks. The code is shown exactly as written.
 
-````tern {.live}
+````luccet {.live}
 ```python
 def greet(name):
     return f"Hello, {name}!"
 ```
 ````
 
-The language becomes the class `language-python` on `<code>`, which syntax highlighters look for. Tern itself does not colour code. To start a line with three backticks as text, escape the first one: ```` \``` ````.
+The language becomes the class `language-python` on `<code>`, which syntax highlighters look for. Luccet itself does not colour code: an add-on does ([Add-ons](addons.html#top)). To start a line with three backticks as text, escape the first one: ```` \``` ````.
 
 ### Line numbers and highlights {#code-lines}
 
@@ -549,7 +549,7 @@ Three settings go in braces after the language:
 | `start=10` | starts the numbering at 10 |
 | `hl=2,4-5` | highlights those lines, counted as displayed |
 
-````tern {.live}
+````luccet {.live}
 ```js {lines start=10 hl=11}
 const a = 1;
 const b = 2;
@@ -563,7 +563,7 @@ Other attributes, such as a class, go in the same braces and land on the `<pre>`
 
 A title in brackets after the language turns the fence into a listing: a `<figure>` with the title as its caption. Give it an id to link to it.
 
-````tern {.live}
+````luccet {.live}
 ```js[A lazy Fibonacci generator]{#lst-fib}
 function* fib() {
   let [a, b] = [0, 1];
@@ -576,7 +576,7 @@ function* fib() {
 
 With no vocabulary, the reference shows the title. A vocabulary that declares `code` with a counter and a label numbers listings, and the reference reads "Listing 1". Here is the same source with the demo vocabulary:
 
-````tern {.live schema=demo}
+````luccet {.live schema=demo}
 ```js[A lazy Fibonacci generator]{#lst-fib}
 function* fib() {
   let [a, b] = [0, 1];
@@ -587,28 +587,11 @@ function* fib() {
 @lst-fib never ends; take what you need.
 ````
 
-### Diagrams {#diagrams}
-
-With the Mermaid add-on, a fence in the language `mermaid` is drawn as a diagram, in the theme's colours: flowcharts, sequence diagrams, Gantt charts and the rest of Mermaid's diagrams.
-
-```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="addons/mermaid.js"></script>
-```
-
-````tern
-```mermaid
-flowchart LR
-  A[Write] --> B[Check] --> C[Publish]
-```
-````
-
-Put it in a `:::figure` to give it a caption and a number. The [Add-ons](addons.html#mermaid) page has the colours, the options and how to use it offline.
-
 ### Fences inside fences {#fence-in-fence}
 
 Everything inside a fence is code, including `:::`, `$$` and `#` lines. To show a fence in a fence, make the outer one longer:
 
-`````tern {.live}
+`````luccet {.live}
 ````md
 ```js
 x = 1
@@ -620,7 +603,7 @@ x = 1
 
 A fence that is never closed runs to the end of the note, or of the list item or quote it is in, and is reported as an error:
 
-````tern {.live expect="block.unclosed-fence"}
+````luccet {.live expect="block.unclosed-fence"}
 ```js
 let x = 1;
 
@@ -629,7 +612,7 @@ The rest of the note became code.
 
 The info after the backticks is a language, then a `[Title]`, then a `{…}` group, in that order. Anything else is kept in `data-meta` on the `<pre>`, with a warning:
 
-````tern {.live expect="fence.info-junk"}
+````luccet {.live expect="fence.info-junk"}
 ```js extra words
 x = 1;
 ```
@@ -639,18 +622,18 @@ x = 1;
 
 ## Math {#math}
 
-Math is written in TeX between dollars. The engine parses it but renders nothing itself: each formula is left as its TeX, the way a code fence stays plain without [`code.js`](addons.html#code). To typeset it, load a [math add-on](addons.html#katex) in `data-use` — `addons/katex.js` for KaTeX, or `addons/mathml.js` for native MathML. Inside math, everything is TeX: Tern's marks mean nothing there (rule 4).
+Math is written in TeX between dollars. Luccet turns each formula into MathML itself, and the browser lays it out with a math font: nothing needs to be loaded. Inside math, everything is TeX: Luccet's marks mean nothing there (rule 4). A formula whose TeX does not translate is shown as its TeX, with a [`tex.*` diagnostic](diagnostics.html#tex) at the command at fault. The commands, environments and macros a formula can use are on [Math](math.html#top).
 
 ### Inline math {#inline-math}
 
-```tern {.live}
+```luccet {.live}
 The sum $\sum_{i=1}^{n} x_i^*$ adds every optimum $x_i^*$,
 and $e^{i\pi} + 1 = 0$ is famous.
 ```
 
 ### Dollars that are prices {#prices}
 
-Prose is full of dollar signs, so Tern only treats a pair of dollars as math when it looks like math:
+Prose is full of dollar signs, so Luccet only treats a pair of dollars as math when it looks like math:
 
 - the opening `$` is followed by a non-space;
 - the closing `$` follows a non-space, and is not followed by a digit;
@@ -659,14 +642,14 @@ Prose is full of dollar signs, so Tern only treats a pair of dollars as math whe
 
 So ordinary prices need no escaping. The reference lists a few more cases, such as a `$` inside parentheses.
 
-```tern {.live}
+```luccet {.live}
 It costs $5, or $10 at peak hours. Tickets are $5–$10.
 The $0$th, $1$st and $n$th terms are math.
 ```
 
-When a price and a formula share a sentence, the first dollar may pair with the wrong one. Tern warns when a "formula" starts with a digit and holds words. Escape the price with `\$`:
+When a price and a formula share a sentence, the first dollar may pair with the wrong one. Luccet warns when a "formula" starts with a digit and holds words. Escape the price with `\$`:
 
-```tern {.live expect="math.suspect-price"}
+```luccet {.live expect="math.suspect-price"}
 It costs $5 then x$ more.
 
 It costs \$5, then $x$ more.
@@ -676,17 +659,17 @@ It costs \$5, then $x$ more.
 
 When TeX itself contains a dollar, or an interval such as `]0,1[` that the dollar rules turn down, write `` $`…` ``: a dollar followed by a backtick span. It is always math.
 
-```tern {.live expect="math.bracket"}
+```luccet {.live expect="math.bracket"}
 The interval $`]0,1[` is open, and $`\$5 + \$10` is TeX's dollar.
 
-$]0,1[$ is not math, and Tern says how to write it.
+$]0,1[$ is not math, and Luccet says how to write it.
 ```
 
 ### Display math {#display-math}
 
 A formula on its own lines goes between two `$$` lines. A short one can stay on one line.
 
-```tern {.live}
+```luccet {.live}
 $$
 \dim V = \dim \ker T + \dim \operatorname{im} T.
 $$
@@ -694,13 +677,13 @@ $$
 $$ e^{i\pi} + 1 = 0 $$
 ```
 
-- **No blank lines** inside: TeX forbids them, and Tern uses that to recover from a forgotten `$$`.
+- **No blank lines** inside: TeX forbids them, and Luccet uses that to recover from a forgotten `$$`.
 - **`$$` in the middle of a line** is text. For a large formula inside a sentence, write `$\displaystyle …$`.
 - **Literally:** `\$` for a dollar anywhere, `\$$` at the start of a line.
 
 A blank line, a heading, a fence or a `:::` line ends a display formula that was never closed. The source stays visible in red, the error names the line, and nothing after it is swallowed:
 
-```tern {.live expect="math.unclosed"}
+```luccet {.live expect="math.unclosed"}
 $$
 a^2 + b^2 = c^2
 
@@ -711,7 +694,7 @@ a^2 + b^2 = c^2
 
 Give a display formula an id, after its closing `$$`, and it is numbered. `@id` refers to it as "(1)".
 
-```tern {.live}
+```luccet {.live}
 $$
 \dim V = \dim \ker T + \dim \operatorname{im} T.
 $$ {#eq-rn}
@@ -722,9 +705,9 @@ By @eq-rn and @eq-euler, …
 ```
 
 - **Only formulas with an id** are numbered, in document order. Inline math is never numbered.
-- **Attributes go after the closer.** On the opening `$$` line, braces are TeX: below, `{.wide}` is typeset as part of the formula, and Tern reports an error.
+- **Attributes go after the closer.** On the opening `$$` line, braces are TeX: below, `{.wide}` becomes part of the formula, and Luccet reports an error.
 
-```tern {.live expect="math.opener-tail"}
+```luccet {.live expect="math.opener-tail"}
 $$ {.wide}
 x = 1
 $$
@@ -734,7 +717,7 @@ $$
 
 A `:::macros` block defines TeX macros for every formula in the note. Its body is TeX, read as written.
 
-```tern {.live}
+```luccet {.live}
 :::macros
 \gdef\R{\mathbb{R}}
 \gdef\norm#1{\lVert #1 \rVert}
@@ -743,7 +726,7 @@ A `:::macros` block defines TeX macros for every formula in the note. Its body i
 For every $x \in \R^n$, $\norm{x} \ge 0$.
 ```
 
-All macro blocks are read before any formula is typeset, so a macro works anywhere in the note. The block itself is hidden.
+A `:::macros` block applies to every formula in the note, wherever it stands, so a macro works anywhere in the note. The block itself is hidden. `\newcommand`, macros with optional arguments, and macros defined inside a formula are on [Math](math.html#macros).
 
 **Reference:** [inline math](syntax-inline.html#inline-math), [verbatim math](syntax-inline.html#verbatim-math), [display math](syntax-blocks.html#display-math), [macros](syntax-blocks.html#raw-body), [numbering](elements.html#numbering).
 
@@ -751,7 +734,7 @@ All macro blocks are read before any formula is typeset, so a macro works anywhe
 
 A table is a header row, a delimiter row, and body rows. Every row starts with `|`.
 
-```tern {.live}
+```luccet {.live}
 | Phase | Weeks | Owner |
 |---|--:|:-:|
 | Engine | 4 | O.C. |
@@ -767,7 +750,7 @@ A table is a header row, a delimiter row, and body rows. Every row starts with `
 
 A pipe inside code or math does not split a cell. Anywhere else, escape it as `\|`.
 
-```tern {.live}
+```luccet {.live}
 | Input | Meaning |
 |---|---|
 | `a|b` | a pipe in code |
@@ -779,7 +762,7 @@ A pipe inside code or math does not split a cell. Anywhere else, escape it as `\
 
 A row that ends with a single `\` continues on the next line, after a line break. Use it for long cells.
 
-```tern {.live}
+```luccet {.live}
 | Phase | Exit criterion |
 |---|---|
 | P3 | smoke tests green;\
@@ -790,7 +773,7 @@ A row that ends with a single `\` continues on the next line, after a line break
 
 An attribute line before a table puts attributes on `<table>`. To give a table a caption, wrap it in `:::table[Caption]`; the block and the table merge into one `<table>` with a `<caption>`.
 
-```tern {.live}
+```luccet {.live}
 :::table[Phases and exit criteria]{#tbl-phases .wide}
 | Phase | Exit |
 |---|---|
@@ -802,7 +785,7 @@ See @tbl-phases.
 
 With a vocabulary that gives `table` a counter, the caption gains "Table 1" and the reference reads "Table 1" (demo vocabulary):
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::table[Phases and exit criteria]{#tbl-phases}
 | Phase | Exit |
 |---|---|
@@ -816,7 +799,7 @@ See @tbl-phases.
 
 A delimiter row at the start makes a table with no header:
 
-```tern {.live}
+```luccet {.live}
 |---|--:|
 | apples | 3 |
 | pears | 12 |
@@ -826,7 +809,7 @@ A delimiter row at the start makes a table with no header:
 
 A table must start with `|`. The Markdown habit of leaving out the outer pipes gives a paragraph, and a warning on the delimiter row:
 
-```tern {.live expect="table.stray-delimiter"}
+```luccet {.live expect="table.stray-delimiter"}
 Keys | Action
 ---|---
 w | next word
@@ -834,7 +817,7 @@ w | next word
 
 A row with more cells than the header keeps them, with a warning:
 
-```tern {.live expect="table.extra-cell"}
+```luccet {.live expect="table.extra-cell"}
 | a | b |
 |---|---|
 | 1 | 2 | 3 |
@@ -846,7 +829,7 @@ A row with more cells than the header keeps them, with a warning:
 
 A block wraps any content in an element. It opens with three colons and a name, and closes with three colons.
 
-```tern {.live}
+```luccet {.live}
 :::aside
 An aside can hold *anything*: paragraphs, lists, math, tables, other blocks.
 :::
@@ -862,7 +845,7 @@ The name decides the element (rule 6):
 
 Every block gets the class `t-block`, its name as a class, and `data-t="name"`, so CSS and scripts can find it whatever its element.
 
-```tern {.live}
+```luccet {.live}
 :::section
 A real `<section>`.
 :::
@@ -876,13 +859,13 @@ A custom element, `<tide-chart>`.
 :::
 ```
 
-To start a paragraph with three colons, escape the first: `\:::`. Names are case-sensitive: `:::Aside` is not `aside`, it is `div.Aside`. A few names are reserved and never produce their element, such as `script`, `style`, `main` and `body`; Tern says so when you use one.
+To start a paragraph with three colons, escape the first: `\:::`. Names are case-sensitive: `:::Aside` is not `aside`, it is `div.Aside`. A few names are reserved and never produce their element, such as `script`, `style`, `main` and `body`; Luccet says so when you use one.
 
 ### Titles {#block-titles}
 
 A title goes in brackets right after the name. It can hold inline markup.
 
-```tern {.live}
+```luccet {.live}
 :::idea[Key *idea*]
 A title becomes the block's first child, `div.t-title`.
 :::
@@ -898,7 +881,7 @@ Some elements put the title in their own slot: a `details` block's title is its 
 
 Braces at the end of the opening line give the block an id, classes and attributes. A bare word sets a boolean attribute, such as `open` on `details`.
 
-```tern {.live}
+```luccet {.live}
 :::details[More]{#more .muted open}
 Open from the start.
 :::
@@ -908,7 +891,7 @@ Open from the start.
 
 Blocks nest. A bare `:::` closes the innermost open block. To close a block by name, write `:::/name`: it closes that block and everything still open inside it.
 
-```tern {.live}
+```luccet {.live}
 :::section
 :::aside
 Inside the aside.
@@ -921,7 +904,7 @@ Use named closers for long blocks; they also let you see at a glance what is clo
 
 The number of colons is up to you. More colons can make an outer block stand out, as long as each closer repeats its opener's count:
 
-```tern {.live}
+```luccet {.live}
 ::::section
 :::aside
 Inner.
@@ -929,9 +912,9 @@ Inner.
 ::::
 ```
 
-The count never chooses which block closes: a bare closer always closes the innermost one. When its count differs from that block's opener, Tern points it out, and suggests a named closer:
+The count never chooses which block closes: a bare closer always closes the innermost one. When its count differs from that block's opener, Luccet points it out, and suggests a named closer:
 
-```tern {.live expect="block.closer-count"}
+```luccet {.live expect="block.closer-count"}
 :::section
 :::aside
 Inner.
@@ -943,7 +926,7 @@ Inner.
 
 A block that is never closed runs to the end of the note, and the error points at its opener:
 
-```tern {.live expect="block.unclosed"}
+```luccet {.live expect="block.unclosed"}
 :::aside
 This aside is never closed.
 
@@ -952,7 +935,7 @@ Everything below ends up inside it.
 
 A named closer closes everything open inside the block it names. Blocks it closes that way are reported, each at its own opener:
 
-```tern {.live expect="block.unclosed"}
+```luccet {.live expect="block.unclosed"}
 :::section
 :::aside
 The aside's closer is missing.
@@ -963,7 +946,7 @@ After the section.
 
 The most common opener mistakes keep the block and show the stray text in red:
 
-```tern {.live expect="block.opener-junk block.opener-junk"}
+```luccet {.live expect="block.opener-junk block.opener-junk"}
 :::aside Danger
 A title goes in brackets.
 :::
@@ -975,7 +958,7 @@ Attributes go in braces.
 
 A space after the colons, or a `:::` with nothing open, is text with a warning:
 
-```tern {.live expect="block.spaced-name block.stray-closer"}
+```luccet {.live expect="block.spaced-name block.stray-closer"}
 ::: aside
 is text.
 
@@ -986,7 +969,7 @@ is text.
 
 Inside a block, a `+++` line starts a new cell. A block with cells becomes a grid, one column per cell. `cols` sets the column widths: a number of equal columns, or a list of relative widths.
 
-```tern {.live}
+```luccet {.live}
 :::row{cols="2 1"}
 Left, twice as wide as the right.
 +++
@@ -1001,7 +984,7 @@ Right.
 - On narrow screens, every grid becomes one column.
 - **Literally:** `\+++`.
 
-```tern {.live}
+```luccet {.live}
 :::row
 +++ {.muted}
 First cell.
@@ -1024,7 +1007,7 @@ A language server.
 
 A `+++` outside any block is text, with a warning:
 
-```tern {.live expect="cell.orphan"}
+```luccet {.live expect="cell.orphan"}
 +++
 Not in a block.
 ```
@@ -1033,8 +1016,8 @@ Not in a block.
 
 `{raw}` on a block keeps its body as plain text, for a script to read: a diagram description, data, a chart. Nothing in it is parsed.
 
-```tern {.live}
-:::mermaid{raw}
+```luccet {.live}
+:::diagram{raw}
 graph TD; A-->B
   *not emphasis*
 :::
@@ -1046,7 +1029,7 @@ graph TD; A-->B
 
 `{tag=…}` picks the element for one block, from the same list of HTML names:
 
-```tern {.live}
+```luccet {.live}
 :::note{tag=aside}
 A note that is an `<aside>`.
 :::
@@ -1054,7 +1037,7 @@ A note that is an `<aside>`.
 
 `tag=` works only on `:::`, `::` and `:` elements. On a span, link, heading or attribute line it is dropped, with a warning:
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 A [span]{tag=b} stays a span.
 ```
 
@@ -1066,13 +1049,13 @@ A [span]{tag=b} stays a span.
 
 A leaf is an element on one line: two colons, a name, optional content in brackets, optional attributes in braces. The line must hold nothing else. Leaves are how a note embeds media and web components without writing HTML. A video, for example:
 
-```tern
+```luccet
 ::video{src=media/tide.mp4 poster=media/tide.jpg controls width=640}
 ```
 
 becomes `<video class="video" data-t="video" src="media/tide.mp4" poster="media/tide.jpg" controls width="640"></video>`. The same goes for an embedded page, a web component, or a name of your own:
 
-```tern {.live}
+```luccet {.live}
 ::iframe{src=../examples/img/estuary-map.svg width=320 height=180 loading=lazy title="Estuary map"}
 
 ::tide-clock{station=leith units=m}
@@ -1088,13 +1071,13 @@ becomes `<video class="video" data-t="video" src="media/tide.mp4" poster="media/
 
 A line that starts with `::name` but has more text after it is a paragraph, with a hint:
 
-```tern {.live expect="leaf.demoted"}
+```luccet {.live expect="leaf.demoted"}
 ::before and ::after are CSS pseudo-elements.
 ```
 
 An element that cannot hold content, such as `hr`, puts what its brackets held after it, with a warning:
 
-```tern {.live expect="leaf.void-content"}
+```luccet {.live expect="leaf.void-content"}
 ::hr[The end]
 ```
 
@@ -1102,7 +1085,7 @@ An element that cannot hold content, such as `hr`, puts what its brackets held a
 
 Inside text, `:name[content]` makes an element. The content can hold any inline markup, and braces after it hold attributes.
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[Ctrl]+:kbd[S] to save.
 :abbr[HTML]{title="HyperText Markup Language"} is a :dfn[markup language].
 Ruby text: :ruby[漢:rt[kan]字:rt[ji]].
@@ -1113,7 +1096,7 @@ A :term[defined term] and a :my-badge[web component]{level=2}.
 - **The colon must not be glued** to a letter or digit before it. `press:kbd[S]` stays text, with a hint; so do times like `10:30[x]`.
 - **Literally:** `\:kbd[x]`.
 
-```tern {.live expect="inline.glued"}
+```luccet {.live expect="inline.glued"}
 Glued: press:kbd[S]. Spaced: press :kbd[S]. A time, 10:30[x], stays text.
 ```
 
@@ -1123,7 +1106,7 @@ For a subscript glued to a word, as in a chemical formula, use the HTML tag: `H<
 
 Brackets followed directly by braces make a plain `<span>` with those attributes. It is the way to put a class on a few words.
 
-```tern {.live}
+```luccet {.live}
 A [defined term]{.term} and an [answer]{.spoiler hidden}.
 ```
 
@@ -1140,7 +1123,7 @@ One grammar, `{#id .class key=value}`, gives attributes to anything.
 | `key=value` | an attribute; quote the value if it has spaces: `title="Two words"` |
 | `key` alone | a boolean attribute, such as `open`, `controls` or `hidden` |
 
-```tern {.live}
+```luccet {.live}
 {#intro .lead data-level=1}
 An introduction, with a [link](https://example.com){target=_blank rel=noopener},
 `code`{.lang-js}, a formula $x${#ex}, **strong**{.key}, and a [span]{title="Two words"}.
@@ -1160,7 +1143,7 @@ Everywhere else, braces are plain text: `the set {1, 2}`, `f{x}`.
 
 In three of these places, braces count only when they hold an `#id`, a `.class` or a `key=value`: after a code span, formula or emphasis, at the end of a heading, and alone on a line. So a lone `{open}` or `{x}` there stays text, and so does prose such as `{1, 2}` on a line of its own.
 
-```tern {.live}
+```luccet {.live}
 `code`{hidden} keeps its braces as text, but `code`{.shown} takes the class.
 
 {x}
@@ -1170,7 +1153,7 @@ In three of these places, braces count only when they hold an `#id`, a `.class` 
 
 A line holding only `{…}` puts its attributes on the block that starts on the next line. It is how paragraphs, lists, tables, quotes and rules get attributes.
 
-```tern {.live}
+```luccet {.live}
 {.byline}
 Lecture 7 · O. Carrera
 
@@ -1192,7 +1175,7 @@ Lecture 7 · O. Carrera
 - **Nothing after it**: a blank line or the end of the note leaves the line as text, with a warning.
 - **Literally:** `\{` at the start of the line.
 
-```tern {.live expect="attributes.orphan"}
+```luccet {.live expect="attributes.orphan"}
 {.lead}
 
 A blank line came between.
@@ -1203,16 +1186,16 @@ A blank line came between.
 - **Last wins.** The last `#id` wins, and so does the last value of a repeated key. Classes accumulate.
 - **Order in HTML**: `id`, then `class`, then the rest as written.
 - **Quotes are literal.** Inside quotes nothing is special and there are no escapes. To put `"` in a value, use single quotes.
-- **Reserved names.** `data-t` and the classes `tern` and `t-…` belong to Tern; they are dropped with a warning.
-- **Reserved keys.** `tag`, `raw`, `cols` and `ref`, and on fences `lines`, `hl` and `start`, are settings for Tern and never reach the HTML. Each works only where it applies: `ref=` on a reference, `raw` on a block, `cols` and `tag=` on a `:::`, `::` or `:` element. Anywhere else it is dropped, with a warning.
+- **Reserved names.** `data-t` and the classes `luccet` and `t-…` belong to Luccet; they are dropped with a warning.
+- **Reserved keys.** `tag`, `raw`, `cols` and `ref`, and on fences `lines`, `hl` and `start`, are settings for Luccet and never reach the HTML. Each works only where it applies: `ref=` on a reference, `raw` on a block, `cols` and `tag=` on a `:::`, `::` or `:` element. Anywhere else it is dropped, with a warning.
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 A [span]{ref=title} is not a reference, so `ref=` is dropped.
 ```
 
 A group that starts with `#` or `.` but does not parse stays text, with a warning at the first bad character:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 {#intro!}
 This paragraph gets no id.
 ```
@@ -1223,7 +1206,7 @@ This paragraph gets no id.
 
 A figure is an image, or anything else, with a caption. The quickest one is an image with an id, alone in its paragraph: the bracket text becomes the caption.
 
-```tern {.live}
+```luccet {.live}
 ![Osprey over the estuary, 06:40.](../examples/img/osprey.svg){#fig-osprey width=320 alt="An osprey in flight above grey water"}
 ```
 
@@ -1232,14 +1215,14 @@ A figure is an image, or anything else, with a caption. The quickest one is an i
 
 The id can also come from an attribute line before the image. With an attribute line, the id and classes go to the `<figure>`, and the image keeps its own attributes:
 
-```tern {.live}
+```luccet {.live}
 {#fig-crop .wide}
 ![The same bird, cropped to the head.](../examples/img/osprey-crop.svg){width=160}
 ```
 
 For anything else, a video, several images, an embedded map, use a `:::figure` block. Its title is the caption, and goes last, in a `<figcaption>`:
 
-```tern {.live}
+```luccet {.live}
 :::figure[A sketch map of the estuary.]{#fig-map}
 ::iframe{src=../examples/img/estuary-map.svg width=320 height=180 title="Estuary map"}
 :::
@@ -1251,7 +1234,7 @@ A figure whose body is a single image puts the `<img>` straight in the `<figure>
 
 With no vocabulary, a figure has its caption and nothing more, and a reference to it shows the caption. A vocabulary that declares `figure` with a counter and a label numbers figures (demo vocabulary):
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![Osprey over the estuary, 06:40.](../examples/img/osprey.svg){#fig-osprey width=320}
 
 :::figure[The kernel and image of a rank-one map.]{#fig-kernel}
@@ -1280,7 +1263,7 @@ Compare @fig-osprey with @fig-kernel.
 
 With no vocabulary, only headings, equations and titles give a reference text:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel and image {#ki}
 
 :::theorem[Rank–nullity]{#thm-rn}
@@ -1298,9 +1281,9 @@ See @ki, @thm-rn, @eq-euler and @side.
 
 ### Why vocabulary matters {#why-vocabulary}
 
-Tern's core knows no theorems, proofs or figures. A *vocabulary* tells it that `theorem` is a numbered `<section>` labelled "Theorem", that `lemma` shares its counter, that a `proof` ends with ∎. The same source as above, with the demo vocabulary:
+Luccet's core knows no theorems, proofs or figures. A *vocabulary* tells it that `theorem` is a numbered `<section>` labelled "Theorem", that `lemma` shares its counter, that a `proof` ends with ∎. The same source as above, with the demo vocabulary:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm-rn}
 $\dim V = \dim \ker T + \dim \operatorname{im} T$.
 :::
@@ -1333,7 +1316,7 @@ See @thm-rn and @lem-inj.
 | `title` | Rank–nullity |
 | `full` | Theorem 1 (Rank–nullity) |
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm-rn}
 …
 :::
@@ -1349,13 +1332,13 @@ For text of your own, use a link to the fragment: `[the main result](#thm-rn)`.
 - **`@` before a digit or a space**: `@2024`, `@ home`.
 - **`@name` with no such id** stays text, with a warning. Escape it if you meant a mention: `\@alice`.
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 Write to me@example.org, in @2024. Thanks to @alice and \@bob.
 ```
 
 A reference runs on through letters, which matters in languages without spaces. End it with `{}`:
 
-```tern {.live}
+```luccet {.live}
 ## 核 {#kernel}
 
 これは@kernel{}です。
@@ -1363,9 +1346,9 @@ A reference runs on through letters, which matters in languages without spaces. 
 
 ### Ids are unique {#unique-ids}
 
-Every id names one element. When two elements claim the same id, the first keeps it, the second loses it, and both places are reported. An id you wrote always beats one Tern made up for a heading.
+Every id names one element. When two elements claim the same id, the first keeps it, the second loses it, and both places are reported. An id you wrote always beats one Luccet made up for a heading.
 
-```tern {.live expect="id.duplicate id.duplicate"}
+```luccet {.live expect="id.duplicate id.duplicate"}
 ## Kernel
 
 {#kernel}
@@ -1375,12 +1358,12 @@ A paragraph that claims the heading's id: it wins, and the heading becomes `kern
 A second claim: this one loses.
 ```
 
-Four ids belong to Tern itself, for elements it adds to the page: `tern-style`, `tern-color-scheme`, `tern-source` and `tern-diagnostics`. A heading whose made-up id would be one of them gets `-2`; an id you write is dropped, with `id.duplicate`.
+Four ids belong to Luccet itself, for elements it adds to the page: `luccet-style`, `luccet-color-scheme`, `luccet-source` and `luccet-diagnostics`. A heading whose made-up id would be one of them gets `-2`; an id you write is dropped, with `id.duplicate`.
 
-```tern {.live expect="id.duplicate"}
-## Tern style
+```luccet {.live expect="id.duplicate"}
+## Luccet style
 
-{#tern-source}
+{#luccet-source}
 This paragraph cannot have that id.
 ```
 
@@ -1390,7 +1373,7 @@ This paragraph cannot have that id.
 
 Put `[^label]` where the footnote is referenced, and `[^label]: text` anywhere in the note. Footnotes are numbered in the order they are first referenced and collected at the end, with links back.
 
-```tern {.live}
+```luccet {.live}
 Subspaces are closed under addition.[^closed] So are kernels.[^kernel]
 
 [^closed]: If $u$ and $v$ are in it, so is $u + v$.
@@ -1402,7 +1385,7 @@ Subspaces are closed under addition.[^closed] So are kernels.[^kernel]
 - **Referenced twice**, a footnote keeps its number, and its back link goes to the first reference.
 - **Literally:** `\[^1]`, in text or at the start of a line.
 
-```tern {.live}
+```luccet {.live}
 A claim.[^src] The same source again.[^SRC]
 
 [^src]: The first paragraph of the footnote.
@@ -1412,7 +1395,7 @@ A claim.[^src] The same source again.[^SRC]
 
 A reference with no definition stays text, with a warning. A definition nobody references is still shown, after the others, with a hint.
 
-```tern {.live expect="footnote.undefined footnote.unused"}
+```luccet {.live expect="footnote.undefined footnote.unused"}
 A missing footnote.[^nope]
 
 [^spare]: Nobody points here.
@@ -1422,9 +1405,9 @@ A missing footnote.[^nope]
 
 ## Metadata {#metadata}
 
-A `:::meta` block holds `key: value` lines. Tern writes them into the page's head: the title, the language, and `<meta>` tags for search engines and link previews. Put it first in the note.
+A `:::meta` block holds `key: value` lines. Luccet writes them into the page's head: the title, the language, and `<meta>` tags for search engines and link previews. Put it first in the note.
 
-```tern {.live}
+```luccet {.live}
 :::meta
 title: Linear maps: kernel, image and rank
 lang: en
@@ -1446,12 +1429,12 @@ The block shows nothing in the body. What each key does:
 | any other key | `<meta name="key" content="value">` too |
 
 - **No title?** Then the page title is the text of the first `#` heading.
-- **Head or `:::meta`.** You can also set these in the head, before the `tern.js` line: `<html lang="en">`, `<title>`. When both set a key to different values, the head wins, with a warning. Set each key in one place.
+- **Head or `:::meta`.** You can also set these in the head, before the `luccet.js` line: `<html lang="en">`, `<title>`. When both set a key to different values, the head wins, with a warning. Set each key in one place.
 - **Values are plain text.** No markup is parsed in them.
 
 A repeated key keeps its first value; a line that is not `key: value` is reported; and a `:::meta` inside another block is ignored:
 
-```tern {.live expect="meta.duplicate meta.malformed"}
+```luccet {.live expect="meta.duplicate meta.malformed"}
 :::meta
 title: First
 title: Second
@@ -1459,9 +1442,9 @@ just some words
 :::
 ```
 
-There is no front matter. A note that starts with `---` and `key: value` lines renders them as a rule, a paragraph and a rule, and Tern points to `:::meta`:
+There is no front matter. A note that starts with `---` and `key: value` lines renders them as a rule, a paragraph and a rule, and Luccet points to `:::meta`:
 
-```tern {.live expect="doc.frontmatter"}
+```luccet {.live expect="doc.frontmatter"}
 ---
 title: Old habits
 ---
@@ -1471,13 +1454,13 @@ title: Old habits
 
 ## Raw HTML {#raw-html}
 
-Tern covers most of what a document needs, but the full power of HTML is always there. Raw HTML enters a note through three doors, each kept separate from the Tern around it.
+Luccet covers most of what a document needs, but the full power of HTML is always there. Raw HTML enters a note through three doors, each kept separate from the Luccet around it.
 
 ### HTML blocks {#html-blocks}
 
 A line that starts with a block-level or custom tag, such as `<div>`, `<form>`, `<table>`, `<details>`, `<svg>` or `<my-widget>`, starts a raw HTML block. The block runs to the matching end tag, and is emitted exactly as written. `<script>`, `<style>` and comments run to their end tag too.
 
-```tern {.live}
+```luccet {.live}
 <form class="quiz">
   <label>Guess a number <input name="n" type="number" min="1" max="10"></label>
 
@@ -1485,9 +1468,9 @@ A line that starts with a block-level or custom tag, such as `<div>`, `<form>`, 
 </form>
 ```
 
-Inside a raw block, nothing is Tern. Markup there is shown as typed, and Tern warns about the first line that looks like Tern, because you probably meant a `:::` block:
+Inside a raw block, nothing is Luccet. Markup there is shown as typed, and Luccet warns about the first line that looks like Luccet, because you probably meant a `:::` block:
 
-```tern {.live expect="html.wrapper"}
+```luccet {.live expect="html.wrapper"}
 <div class="box">
 Some **bold** text.
 </div>
@@ -1498,14 +1481,14 @@ Some **bold** text.
 ```
 
 :::tip
-To wrap Tern content in an element, use a `:::` block, not a raw tag: `:::div{.box}` … `:::`. Raw HTML is for HTML you write entirely by hand.
+To wrap Luccet content in an element, use a `:::` block, not a raw tag: `:::div{.box}` … `:::`. Raw HTML is for HTML you write entirely by hand.
 :::
 
 ### Inline tags {#inline-html}
 
 Phrasing tags in lower case, such as `<b>`, `<sub>`, `<span style="…">`, `<img>`, `<input>` or a custom element, pass through inside text. Block tags inside a sentence are shown as text, with a hint, and so is anything that only looks like a tag.
 
-```tern {.live expect="html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped"}
 H<sub>2</sub>O, <span style="color:crimson">red</span>, <b>bold</b>.
 A <div> inside a sentence is text. So are Vec<T> and a < b.
 ```
@@ -1514,7 +1497,7 @@ A <div> inside a sentence is text. So are Vec<T> and a < b.
 
 For HTML that starts with phrasing content, or that you want to mark plainly as raw, use a fence whose info is `=html`. Its body is emitted as it is, with no `<pre>`.
 
-````tern {.live}
+````luccet {.live}
 ```=html
 <b>Bold first</b>, then <i>italic</i>, then a <kbd>key</kbd>.
 ```
@@ -1522,11 +1505,11 @@ For HTML that starts with phrasing content, or that you want to mark plainly as 
 
 ### When raw HTML goes wrong {#html-problems}
 
-- **An unclosed `<script>`, `<style>` or comment** would hide the rest of the page, so Tern shows its source in red instead, with an error.
+- **An unclosed `<script>`, `<style>` or comment** would hide the rest of the page, so Luccet shows its source in red instead, with an error.
 - **A forgotten `</div>`** makes everything up to the next `:::` line, or the end of the note, raw HTML, with an error.
 - **An attribute line before raw HTML** stays text, with a warning; put the attributes in the tag.
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 <script>
 console.log('never closed');
 ```
@@ -1535,16 +1518,16 @@ console.log('never closed');
 
 ## Vocabulary and behaviour {#vocabulary}
 
-Out of the box, Tern knows HTML's names and nothing else. A *vocabulary* (a schema) teaches it your own: which element a name becomes, its label, its counter, its default title, and what script runs on it.
+Out of the box, Luccet knows HTML's names and nothing else. A *vocabulary* (a schema) teaches it your own: which element a name becomes, its label, its counter, its default title, and what script runs on it.
 
-### Declaring a vocabulary in the note {#window-tern}
+### Declaring a vocabulary in the note {#window-luccet}
 
-A note declares its vocabulary in a script in the head, before the `tern.js` line, as `window.TERN.schema`. It has three groups: `block` for `:::` names, `leaf` for `::` names and `inline` for `:` names.
+A note declares its vocabulary in a script in the head, before the `luccet.js` line, as `window.LUCCET.schema`. It has three groups: `block` for `:::` names, `leaf` for `::` names and `inline` for `:` names.
 
 ```html
 <!doctype html><meta charset="utf-8">
 <script>
-window.TERN = {schema: {
+window.LUCCET = {schema: {
   block: {
     theorem: {tag: 'section', counter: 'theorem', label: 'Theorem'},
     lemma: {tag: 'section', counter: 'theorem', label: 'Lemma'},
@@ -1560,14 +1543,14 @@ window.TERN = {schema: {
   },
 }};
 </script>
-<script src="tern.js"></script>
+<script src="luccet.js"></script>
 
 # Linear maps
 
 ::toc
 ```
 
-The browser runs that script before `tern.js` loads, so the vocabulary is there when the note is parsed. `tern check`, `tern build` and the language server run it too, so your editor knows the same names.
+The browser runs that script before `luccet.js` loads, so the vocabulary is there when the note is parsed. `luccet check`, `luccet build` and the language server run it too, so your editor knows the same names.
 
 ### The fields {#schema-fields}
 
@@ -1587,11 +1570,11 @@ Every field is optional.
 | `body` | `'raw'` keeps the body as text, as `{raw}` does | `'raw'` |
 | `transform` | a built-in filler: `'toc'`, with `depth` | `'toc'` |
 | `css` | a stylesheet the entry brings | `'.theorem { font-style: italic }'` |
-| `dom` | a function run on each element, as `tern.define` (below) | `(el) => { … }` |
+| `dom` | a function run on each element, as `luccet.define` (below) | `(el) => { … }` |
 
 A `::toc` leaf declared with `transform: 'toc'` fills itself with the note's headings, levels 2 and 3 by default; `::toc{depth=2}` keeps level 2 only. Here it is with the demo vocabulary:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ::toc
 
 ## Kernel
@@ -1601,16 +1584,16 @@ A `::toc` leaf declared with `transform: 'toc'` fills itself with the note's hea
 
 ### Add-ons {#addons}
 
-An add-on is a script, shared by many notes, that declares a vocabulary with `tern.block`, `tern.leaf` and `tern.inline`, and often behaviour and CSS too. List add-ons in `data-use` on the `tern.js` line; a `.css` entry is linked as a stylesheet.
+An add-on is a script, shared by many notes, that declares a vocabulary with `luccet.block`, `luccet.leaf` and `luccet.inline`, and often behaviour and CSS too. List add-ons in `data-use` on the `luccet.js` line; a `.css` entry is linked as a stylesheet.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="math-vocab.js theme.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="math-vocab.js theme.css"></script>
 ```
 
 Several read better in a [`:::use` block](syntax-blocks.html#use), one or more per line. It must come first in the note, after `:::meta` at most; both forms are honoured, the tag's entries loading first.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::use
 math-vocab.js
@@ -1620,25 +1603,27 @@ theme.css
 
 ```js
 // math-vocab.js
-tern.block('theorem', {tag: 'section', counter: 'theorem', label: 'Theorem'});
-tern.block('proof', {tag: 'section', label: 'Proof', end: '∎'});
-tern.inline('term', {tag: 'dfn'});
+luccet.block('theorem', {tag: 'section', counter: 'theorem', label: 'Theorem'});
+luccet.block('proof', {tag: 'section', label: 'Proof', end: '∎'});
+luccet.inline('term', {tag: 'dfn'});
 ```
 
-When an add-on and the note's own `window.TERN.schema` declare the same name, the note wins: its declaration is the most specific.
+When an add-on and the note's own `window.LUCCET.schema` declare the same name, the note wins: its declaration is the most specific.
 
 - **An add-on that fails** to load, or throws while it runs, is reported as `addon.failed`. The note still renders, with whatever the add-on registered before the error.
-- **Under the command line**, a local add-on runs as it does in the browser. A remote one (`https://…`) is not loaded: `tern check` reports `addon.remote`, an info, and does not know the names it declares.
+- **Under the command line**, a local add-on runs as it does in the browser. A remote one (`https://…`) is not loaded: `luccet check` reports `addon.remote`, an info, and does not know the names it declares.
 
-### Behaviour: `tern.define` {#define}
+Luccet's own add-ons, for coloured code, diagrams, citations, search and more, each live in a repository of their own: [Add-ons](addons.html#top) lists them, with a link to each one's page.
 
-`tern.define(name, fn)` runs `fn(element)` once on every element whose `data-t` is `name`, after the note is rendered and before math is typeset. It is how a name gets behaviour: a chart, a copy button, a quiz. Call it from a script in the note, or give the schema entry a `dom` function.
+### Behaviour: `luccet.define` {#define}
 
-```tern
+`luccet.define(name, fn)` runs `fn(element)` once on every element whose `data-t` is `name`, after the note is rendered. It is how a name gets behaviour: a chart, a copy button, a quiz. Call it from a script in the note, or give the schema entry a `dom` function.
+
+```luccet
 ::clock
 
 <script>
-tern.define('clock', (el) => {
+luccet.define('clock', (el) => {
   el.textContent = new Date().toLocaleTimeString();
 });
 </script>
@@ -1646,19 +1631,19 @@ tern.define('clock', (el) => {
 
 `::clock` becomes `<div class="clock" data-t="clock">`, and the script fills it with the time when the note opens. (The live examples on this page never run their scripts, which is why this one is shown as plain source.)
 
-- **Scripts in a note** run after it is rendered, in order, so they find the elements Tern made. `document.write` and `DOMContentLoaded` listeners do not work in them; Tern reports both.
+- **Scripts in a note** run after it is rendered, in order, so they find the elements Luccet made. `document.write` and `DOMContentLoaded` listeners do not work in them; Luccet reports both.
 - **Key on `data-t`**, never on the tag: `:::chart` is a `div` today and may be a `section` tomorrow.
-- **Events.** `tern.on('ready', fn)` runs after math is typeset; `tern.on('math', fn)` after each round of typesetting.
+- **Events.** `luccet.on('ready', fn)` runs once the note is fully rendered; `luccet.on('math', fn)` after each render, once its formulas are in place.
 
-**Reference:** [schemas](schema.html#schema), [fields](schema.html#fields), [`window.TERN`](schema.html#window-tern), [add-ons](schema.html#addons), [behaviours](schema.html#behaviours), [`tern.define`](api.html#define), [the demo vocabulary](schema.html#demo-schema).
+**Reference:** [schemas](schema.html#schema), [fields](schema.html#fields), [`window.LUCCET`](schema.html#window-luccet), [add-ons](schema.html#addons), [writing an add-on](addon-api.html#top), [behaviours](schema.html#behaviours), [`luccet.define`](api.html#define), [the demo vocabulary](schema.html#demo-schema).
 
 ## Styling {#styling}
 
-A note is real HTML, so CSS styles it as it styles any page. Tern ships a small base stylesheet: a readable column, light and dark colours, tables, code, grids and figures.
+A note is real HTML, so CSS styles it as it styles any page. Luccet's base stylesheet is functional only: a note looks like plain HTML, in the browser's own type and colours, light or dark, and the stylesheet adds what Luccet's constructs need (line numbers, grids, an equation's number, math, scrolling, errors). The look is yours, or a [theme](schema.html#themes)'s.
 
 ### Your own CSS {#own-css}
 
-Put a `<style>` block in the note, usually at the end, or link a stylesheet in the head. Your rules come after Tern's, so they win at equal specificity.
+Put a `<style>` block in the note, usually at the end, or link a stylesheet in the head. Your rules come after Luccet's, so they win at equal specificity.
 
 ```html
 <style>
@@ -1673,7 +1658,7 @@ Put a `<style>` block in the note, usually at the end, or link a stylesheet in t
 
 | Selector | Matches |
 |---|---|
-| `main.tern` | the rendered note |
+| `main.luccet` | the rendered note |
 | `[data-t="name"]`, `.name` | every element made from a name, whatever its tag |
 | `.t-block` | every `:::` block |
 | `.t-title`, `.t-label` | a block's title, and its label ("Theorem 1") |
@@ -1687,7 +1672,7 @@ Put a `<style>` block in the note, usually at the end, or link a stylesheet in t
 
 ### Theme variables {#variables}
 
-The base stylesheet reads its colours, fonts and sizes from custom properties. Set them on `:root` to restyle the whole note:
+A note looks like plain HTML, in the browser's own type and colours, light or dark by the reader's setting: the base stylesheet only makes Luccet's constructs work. Style it as any page, with rules for its elements, or give it a look with a theme (below). Themes, add-ons and the base's own parts (the diagnostics panel, line numbers, errors) share these custom properties; set them on `:root`:
 
 | Property | Sets |
 |---|---|
@@ -1695,9 +1680,9 @@ The base stylesheet reads its colours, fonts and sizes from custom properties. S
 | `--t-muted`, `--t-line`, `--t-soft` | secondary text, borders, code and table backgrounds |
 | `--t-link`, `--t-mark` | links and highlights |
 | `--t-error`, `--t-error-bg`, `--t-warn` | error colours |
-| `--t-code-keyword`, `--t-code-string` … | code colours, for the [code add-on](addons.html#code) |
-| `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts |
-| `--t-width`, `--t-size`, `--t-leading` | column width, font size, line height |
+| `--t-code-keyword`, `--t-code-string` … | code colours: the [code add-on](https://github.com/Luccet/code)'s, set by a theme |
+| `--t-font`, `--t-sans`, `--t-mono` | body, heading and code fonts, in a theme |
+| `--t-width`, `--t-size`, `--t-leading` | column width, font size, line height, in a theme |
 
 ```html
 <style>
@@ -1706,42 +1691,36 @@ The base stylesheet reads its colours, fonts and sizes from custom properties. S
 </style>
 ```
 
-The base stylesheet follows the reader's light or dark preference. Set your dark colours inside `prefers-color-scheme: dark`, as above.
+Set your dark colours inside `prefers-color-scheme: dark`, as above.
 
 ### Themes {#themes}
 
-For a ready-made palette, list a theme from Tern's `themes/` folder as an add-on: Solarized, Gruvbox, Nord, Dracula, One, GitHub, Catppuccin, Tokyo Night, Rosé Pine, Monokai, Everforest, Kanagawa, Sepia and High contrast.
+For a look, list one of [Luccet's themes](https://github.com/Luccet/themes) as an add-on. `classic.css` is the reading column, the type and the palette Luccet drew before 2.0; a colour theme after it changes the palette: Solarized, Gruvbox, Nord, Dracula, One, GitHub, Catppuccin, Tokyo Night, Rosé Pine, Monokai, Everforest, Kanagawa, Sepia and High contrast.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="themes/gruvbox.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css"></script>
 ```
 
-`gruvbox.css` follows the reader's light or dark preference; `gruvbox-light.css` and `gruvbox-dark.css` keep one palette for everyone. A theme sets only colours, and your own CSS still wins over it.
+`gruvbox.css` follows the reader's light or dark preference; `gruvbox-light.css` and `gruvbox-dark.css` keep one palette for everyone. On its own, without `classic.css`, a colour theme colours a plain note. Your own CSS still wins over a theme.
 
-An add-on adds CSS with `tern.style(css)`, or with the `css` field of a schema entry.
+An add-on adds CSS with `luccet.style(css)`, or with the `css` field of a schema entry.
 
 ### Coloured code {#coloured-code}
 
-Tern's code add-on colours fences by their language, with highlight.js, in the theme's colours:
+Luccet's [code add-on](https://github.com/Luccet/code) colours fences by their language, in the theme's colours, so a fence only needs its language, as ```` ```python ````. Its page says how to load it; [Add-ons](addons.html#top) lists it with the others.
 
-```html
-<!doctype html><meta charset="utf-8"><script src="tern.js" data-use="themes/gruvbox.css addons/code.js"></script>
-```
-
-A fence then only needs its language, as ```` ```python ````. The [Add-ons](addons.html#code) page has the languages, the colours and how to use it offline.
-
-**Reference:** [styling](schema.html#styling), [themes](schema.html#themes), [add-ons](addons.html#top), [`tern.style`](api.html#style).
+**Reference:** [styling](schema.html#styling), [themes](schema.html#themes), [add-ons](addons.html#top), [`luccet.style`](api.html#style).
 
 ## Diagnostics and the panel {#diagnostics}
 
-Whenever Tern meets something it cannot read as you probably meant, it keeps the text visible and reports a diagnostic (rule 7). Each one has:
+Whenever Luccet meets something it cannot read as you probably meant, it keeps the text visible and reports a diagnostic (rule 7). Each one has:
 
 - a **code**, such as `block.unclosed`;
 - a **severity**: error, warning or info;
 - a **message** and a **position**, the line and column;
-- a **hint** that spells the fix in Tern's syntax.
+- a **hint** that spells the fix in Luccet's syntax.
 
-```tern {.live expect="block.unclosed ref.dangling math.unclosed"}
+```luccet {.live expect="block.unclosed ref.dangling math.unclosed"}
 :::aside
 See @nowhere.
 
@@ -1759,40 +1738,40 @@ The aside and the formula are never closed.
 
 ### Where they show {#where-diagnostics}
 
-- **The panel.** When you open a note from disk, or from `localhost`, a panel in the corner lists every diagnostic, with its line in the file and its hint. It opens by itself when there are errors. Readers of a published note do not see it. `data-diagnostics` on the `tern.js` line shows it everywhere; `data-quiet` hides it.
-- **The console.** One collapsed group, "tern: N problems", is always printed.
-- **The command line.** `tern check` prints them as `file:line:col: severity code: message`.
+- **The panel.** When you open a note from disk, or from `localhost`, a panel in the corner lists every diagnostic, with its line in the file and its hint. It opens by itself when there are errors. Readers of a published note do not see it. `data-diagnostics` on the `luccet.js` line shows it everywhere; `data-quiet` hides it.
+- **The console.** One collapsed group, "luccet: N problems", is always printed.
+- **The command line.** `luccet check` prints them as `file:line:col: severity code: message`.
 - **The editor.** The language server reports them as you type.
 
-A few problems only the browser can see, such as an add-on that failed to load (`addon.failed`). They join the same list. A [math add-on](addons.html#katex) reports a formula it cannot parse to the console, not as a diagnostic, as the other add-ons do.
+A few problems only the browser can see, such as an add-on that failed to load (`addon.failed`). They join the same list. A formula whose TeX does not translate is not one of them: its `tex.*` diagnostic comes from the engine, so the command line and the editor report it too.
 
 **Reference:** [every diagnostic](diagnostics.html#top), [severity](diagnostics.html#severity), [the console and the panel](diagnostics.html#console-and-panel).
 
 ## The workflow {#workflow}
 
-The command line, `tern-cli.js`, comes with the repository and runs on Node 22 or later. Below, `tern` stands for `node path/to/tern-cli.js`. Every command takes `--help`.
+The command line, `luccet-cli.js`, comes with the repository and runs on Node 22 or later. Below, `luccet` stands for `node path/to/luccet-cli.js`. Every command takes `--help`.
 
-### Start a note: `tern new` {#tern-new}
+### Start a note: `luccet new` {#luccet-new}
 
 ```sh
-tern new notes/linear-maps.html --title="Linear maps"
+luccet new notes/linear-maps.html --title="Linear maps"
 ```
 
-It writes the first line, with the relative path to the nearest `tern.js` in the note's folder or above, followed by a guard that shows the source as readable text when `tern.js` cannot load, and a `:::meta` block when you give `--title` or `--lang`. It never overwrites a file unless you add `--force`.
+It writes the first line, with the relative path to the nearest `luccet.js` in the note's folder or above, followed by a guard that shows the source as readable text when `luccet.js` cannot load, and a `:::meta` block when you give `--title` or `--lang`. It never overwrites a file unless you add `--force`.
 
 | Option | Effect |
 |---|---|
 | `--title=TEXT` | adds a `:::meta` block with that title |
 | `--use=a.js,b.css` | lists add-ons in a `:::use` block |
-| `--tern=PATH` | the path to `tern.js`, as written |
+| `--luccet=PATH` | the path to `luccet.js`, as written |
 | `--lang=TAG` | sets the note's language in `:::meta`; the guard's message follows it |
 | `--bare` | leaves out the guard |
 | `--force` | overwrites an existing file |
 
-### Check notes: `tern check` {#tern-check}
+### Check notes: `luccet check` {#luccet-check}
 
 ```sh
-tern check notes/
+luccet check notes/
 ```
 
 It prints every diagnostic of every note in the folder, with file lines, and exits with 1 when it finds an error, so it can guard a commit or a CI job.
@@ -1806,9 +1785,9 @@ notes/linear-maps.html:9:1: error block.unclosed: `:::proof` opened on line 8 is
 
 ### In your editor: the language server {#lsp}
 
-`tern lsp` is a language server over stdio, for any editor that speaks LSP. It gives you:
+`luccet lsp` is a language server over stdio, for any editor that speaks LSP. It gives you:
 
-- diagnostics as you type, the same as `tern check`;
+- diagnostics as you type, the same as `luccet check`;
 - completion of names after `:::`, `::` and `:`, and of ids after `@`;
 - go to definition and find references, for ids, footnotes and named closers;
 - rename of an id everywhere it is used, never inside code or math;
@@ -1816,39 +1795,39 @@ notes/linear-maps.html:9:1: error block.unclosed: `:::proof` opened on line 8 is
 - an outline of headings and blocks, and folding.
 
 :::warning
-Turn off automatic line wrapping for notes, and never run an HTML formatter such as Prettier on them. Wrapping breaks one-line constructs. Tern reports a broken block opener or leaf, but a broken table row simply ends the table, and braces pushed to the next line from a heading or a `$$` closer can attach silently to the next block. A formatter rewrites the note as if it were HTML, which nothing can undo.
+Turn off automatic line wrapping for notes, and never run an HTML formatter such as Prettier on them. Wrapping breaks one-line constructs. Luccet reports a broken block opener or leaf, but a broken table row simply ends the table, and braces pushed to the next line from a heading or a `$$` closer can attach silently to the next block. A formatter rewrites the note as if it were HTML, which nothing can undo.
 :::
 
-### Publish a static page: `tern build` {#tern-build}
+### Publish a static page: `luccet build` {#luccet-build}
 
 ```sh
-tern build notes/linear-maps.html -o site/
+luccet build notes/linear-maps.html -o site/
 ```
 
-It writes a page that is already rendered: the HTML is in the file, so it shows at once, and search engines read it without running scripts. The page still loads `tern.js`, which runs behaviours, and it carries the note's source too; its math is typeset at view time only if the note's `data-use` includes a [math add-on](addons.html#katex). `--math=katex` (or `--math=mathml`) typesets the math at build time instead, when the `katex` (or `temml`) package is installed.
+It writes a page that is already rendered: the HTML is in the file, so it shows at once, and search engines read it without running scripts. The page still loads `luccet.js`, which runs behaviours, and it carries the note's source too. Its formulas are in the HTML as MathML, like the rest of the note.
 
 - **Where it writes.** Without `-o`, to standard output. `-o site/`, with a trailing `/` or naming an existing folder, writes `site/linear-maps.html`, creating the folder. Any other `-o` is the output file, and missing folders on its path are created.
-- **Relative paths** are kept as written, so build into a folder where `tern.js`, images and add-ons resolve the same way.
+- **Relative paths** are kept as written, so build into a folder where `luccet.js`, images and add-ons resolve the same way.
 
 **Reference:** [command line](tools.html#top): [new](tools.html#new), [check](tools.html#check), [parse](tools.html#parse), [build](tools.html#build), [the language server](tools.html#lsp), [editor setup](tools.html#editors).
 
 ## Publishing {#publishing}
 
-A note is a static file. Publishing it means putting it, with `tern.js` and whatever it links to, on any static host.
+A note is a static file. Publishing it means putting it, with `luccet.js` and whatever it links to, on any static host.
 
-1. **Keep paths relative.** Upload the note with `tern.js`, add-ons and images in the same places relative to it.
+1. **Keep paths relative.** Upload the note with `luccet.js`, add-ons and images in the same places relative to it.
 2. **Any static host works**, GitHub Pages included. There is no server code.
-3. **Or build it.** `tern build` makes a page that shows its content before scripts run, which suits search engines and slow connections.
-4. **Math.** Load a [math add-on](addons.html#katex) in `:::use` or `data-use` to typeset formulas; `addons/katex.js` fetches KaTeX from a CDN. For offline use, point the add-on at a copy you host with `?base=`, or pre-render with `tern build --math`.
-5. **Content Security Policy.** Under a strict policy, link `tern.css` from the head, so that Tern does not need to inline its styles; the CSP section has the details.
+3. **Or build it.** `luccet build` makes a page that shows its content before scripts run, which suits search engines and slow connections.
+4. **Math needs nothing.** Luccet writes formulas as MathML itself, so a note with math works offline and under a strict policy, with no library to host or allow.
+5. **Content Security Policy.** Under a strict policy, link `luccet.css` from the head, so that Luccet does not need to inline its styles; the CSP section has the details.
 6. **Trust.** A note is a web page: its scripts and raw HTML run with the page's rights. Open notes you trust.
 
-**Reference:** [publishing](publishing.html#top): [hosting](publishing.html#hosting), [GitHub Pages](publishing.html#github-pages), [building](publishing.html#build), [CSP](publishing.html#csp), [KaTeX](publishing.html#katex), [offline](publishing.html#offline), [browsers](publishing.html#browsers), [trust](publishing.html#trust), [when it does not render](publishing.html#troubleshooting).
+**Reference:** [publishing](publishing.html#top): [hosting](publishing.html#hosting), [GitHub Pages](publishing.html#github-pages), [building](publishing.html#build), [CSP](publishing.html#csp), [math](publishing.html#katex), [offline](publishing.html#offline), [browsers](publishing.html#browsers), [trust](publishing.html#trust), [when it does not render](publishing.html#troubleshooting).
 
 ## Where next {#next}
 
 - **The examples** are complete notes, each declaring its own vocabulary: [a lecture](../examples/lecture.html), [a cheat sheet](../examples/cheatsheet.html), [media](../examples/media.html), [code](../examples/code.html), [a page layout](../examples/layout.html). Open their source next to the result.
-- **The reference** covers every rule and edge case: [blocks](syntax-blocks.html#top), [inline](syntax-inline.html#top), [elements and output](elements.html#top).
+- **The reference** covers every rule and edge case: [blocks](syntax-blocks.html#top), [inline](syntax-inline.html#top), [math](math.html#top), [elements and output](elements.html#top).
 - **Vocabulary** in depth: [schemas, add-ons and behaviours](schema.html#top).
 - **Every diagnostic**, with its fix: [diagnostics](diagnostics.html#top).
 - **Scripting** a note: [the JavaScript API](api.html#top).

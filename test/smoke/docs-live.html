@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Smoke: docs.js · Tern</title><script src="../../tern.js" data-use="../../docs/docs.js ../../docs/docs.css"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Smoke: docs.js · Luccet</title><script src="../../luccet.js" data-use="../../docs/docs.js ../../docs/docs.css"></script>
 
 ::site-nav
 
@@ -10,7 +10,7 @@
 
 A page paragraph, which the example's style must not reach.
 
-```tern {.live}
+```luccet {.live}
 A *short* example with $x^2$ and a footnote[^a].
 
 [^a]: The note, with a [link back](#k).
@@ -22,12 +22,12 @@ $$
 $$ {#eq}
 ```
 
-```tern {.live expect="block.unclosed attr.malformed"}
+```luccet {.live expect="block.unclosed attr.malformed"}
 :::note
 ## A heading {.a =b}
 ```
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#rn}
 $\dim V = \operatorname{rank} + \operatorname{nullity}$.
 :::
@@ -35,7 +35,7 @@ $\dim V = \operatorname{rank} + \operatorname{nullity}$.
 See @rn.
 ```
 
-```tern {.live}
+```luccet {.live}
 <script>window.__ran = 'inline'</script>
 
 <style>p { color: rgb(200, 0, 0) }</style>
@@ -43,7 +43,7 @@ See @rn.
 A paragraph styled by its own example. <button onclick="window.__ran = 'click'">Click</button>
 ```
 
-````tern [A titled example] {.live}
+````luccet [A titled example] {.live}
 ```js [Hello]
 console.log('hi')
 ```
@@ -51,9 +51,9 @@ console.log('hi')
 
 ## Math {#math}
 
-An example's macros are its own, and so are its KaTeX errors.
+An example's macros are its own, and so are the diagnostics of its formulas.
 
-```tern {.live}
+```luccet {.live}
 :::macros
 \newcommand{\RR}{\mathbb{R}}
 :::
@@ -65,21 +65,21 @@ $$
 $$
 ```
 
-```tern {.live}
+```luccet {.live expect="tex.unknown"}
 Without its own :::macros, $\RR$ is unknown here.
 ```
 
-```tern {.live}
+```luccet {.live expect="tex.unbalanced tex.unknown"}
 :::macros
 \newcommand{\half
 :::
 
-A formula KaTeX rejects: $\notacommand$.
+A formula that does not translate: $\notacommand$.
 ```
 
 ## Highlighting {#highlighting}
 
-```tern
+```luccet
 # Heading {#h .c}
 
 :::theorem[Title]{#t}

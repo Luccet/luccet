@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 // The one HTML emitter. It reads the transformed AST and nothing else, so
-// every host emits the same string from the same tree; the data.tern fields
+// every host emits the same string from the same tree; the data.luccet fields
 // it reads from the transforms are listed at the top of src/transform.js.
 //
 //   emit(ast, {positions = true, safe = false, cssom = false}) -> HTML string
 //     positions: `data-pos="line:col"` on math, directive, cell and code
 //                elements, from which the runtime positions its diagnostics;
 //     safe:      html nodes escaped, risky attributes and URLs dropped;
-//     cssom:     for the browser runtime only: tern's own presentational
+//     cssom:     for the browser runtime only: luccet's own presentational
 //                styles, a column's alignment and a grid's --t-cols, are
 //                written as data-t-align and data-t-cols instead of `style`,
 //                for the runtime to apply through the CSSOM, which a strict
@@ -25,7 +25,8 @@
 
 const { decode } = require('./entities');
 const { isReservedName } = require('./scan');
-const { pick } = require('./schema');
+const { pick, ALLOW, FULL_NAME, TITLE } = require('./schema');
+const tex = require('./tex');
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
 const SLOT = { details: 'summary', figure: 'figcaption', table: 'caption', fieldset: 'legend' }; // each tag's own title slot
@@ -42,12 +43,62 @@ const SAFE_SCHEME = /^(?:https?|mailto)$/i;
 // escaped already; this catches `::iframe` and `{tag=form}`.
 const UNSAFE_TAG = new Set('iframe object embed frame frameset base form meta link portal fencedframe applet'.split(' '));
 const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
-// Under `safe`, attributes dropped from every element whatever their value:
-// event handlers (on*, caught by the regex), ones that run or submit, ones
-// that steer navigation or focus, and ones that drive the host page's own
-// elements (its forms, dialogs and popovers through the popover, command
-// and interest invokers, and its image maps) or clobber its names.
-const UNSAFE_ATTR = new Set('srcdoc formaction formtarget formmethod formenctype target ping is nonce http-equiv autofocus style form popover popovertarget popovertargetaction commandfor command interestfor interesttarget usemap name'.split(' '));
+// Under `safe`, a tree is checked where the emitter would otherwise trust
+// what the transforms wrote, so a tree from elsewhere (glossary.json, an
+// add-on's) holds to what a source can make: an element is one its level's
+// allowlist names (src/schema.js ALLOW; a custom element is not), and a
+// title slot one a schema can give. A source's tree passes unchanged.
+const elementTag = (tag, level, fallback) => (!tag ? fallback : safe && (unsafeTag(tag) || !ALLOW[level].has(tag)) ? fallback : tag);
+const SLOTS = new Set(Object.values(TITLE));
+const titleSlot = (slot) => (safe && !SLOTS.has(slot) ? 'div' : slot);
+// MathML on a tree is used under `safe` only in the shape src/tex.js writes:
+// these elements and attributes, quoted values, escaped text, balanced, one
+// <math>. Anything else is translated again from the formula's TeX.
+const MATH_TAG = new Set('math mi mn mo ms mtext mspace mrow mfrac msqrt mroot mstyle merror mpadded mphantom msub msup msubsup munder mover munderover mmultiscripts mprescripts none mtable mtr mtd'.split(' '));
+const MATH_ATTR = new Set('accent accentunder class columnalign columnspacing depth dir display displaystyle fence form height largeop linethickness lspace mathbackground mathcolor mathsize mathvariant maxsize minsize movablelimits rowalign rowspacing rspace scriptlevel separator stretchy symmetric voffset width'.split(' '));
+const MATH_TOKEN = /<(\/?)([a-z]+)((?: [a-z]+="[^"<>]*")*)>|[^<]+/y;
+function mathShape(s) {
+  const open = [];
+  let k = 0;
+  while (k < s.length) {
+    MATH_TOKEN.lastIndex = k;
+    const m = MATH_TOKEN.exec(s);
+    if (!m) return false;
+    k = MATH_TOKEN.lastIndex;
+    if (m[2] === undefined) {
+      if (!open.length) return false; // text inside <math> only
+      continue;
+    }
+    // <math> is the outermost element, and only it
+    if (!MATH_TAG.has(m[2]) || (m[2] === 'math') !== (open.length === (m[1] ? 1 : 0))) return false;
+    if (m[1]) {
+      if (m[3] || open.pop() !== m[2]) return false;
+      if (!open.length) return k === s.length;
+    } else {
+      for (const a of m[3].matchAll(/ ([a-z]+)=/g)) if (!MATH_ATTR.has(a[1])) return false;
+      open.push(m[2]);
+    }
+  }
+  return false;
+}
+// Under `safe`, an attribute an author wrote or a schema set is kept only
+// when it is one HTML gives an element for its content: the global ones
+// that describe it, and those of media, links, quotes, tables, lists,
+// details, meters and tracks (a URL among them checked as any). Any other is
+// dropped: handlers, what runs or submits (srcdoc, formaction, form),
+// navigates elsewhere (target, ping), steers focus or keys (autofocus,
+// tabindex, accesskey), drives or reaches into the host page (popover and
+// the command and interest invokers, usemap, for, name, slot, an aria-*
+// that names an id), styles, and whatever HTML adds next. `data-*` is kept
+// but for Luccet's own `data-t-*`, which the runtime applies.
+const SAFE_ATTR = new Set(
+  ('id class title lang dir hidden role translate ' +
+    'href rel hreflang src srcset sizes alt width height loading decoding poster controls loop muted preload playsinline media type ' +
+    'cite datetime colspan rowspan scope abbr span start reversed value open min max low high optimum label kind srclang default').split(' '),
+);
+const ARIA_REF = new Set('aria-owns aria-controls aria-describedby aria-labelledby aria-activedescendant aria-details aria-errormessage aria-flowto'.split(' '));
+const safeAttr = (k, v) =>
+  SAFE_ATTR.has(k) ? !URL_KEYS.has(k) || safeSet(k, v) : k.startsWith('aria-') ? !ARIA_REF.has(k) : k.startsWith('data-') && k !== 'data-t' && !k.startsWith('data-t-');
 const FLAT = /^/; // a regexp's subject is flattened first: see write()
 const ATTR_NAME = /^[^\s"'<>\/=]+$/; // a key from a schema's `attrs` is not checked by the parser
 const FOOTNOTES = { type: '#footnotes' }; // the work item that starts the footnote section
@@ -70,6 +121,9 @@ const escValue = (s) => (VALUE.test(s) ? s.replace(VALUE_ALL, escChar) : s);
 // well-formed entity kept as written.
 const ATTR = /&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});|[&<"]/g;
 const escAttr = (s) => (VALUE.test(s) ? s.replace(ATTR, (m, body) => (body !== undefined && decode(body) !== null ? m : escChar(m[0]) + m.slice(1))) : s);
+// An entity's spelling, as the parser keeps it: anything else (a tree from
+// elsewhere) is written as its decoded text.
+const ENTITY = /^&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});$/;
 
 // Whether a URL may be emitted under `safe`: http(s), mailto or relative.
 // The browser decodes entities and drops tabs, newlines and leading
@@ -91,6 +145,7 @@ let work = null; // the stack of pending nodes and strings
 let positions = true;
 let safe = false;
 let cssom = false;
+let mathml = true; // opts.math !== 'tex': formulas as MathML
 let say = null; // the emitter's own words, in the note's label language (WORDS)
 let prefix = ''; // opts.idPrefix: before every id and fragment link, so an untrusted root cannot clash with the page's ids
 let section = false; // true once the footnote section is being written
@@ -98,7 +153,7 @@ let inToc = 0; // inside a toc entry: no nested links, no ids
 let fnDefs = null; // identifier -> footnoteDefinition
 let names = null; // see named(): containers' …
 let inlineNames = null; // … and leaves' and inline elements'
-let classes = null; // ` class="…"` for tern's own tokens, by token list
+let classes = null; // ` class="…"` for luccet's own tokens, by token list
 let fnPara = null; // the paragraph that ends with the back link …
 let fnBack = '';
 let taskPara = null; // … and the one that starts with a task checkbox
@@ -127,7 +182,7 @@ const write = (s) => {
   total += s.length;
   if ((buf += s).length > 16384) FLAT.test(buf), out.push(buf), (buf = '');
 };
-const tern = (node) => (node.data && node.data.tern) || {};
+const luccet = (node) => (node.data && node.data.luccet) || {};
 // A list of nodes still to write, from index i. Children go on the stack as
 // one cursor, not one item each: next() writes them in place and stops only
 // at a child that pushed work of its own.
@@ -157,25 +212,30 @@ function atom(n) {
   const a = n.attributes;
   switch (n.type) {
     case 'text': {
-      const e = n.data && n.data.tern && n.data.tern.entity;
-      return e || esc(n.value || ''); // an entity as written
+      const e = n.data && n.data.luccet && n.data.luccet.entity;
+      return e && typeof e === 'string' && ENTITY.test(e) ? e : esc(n.value || ''); // an entity as written
     }
     case 'break':
       return '<br>\n';
     case 'inlineCode':
       return `<code${attrs(a)}>${esc(n.value || '')}</code>`;
-    case 'inlineMath':
-      return (a ? `<span${attrs(a, 't-math', '', pos(n))}>` : `<span class="t-math"${pos(n)}>`) + esc(n.value || '') + '</span>';
+    case 'inlineMath': {
+      const f = formula(n, false);
+      return `<span${attrs(a, f.cls, '', pos(n) + f.attrs)}>${f.body}</span>`;
+    }
     case 'image':
       return image(n, a);
     case 'footnoteReference':
       return footnoteReference(n, a);
     case 'html':
       return html(n);
-    case 'ref': // unresolved, or in a toc: its literal text, when that is plain text
-      if (tern(n).resolved && !inToc) return null;
-      if (!n.children || !n.children.length) return esc(`@${n.id}`);
-      return n.children.length === 1 && n.children[0].type === 'text' ? atom(n.children[0]) : null;
+    case 'ref': {
+      // Unresolved, or in a toc: its literal text, when that is plain text;
+      // with attributes, in a span that carries them, so its id names it.
+      if (luccet(n).resolved && !inToc) return null;
+      const text = !n.children || !n.children.length ? esc(`@${n.id}`) : n.children.length === 1 && n.children[0].type === 'text' ? atom(n.children[0]) : null;
+      return text !== null && a && !inToc ? `<span${attrs(a)}>${text}</span>` : text;
+    }
     default:
       return null;
   }
@@ -198,15 +258,15 @@ function wrapped(open, list, close) {
   }
   write(s + close);
 }
-const pos = (node) => (positions && node.position ? ` data-pos="${node.position.start.line}:${node.position.start.column}"` : '');
+const pos = (node) => (positions && node.position ? ` data-pos="${+node.position.start.line}:${+node.position.start.column}"` : ''); // numbers, whatever the tree holds
 
-// ` id="…" class="…"`, tern's own attributes (`extra`, already escaped),
-// then the author's in order. `pre` and `post` are tern's
+// ` id="…" class="…"`, luccet's own attributes (`extra`, already escaped),
+// then the author's in order. `pre` and `post` are luccet's
 // class tokens before and after the author's; `skip` is a key emitted by the
 // caller instead.
 function attrs(a, pre, post, extra, skip, fence) {
   if (!a) {
-    // Tern's own tokens only: names are NAME characters, nothing to escape.
+    // Luccet's own tokens only: names are NAME characters, nothing to escape.
     const cls = post ? (pre ? `${pre} ${post}` : post) : pre;
     if (!cls) return extra || '';
     let c = classes.get(cls);
@@ -225,7 +285,7 @@ function attrs(a, pre, post, extra, skip, fence) {
     const v = a[k] == null ? '' : String(a[k]);
     // HTML reads attribute names without case, so does the check (a schema's `attrs` may spell one as it likes).
     const lower = k.toLowerCase();
-    if (safe && (/^on/.test(lower) || UNSAFE_ATTR.has(lower) || (URL_KEYS.has(lower) && !safeSet(lower, v)))) continue;
+    if (safe && !safeAttr(lower, v)) continue;
     s += v === '' ? ` ${k}` : ` ${k}="${escAttr(v)}"`;
   }
   return s;
@@ -237,7 +297,7 @@ const safeSet = (k, v) => (k === 'srcset' ? decodeEntities(v).split(',').every((
 // The few words the emitter writes itself, for assistive technology: the
 // footnote section's name, a back link's, a task checkbox's state. Picked by
 // the note's label language as a schema label map is (src/schema.js pick),
-// English when the language has none; opts.strings (window.TERN.strings in
+// English when the language has none; opts.strings (window.LUCCET.strings in
 // the browser) overrides a key with a string of its own.
 const WORDS = {
   footnotes: { en: 'Footnotes', de: 'Fußnoten', fr: 'Notes de bas de page', es: 'Notas al pie', pt: 'Notas de rodapé', it: 'Note a piè di pagina', nl: 'Voetnoten' },
@@ -256,7 +316,8 @@ function emit(ast, opts) {
   positions = !opts || opts.positions !== false;
   safe = !!(opts && opts.safe);
   cssom = !!(opts && opts.cssom);
-  say = words((opts && opts.lang) || (ast && ast.data && ast.data.tern && ast.data.tern.lang) || '', opts && opts.strings && typeof opts.strings === 'object' ? opts.strings : null);
+  mathml = !(opts && opts.math === 'tex');
+  say = words((opts && opts.lang) || (ast && ast.data && ast.data.luccet && ast.data.luccet.lang) || '', opts && opts.strings && typeof opts.strings === 'object' ? opts.strings : null);
   prefix = opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '';
   section = false;
   inToc = 0;
@@ -296,10 +357,10 @@ function emit(ast, opts) {
 }
 
 // Past the budget: the HTML written so far is returned as it is, and the
-// tree carries the diagnostic (ast.data.tern.diagnostics, where the
-// transforms put theirs, which the runtime and tern build read after emit).
+// tree carries the diagnostic (ast.data.luccet.diagnostics, where the
+// transforms put theirs, which the runtime and luccet build read after emit).
 function overflow(ast) {
-  const t = (ast.data || (ast.data = {})).tern || (ast.data.tern = {});
+  const t = (ast.data || (ast.data = {})).luccet || (ast.data.luccet = {});
   (t.diagnostics || (t.diagnostics = [])).push({
     code: 'output.limit',
     severity: 'error',
@@ -352,7 +413,7 @@ function node(n) {
       return kids(n.children);
     case 'list': {
       const tag = n.ordered ? 'ol' : 'ul';
-      const start = n.ordered && n.start != null && n.start !== 1 ? ` start="${n.start}"` : '';
+      const start = n.ordered && typeof n.start === 'number' && isFinite(n.start) && n.start !== 1 ? ` start="${n.start}"` : '';
       write(`<${tag}${attrs(a, '', '', start)}>\n`);
       work.push(`</${tag}>\n`);
       return kids(n.children);
@@ -415,7 +476,7 @@ function wrap(n, tag, a, at) {
 // ---------------------------------------------------------------- blocks
 
 function paragraph(n, a) {
-  const open = `<p${attrs(a, tern(n).junk ? 't-error' : '')}>`; // junk after a container's opener, shown as text
+  const open = `<p${attrs(a, luccet(n).junk ? 't-error' : '')}>`; // junk after a container's opener, shown as text
   wrapped(n === taskPara ? open + taskBox : open, n.children, n === fnPara ? `${fnBack}</p>\n` : '</p>\n');
 }
 
@@ -445,7 +506,7 @@ function listItem(n, a) {
 // a titled one is a listing, `figure.t-block.code` with them, its `pre`
 // keeping the line-number data.
 function code(n, a) {
-  const t = tern(n);
+  const t = luccet(n);
   const lang = n.lang ? `<code class="language-${escValue(n.lang)}">` : '<code>';
   const hl = t.hl == null ? null : Array.isArray(t.hl) ? t.hl : [];
   const start = typeof t.start === 'number' && isFinite(t.start) ? t.start : null;
@@ -474,13 +535,13 @@ function code(n, a) {
   }
   write(`<figure${attrs(a, 't-block code', '', ` data-t="code"${meta}${pos(n)}`, null, true)}><pre${data}${startStyle ? ` style="${startStyle}"` : ''}>${pre}`);
   work.push('</figure>\n');
-  title(t.slot || 'figcaption', t.text, t.title);
+  title(titleSlot(t.slot || 'figcaption'), t.text, t.title);
 }
 
 // Raw HTML byte for byte; an unclosed comment or raw-text block as escaped
 // source in `pre.t-error`.
 function html(n) {
-  const t = tern(n);
+  const t = luccet(n);
   const v = n.value || '';
   const inline = t.kind === 'inline';
   if (t.unclosed) return `<pre class="t-error"${pos(n)}>${esc(v)}</pre>\n`;
@@ -491,10 +552,26 @@ function html(n) {
 // Display math: `div.t-eq` holding `span.t-math[data-display]` and the
 // number; an unclosed one as escaped source in `div.t-eq.t-error`.
 function math(n, a) {
-  const t = tern(n);
+  const t = luccet(n);
   if (t.unclosed) return void write(`<div${attrs(a, 't-eq t-error', '', pos(n))}>${esc(t.source != null ? t.source : n.value || '')}</div>\n`);
   const no = t.text ? `<span class="t-eqno">${esc(String(t.text))}</span>` : '';
-  write(`<div${attrs(a, 't-eq')}><span class="t-math" data-display${pos(n)}>${esc(n.value || '')}</span>${no}</div>\n`);
+  const f = formula(n, true);
+  write(`<div${attrs(a, 't-eq')}><span class="${f.cls}" data-display${pos(n)}${f.attrs}>${f.body}</span>${no}</div>\n`);
+}
+
+// A formula's class, attributes and content: its MathML, from the math
+// transform (or translated here, for a tree that has not been through it),
+// with its TeX in data-tex; its TeX as text with {math: 'tex'}, and marked
+// t-error when it does not translate.
+function formula(n, display) {
+  const v = n.value || '';
+  if (!mathml) return { cls: 't-math', attrs: '', body: esc(v) };
+  const t = luccet(n);
+  let m = t.mathml;
+  if (typeof m === 'string' && safe && !mathShape(m)) m = undefined;
+  if (typeof m !== 'string' && !t.texError) m = tex.render(v, { display }).mathml;
+  const data = ` data-tex="${escValue(v)}"`;
+  return m ? { cls: 't-math', attrs: data, body: m } : { cls: 't-math t-error', attrs: data, body: esc(v) };
 }
 
 // A pipe table: `thead` from the first row unless headerless, `tbody` unless
@@ -503,7 +580,7 @@ function math(n, a) {
 function table(n, caption, label) {
   const rows = n.children || [];
   const align = n.align || [];
-  const head = tern(n).headerless ? 0 : Math.min(1, rows.length);
+  const head = luccet(n).headerless ? 0 : Math.min(1, rows.length);
   work.push('</table>\n');
   if (rows.length > head) {
     const td = align.map((al) => cellOpen('td', al)); // each column's opening tag
@@ -573,15 +650,17 @@ function title(slot, label, inlines) {
 
 // ---------------------------------------------------------------- named elements
 
-// Tern's class tokens and data-t for a named element: its name as a class
+// Luccet's class tokens and data-t for a named element: its name as a class
 // unless reserved, `t-cols` after the author's classes, and the grid as the
 // first declaration of `style`, or data-t-cols under `cssom`.
-function named(n, a, block) {
-  const t = tern(n);
+// `tag` is the element's: under `safe` a <button> is type=button, so that
+// an untrusted root inside the host's form cannot submit it.
+function named(n, a, block, tag) {
+  const t = luccet(n);
   const name = String(n.name);
   const cache = block ? names : inlineNames;
   let parts = cache.get(name); // [class tokens, data-t], the same for every element of a name
-  if (!parts) cache.set(name, (parts = [block + (isReservedName(name) ? '' : (block ? ' ' : '') + name), ` data-t="${escValue(name)}"`]));
+  if (!parts) cache.set(name, (parts = [block + (isReservedName(name) || !FULL_NAME.test(name) ? '' : (block ? ' ' : '') + name), ` data-t="${escValue(name)}"`])); // a name a tree made up is no class
   const pre = parts[0];
   let extra = parts[1];
   let skip = null;
@@ -596,20 +675,21 @@ function named(n, a, block) {
       }
     }
   }
+  if (safe && tag === 'button') (extra += ' type="button"'), (skip = 'type');
   return attrs(a, pre, t.cols != null && t.cols !== '' ? 't-cols' : '', extra + pos(n), skip);
 }
 
 // A container, its title slot, body and end mark.
 function container(n, a) {
-  const t = tern(n);
+  const t = luccet(n);
   const name = n.name;
   if (name === 'meta') return; // nothing: the runtime writes it into the head
   if (name === 'use') return; // nothing: the add-ons it lists are loaded, not shown
   // The author's id, classes and keys are carried, as on any element; the
-  // runtime finds macros by `.t-macros`, and `hidden` is tern's.
+  // runtime finds macros by `.t-macros`, and `hidden` is luccet's.
   if (name === 'macros') return void write(`<div${attrs(a, 't-macros', '', ` hidden${pos(n)}`, 'hidden')}>${esc(n.value || '')}</div>\n`);
   if (VERBATIM_ERROR.has(name)) return void write(`<pre${attrs(a, 't-error', '', pos(n))}>${esc(n.value || '')}</pre>\n`);
-  const tag = safe && unsafeTag(t.tag || 'div') ? 'div' : t.tag || 'div';
+  const tag = elementTag(t.tag, 'block', 'div');
   const list = n.children || [];
   const label = list[0] && list[0].data && list[0].data.directiveLabel ? list[0] : null;
   const b = label ? 1 : 0; // the body is list[b…]
@@ -622,7 +702,7 @@ function container(n, a) {
   }
   write(open);
   work.push(`</${tag}>\n`);
-  const slot = t.slot !== undefined ? t.slot : label && label.children && label.children.length ? SLOT[tag] || 'div' : t.text ? SLOT[tag] || 'div' : null;
+  const slot = t.slot !== undefined ? titleSlot(t.slot) : label && label.children && label.children.length ? SLOT[tag] || 'div' : t.text ? SLOT[tag] || 'div' : null;
   const last = slot === 'figcaption';
   if (slot && last) title(slot, t.text, label && label.children);
   if (t.end != null && t.end !== '') work.push(`<span class="t-end" aria-hidden="true">${esc(String(t.end))}</span>`);
@@ -635,7 +715,7 @@ function container(n, a) {
 const imageOnly = (p) => p.type === 'paragraph' && !p.attributes && p.children && p.children.length === 1 && p.children[0].type === 'image';
 
 // The label of a leaf or inline element counted or labelled by its schema
-// (data.tern.text), as its first child: `span.t-label`, then a space when
+// (data.luccet.text), as its first child: `span.t-label`, then a space when
 // content follows, as in a container's title. A void
 // element has nowhere to put it.
 function label(t, more) {
@@ -645,8 +725,8 @@ function label(t, more) {
 // A leaf; a void element gets no content, which follows it in a
 // paragraph; a toc leaf holds its list.
 function leaf(n, a) {
-  const t = tern(n);
-  const tag = safe && unsafeTag(t.tag || 'div') ? 'div' : t.tag || 'div';
+  const t = luccet(n);
+  const tag = elementTag(t.tag, 'leaf', 'div');
   if (Array.isArray(t.toc)) return toc(n, a, tag, t.toc, t);
   const open = `<${tag}${named(n, a, '')}>`;
   if (VOID.has(tag)) {
@@ -711,10 +791,10 @@ function tocNext(t) {
 
 // An inline element, its label first; a void one is followed by its content.
 function inlineElement(n, a) {
-  const t = tern(n);
-  const tag = safe && unsafeTag(t.tag || 'span') ? 'span' : t.tag || 'span';
-  if (VOID.has(tag)) return void (write(`<${tag}${named(n, a, '')}>`), kids(n.children));
-  wrapped(`<${tag}${named(n, a, '')}>${label(t, n.children && n.children.length > 0)}`, n.children, `</${tag}>`);
+  const t = luccet(n);
+  const tag = elementTag(t.tag, 'inline', 'span');
+  if (VOID.has(tag)) return void (write(`<${tag}${named(n, a, '', tag)}>`), kids(n.children));
+  wrapped(`<${tag}${named(n, a, '', tag)}>${label(t, n.children && n.children.length > 0)}`, n.children, `</${tag}>`);
 }
 
 // ---------------------------------------------------------------- inline
@@ -739,9 +819,10 @@ function image(n, a) {
 // A resolved reference is `a.t-ref` holding its text; an unresolved
 // one is its literal text.
 function ref(n, a) {
-  if (!tern(n).resolved || inToc) {
+  if (!luccet(n).resolved || inToc) {
     const h = atom(n); // its literal text
-    return h !== null ? void write(h) : kids(n.children);
+    if (h !== null) return void write(h);
+    return a && !inToc ? wrapped(`<span${attrs(a)}>`, n.children, '</span>') : kids(n.children);
   }
   wrapped(`<a${attrs(a, 't-ref', '', ` href="#${escAttr(prefix + String(n.id))}"`, 'href')}>`, n.children, '</a>');
 }
@@ -749,7 +830,7 @@ function ref(n, a) {
 // A footnote reference: `sup.t-fnref > a`, or the literal text when it did
 // not resolve.
 function footnoteReference(n, a) {
-  const t = tern(n);
+  const t = luccet(n);
   if (inToc) return '';
   if (t.resolved === false || t.target == null || t.number == null) return esc(`[^${n.label}]`);
   const open = a ? `<sup${attrs(a, 't-fnref')}><a role="doc-noteref"` : '<sup class="t-fnref"><a role="doc-noteref"';
@@ -764,7 +845,7 @@ function footnoteReference(n, a) {
 // In the section it is an `li` whose last paragraph ends with the back link,
 // or which gets a paragraph for it.
 function footnoteDefinition(n) {
-  const t = tern(n);
+  const t = luccet(n);
   if (!section) {
     if (!t.dropped && !fnDefs.has(n.identifier)) fnDefs.set(n.identifier, n);
     return;
@@ -781,7 +862,7 @@ function footnoteDefinition(n) {
 
 // The section after all content, in the transforms' order.
 function footnotes(ast) {
-  const order = ast && ast.data && ast.data.tern && ast.data.tern.footnotes;
+  const order = ast && ast.data && ast.data.luccet && ast.data.luccet.footnotes;
   section = true;
   if (!Array.isArray(order)) return;
   const defs = order.map((id) => fnDefs.get(id)).filter(Boolean);

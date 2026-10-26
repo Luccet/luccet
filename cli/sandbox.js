@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Runs a note's own code — the head's classic scripts and the script add-ons
-// of its data-use — away from the tools, so `tern check`, `tern build`,
-// `tern parse` and the language server can analyse an untrusted note without
+// of its data-use — away from the tools, so `luccet check`, `luccet build`,
+// `luccet parse` and the language server can analyse an untrusted note without
 // running it with their own privileges (docs/publishing.html#trust-tools).
 // Two walls:
 //   - a child process, started with Node's --permission and an empty
-//     environment, allowed to read only tern.js and this file and capped in
+//     environment, allowed to read only luccet.js and this file and capped in
 //     memory: even past the inner wall it reaches no file, no other process,
 //     no native add-on, no worker (node:permissions);
 //   - inside it, one sealed vm context per note: the note's code sees a fresh
-//     global holding the engine and a `tern`/`window` shim and nothing of
+//     global holding the engine as `luccet`, an inert `window`, and nothing of
 //     Node, so `this.constructor.constructor` and the like reach no host
 //     object; a time limit stops a runaway script or transform, and dynamic
 //     import() is off.
@@ -27,15 +27,16 @@
 // the blocking way cannot read the pipe itself (Windows, whose pipes are not
 // file descriptors), a worker thread drives the event-loop way for the
 // tools, with one child for the run, and the tools wait for each reply on a
-// shared flag; TERN_SANDBOX_ONESHOT=1 forces that, for the tests (the name
+// shared flag; LUCCET_SANDBOX_ONESHOT=1 forces that, for the tests (the name
 // is from when that way started a child per note).
 //
 //   analyse(req)        run a note's code and analyse it, blocking; req is
-//                       {note, head, dataUse, dataLang, dataKatex, scripts,
+//                       {note, head, dataUse, dataLang, dataMath, scripts,
 //                       addons, transform, hostParse}, the result {schema,
-//                       lang, demo, ast, diagnostics, problems, failures}, or
-//                       with hostParse, when the code allows it, {hostParse:
-//                       true, schema, lang, demo, problems} for the host to
+//                       lang, math, macros, demo, ast, diagnostics, problems,
+//                       failures}, or with hostParse, when the code allows it,
+//                       {hostParse: true, schema, lang, math, macros, demo,
+//                       problems} for the host to
 //                       parse; {failed} on a child error (a timeout, a
 //                       crash); scripts and addons are [{url, code, line?,
 //                       column?}], read by the host.
@@ -51,7 +52,7 @@
 
 const path = require('path');
 
-const TERN = path.resolve(__dirname, '..', 'tern.js');
+const LUCCET = path.resolve(__dirname, '..', 'luccet.js');
 const SELF = __filename;
 const RUN_MS = 2000; // a note's scripts and transforms, together
 const STARTUP_MS = 10000; // loading the engine into a fresh context
@@ -61,8 +62,8 @@ const WEDGED_MS = 10000; // the child itself stuck past its own limit: kill it
 // ------------------------------------------------------------------ child
 
 // The trusted driver, set up once in each sealed context: it defines the
-// globals a note's code sees (an inert `window`, a `tern`/`window.tern`
-// shim, a buffering console) and __ternDriver, which runs the code and
+// globals a note's code sees (an inert `window`, the engine as
+// `luccet`/`window.luccet`, a buffering console) and __luccetDriver, which runs the code and
 // returns the analysis as a JSON string. Guest code runs by indirect eval
 // in the context's global scope, as a classic script does; the driver's own
 // helpers stay in this closure, out of its reach. Written as a function and
@@ -73,11 +74,11 @@ function driverSetup() {
   var engine = G.module.exports;
   // The engine functions, captured before any note code runs, so a script
   // that overwrites module.exports cannot redirect the analysis.
-  var E = { parse: engine.parse, emit: engine.emit, toHTML: engine.toHTML, check: engine.check, visit: engine.visit, outline: engine.outline, css: engine.css, transform: engine.transform, version: engine.version };
+  var E = { parse: engine.parse, emit: engine.emit, toHTML: engine.toHTML, check: engine.check, visit: engine.visit, outline: engine.outline, css: engine.css, transform: engine.transform, version: engine.version, block: engine.block, leaf: engine.leaf, inline: engine.inline, schema: engine.schema, config: engine.config };
   var stringify = G.JSON.stringify;
   // The pipeline's transform names, read through the engine's own getter,
-  // taken before any note code runs: a transform the code adds, through the
-  // shim or the engine itself, shows in the list.
+  // taken before any note code runs: a transform the code adds shows in the
+  // list.
   var transformNames = Object.getOwnPropertyDescriptor(engine, 'transforms').get;
   var names = function () { return transformNames.call(engine).join(' '); };
   // What tells plain data, for the host parse below.
@@ -97,7 +98,7 @@ function driverSetup() {
   };
 
   // Browser globals a note or add-on may touch while it loads: each accepts
-  // anything and does nothing, so the code reaches its tern.block calls.
+  // anything and does nothing, so the code reaches its luccet.block calls.
   var inert = new Proxy(function () {}, {
     get: function (_, k) {
       return k === Symbol.toPrimitive ? function () { return ''; } : k === Symbol.iterator ? function* () {} : k === 'then' ? undefined : inert;
@@ -107,11 +108,40 @@ function driverSetup() {
   });
   var BROWSER = 'document customElements HTMLElement Element Node Event CustomEvent EventTarget CSS CSSStyleSheet navigator location history localStorage sessionStorage matchMedia getComputedStyle requestAnimationFrame cancelAnimationFrame requestIdleCallback setTimeout clearTimeout setInterval clearInterval queueMicrotask MutationObserver IntersectionObserver ResizeObserver fetch addEventListener removeEventListener dispatchEvent'.split(' ');
 
-  // tern.config as the runtime builds it (src/runtime.js readConfig): `use`
-  // from data-use's query strings, `katex` from window.TERN.katex and
-  // data-katex, `lang`.
-  function shimConfig(given, dataUse, dataKatex, lang) {
+  // luccet.config's math, as the runtime reads it: window.LUCCET.math and
+  // .macros, data-math winning over the first.
+  function pageMath(given, dataMath) {
+    var out = {};
+    try {
+      if (given && typeof given === 'object') {
+        if (own(given, 'math')) out.math = given.math;
+        if (own(given, 'macros')) out.macros = given.macros;
+      }
+    } catch (e) {}
+    if (dataMath !== undefined) out.math = dataMath;
+    return out;
+  }
+  // Page macros as plain data, {name: TeX string}, or undefined.
+  function texMacros(v) {
+    if (!v || typeof v !== 'object') return undefined;
+    var out = {};
+    var keys = ownNames(v);
+    for (var i = 0; i < keys.length; i++) {
+      var d = describe(v, keys[i]);
+      if (d.enumerable && hasOwn(d, 'value') && typeof d.value === 'string') out[keys[i]] = d.value;
+    }
+    return out;
+  }
+
+  // luccet.config as the runtime builds it (src/runtime.js readConfig):
+  // window.LUCCET's keys (strings, addonTimeout …), `use` from
+  // window.LUCCET.use and data-use's query strings, and `lang`.
+  function shimConfig(given, dataUse, lang) {
     var g = given && typeof given === 'object' ? given : {};
+    var out = {};
+    try {
+      Object.assign(out, g);
+    } catch (e) {}
     var use = Object.assign(Object.create(null), g.use && typeof g.use === 'object' ? g.use : null);
     (dataUse || '').split(/\s+/).filter(Boolean).forEach(function (entry) {
       var q = entry.indexOf('?');
@@ -138,16 +168,21 @@ function driverSetup() {
       });
       use[name] = Object.assign(Object.create(null), use[name], params);
     });
-    var katex = typeof g.katex === 'string' ? { base: g.katex } : Object.assign({}, g.katex);
-    if (dataKatex !== undefined) katex.base = String(dataKatex).trim();
-    return { use: use, katex: katex, lang: lang };
+    out.use = use;
+    out.lang = lang;
+    return out;
   }
 
-  G.__ternDriver = function (req) {
+  G.__luccetDriver = function (req) {
     // The request arrived as a global, and the driver is one: both go
-    // before any note code runs, which sees the shim and the engine alone.
+    // before any note code runs, which sees the engine alone. So does the
+    // phase marker, an Int32Array of the host's: where the time went when
+    // the run is cut off (0 the code, 1 the parse, 2 the transforms), read
+    // by the host as plain memory, never through the context.
+    var phase = G.__phase;
+    delete G.__phase;
     delete G.__reqText;
-    delete G.__ternDriver;
+    delete G.__luccetDriver;
     var consoleOut = [];
     var console = { log: say, warn: say, error: say, info: say, debug: say };
     function say() {
@@ -158,11 +193,11 @@ function driverSetup() {
     G.self = G;
     G.globalThis = G;
     G.console = console;
-    G.TERN = undefined;
+    G.LUCCET = undefined;
 
     var run = function (code) {
-      // Indirect eval: the code runs in the global scope, as tern.js runs a
-      // classic script, seeing the shim and nothing of this closure.
+      // Indirect eval: the code runs in the global scope, as luccet.js runs a
+      // classic script, seeing the engine and nothing of this closure.
       return (0, eval)(code);
     };
 
@@ -178,9 +213,9 @@ function driverSetup() {
       }
     }
 
-    // window.TERN as tern.js reads it when it starts: after the head scripts,
-    // before the add-ons. data-lang, even empty, wins over window.TERN.lang.
-    var given = G.TERN && typeof G.TERN === 'object' ? G.TERN : null;
+    // window.LUCCET as luccet.js reads it when it starts: after the head scripts,
+    // before the add-ons. data-lang, even empty, wins over window.LUCCET.lang.
+    var given = G.LUCCET && typeof G.LUCCET === 'object' ? G.LUCCET : null;
     var lang;
     var ownSchema = null;
     try {
@@ -190,56 +225,40 @@ function driverSetup() {
       lang = lang ? String(lang) : undefined;
     } catch (e) {
       lang = req.dataLang !== undefined && req.dataLang ? String(req.dataLang) : undefined;
-      problems.push({ kind: 'head', severity: 'warning', url: 'window.TERN', message: 'window.TERN cannot be read: ' + message(e), line: 1, column: 1, seq: req.vocabSeq });
+      problems.push({ kind: 'head', severity: 'warning', url: 'window.LUCCET', message: 'window.LUCCET cannot be read: ' + message(e), line: 1, column: 1, seq: req.vocabSeq });
     }
 
-    var schema = { block: {}, leaf: {}, inline: {} };
+    // The add-ons get the engine itself, as in the browser (the contract,
+    // docs/addon-api.html#node): its registry with its checks, and its
+    // runtime members, inert under node (on and define never fire, render
+    // resolves to [], ready never settles). Only two parts are the page's:
+    // config, as the runtime builds it, and transform, wrapped so that a
+    // transform that throws names its add-on. The analysis below uses what E
+    // captured, whatever the code does to the object.
+    var schema = E.schema;
     var failures = [];
     var current = null;
-    var inertFn = function () { return function () {}; };
-    var shim = {
-      schema: schema,
-      block: function (name, spec) { schema.block[name] = spec; },
-      leaf: function (name, spec) { schema.leaf[name] = spec; },
-      inline: function (name, spec) { schema.inline[name] = spec; },
-      define: inertFn,
-      undefine: function () {},
-      on: inertFn,
-      style: function () {},
-      string: function (key, params, fallback) { return fallback === undefined ? key : String(fallback); },
-      transform: function (name, fn, order) {
-        if (typeof name !== 'string') return E.transform(name, fn); // run the pipeline on a tree
-        var url = current;
-        var wrapped = function (tree, ctx) {
-          try {
-            return fn.call(this, tree, ctx);
-          } catch (e) {
-            failures.push({ url: url, name: name, message: message(e) });
-          }
-        };
-        var off = E.transform(name, wrapped, order);
-        var done = false;
-        return function () {
-          if (done) return;
-          done = true;
-          off();
-        };
-      },
-      render: function () { return Promise.resolve([]); },
-      ready: new Promise(function () {}),
-      diagnostics: [],
-      config: shimConfig(given, req.dataUse, req.dataKatex, lang),
-      version: E.version,
-      parse: E.parse,
-      emit: E.emit,
-      toHTML: E.toHTML,
-      check: E.check,
-      visit: E.visit,
-      outline: E.outline,
-      css: E.css,
+    Object.assign(E.config, shimConfig(given, req.dataUse, lang), pageMath(given, req.dataMath));
+    engine.transform = function (name, fn, order) {
+      if (typeof name !== 'string') return E.transform(name, fn); // run the pipeline on a tree
+      var url = current;
+      var wrapped = function (tree, ctx) {
+        try {
+          return fn.call(this, tree, ctx);
+        } catch (e) {
+          failures.push({ url: url, name: name, message: message(e) });
+        }
+      };
+      var off = E.transform(name, wrapped, order);
+      var done = false;
+      return function () {
+        if (done) return;
+        done = true;
+        off();
+      };
     };
-    G.tern = shim;
-    G.window.tern = shim;
+    G.luccet = engine;
+    G.window.luccet = engine;
 
     // The script add-ons, in order; a transform registers with this
     // context's engine, so engine.transform runs it below. A throw at the
@@ -250,31 +269,37 @@ function driverSetup() {
         run(req.addons[a].code);
       } catch (e) {
         var syntax = e && typeof e === 'object' && e.name === 'SyntaxError';
-        problems.push({ kind: 'addon', url: current, seq: req.addons[a].seq, message: syntax ? 'it does not parse as a classic script, which is how tern.js runs an add-on: ' + message(e) : 'it threw: ' + message(e) });
+        problems.push({ kind: 'addon', url: current, seq: req.addons[a].seq, message: syntax ? 'it does not parse as a classic script, which is how luccet.js runs an add-on: ' + message(e) : 'it threw: ' + message(e) });
       }
       current = null;
     }
 
-    // window.TERN.schema on top: the note's declaration wins over an add-on's
-    // for the same name, and its `strict` sets schema.strict.
+    // window.LUCCET.schema on top, through the registry as the runtime
+    // applies it (src/runtime.js applyOwnSchema): the note's declaration wins
+    // over an add-on's for the same name, a bad entry is a console warning,
+    // and its `strict` sets schema.strict.
     try {
       var sc = ownSchema && typeof ownSchema === 'object' ? ownSchema : null;
       ['block', 'leaf', 'inline'].forEach(function (level) {
         var entries = sc ? sc[level] : null;
         if (entries && typeof entries === 'object') Object.keys(entries).forEach(function (name) {
-          if (entries[name] && typeof entries[name] === 'object') schema[level][name] = entries[name];
+          try {
+            E[level](name, entries[name]);
+          } catch (e) {
+            say('luccet: window.LUCCET.schema.' + level + ': ' + message(e));
+          }
         });
       });
       if (sc && sc.strict !== undefined) schema.strict = !!sc.strict;
     } catch (e) {
-      problems.push({ kind: 'head', severity: 'warning', url: 'window.TERN.schema', message: 'window.TERN.schema cannot be read: ' + message(e), line: 1, column: 1 });
+      problems.push({ kind: 'head', severity: 'warning', url: 'window.LUCCET.schema', message: 'window.LUCCET.schema cannot be read: ' + message(e), line: 1, column: 1 });
     }
 
-    // window.ternDocs, a documentation add-on's data (its demo schema, pages
+    // window.luccetDocs, a documentation add-on's data (its demo schema, pages
     // and examples), for cli/examples.js and test/docs.js; plain data.
-    var ternDocs = null;
+    var luccetDocs = null;
     try {
-      if (G.ternDocs && typeof G.ternDocs === 'object') ternDocs = G.ternDocs;
+      if (G.luccetDocs && typeof G.luccetDocs === 'object') luccetDocs = G.luccetDocs;
     } catch (e) {}
 
     // The host parses when nothing of the code would act on the tree: no
@@ -296,21 +321,31 @@ function driverSetup() {
       }
       return true;
     };
+    // The page's math, as the add-ons left it: an add-on that typesets math
+    // itself (KaTeX's) sets config.math = 'tex'; macros are name -> TeX.
+    var math;
+    var macros;
+    try {
+      math = E.config.math === 'tex' ? 'tex' : undefined;
+      macros = texMacros(E.config.macros);
+    } catch (e) {}
     var hostParse = false;
     try {
       hostParse = !!req.hostParse && names() === builtinTransforms && plain(schema, 0);
     } catch (e) {}
-    if (hostParse) return stringify({ hostParse: true, schema: schema, lang: lang === undefined ? null : lang, ternDocs: ternDocs, problems: problems, failures: failures, consoleOut: consoleOut });
+    if (hostParse) return stringify({ hostParse: true, schema: schema, lang: lang === undefined ? null : lang, math: math || null, macros: macros || null, luccetDocs: luccetDocs, problems: problems, failures: failures, consoleOut: consoleOut });
 
-    var options = { schema: schema, head: req.head, lang: lang };
+    var options = { schema: schema, head: req.head, lang: lang, math: math, macros: macros };
+    if (phase) phase[0] = 1;
     var parsed = E.parse(req.note, options);
     var diagnostics = parsed.diagnostics;
     if (req.transform) {
+      if (phase) phase[0] = 2;
       E.transform(parsed.ast, options);
-      diagnostics = diagnostics.concat(parsed.ast.data.tern.diagnostics);
+      diagnostics = diagnostics.concat(parsed.ast.data.luccet.diagnostics);
     }
 
-    return stringify({ schema: schema, lang: lang === undefined ? null : lang, ternDocs: ternDocs, ast: parsed.ast, diagnostics: diagnostics, problems: problems, failures: failures, consoleOut: consoleOut });
+    return stringify({ schema: schema, lang: lang === undefined ? null : lang, math: math || null, macros: macros || null, luccetDocs: luccetDocs, ast: parsed.ast, diagnostics: diagnostics, problems: problems, failures: failures, consoleOut: consoleOut });
   };
 }
 
@@ -331,11 +366,11 @@ function childMain() {
   // dynamic import() is refused, cleanly: without a handler the engine aborts
   // the process; with one it just rejects the promise.
   const noImport = () => {
-    throw new Error('dynamic import() is not available in the tern sandbox');
+    throw new Error('dynamic import() is not available in the luccet sandbox');
   };
-  const ternSource = fs.readFileSync(TERN, 'utf8');
-  const ternScript = new vm.Script(ternSource, { filename: 'tern.js' });
-  const driverScript = new vm.Script('(' + driverSetup.toString() + ')()', { filename: 'tern-sandbox-driver' });
+  const luccetSource = fs.readFileSync(LUCCET, 'utf8');
+  const luccetScript = new vm.Script(luccetSource, { filename: 'luccet.js' });
+  const driverScript = new vm.Script('(' + driverSetup.toString() + ')()', { filename: 'luccet-sandbox-driver' });
 
   const writeFrame = (text) => {
     const body = Buffer.from(text, 'utf8');
@@ -354,19 +389,22 @@ function childMain() {
       off += w; // a full pipe takes the rest on the next write
     }
   };
+  const PHASES = ['code', 'parse', 'transform'];
   const run = (reqText) => {
     let reply;
+    const phase = new Int32Array(1);
     try {
       const ctx = vm.createContext(Object.create(null), { codeGeneration: { strings: true, wasm: false }, microtaskMode: 'afterEvaluate' });
       ctx.__reqText = reqText;
+      ctx.__phase = phase;
       vm.runInContext('globalThis.module = { exports: {} };', ctx);
-      ternScript.runInContext(ctx, { timeout: STARTUP_MS });
+      luccetScript.runInContext(ctx, { timeout: STARTUP_MS });
       driverScript.runInContext(ctx, { timeout: STARTUP_MS });
-      reply = vm.runInContext('__ternDriver(JSON.parse(__reqText))', ctx, { timeout: RUN_MS, filename: 'tern-sandbox', importModuleDynamically: noImport });
+      reply = vm.runInContext('__luccetDriver(JSON.parse(__reqText))', ctx, { timeout: RUN_MS, filename: 'luccet-sandbox', importModuleDynamically: noImport });
       if (typeof reply !== 'string') throw new Error('the driver returned no analysis');
     } catch (e) {
       const timeout = e && e.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT';
-      reply = JSON.stringify({ failed: timeout ? 'timeout' : 'error', message: (e && e.message) || String(e) });
+      reply = JSON.stringify({ failed: timeout ? 'timeout' : 'error', phase: PHASES[phase[0]] || 'code', message: (e && e.message) || String(e) });
     }
     writeFrame(reply);
   };
@@ -391,7 +429,7 @@ function childMain() {
 // ------------------------------------------------------------------ host
 
 let child = null; // the blocking bridge's: {proc, toFd, fromFd, alive, served} or null before the first note
-let viaWorker = process.env.TERN_SANDBOX_ONESHOT === '1'; // the blocking way goes through a worker thread (Windows)
+let viaWorker = process.env.LUCCET_SANDBOX_ONESHOT === '1'; // the blocking way goes through a worker thread (Windows)
 let broken = false; // a spawn that failed: fall back, warn once
 const spin = new Int32Array(new SharedArrayBuffer(4));
 const TRIP_AT = 3; // children dead before their first answer, in a row
@@ -410,14 +448,14 @@ function died(c) {
   if (++deaths < TRIP_AT) return;
   deaths = 0;
   trippedUntil = Date.now() + TRIP_MS;
-  process.stderr.write(`tern: the script sandbox died ${TRIP_AT} times in a row before answering; notes are analysed without their own scripts for ${TRIP_MS / 1000} s\n`);
+  process.stderr.write(`luccet: the script sandbox died ${TRIP_AT} times in a row before answering; notes are analysed without their own scripts for ${TRIP_MS / 1000} s\n`);
 }
 const tripped = () => Date.now() < trippedUntil;
 
 // The child's command line and environment: Node's permission model,
-// reading only tern.js and this file, a memory cap, and an empty environment
+// reading only luccet.js and this file, a memory cap, and an empty environment
 // but for what Node itself needs to start on Windows.
-const ARGS = ['--permission', `--allow-fs-read=${TERN}`, `--allow-fs-read=${SELF}`, `--max-old-space-size=${MEMORY_MB}`, SELF, '--sandbox-child'];
+const ARGS = ['--permission', `--allow-fs-read=${LUCCET}`, `--allow-fs-read=${SELF}`, `--max-old-space-size=${MEMORY_MB}`, SELF, '--sandbox-child'];
 function childEnv() {
   const env = {};
   if (process.platform === 'win32') for (const k of ['SystemRoot', 'SYSTEMROOT', 'windir', 'TEMP', 'TMP', 'PATHEXT']) if (process.env[k] !== undefined) env[k] = process.env[k];
@@ -472,7 +510,7 @@ function startBridge() {
   const { Worker, MessageChannel } = require('worker_threads');
   const flag = new Int32Array(new SharedArrayBuffer(4));
   const { port1, port2 } = new MessageChannel();
-  const worker = new Worker(SELF, { workerData: { ternSandboxBridge: port2, flag }, transferList: [port2] });
+  const worker = new Worker(SELF, { workerData: { luccetSandboxBridge: port2, flag }, transferList: [port2] });
   worker.unref();
   port1.unref();
   const b = { worker, port: port1, flag };
@@ -501,7 +539,7 @@ function workerAnalyse(req) {
 // tripped, a child that cannot start) rides in the reply, as `said`: the
 // worker's own stderr would reach the terminal only once the tools' thread
 // is free, out of order or after the command has exited.
-function bridgeMain({ ternSandboxBridge: port, flag }) {
+function bridgeMain({ luccetSandboxBridge: port, flag }) {
   let said = '';
   process.stderr.write = (s) => ((said += String(s)), true);
   port.on('message', async (req) => {
@@ -530,7 +568,7 @@ function ensureChild() {
 // A spawn that failed: no child runs for the rest of the process, said once.
 function unavailable(e) {
   broken = true;
-  process.stderr.write(`tern: the script sandbox could not start (${e.message}); notes are analysed without their own scripts\n`);
+  process.stderr.write(`luccet: the script sandbox could not start (${e.message}); notes are analysed without their own scripts\n`);
   return { failed: 'unavailable' };
 }
 
@@ -766,5 +804,5 @@ function shutdown() {
 
 const thread = require('worker_threads');
 if (require.main === module && process.argv.includes('--sandbox-child')) childMain();
-else if (!thread.isMainThread && thread.workerData && thread.workerData.ternSandboxBridge) bridgeMain(thread.workerData);
+else if (!thread.isMainThread && thread.workerData && thread.workerData.luccetSandboxBridge) bridgeMain(thread.workerData);
 else module.exports = { analyse, analyseAsync, shutdown, clean };

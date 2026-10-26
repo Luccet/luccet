@@ -1,20 +1,22 @@
-<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>
 
 :::meta
 title: Smoke: the :::use block
 :::
 
 :::use
-/addons/katex.js
-/themes/nord.css
+/test/smoke/fence-addon.js
+/test/smoke/themes/nord.css
 :::
 
 # Smoke: add-ons from a leading :::use block
 
-Inline $x^2$ and display:
+A fence, which the add-on the block loads marks:
 
-$$ a^2 + b^2 = c^2 $$
+```js
+const answer = 42;
+```
 
 :::use
-/addons/code.js
+/test/smoke/built-addon.js
 :::

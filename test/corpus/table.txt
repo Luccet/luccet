@@ -11,7 +11,7 @@ spec: syntax-blocks#tables syntax-blocks#attribute-line
 
 The tables example: an attribute line, alignment, an escaped pipe and a continued row.
 
-````tern
+````luccet
 {.wide}
 | Phase | Weeks | Note |
 |---|--:|---|
@@ -37,7 +37,7 @@ spec: syntax-blocks#tables syntax-blocks#r1
 
 A `|` line followed by a delimiter row starts a table; the first line is the header.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | 1 | 2 |
@@ -71,7 +71,7 @@ spec: syntax-blocks#tables syntax-inline#algorithm
 
 Header and body cells are trimmed and parsed as inline content.
 
-````tern
+````luccet
 | **Term** | Meaning |
 |---|---|
 | *x* | see [docs](d.html) |
@@ -90,7 +90,7 @@ spec: syntax-blocks#tables syntax-blocks#paragraph syntax-inline#ambiguity
 
 A header without a leading `|` is prose, so the delimiter row under it is a stray paragraph line and no table starts.
 
-````tern
+````luccet
 Keys | Action |
 |---|---|
 | `:w` | write |
@@ -112,7 +112,7 @@ spec: syntax-blocks#tables syntax-blocks#paragraph
 
 A GFM table with no leading pipes stays one paragraph; its pipe-less delimiter row gets the first hint.
 
-````tern
+````luccet
 Keys | Action
 --- | ---
 `:w` | write
@@ -134,7 +134,7 @@ spec: syntax-blocks#tables syntax-blocks#r1
 
 A first line ending in a continuation `\` cannot start form (a): the lines stay a paragraph (with a hard break), and because the line above ends with `\` the delimiter row gets the second hint.
 
-````tern
+````luccet
 | Keys | Action \
 |---|---|
 ````
@@ -154,7 +154,7 @@ spec: syntax-blocks#tables syntax-blocks#line-algorithm syntax-blocks#paragraph
 
 Form (b) starts a headerless table only at a block start; inside a paragraph a delimiter row is a stray paragraph line.
 
-````tern
+````luccet
 Some prose.
 |---|---|
 ````
@@ -174,7 +174,7 @@ spec: syntax-blocks#tables
 
 A delimiter-shaped line without a leading `|` is not a delimiter row, so it does not start a headerless table even at a block start; it is a paragraph line shaped like one. With no line above, the hint is the first one, which is fixed text.
 
-````tern
+````luccet
 --- | ---
 ````
 
@@ -192,7 +192,7 @@ spec: syntax-blocks#tables syntax-blocks#line-algorithm syntax-blocks#paragraph 
 
 Form (a) interrupts a paragraph: the `|` line plus a delimiter row under it starts a table.
 
-````tern
+````luccet
 The table follows.
 | a | b |
 |---|---|
@@ -213,7 +213,7 @@ spec: syntax-blocks#tables syntax-inline#ambiguity
 
 A line starting with `|` whose next line is not a delimiter row is prose.
 
-````tern
+````luccet
 |x| is the absolute value of x.
 | a | b |
 ````
@@ -229,7 +229,7 @@ spec: syntax-blocks#tables
 
 The table ends at the first line that does not start with `|`; that line is not a lazy continuation of anything.
 
-````tern
+````luccet
 | a |
 |---|
 | 1 |
@@ -250,7 +250,7 @@ spec: syntax-blocks#tables
 
 A blank line ends the table; a later `|` line with no delimiter row under it is a paragraph.
 
-````tern
+````luccet
 | a |
 |---|
 | 1 |
@@ -272,7 +272,7 @@ spec: syntax-blocks#tables syntax-blocks#r2 syntax-blocks#columns
 
 Indentation is insignificant: indented delimiter and body rows still belong to the table.
 
-````tern
+````luccet
 | a | b |
   |---|---|
     | 1 | 2 |
@@ -291,7 +291,7 @@ spec: syntax-blocks#tables
 
 The trailing `|` is optional on every row, the delimiter row included.
 
-````tern
+````luccet
 | a | b
 |---|---
 | 1 | 2
@@ -310,7 +310,7 @@ spec: syntax-blocks#tables
 
 Delimiter cells are `:?-+:?` with spaces allowed around them; a single `-` is enough.
 
-````tern
+````luccet
 | a | b | c |
 | - | :--: |  ---:  |
 | 1 | 2 | 3 |
@@ -329,7 +329,7 @@ spec: syntax-blocks#tables
 
 Colons in the delimiter row put `text-align` on both `th` and `td`; no colon, no style.
 
-````tern
+````luccet
 | l | c | r | n |
 |:--|:-:|--:|---|
 | 1 | 2 | 3 | 4 |
@@ -352,7 +352,7 @@ spec: syntax-blocks#tables
 
 The header fixes the column count; missing cells are emitted empty, and an empty cell between pipes stays empty.
 
-````tern
+````luccet
 | a | b | c |
 |---|---|---|
 | 1 |
@@ -375,7 +375,7 @@ spec: syntax-blocks#tables
 
 An empty cell in an aligned column, missing or written, still gets the column's `text-align`.
 
-````tern
+````luccet
 | a | b |
 |:-:|--:|
 | 1 |
@@ -398,7 +398,7 @@ spec: syntax-blocks#tables diagnostics#table-extra-cell
 
 A cell beyond the header's column count is kept and warned about, at the `|` that opens the first extra cell.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | 1 | 2 | 3 |
@@ -421,7 +421,7 @@ spec: syntax-blocks#tables diagnostics#table-extra-cell
 
 `table.extra-cell` is reported once per row, however many extra cells it has, at the `|` before the first one.
 
-````tern
+````luccet
 | a |
 |---|
 | 1 | 2 | 3 |
@@ -449,7 +449,7 @@ spec: syntax-blocks#tables
 
 Header and delimiter rows of different widths still make a table, with no diagnostic (unlike GFM): the header fixes the column count, and the column with no delimiter cell is unaligned.
 
-````tern
+````luccet
 | a | b | c |
 |---|---|
 | 1 | 2 | 3 |
@@ -471,7 +471,7 @@ spec: syntax-blocks#tables
 
 A delimiter row with fewer cells than the header: its colons align the columns it has, and a column with no delimiter cell gets no alignment.
 
-````tern
+````luccet
 | a | b | c |
 |:-:|--:|
 | 1 | 2 | 3 |
@@ -494,7 +494,7 @@ spec: syntax-blocks#tables
 
 A delimiter row with more cells than the header: the header still fixes the column count and the extra delimiter cells are ignored, with no diagnostic.
 
-````tern
+````luccet
 | a | b |
 |:--|--:|:-:|
 | 1 | 2 |
@@ -517,7 +517,7 @@ spec: syntax-blocks#tables
 
 A header and a delimiter row with no body rows are a table, emitted without a `<tbody>`.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 ````
@@ -545,7 +545,7 @@ spec: syntax-blocks#tables
 
 Form (b): a delimiter row at a block start starts a table with no header; its colons set alignment and it fixes the column count.
 
-````tern
+````luccet
 |:--|--:|
 | Name | Ada |
 | Born | 1815 |
@@ -566,7 +566,7 @@ spec: syntax-blocks#tables syntax-blocks#heading
 
 The line after a heading is a block start, so a delimiter row there starts a headerless table.
 
-````tern
+````luccet
 ## Facts
 |---|---|
 | a | b |
@@ -585,7 +585,7 @@ spec: syntax-blocks#tables syntax-blocks#attribute-line syntax-blocks#merging-an
 
 An attribute line before the table puts its attributes on `<table>`.
 
-````tern
+````luccet
 {.wide data-src=survey}
 | a |
 |---|
@@ -605,7 +605,7 @@ spec: syntax-blocks#tables syntax-inline#hard-break
 
 A row ending in a single `\` continues: the next line, minus its indentation, is joined after a hard break into one logical row.
 
-````tern
+````luccet
 | Phase | Note |
 |---|---|
 | P3 | smoke green;\
@@ -642,7 +642,7 @@ spec: syntax-blocks#tables
 
 The continuation line can finish the row with more `|` cells.
 
-````tern
+````luccet
 | a | b | c |
 |---|---|---|
 | 1 | two\
@@ -663,7 +663,7 @@ spec: syntax-blocks#tables
 
 A continued line that itself ends in `\` continues again.
 
-````tern
+````luccet
 | a |
 |---|
 | one\
@@ -686,7 +686,7 @@ spec: syntax-blocks#tables syntax-blocks#r1
 
 The continuation takes the next line whatever it starts with: a list marker or a heading mark there is cell text, not a block.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | 1 | x\
@@ -713,7 +713,7 @@ spec: syntax-blocks#tables syntax-inline#hard-break syntax-inline#ambiguity
 
 A row ending in `\` at the end of the note is unterminated; the `\` is literal.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | 1 | 2 \
@@ -736,7 +736,7 @@ spec: syntax-blocks#tables
 
 A row ending in `\` followed by a blank line is unterminated; the `\` is literal and the blank line still ends the table.
 
-````tern
+````luccet
 | a |
 |---|
 | 1\
@@ -762,7 +762,7 @@ spec: syntax-blocks#tables syntax-blocks#closer
 
 A continuation never joins a closer line: the row is unterminated, its `\` is literal, and the closer still closes the container.
 
-````tern
+````luccet
 :::box
 | a |
 |---|
@@ -789,7 +789,7 @@ spec: syntax-blocks#tables syntax-blocks#cells
 
 A continuation never joins a `+++` line: the row is unterminated and the `+++` starts the next cell.
 
-````tern
+````luccet
 :::row
 | a |
 |---|
@@ -821,7 +821,7 @@ spec: syntax-blocks#tables syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 A continuation joins the next line only when that line stays in the same container. Here it fails the quote's prefix and, the open block being a table, is not lazy: the row is unterminated, at the column where the line's remainder starts, and the next line is a paragraph outside the quote.
 
-````tern
+````luccet
 > | a |
 > |---|
 > | 1\
@@ -848,7 +848,7 @@ spec: syntax-blocks#tables syntax-inline#autolinks
 
 `\` is in the bare-URL trim set, so a URL at the end of a row never swallows the row's final `\`: the row continues and the link stops before it.
 
-````tern
+````luccet
 | a |
 |---|
 | https://x.org\
@@ -869,7 +869,7 @@ spec: syntax-blocks#tables syntax-inline#escapes syntax-inline#ambiguity
 
 `\\` at the end of a row is an escaped, literal backslash, so the row does not continue and the next line ends the table. `latex.linebreak` does not fire at the end of a row: no line break was lost.
 
-````tern
+````luccet
 | path |
 |---|
 | C:\\
@@ -890,10 +890,11 @@ next
 ## table/pipe-in-code-and-math
 
 spec: syntax-blocks#tables syntax-inline#algorithm syntax-inline#code-span syntax-inline#inline-math
+options: math=tex
 
 Pipes inside a code span or a math span do not split cells: `| $|x|$ | `a|b` |` has two cells.
 
-````tern
+````luccet
 | Math | Code |
 |---|---|
 | $|x|$ | `a|b` |
@@ -909,10 +910,11 @@ Pipes inside a code span or a math span do not split cells: `| $|x|$ | `a|b` |` 
 ## table/math-spans-pipe
 
 spec: syntax-blocks#tables syntax-inline#residual-pipe syntax-inline#ambiguity
+options: math=tex
 
 `| $a | b$ |` is one cell: the math span contains the pipe.
 
-````tern
+````luccet
 | Cell |
 |---|
 | $a | b$ |
@@ -931,7 +933,7 @@ spec: syntax-blocks#tables syntax-inline#inline-math
 
 `| Price ($) | Amount ($) |` has two text cells: `$)` cannot open math, so no span crosses the pipe.
 
-````tern
+````luccet
 | Price ($) | Amount ($) |
 |---|---|
 | 5 | 10 |
@@ -950,7 +952,7 @@ spec: syntax-blocks#tables syntax-inline#escapes syntax-inline#escape
 
 `\|` in a row is a literal pipe inside the cell, not a separator.
 
-````tern
+````luccet
 | Expr | Meaning |
 |---|---|
 | a \| b | a or b |
@@ -969,7 +971,7 @@ spec: syntax-blocks#tables syntax-inline#escapes
 
 An escaped final pipe is not a trailing `|`: it stays in the last cell as text.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | 1 | 2 \|
@@ -988,7 +990,7 @@ spec: syntax-blocks#tables syntax-inline#inline-element syntax-inline#ambiguity
 
 Inline elements are not atoms, so a pipe inside `:kbd[…]` in a row must be escaped.
 
-````tern
+````luccet
 | Key | Action |
 |---|---|
 | :kbd[\|] | pipe the selection |
@@ -1007,7 +1009,7 @@ spec: syntax-blocks#tables syntax-inline#inline-element syntax-inline#ambiguity
 
 An unescaped pipe inside `:kbd[…]` splits the cell, which leaves `:kbd[` unclosed in the first cell.
 
-````tern
+````luccet
 | a | b | c |
 |---|---|---|
 | :kbd[|] | pipe |
@@ -1027,10 +1029,11 @@ An unescaped pipe inside `:kbd[…]` splits the cell, which leaves `:kbd[` unclo
 ## table/escaped-pipe-in-atoms-stays
 
 spec: syntax-blocks#tables syntax-inline#escapes syntax-inline#code-span syntax-inline#inline-math
+options: math=tex
 
 Inside code and math there are no escapes: `\|` reaches the code span as written and TeX as its norm bar.
 
-````tern
+````luccet
 | Code | Norm |
 |---|---|
 | `a\|b` | $\|x\|$ |
@@ -1046,10 +1049,11 @@ Inside code and math there are no escapes: `\|` reaches the code span as written
 ## table/pipe-in-verbatim-math
 
 spec: syntax-blocks#tables syntax-inline#verbatim-math
+options: math=tex
 
 Verbatim math is an atom, so its pipes do not split the row.
 
-````tern
+````luccet
 | Set |
 |---|
 | $`|x|` |
@@ -1068,7 +1072,7 @@ spec: syntax-blocks#tables syntax-inline#autolinks
 
 A bare URL stops at `|`, so `|https://a.b|note|` keeps its two cells.
 
-````tern
+````luccet
 | Link | Note |
 |---|---|
 |https://a.b|note|
@@ -1087,7 +1091,7 @@ spec: syntax-blocks#tables syntax-inline#autolinks
 
 An angle autolink is an atom, so a pipe inside it does not split the cell.
 
-````tern
+````luccet
 | <https://a.b/x|y> |
 |---|
 ````
@@ -1108,7 +1112,7 @@ spec: syntax-blocks#tables syntax-inline#raw-inline-html
 
 Inline raw HTML is an atom, so a pipe in an attribute value does not split the cell.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | <span title="x|y">s</span> | t |
@@ -1127,7 +1131,7 @@ spec: syntax-blocks#tables syntax-inline#code-span syntax-inline#residual-lone-b
 
 A lone backtick pairs with a later one in the same row, so the code span swallows the pipe between them; the missing second cell is empty.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | ` | ` |
@@ -1146,7 +1150,7 @@ spec: syntax-blocks#tables syntax-inline#algorithm syntax-inline#emphasis
 
 The row is split before inline parsing and emphasis is not an atom, so `*` cannot pair across a pipe.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | *x | y* |
@@ -1165,7 +1169,7 @@ spec: syntax-blocks#tables
 
 A delimiter row inside the body renders as a text row and is warned about.
 
-````tern
+````luccet
 | a | b |
 |---|---|
 | 1 | 2 |
@@ -1194,7 +1198,7 @@ spec: syntax-blocks#tables
 
 A delimiter row is never a header: two delimiter rows at a block start are a headerless table (form (b)) whose second delimiter row is misplaced and renders as a text row.
 
-````tern
+````luccet
 |---|---|
 |---|---|
 | a | b |
@@ -1219,7 +1223,7 @@ spec: syntax-blocks#tables syntax-blocks#container
 
 A table nests in a `:::` container, and the container's closer ends it.
 
-````tern
+````luccet
 :::box
 | a |
 |---|
@@ -1242,7 +1246,7 @@ spec: syntax-blocks#tables syntax-blocks#lists
 
 A table nests in a list item at its content column; the lookahead reads the next line inside the item.
 
-````tern
+````luccet
 - | a | b |
   |---|---|
   | 1 | 2 |
@@ -1263,7 +1267,7 @@ spec: syntax-blocks#tables syntax-blocks#blockquote
 
 A table nests in a blockquote; each line's `> ` prefix is stripped first.
 
-````tern
+````luccet
 > | a |
 > |---|
 > | 1 |
@@ -1284,7 +1288,7 @@ spec: syntax-blocks#tables syntax-blocks#line-algorithm syntax-blocks#r1
 
 The start's lookahead needs the delimiter row in the same container; here it is outside the quote, so the quote holds a paragraph that the delimiter-shaped line continues lazily. The line above does not end with `\`, so the hint is the first one, also across containers.
 
-````tern
+````luccet
 > | a |
 |---|
 ````
@@ -1304,7 +1308,7 @@ spec: elements#table-caption elements#title-slots syntax-blocks#tables
 
 The table-caption example: `:::table[Caption]{#id}` around one pipe table becomes the table, with a numbered `<caption>`.
 
-````tern
+````luccet
 :::table[Phases and exit criteria]{#tbl-phases .wide}
 | Phase | Exit |
 |---|---|
@@ -1326,7 +1330,7 @@ spec: elements#table-caption elements#title-slots
 
 Without a written title the caption still holds the label.
 
-````tern
+````luccet
 :::table{#tbl-a}
 | a |
 |---|
@@ -1348,7 +1352,7 @@ spec: elements#table-caption elements#numbering elements#references
 
 Merged tables are numbered in document order, with or without an id, and `@id` renders the label and number.
 
-````tern
+````luccet
 See @tbl-b.
 :::table[First]
 | a |
@@ -1383,7 +1387,7 @@ spec: elements#table-caption syntax-blocks#attribute-line syntax-blocks#merging-
 
 The container's and the table's attributes are combined; on a conflict the container's value wins, and classes accumulate.
 
-````tern
+````luccet
 :::table[Scores]{#tbl-s data-k=outer}
 {.compact data-k=inner}
 | a |
@@ -1406,7 +1410,7 @@ spec: elements#table-caption syntax-blocks#merging-and-emission
 
 In the merge the container's `#id` wins over the inner table's, silently, and classes accumulate with the container's last.
 
-````tern
+````luccet
 :::table[Order]{#tbl-outer .c-outer}
 {#tbl-inner .c-inner}
 | a |
@@ -1429,7 +1433,7 @@ spec: elements#table-caption
 
 Blank lines around the table are not blocks, so the body is still exactly one pipe table.
 
-````tern
+````luccet
 :::table[Spaced]
 
 | a |
@@ -1454,7 +1458,7 @@ options: schema=none
 
 Without a schema, `table` reaches the element through the container allowlist and still merges, with a caption but no label or number.
 
-````tern
+````luccet
 :::table[Plain]
 | a |
 |---|
@@ -1476,7 +1480,7 @@ spec: elements#table-caption elements#names
 
 The merge keys on the element, not the name: a container whose element is `table` through `{tag=table}` merges too.
 
-````tern
+````luccet
 :::grid[Results]{tag=table}
 | a |
 |---|
@@ -1498,7 +1502,7 @@ spec: elements#table-caption syntax-blocks#merging-and-emission
 
 In a merged table the container chooses the element; a `tag=` on the pipe table itself (its attribute line) chooses nothing, and gets `tag.not-allowed` at the key instead of being dropped silently.
 
-````tern
+````luccet
 :::table[Results]
 {tag=section .wide}
 | a |
@@ -1528,7 +1532,7 @@ spec: elements#table-caption syntax-blocks#merging-and-emission syntax-blocks#r7
 
 In a merged table, `raw` and `ref=` on the pipe table's attribute line apply to nothing, and get `attr.malformed` at the key; its `cols=` sets the merged element's grid, as the container's own would.
 
-````tern
+````luccet
 :::table[Results]
 {raw ref=title cols=2}
 | a |
@@ -1559,7 +1563,7 @@ spec: elements#table-caption elements#allowlists
 
 A `:::table` whose body is not a pipe table falls back to a `div`, with `table.body` at the name. The fallback keeps the schema's label and counter.
 
-````tern
+````luccet
 :::table[Not a table]
 Just prose.
 :::
@@ -1582,7 +1586,7 @@ spec: elements#table-caption elements#numbering
 
 Because a `table.body` fallback keeps its counter, it takes a table number, and the merged table after it is Table 2.
 
-````tern
+````luccet
 :::table[Prose]
 Just prose.
 :::
@@ -1619,7 +1623,7 @@ spec: elements#table-caption
 
 Two pipe tables are not "exactly one", so nothing merges: the fallback `div` keeps its label and holds both tables.
 
-````tern
+````luccet
 :::table[Two]
 | a |
 |---|
@@ -1655,7 +1659,7 @@ spec: elements#table-caption syntax-blocks#raw-html
 
 A raw `<table>` inside `:::table` is not merged; it stays verbatim inside the fallback `div`, which keeps its label and counter, and carries its own caption.
 
-````tern
+````luccet
 :::table[Raw]
 <table>
 <tr><td>1</td></tr>
@@ -1683,7 +1687,7 @@ spec: elements#table-caption elements#output-contract
 A merged table has no place for an end mark, so it is left out; the label and caption stay.
 A merged `:::table` has no end mark: HTML allows no `span` between table sections.
 
-````tern
+````luccet
 :::proof[Data]{tag=table}
 | a |
 |---|

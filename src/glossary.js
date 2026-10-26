@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // The terms a note defines (docs/api.html#glossary), for the glossary
-// add-on (addons/glossary.js) and `tern index`, which gathers a folder's
+// add-on (github.com/Luccet/glossary) and `luccet index`, which gathers a folder's
 // into glossary.json. A term is the defining instance of a word, as HTML
 // has it: a `:dfn[…]` inline (any inline whose element is dfn), whose
 // definition is the paragraph it stands in; or a block of a listed name
@@ -17,9 +17,9 @@
 //     id: the anchor nearest above the term: its own, else its block's, else
 //         its section's heading's ('' at the top of the note);
 //     line: the note line the term is on; how: 'dfn' or the block's name;
-//     definition: the definition's nodes, positions removed, for tern.emit
+//     definition: the definition's nodes, positions removed, for luccet.emit
 //     on another page (empty for a term with no paragraph).
-//   uses(ast) -> [{term, key, line}]   every `:term[…]`, for tern index's check
+//   uses(ast) -> [{term, key, line}]   every `:term[…]`, for luccet index's check
 //   key(text), slug(text)              the folding and the id, for add-ons
 //   format                             the number of glossary.json's format
 'use strict';
@@ -36,7 +36,7 @@ const slug = (text) => `glossary-${key(text).replace(/[^\p{L}\p{M}\p{N}]+/gu, '-
 
 // A deep copy without positions (`position`, and the `…Position` spans the
 // transforms keep), so a definition travels light and emits the same.
-const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'position' || /Position$/.test(k) ? undefined : v)));
+const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'position' || k === 'texAt' || k === 'htmlAt' || /Position$/.test(k) ? undefined : v)));
 
 const entry = (term, id, node, how, nodes) => ({ term, key: key(term), slug: slug(term), id, line: node.position ? node.position.start.line : 0, how, definition: strip(nodes) });
 const isTitle = (k) => k && k.type === 'paragraph' && k.data && k.data.directiveLabel;
@@ -82,7 +82,7 @@ function terms(ast, opts) {
       continue;
     }
     if (n.type === 'textDirective') {
-      const tag = n.data && n.data.tern && n.data.tern.tag;
+      const tag = n.data && n.data.luccet && n.data.luccet.tag;
       if (tag === 'dfn' || (!tag && n.name === 'dfn')) {
         const a = n.attributes || {};
         const term = (typeof a.title === 'string' && a.title.trim()) || plain(n).trim();

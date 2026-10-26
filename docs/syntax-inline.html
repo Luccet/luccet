@@ -1,7 +1,7 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: inline · Tern</title><script src="../tern.js" data-use="docs.js docs.css ../addons/katex.js ../addons/copy.js"></script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Syntax: inline · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: Every inline construct of Tern: escapes, hard breaks, code, math, emphasis, strikethrough, highlight, links, images, spans, named elements, references, footnote references, autolinks, raw HTML and entities; the ambiguity rules, the escapes and the residual cases.
+description: Every inline construct of Luccet: escapes, hard breaks, code, math, emphasis, strikethrough, highlight, links, images, spans, named elements, references, footnote references, autolinks, raw HTML and entities; the ambiguity rules, the escapes and the residual cases.
 :::
 
 ::site-nav
@@ -36,7 +36,7 @@ The examples are live: the result, the generated HTML and the diagnostics are co
 | raw HTML | `<b>bold</b>`, `<!-- comment -->` | [Raw inline HTML](#raw-inline-html) |
 | entity | `&nbsp;`, `&#x2203;` | [Entities](#entities) |
 
-```tern {.live}
+```luccet {.live}
 A *short* tour: `code`, $x^2$, ==marked==, ~~struck~~, [a link](https://example.com),
 :kbd[Ctrl]+:kbd[S], a [span]{.term} and https://example.com.
 ```
@@ -78,25 +78,25 @@ Rules 1 to 8 produce **atoms**: escapes, code spans, math, verbatim math, autoli
 
 Because rule 2 comes before rule 13, a code span that starts first protects a `*` inside it. The emphasis runs from the first star to the last:
 
-```tern {.live}
+```luccet {.live}
 *a `b*` c*
 ```
 
 Because rule 2 also comes before rule 12, a backtick inside link text can swallow the `]`. Here the code span runs from `` `link `` to `` /u` ``, so there is no link:
 
-```tern {.live}
+```luccet {.live}
 [not a `link](/u`)
 ```
 
 Left to right, the first atom wins. A code span that starts first holds a dollar; math that starts first holds a backtick:
 
-```tern {.live}
+```luccet {.live}
 `a$` and b$, but $a `b$ c`
 ```
 
 Rule 8 comes before rule 9, and rule 9 excludes `![^`. So `Wow![^a]` is the text `Wow!` followed by a footnote reference, as on GitHub:
 
-```tern {.live}
+```luccet {.live}
 Wow![^a]
 
 [^a]: An exclamation.
@@ -119,19 +119,19 @@ A `]` with no opener is text, and an opener that is never closed is text. A plai
 
 Brackets nest, so the inner pair closes first:
 
-```tern {.live}
+```luccet {.live}
 [a [b]{.y}]{.x}, [a [b] c](https://example.com) and a]b[c
 ```
 
 **Links cannot contain links.** When a link forms, every plain `[` still open before it loses the right to become a link (CommonMark's rule; the inner link wins). It can still become a span. `![` and `:NAME[` openers are not affected, so images, spans and named elements may hold links:
 
-```tern {.live}
+```luccet {.live}
 [a [b](u) c](v) is text around a link; [see [x](u) now]{.n} is a span holding one.
 ```
 
 **Delimiters.** Runs of `*`, `~~` and `==` are paired with CommonMark 0.31.2's algorithm (`process_emphasis` with `openers_bottom`). The runs inside a bracket construct are paired when that construct closes, so emphasis never crosses a link's or an element's brackets:
 
-```tern {.live}
+```luccet {.live}
 *[a*](https://example.com) and *a :kbd[b* c]
 ```
 
@@ -147,13 +147,13 @@ A `{…}` group written immediately after an inline construct, with no space, gi
 | a reference | any group; `{}` ends the reference | it stays text, with `attr.malformed` |
 | a code span, inline or verbatim math, a `*`, `~~` or `==` closer, an autolink, a footnote reference | strong groups only | it stays text; `attr.malformed` only when it starts with `#` or `.` |
 
-```tern {.live}
+```luccet {.live}
 [t](https://example.com){.btn}, `x`{.lang-js}, **b**{#key}, :kbd[S]{.big} and $x${#e}.
 ```
 
 A weak group after a code span, math or a delimiter is text, silently. A group after a space is never glued:
 
-```tern {.live}
+```luccet {.live}
 `x`{hidden}, $f${x} and [x] {.c} are all followed by text.
 ```
 
@@ -163,13 +163,13 @@ A few more rules apply everywhere:
 - Inside quotes nothing is special and there are no escapes, so `{pattern="\d+"}` is literal.
 - A backtick inside a group that would pair with a later backtick breaks the group, because code spans are read first (see [Residual cases](#residual-backticks)).
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 [x]{.a "b"} keeps its brackets as text.
 ```
 
 ### Reserved keys in an inline group {#reserved-keys}
 
-Four keys are consumed by Tern and never emitted: `tag`, `ref`, `cols` and `raw` (see [Attributes](syntax-blocks.html#attributes)). Each applies to some constructs only. Inline, where one does not apply, the group still binds, the key is dropped, and a diagnostic points at it:
+Four keys are consumed by Luccet and never emitted: `tag`, `ref`, `cols` and `raw` (see [Attributes](syntax-blocks.html#attributes)). Each applies to some constructs only. Inline, where one does not apply, the group still binds, the key is dropped, and a diagnostic points at it:
 
 | Key | Applies to | Elsewhere inline |
 |---|---|---|
@@ -178,17 +178,17 @@ Four keys are consumed by Tern and never emitted: `tag`, `ref`, `cols` and `raw`
 | `cols=` | a named element, whose grid it sets | `attr.malformed` (warning) |
 | `raw` | containers only | `attr.malformed` (warning) |
 
-```tern {.live expect="tag.not-allowed tag.not-allowed tag.not-allowed tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed tag.not-allowed tag.not-allowed tag.not-allowed"}
 [x]{tag=b}, [t](https://example.com){tag=b}, ![a](i.png){tag=b} and `c`{tag=b}
 ```
 
-```tern {.live expect="attr.malformed attr.malformed attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed attr.malformed attr.malformed"}
 [x]{ref=title}, :kbd[y]{ref=title}, [z]{raw} and [w]{cols=2}
 ```
 
 The rest of the group still applies:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 `x`{.lang-js ref=title}
 ```
 
@@ -196,13 +196,13 @@ The rest of the group still applies:
 
 **Atoms are opaque.** Escapes, code spans, math, verbatim math, autolinks, raw tags, entities, references and footnote references hide their content from every other rule. That includes emphasis, brackets, the table-row splitter and the matching of a title's brackets:
 
-```tern {.live}
+```luccet {.live}
 [a `]` b](https://example.com), *$a*b$*, https://example.com/?@kernel and &#42;not em&#42;
 ```
 
 A `]` inside a code span does not end a container's title:
 
-```tern {.live}
+```luccet {.live}
 :::box[a `]` b]
 Body.
 :::
@@ -222,12 +222,12 @@ Body.
 A backslash before an ASCII punctuation character makes that character literal.
 
 :::syntax
-```tern
+```luccet
 \*  \$  \:  \@  \[  \]  \{  \}  \|  \#  \<  \`  \\  \=  \~  \!  \^  \>  \-  \+  \.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 \*not emphasis\*, \$5, \@alice, \[not a link](u) and a literal \\.
 ```
 
@@ -240,19 +240,19 @@ A backslash before an ASCII punctuation character makes that character literal.
 
 Every ASCII punctuation character can be escaped, back to back:
 
-```tern {.live}
+```luccet {.live}
 \!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~
 ```
 
 A backslash before anything else stays:
 
-```tern {.live}
+```luccet {.live}
 \alpha, C:\Users, \1, a \ b, \é and \—
 ```
 
 An escaped `~` or `=` breaks its run, and what is left are runs of one, which are text:
 
-```tern {.live}
+```luccet {.live}
 \~~a\~~ and \==b\== and \&amp;
 ```
 
@@ -260,27 +260,27 @@ An escaped `~` or `=` breaks its run, and what is left are runs of one, which ar
 
 ### LaTeX's delimiters: `latex.delimiters` {#latex-delimiters}
 
-LaTeX writes inline math as `\(…\)` and display math as `\[…\]`. In Tern these are escapes: `\(` is `(`, and the content is not math. Math is `$…$` and `$$`. To help when you paste LaTeX, the first one in a note gets [`latex.delimiters`](diagnostics.html#latex-delimiters) (info), at its backslash. It fires once per note, for the first of:
+LaTeX writes inline math as `\(…\)` and display math as `\[…\]`. In Luccet these are escapes: `\(` is `(`, and the content is not math. Math is `$…$` and `$$`. To help when you paste LaTeX, the first one in a note gets [`latex.delimiters`](diagnostics.html#latex-delimiters) (warning), at its backslash. It fires once per note, for the first of:
 - `\(` followed later in the same inline content (a paragraph, heading, cell or title) by `\)`, with something between them other than whitespace and escape pairs;
 - `\[` followed later in the same inline content by `\]`, with one of TeX's marks between them (`\` before a letter, `{`, `}`, `^`, `_` or `&`), not counting escape pairs;
 - `\begin{` at the start of a line.
 
-```tern {.live expect="latex.delimiters"}
+```luccet {.live expect="latex.delimiters"}
 \(a + b\) is not math here.
 ```
 
-```tern {.live expect="latex.delimiters"}
+```luccet {.live expect="latex.delimiters"}
 \[x^2\]
 ```
 
-```tern {.live expect="latex.delimiters"}
+```luccet {.live expect="latex.delimiters"}
 Consider
 \begin{cases} x \end{cases}
 ```
 
 The hint fires once per note, however many delimiters follow:
 
-```tern {.live expect="latex.delimiters"}
+```luccet {.live expect="latex.delimiters"}
 \(a\) and \(b\).
 
 \begin{align} x \end{align}
@@ -288,7 +288,7 @@ The hint fires once per note, however many delimiters follow:
 
 `\[` is the documented escape for `[`, so escaped brackets around prose, an empty pair and escape-only content stay silent. So does `\begin{` in the middle of a line:
 
-```tern {.live}
+```luccet {.live}
 See \[not a span\], \(\), \( \) and \[\*\]. Use \begin{align} only in math.
 ```
 
@@ -299,13 +299,13 @@ See \[not a span\], \(\), \( \) and \[\*\]. Use \begin{align} only in math.
 A backslash at the end of a line inside a paragraph is a line break, `<br>`.
 
 :::syntax
-```tern
+```luccet
 first line\
 second line
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Roses are red,\
 violets are blue.
 ```
@@ -319,11 +319,11 @@ violets are blue.
 - In a table row, a trailing `\` continues the row on the next line (see [Tables](syntax-blocks.html#tables)).
 - In the AST, a `break` includes its line ending.
 
-Trailing spaces are never a break. Two spaces at the end of a line, Markdown's other spelling, are trimmed like any trailing whitespace, and the newline stays a soft break. Nothing in Tern depends on trailing whitespace, so an editor may strip it freely.
+Trailing spaces are never a break. Two spaces at the end of a line, Markdown's other spelling, are trimmed like any trailing whitespace, and the newline stays a soft break. Nothing in Luccet depends on trailing whitespace, so an editor may strip it freely.
 
 The backslash on the last line of a paragraph is literal, and so is one that a heading cuts off:
 
-```tern {.live}
+```luccet {.live}
 a\
 b\
 
@@ -333,7 +333,7 @@ c\
 
 A hard break inside a list item and inside a quote:
 
-```tern {.live}
+```luccet {.live}
 - a\
   b
 
@@ -343,22 +343,22 @@ A hard break inside a list item and inside a quote:
 
 A hard break inside a named element:
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[Fn\
 F12].
 ```
 
 A heading is one line, so its trailing backslash is literal:
 
-```tern {.live}
+```luccet {.live}
 ## Title\
 ```
 
 ### A doubled backslash: `latex.linebreak` {#latex-linebreak}
 
-LaTeX breaks a line with `\\`. In Tern, `\\` is an escaped backslash: at the end of a line it is a literal `\` followed by a soft break, and the line break is lost. That case gets [`latex.linebreak`](diagnostics.html#latex-linebreak) (info) at the first backslash: "a line break is a single trailing `\`".
+LaTeX breaks a line with `\\`. In Luccet, `\\` is an escaped backslash: at the end of a line it is a literal `\` followed by a soft break, and the line break is lost. That case gets [`latex.linebreak`](diagnostics.html#latex-linebreak) (warning) at the first backslash: "a line break is a single trailing `\`".
 
-```tern {.live expect="latex.linebreak"}
+```luccet {.live expect="latex.linebreak"}
 first\\
 second
 ```
@@ -368,7 +368,7 @@ It fires only when a line break was actually lost, that is, when a soft break fo
 - `\\` at the end of a paragraph's last line is a literal backslash with nothing lost, and is silent;
 - `\\` at the end of a table row is a literal backslash, never hinted.
 
-```tern {.live}
+```luccet {.live}
 a\\\
 b
 
@@ -382,14 +382,14 @@ c\\
 A run of backticks around text makes inline code.
 
 :::syntax
-```tern
+```luccet
 `code`
 ``code with a ` inside``
 ``` `` ` `` ```
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 `a < b`, ``a`b`` and ``` `` ` `` ```
 ```
 
@@ -404,38 +404,38 @@ A run of backticks around text makes inline code.
 
 A run closes only at a run of exactly the same length, so a longer run encloses a shorter one, and a single backtick skips a double run:
 
-```tern {.live}
+```luccet {.live}
 `a``b` and x ``a` y
 ```
 
 One space each side is stripped, only when both are present; content that is all spaces keeps them:
 
-```tern {.live}
+```luccet {.live}
 ` a ` and `  b  ` and ` c` and `  `
 ```
 
 A span may cross a line, and the newline becomes a space:
 
-```tern {.live}
+```luccet {.live}
 `a
 b`
 ```
 
 No escapes and no entities inside:
 
-```tern {.live}
+```luccet {.live}
 `\*` and `&amp;`
 ```
 
 A strong group binds to the code; a weak one stays text:
 
-```tern {.live}
+```luccet {.live}
 `x`{.lang-js} and `y`{hidden}
 ```
 
 A malformed group that starts with `#` or `.` is reported:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 `x`{.a "b"}
 ```
 
@@ -445,19 +445,19 @@ A malformed group that starts with `#` or `.` is reported:
 
 ## Inline math {#inline-math}
 
-Dollars around TeX make inline math, rendered by KaTeX.
+Dollars around TeX make inline math, which the engine writes as MathML.
 
 :::syntax
-```tern
+```luccet
 $\sum_{i=1}^{n} x_i^*$
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 If $V$ is finite-dimensional, $\dim V = \dim \ker T + \dim \operatorname{im} T$.
 ```
 
-The output is `<span class="t-math">` holding the TeX; the runtime adds `data-tex` and renders it with KaTeX (see [KaTeX](publishing.html#katex)). The content is raw TeX and an atom: nothing inside is seen by emphasis, brackets, references or the table-row splitter. So `_`, `^` and `*` inside math are TeX, never Tern.
+The output is `<span class="t-math">` holding the formula as a `<math>` element, with the TeX in `data-tex` ([output](elements.html#math-output)). The TeX a formula can use is on the [Math](math.html) page. The content is raw TeX and an atom: nothing inside is seen by emphasis, brackets, references or the table-row splitter. So `_`, `^` and `*` inside math are TeX, never Luccet.
 
 Dollars are also prices. The rule below decides which dollars are math, so that prose about money stays prose without any escaping, in nearly every case.
 
@@ -484,13 +484,13 @@ This is Pandoc's rule, completed. A `$` is a dollar if it is not escaped.
 
 The first dollar after the opener decides, even when a later dollar could have closed:
 
-```tern {.live}
+```luccet {.live}
 $x $ y$
 ```
 
 A rejected candidate gets its own chance, and here it opens:
 
-```tern {.live}
+```luccet {.live}
 $a $b$
 ```
 
@@ -502,19 +502,19 @@ The bracket clause rejects a dollar that looks like a price next to punctuation:
 
 The clause is silent for parentheses, which are prices, and for braces. A `]` after the opener or a `[` before the closer is usually French interval notation: that gets the [`math.bracket`](#math-bracket) hint.
 
-```tern {.live}
+```luccet {.live}
 $)x$, $}x$, $,x$, $.x$, $;x$, $:x$, $f($ and $f{$
 ```
 
 The clause is about those positions only. A `[` after the opener and a `]` or `)` before the closer are fine, so closed and half-open intervals are math:
 
-```tern {.live}
+```luccet {.live}
 $[0,1]$ and $(0,1]$
 ```
 
-The closer clause rejects only an *unescaped* bracket; after `\{`, `\[` or `\(` the dollar closes:
+The closer clause rejects only an *unescaped* bracket; after `\{`, `\[` or `\(` the dollar closes. All three spans below are math, though `\[` and `\(` are not math commands, so their TeX is [`tex.unknown`](diagnostics.html#tex-unknown):
 
-```tern {.live}
+```luccet {.live expect="tex.unknown tex.unknown"}
 $\{$, $\[$ and $\($
 ```
 
@@ -540,31 +540,31 @@ Each row, live:
 
 **`costs $5 and $10` is text.** The candidate closer, the `$` before `10`, is preceded by a space. It then fails to open, since nothing closes it.
 
-```tern {.live}
+```luccet {.live}
 costs $5 and $10
 ```
 
 **`costs $5 and $x$`.** The first `$` fails on the candidate before `x`, which then opens and closes at the last dollar.
 
-```tern {.live}
+```luccet {.live}
 costs $5 and $x$
 ```
 
 **`$100 ($USD) and $x$`.** The bracket clause rejects the candidate after `(`; `$USD` fails on the space before the next dollar; `$x$` is math.
 
-```tern {.live}
+```luccet {.live}
 $100 ($USD) and $x$
 ```
 
 **`Cost ($) and revenue ($)` is text.** `$)` cannot open, and the bracket clause is silent for parentheses.
 
-```tern {.live}
+```luccet {.live}
 Cost ($) and revenue ($)
 ```
 
 **A table with dollars in its header.** `$)` cannot open math, so it cannot hide a pipe: the row keeps two cells.
 
-```tern {.live}
+```luccet {.live}
 | Price ($) | Amount ($) |
 |---|---|
 | 5 | 10 |
@@ -572,38 +572,38 @@ Cost ($) and revenue ($)
 
 **Ordinals are math.** There is no digit test on the opener, and a letter after the closer is fine.
 
-```tern {.live}
+```luccet {.live}
 the $0$th, $1$st, $n$th, $2^n$th
 ```
 
 **Price ranges are text.** In `$5/$8` and `$5–$10` the candidate closer is followed by a digit; in `($5 each, or $8)` it is preceded by a space.
 
-```tern {.live}
+```luccet {.live}
 $5/$8, $5–$10, ($5 each, or $8)
 ```
 
 **A digit after the closer.** `a $x$2 b` is text: the candidate closer is followed by a digit.
 
-```tern {.live}
+```luccet {.live}
 a $x$2 b
 ```
 
 **An escaped dollar inside.** The closer scan skips `\$`, and the TeX keeps it.
 
-```tern {.live}
+```luccet {.live}
 $\$$-valued
 ```
 
 **One line break is allowed.** The newline stays in the TeX.
 
-```tern {.live}
+```luccet {.live}
 $\sum_{i=1}^n
 x_i$
 ```
 
 **Two line breaks are not.** The dollars are text, silently.
 
-```tern {.live}
+```luccet {.live}
 $a
 b
 c$
@@ -611,35 +611,36 @@ c$
 
 **Glued to words.** Nothing tests the character before the opener or after the closer, as in Pandoc.
 
-```tern {.live}
+```luccet {.live}
 x$y$z
 ```
 
 **French intervals.** `$]0,1[$` is text, with `math.bracket` and a hint naming the verbatim form.
 
-```tern {.live expect="math.bracket"}
+```luccet {.live expect="math.bracket"}
 the interval $]0,1[$ is open
 ```
 
 ### Content, groups and ids {#math-content}
 
-- The TeX is emitted as written, escaped for HTML. An entity inside math is not decoded, and a tag-shaped `<b>` inside math is TeX.
+- The TeX goes to `data-tex` unchanged, escaped for HTML, and is translated to MathML. An entity inside math is not decoded, and a tag-shaped `<b>` inside math is TeX.
 - A strong group glued after the closing `$` binds to the span: `$x${#e}` gives it an id. Inline math is never numbered; only a display equation with an id is (see [Numbering](elements.html#numbering)).
 - A weak group after math is text, and so is a group after a space.
+- TeX that does not translate is shown as its TeX, marked `t-error`, with a [`tex.*`](diagnostics.html#tex) diagnostic at the command at fault ([Math](math.html#errors)).
 
-```tern {.live}
-$a<b>c$, $a & b$ and $x${#e}, then $f${x} and $y$ {#f}
+```luccet {.live}
+$a<b>c$, $a \& b$ and $x${#e}, then $f${x} and $y$ {#f}
 ```
 
 TeX's marks outside math are plain text, and `\alpha` outside math is a backslash and letters:
 
-```tern {.live}
+```luccet {.live}
 $\alpha$ and \alpha; x^2 + y_1 & {z}
 ```
 
 Math is an atom: a `|` inside it does not split a table cell, and a `*` inside it does not pair:
 
-```tern {.live}
+```luccet {.live}
 | Norm | Value |
 |---|---|
 | $|x|$ | 1 |
@@ -651,55 +652,61 @@ $a*b$ and $c*d$
 
 Prices produce no noise: an opener that nothing closes is silent, unless it is followed by a backslash. Three hints cover the cases that are probably mistakes.
 
-**`math.bracket`**{#math-bracket} (info, at the opener): the bracket clause rejected the span *only* because of a `]` after the opener or a `[` before the closer. These are French intervals. Parentheses, which are prices, and braces stay silent. See [`math.bracket`](diagnostics.html#math-bracket).
+**`math.bracket`**{#math-bracket} (warning, at the opener): the bracket clause rejected the span *only* because of a `]` after the opener or a `[` before the closer. These are French intervals. Parentheses, which are prices, and braces stay silent. See [`math.bracket`](diagnostics.html#math-bracket).
 
-```tern {.live expect="math.bracket"}
+```luccet {.live expect="math.bracket"}
 $[0,1[$
 ```
 
 It does not fire when there is another reason too, such as a space before the candidate, or when there is no candidate at all:
 
-```tern {.live}
+```luccet {.live}
 $]0,1[ $ and $]0,1[
 ```
 
-**`math.unclosed-inline`**{#math-unclosed-inline} (info, at the opener): the opener is followed by `\`, and nothing closes it, either because there is no candidate or because the candidate fails. A dollar followed by a backslash is almost certainly TeX. See [`math.unclosed-inline`](diagnostics.html#math-unclosed-inline).
+**`math.unclosed-inline`**{#math-unclosed-inline} (warning, at the opener): the opener is followed by `\`, and nothing closes it, either because there is no candidate or because the candidate fails. A dollar followed by a backslash is almost certainly TeX. See [`math.unclosed-inline`](diagnostics.html#math-unclosed-inline).
 
-```tern {.live expect="math.unclosed-inline"}
+```luccet {.live expect="math.unclosed-inline"}
 $\alpha never closes
 ```
 
-```tern {.live expect="math.unclosed-inline"}
+```luccet {.live expect="math.unclosed-inline"}
 $\alpha + 1 $ more
 ```
 
 An unclosed opener not followed by `\` is silent:
 
-```tern {.live}
+```luccet {.live}
 $x never closes
 ```
 
 **`math.suspect-price`**{#math-suspect-price} (warning, at the opener): the span *is* math, but it looks like two prices. It fires when the opener is followed by a digit and the span holds a run of three or more ASCII letters that follows whitespace and is neither a TeX control word nor inside a braced argument that directly follows a control word (`\text{…}`, `\textrm{…}`, `\mbox{…}`, `\operatorname{…}`, and every argument of a command that takes several, such as both of `\frac{…}{…}`). Hint: "if `$` is a price, write `\$`". See [`math.suspect-price`](diagnostics.html#math-suspect-price).
 
-```tern {.live expect="math.suspect-price"}
+```luccet {.live expect="math.suspect-price"}
 $5 then x$
 ```
 
-```tern {.live expect="math.suspect-price"}
+```luccet {.live expect="math.suspect-price"}
 costs $10 at peak hours (US$)
 ```
 
 None of these is suspect: a control word, words inside `\text{…}`, words in both arguments of `\frac`, a span that starts with a letter, a run of two letters:
 
-```tern {.live}
+```luccet {.live}
 $3 \times 10^{8}$, $5 \text{ per unit}$, $2 \frac{ apples}{ day}$, $x then y$ and $5 kg$
+```
+
+These three concern the dollars. What is inside a formula is checked too: TeX that does not translate gets one of the [`tex.*`](diagnostics.html#tex) codes, at the command at fault.
+
+```luccet {.live expect="tex.unknown"}
+The angle $\thetha$ is a typo for $\theta$.
 ```
 
 ### Writing a dollar {#dollar-literal}
 
 `\$` is a literal dollar. It never opens or closes, and it is not "next to" another dollar:
 
-```tern {.live}
+```luccet {.live}
 costs \$5 and \$10; \$5 then x$; \$$x$
 ```
 
@@ -710,13 +717,13 @@ Inside math, `\$` is TeX's dollar. For a formula that holds dollars, or that the
 A dollar followed by backticks makes math that is always math. It is the escape hatch for formulas that hold a `$`, or that the bracket clause rejects.
 
 :::syntax
-```tern
+```luccet
 $`\$5 + \$10`
 $``a`b``
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Write $`\$5 + \$10` or $`]0,1[`.
 ```
 
@@ -730,59 +737,59 @@ Write $`\$5 + \$10` or $`]0,1[`.
 
 A double run can hold a single backtick:
 
-```tern {.live}
+```luccet {.live}
 $``a`b`` and $`x`{#e}
 ```
 
-Nothing inside is Tern:
+Nothing inside is Luccet:
 
-```tern {.live}
+```luccet {.live}
 $`*a* @b [c](d)`
 ```
 
 With no closing run, the dollar and the backtick are text:
 
-```tern {.live}
+```luccet {.live}
 cost $`5
 
 $`x$
 ```
 
-Like a code span's, the closing run may be far away. Here the second `` $` `` holds the backtick that closes the first, so the span is `5, and $`:
+Like a code span's, the closing run may be far away. Here the second `` $` `` holds the backtick that closes the first, so the span is `5, and $`, whose bare `$` is [`tex.misplaced`](diagnostics.html#tex-misplaced) in TeX:
 
-```tern {.live}
+```luccet {.live expect="tex.misplaced"}
 cost $`5, and $`x$ too
 ```
 
 An escaped dollar before a backtick is a literal dollar, followed by an ordinary code span:
 
-```tern {.live}
+```luccet {.live}
 \$`x`
 ```
 
 ## `$$` in the middle of a line {#inline-display}
 
-Two or more adjacent dollars inside inline content never open anything. They are text, with [`math.inline-display`](diagnostics.html#math-inline-display) (info) at the first dollar, once per run: "display math goes on its own lines; for an inline display style write `$\displaystyle …$`".
+Two or more adjacent dollars inside inline content never open anything. They are text, with [`math.inline-display`](diagnostics.html#math-inline-display) (warning) at the first dollar, once per run: "display math goes on its own lines; for an inline display style write `$\displaystyle …$`".
 
-```tern {.live expect="math.inline-display math.inline-display"}
+```luccet {.live expect="math.inline-display math.inline-display"}
 see $$E=mc^2$$ here
 ```
 
 A dollar next to another dollar can neither open nor close, so a candidate closer followed by a dollar fails too, and the pair gets the hint:
 
-```tern {.live expect="math.inline-display"}
+```luccet {.live expect="math.inline-display"}
 a $x$$ b
 ```
 
 A `$$` in a line does not disturb math later in the same paragraph:
 
-```tern {.live expect="math.inline-display"}
+```luccet {.live expect="math.inline-display"}
 a $$ b $x$
 ```
 
 **The fix.** Put display math on its own lines (see [Display math](syntax-blocks.html#display-math)), or write `$\displaystyle …$` for a display-style formula inside a sentence. To show two literal dollars without the hint, write `\$\$`.
 
-```tern {.live}
+```luccet {.live}
 $\displaystyle \sum_{i=1}^n i$ and a literal \$\$
 ```
 
@@ -791,12 +798,12 @@ $\displaystyle \sum_{i=1}^n i$ and a literal \$\$
 Stars around text make emphasis; two stars make strong emphasis.
 
 :::syntax
-```tern
+```luccet
 *emphasis*  **strong**  ***both***
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 *em*, **strong**, ***both***
 ```
 
@@ -811,19 +818,19 @@ A run of stars can open, close, or both, depending on the characters around it:
 
 So stars with spaces on both sides are text, and a closer with no opener is text:
 
-```tern {.live}
+```luccet {.live}
 2 * 3 * 4 and x * a*
 ```
 
 Inside a word a run can both open and close, as on GitHub. So `2*3*4` is emphasis (see [Residual cases](#residual-emphasis)):
 
-```tern {.live}
+```luccet {.live}
 x*y*z and 2*3*4
 ```
 
 Punctuation counts. A star after a letter and before a quote cannot open; a star at the start before a parenthesis can:
 
-```tern {.live}
+```luccet {.live}
 a*"b"* is text.
 
 *(a)* is emphasis.
@@ -840,7 +847,7 @@ a*"b"* is text.
 
 Leftover stars stay text:
 
-```tern {.live}
+```luccet {.live}
 **a*
 
 *a**
@@ -848,19 +855,19 @@ Leftover stars stay text:
 
 Strong inside emphasis, emphasis inside strong:
 
-```tern {.live}
+```luccet {.live}
 *a **b** c*, ***a* b** and ***a** b*
 ```
 
 The rule of three: in `*a**b*` the `**` can both open and close, and 1 + 2 is a multiple of 3, so it pairs with neither star. In `*x**y**z*` it keeps the first `**` from closing the `*`:
 
-```tern {.live}
+```luccet {.live}
 *a**b* and *x**y**z*
 ```
 
 Across a soft break, but not across a blank line:
 
-```tern {.live}
+```luccet {.live}
 *one
 line* and *two
 
@@ -869,7 +876,7 @@ paragraphs*
 
 Emphasis may hold any inline content, and atoms protect their own stars:
 
-```tern {.live}
+```luccet {.live}
 *[a link](https://example.com), `code*` and $a*b$*
 ```
 
@@ -877,7 +884,7 @@ Emphasis may hold any inline content, and atoms protect their own stars:
 
 `_` and `__` are never delimiters, in any position. Identifiers, subscripts and URLs stay as written:
 
-```tern {.live}
+```luccet {.live}
 snake_case, x_1, _private_, __init__, *snake_case* and https://x.com/_a_/b
 ```
 
@@ -885,13 +892,13 @@ snake_case, x_1, _private_, __init__, *snake_case* and https://x.com/_a_/b
 
 A strong group glued to the closing run binds to the element. On `***x***` it binds to the outer `<em>`:
 
-```tern {.live}
+```luccet {.live}
 *a*{#e}, **b**{.y} and ***x***{.c}
 ```
 
 A weak group, or a group after a space, is text. A malformed group that starts with `#` or `.` is reported; one that starts otherwise is silent text:
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 **b**{open}, **b** {.y}, **b**{#x "y"} and **b**{x "y"}
 ```
 
@@ -904,12 +911,12 @@ Two tildes strike text through; two equals signs highlight it. Both follow one r
 ### Strikethrough {#strikethrough}
 
 :::syntax
-```tern
+```luccet
 ~~struck through~~
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 The meeting is ~~Tuesday~~ Wednesday.
 ```
 
@@ -918,12 +925,12 @@ The result is `<del>`.
 ### Highlight {#highlight}
 
 :::syntax
-```tern
+```luccet
 ==highlighted==
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 The ==key point== is this one.
 ```
 
@@ -939,43 +946,43 @@ The result is `<mark>`.
 
 Comparisons, paths and runs glued to words stay text:
 
-```tern {.live}
+```luccet {.live}
 If a==b and c==d then x == y; x~~y~~z; ~/.vimrc, ~user and a~b.
 ```
 
 Other run lengths are text:
 
-```tern {.live}
+```luccet {.live}
 a ~x~ b ===y=== c ~~~z~~~ d ====w====
 ```
 
 Glued on the outside, a run can neither open nor close; with a space inside, it is not flanking:
 
-```tern {.live}
+```luccet {.live}
 a==b==, ==b==c and == x ==
 ```
 
 Punctuation outside is fine:
 
-```tern {.live}
+```luccet {.live}
 (==x==) and "~~y~~"
 ```
 
 The glue test is ASCII only, on purpose: Chinese, Japanese and Thai have no spaces between words. A non-ASCII letter or `_` next to the run does not block it:
 
-```tern {.live}
+```luccet {.live}
 これは==重要==です, 中文~~删除~~中文, α==β==γ and _==x==_
 ```
 
 The runs nest with `**`, and share one stack. When the `~~` pair closes, the `==` opener between them is dropped, so the last `==` has nothing to close:
 
-```tern {.live}
+```luccet {.live}
 ~~**a**~~ and ~~a ==b~~ c==
 ```
 
 Groups:
 
-```tern {.live}
+```luccet {.live}
 ==k=={.x} and ~~g~~{#d}
 ```
 
@@ -986,7 +993,7 @@ Groups:
 Text in brackets followed by a destination in parentheses makes a link.
 
 :::syntax
-```tern
+```luccet
 [text](https://example.com)
 [text](https://example.com "Title")
 [text](<a destination with spaces>)
@@ -994,7 +1001,7 @@ Text in brackets followed by a destination in parentheses makes a link.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 See [the guide](https://example.com/guide "The guide") or [a button](https://example.com){.btn}.
 ```
 
@@ -1005,7 +1012,7 @@ See [the guide](https://example.com/guide "The guide") or [a button](https://exa
 - A group glued after the `)` binds to the `<a>`; any group, weak ones included. Its reserved keys do not apply: `tag=` gets `tag.not-allowed`, and `ref=`, `cols=` and `raw` get `attr.malformed` (see [Reserved keys](#reserved-keys)).
 - The link text is inline content: emphasis, code, math, images, spans and named elements all work inside it.
 
-```tern {.live}
+```luccet {.live}
 [link *em* `code` $x$ :kbd[K]](https://example.com){#l hidden}
 ```
 
@@ -1015,19 +1022,19 @@ See [the guide](https://example.com/guide "The guide") or [a button](https://exa
 - **Bare form.** A run of characters that are not whitespace or control characters. Parentheses must balance, at most 32 levels deep.
 - `[a]()` and `[a](<>)` give `href=""`.
 
-```tern {.live}
+```luccet {.live}
 [a](<u(v>), [docs](https://x.org/a_(b)), [empty]() and [spaces](<c d>)
 ```
 
 With unbalanced parentheses there is no closing `)`, and a space ends a bare destination, so neither of these is a link:
 
-```tern {.live}
+```luccet {.live}
 [a](f(x) and [b](u v)
 ```
 
 The `(` must follow the `]` immediately:
 
-```tern {.live}
+```luccet {.live}
 [a] (u)
 ```
 
@@ -1038,11 +1045,11 @@ The `(` must follow the `]` immediately:
 - After the title, only whitespace and `)` may follow.
 - A title may hold escapes, such as `\"`, and entities.
 
-```tern {.live}
+```luccet {.live}
 [a](u 'T'), [b](u "say \"hi\""), [c](u"T") and [d]( u "T" )
 ```
 
-```tern {.live}
+```luccet {.live}
 [a](u (T)) and [b](u "T" x)
 ```
 
@@ -1053,7 +1060,7 @@ As in CommonMark:
 - The destination is normalised: unsafe characters (a space, for example) and non-ASCII characters are percent-encoded, and an existing `%XX` is kept.
 - `&` is escaped as `&amp;` in the HTML attribute.
 
-```tern {.live}
+```luccet {.live}
 [a](/a\(b "T &amp; U"), [b](/caf&eacute;), [c](/é%20x) and [q](/s?a=1&b=2)
 ```
 
@@ -1061,13 +1068,13 @@ As in CommonMark:
 
 Links cannot nest: the inner one wins, and the outer brackets are text (see [Phase 2](#resolve)). Other constructs may hold links, and a link may hold an image:
 
-```tern {.live}
+```luccet {.live}
 [a [b](u) c](v), [see [x](u) now]{.n}, :kbd[[a](u)] and [![a](i.png)](u)
 ```
 
 References and bare URLs inside link text are text, so nothing dangles and no link nests:
 
-```tern {.live}
+```luccet {.live}
 [mail @bob](https://example.com) and [see https://x.org](https://example.com)
 ```
 
@@ -1075,7 +1082,7 @@ References and bare URLs inside link text are text, so nothing dangles and no li
 
 A link whose destination is `#id` points into the note. The `refs` transform checks it: when no element has that id, it gets [`ref.dangling`](diagnostics.html#ref-dangling) (warning) at the link's `[`, and it stays a link. This is how to give a reference your own text (see [References](#reference)).
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 ## Kernel {#kernel}
 
 See [the kernel](#kernel), not [the proof](#missing).
@@ -1085,7 +1092,7 @@ See [the kernel](#kernel), not [the proof](#missing).
 
 There are no reference links and no link definitions. `[a][b]` and `[c][]` are text, and so is a line shaped like a definition:
 
-```tern {.live}
+```luccet {.live}
 [a][b] and [c][]
 
 [a]: /url
@@ -1093,7 +1100,7 @@ There are no reference links and no link definitions. `[a][b]` and `[c][]` are t
 
 A second pair of parentheses after a link is text:
 
-```tern {.live}
+```luccet {.live}
 [a](https://example.com)(v)
 ```
 
@@ -1101,7 +1108,7 @@ A backtick inside a destination that pairs with a later backtick makes a code sp
 
 **Diagnostics.** A glued group that does not parse stays text after the link, with [`attr.malformed`](diagnostics.html#attr-malformed) (warning); a fragment link with no target gets `ref.dangling`.
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 [t](https://example.com){.a "b"}
 ```
 
@@ -1112,15 +1119,15 @@ A backtick inside a destination that pairs with a later backtick makes a code sp
 A link with a `!` in front is an image.
 
 :::syntax
-```tern
+```luccet
 ![alt text](photo.jpg)
 ![alt text](photo.jpg "Title"){width=50%}
 ![caption](photo.jpg){#fig-id alt="what the image shows"}
 ```
 :::
 
-```tern {.live}
-A tern: ![A tern diving](tern.jpg "Sterna hirundo"){width=120}.
+```luccet {.live}
+A luccet: ![A luccet diving](luccet.jpg "Sterna hirundo"){width=120}.
 ```
 
 **Rules.**
@@ -1132,17 +1139,17 @@ A tern: ![A tern diving](tern.jpg "Sterna hirundo"){width=120}.
 - `![a]{.c}` is the text `!` followed by a span: an image needs a destination.
 - An image may sit inside a link.
 
-```tern {.live}
+```luccet {.live}
 See ![*a* `b`](i.png) and ![Bracket](a.png){alt="Attribute" hidden}.
 ```
 
-```tern {.live}
+```luccet {.live}
 ![a]{.c} and [![logo](logo.png)](https://example.com)
 ```
 
 **Implicit figures.** An image that is alone in its paragraph, carries an `#id` (on the image, or on an attribute line before the paragraph) and is not already inside a figure becomes a figure: the bracket text is the caption, and the `alt` is `alt=` or empty, so the caption is read once. An image with an id inside other text stays an image. See [Figures](elements.html#figures).
 
-```tern {.live}
+```luccet {.live}
 ![An osprey in flight.](osprey.jpg){#fig-osprey alt="An osprey"}
 
 Inline, ![an icon](icon.png){#icon} stays an image.
@@ -1150,13 +1157,13 @@ Inline, ![an icon](icon.png){#icon} stays an image.
 
 With the demo schema (see [the demo schema](schema.html#demo-schema)), `figure` is counted, and the figure gets a label:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 ![An osprey in flight.](osprey.jpg){#fig-osprey alt="An osprey"}
 ```
 
 **Writing it literally.** `\!` keeps the `!` out of the link: `\![a](u)` is `!` followed by a link.
 
-```tern {.live}
+```luccet {.live}
 \![a](https://example.com)
 ```
 
@@ -1165,13 +1172,13 @@ With the demo schema (see [the demo schema](schema.html#demo-schema)), `figure` 
 Brackets followed by an attribute group make a `<span>` with those attributes.
 
 :::syntax
-```tern
+```luccet
 [the term]{.term #k}
 [answer]{hidden}
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 The [kernel]{.term #k} and the [answer]{hidden}.
 ```
 
@@ -1182,19 +1189,19 @@ The [kernel]{.term #k} and the [answer]{hidden}.
 - The content is ordinary inline content, and spans nest.
 - Otherwise both brackets are text.
 
-```tern {.live}
+```luccet {.live}
 [*a* `b`]{.c}, [a [b]{.y}]{.x} and [see [x](u) now]{.n}
 ```
 
 Brackets with nothing glued after them are text, silently. So is `{}`, which is never a group:
 
-```tern {.live}
+```luccet {.live}
 [1, 2], f[x], [not a link] f(x), [x] {.c} and [x]{}
 ```
 
 A group that fails to parse is reported, except `{}` and an aborted candidate (a `{` inside the group). After a bracket, any `{` is a candidate, so even `{1, 2}` is reported:
 
-```tern {.live expect="attr.malformed attr.malformed"}
+```luccet {.live expect="attr.malformed attr.malformed"}
 [x]{.a "b"} and [y]{1, 2}, but [z]{.a {b}} is silent.
 ```
 
@@ -1202,7 +1209,7 @@ A group that fails to parse is reported, except `{}` and an aborted candidate (a
 
 **Writing it literally.** `\[` or `\{`: `[x]\{.c}` keeps its brackets and braces as text.
 
-```tern {.live}
+```luccet {.live}
 [x]\{.c}
 ```
 
@@ -1211,7 +1218,7 @@ A group that fails to parse is reported, except `{}` and an aborted candidate (a
 A colon, a name and brackets make a named element, such as `<kbd>` or `<abbr>`.
 
 :::syntax
-```tern
+```luccet
 :kbd[Ctrl]
 :abbr[HTML]{title="HyperText Markup Language"}
 :ruby[漢:rt[kan]]
@@ -1219,7 +1226,7 @@ A colon, a name and brackets make a named element, such as `<kbd>` or `<abbr>`.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[Ctrl]+:kbd[S]. :abbr[HTML]{title="HyperText Markup Language"} has :ruby[漢:rt[kan]].
 ```
 
@@ -1233,7 +1240,7 @@ The test on the character before is ASCII only, so `漢:rt[kan]` opens an elemen
 
 None of these opens an element, and all are silent (the last one starts with a bare autolink):
 
-```tern {.live}
+```luccet {.live}
 Meet at 10:30[x]. Note: [x], :) :smile: :1[x], :kbd [x], ::before, x_:kbd[S], /users/:id[0] and http://x[1].
 ```
 
@@ -1245,19 +1252,19 @@ Meet at 10:30[x]. Note: [x], :) :smile: :1[x], :kbd [x], ::before, x_:kbd[S], /u
 - Elements may hold links, and links may hold elements.
 - Emphasis never crosses the element's brackets.
 
-```tern {.live}
+```luccet {.live}
 :kbd[a [b] c], :kbd[`]`], :kbd[Ctrl
 S], :kbd[a]{.big #k hidden} and :kbd[a](u)
 ```
 
-```tern {.live}
+```luccet {.live}
 :kbd[[a](u)], [:kbd[a]](u) and :kbd[https://x]
 ```
 
 ### Which element it becomes {#element-resolution}
 
 The name decides the element, through these steps (the full rules are in [Elements and output](elements.html#names)):
-1. A **reserved name** (`script`, `style`, `main`, `tern`, any `t-*` name, and the others listed in [Reserved names](elements.html#reserved)) becomes a plain `span` without the name as its class, with [`name.reserved`](diagnostics.html#name-reserved) (warning). A `tag=` on it is dropped, with `attr.malformed`.
+1. A **reserved name** (`script`, `style`, `main`, `luccet`, any `t-*` name, and the others listed in [Reserved names](elements.html#reserved)) becomes a plain `span` without the name as its class, with [`name.reserved`](diagnostics.html#name-reserved) (warning). A `tag=` on it is dropped, with `attr.malformed`.
 2. `{tag=x}` picks the element, when `x` is in the inline allowlist. A reserved `x` gets `name.reserved`; any other `x` outside the list gets [`tag.not-allowed`](diagnostics.html#tag-not-allowed) (warning). Either way the next steps decide.
 3. The schema's inline entry for the name, through its `tag`, checked against the same allowlist: a reserved tag gets `name.reserved` at the name, any other outside the list `tag.not-allowed`, and the next steps decide. Only inline entries count: a block entry named `note` does not apply to `:note[…]`.
 4. A valid custom-element name (lower case, starting with `a`–`z`, containing `-`) becomes that element.
@@ -1266,31 +1273,31 @@ The name decides the element, through these steps (the full rules are in [Elemen
 
 The inline allowlist is `abbr b bdi bdo button cite code data del dfn em i ins kbd mark q rp rt ruby s samp small span strong sub sup time u var wbr`. `a`, `img` and `br` are left out on purpose: links, images and `\` already spell them. See [Allowlists](elements.html#allowlists).
 
-The output is `<TAG id class="NAME …" data-t="NAME" …>content</TAG>`: the name is the first class and the `data-t`, which CSS and `tern.define` key on (see [The output contract](elements.html#output-contract)).
+The output is `<TAG id class="NAME …" data-t="NAME" …>content</TAG>`: the name is the first class and the `data-t`, which CSS and `luccet.define` key on (see [The output contract](elements.html#output-contract)).
 
-```tern {.live}
+```luccet {.live}
 :sub[2] :sup[n] :mark[m] :q[x] :var[v] :small[s]
 ```
 
-```tern {.live}
+```luccet {.live}
 :a[x] :img[y] :div[w] :aside[note *now*]{#a} :my-chip[x]{a=1} and :x[a]{tag=kbd}
 ```
 
-Names are case-sensitive, like every name in Tern: `:KBD[x]` is not `kbd`.
+Names are case-sensitive, like every name in Luccet: `:KBD[x]` is not `kbd`.
 
-```tern {.live}
+```luccet {.live}
 :KBD[x] and :über[x]
 ```
 
-```tern {.live expect="tag.not-allowed"}
+```luccet {.live expect="tag.not-allowed"}
 :x[a]{tag=div}
 ```
 
-```tern {.live expect="name.reserved"}
+```luccet {.live expect="name.reserved"}
 :script[x]
 ```
 
-```tern {.live expect="name.reserved attr.malformed"}
+```luccet {.live expect="name.reserved attr.malformed"}
 :script[x]{tag=kbd}
 ```
 
@@ -1301,7 +1308,7 @@ A schema can give an inline name a `label`, and a `counter` to number it. The el
 No schema these examples can use declares an inline label, so here is the source and its output, without a live example. With this schema:
 
 ```js
-window.TERN = {schema: {inline: {
+window.LUCCET = {schema: {inline: {
   term: {label: 'Term'},
   ex: {counter: 'ex', label: 'Ex.'},
   def: {tag: 'dfn', label: 'Def.'},
@@ -1310,7 +1317,7 @@ window.TERN = {schema: {inline: {
 
 this note:
 
-```tern
+```luccet
 :term[kernel], :def[image]{#d}, :ex[one], :ex[two] and :term[]. See @d.
 ```
 
@@ -1329,39 +1336,39 @@ See <a class="t-ref" href="#d">Def.</a>.</p>
 
 `wbr` is a void element: it holds no content, so `:wbr[]` is how to write it. Content given to it is emitted after the element, with [`leaf.void-content`](diagnostics.html#leaf-void-content) (warning) at the `:`, as for a [void leaf](syntax-blocks.html#leaf):
 
-```tern {.live expect="leaf.void-content"}
+```luccet {.live expect="leaf.void-content"}
 Super :wbr[]califragilistic, and :wbr[x] word.
 ```
 
 ### Diagnostics {#element-diagnostics}
 
-**`inline.glued`** (info, at the `:`). A `:NAME[` right after an ASCII letter or digit is text. It looks like a missing space, as in `press:kbd[S]`, so it gets a hint: "put a space before `:kbd[`". After `_`, `:` or `/` the text is silent. See [`inline.glued`](diagnostics.html#inline-glued).
+**`inline.glued`** (warning, at the `:`). A `:NAME[` right after an ASCII letter or digit is text. It looks like a missing space, as in `press:kbd[S]`, so it gets a hint: "put a space before `:kbd[`". After `_`, `:` or `/` the text is silent. See [`inline.glued`](diagnostics.html#inline-glued).
 
-```tern {.live expect="inline.glued inline.glued"}
+```luccet {.live expect="inline.glued inline.glued"}
 Then press:kbd[S] to save; a:b[c] too.
 ```
 
 **`inline.unclosed`** (warning, at the `[`). An element with no matching `]` stays text; the content after it is still parsed. Each unclosed opener reports at its own `[`. See [`inline.unclosed`](diagnostics.html#inline-unclosed).
 
-```tern {.live expect="inline.unclosed"}
+```luccet {.live expect="inline.unclosed"}
 Press :kbd[Ctrl and *go*.
 ```
 
 Brackets nest, so a plain `[` inside takes the only `]`, and the element is left open:
 
-```tern {.live expect="inline.unclosed"}
+```luccet {.live expect="inline.unclosed"}
 :kbd[[x]
 ```
 
 An unmatched plain `[` is silent, and the element after it closes normally:
 
-```tern {.live}
+```luccet {.live}
 [x and :kbd[y]
 ```
 
 **`attr.malformed`** (warning): a glued group that does not parse stays text after the element.
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 :kbd[a]{=x}
 ```
 
@@ -1373,7 +1380,7 @@ An unmatched plain `[` is silent, and the element after it closes normally:
 - `` \` `` inside the content is a literal backtick. A bare one would pair with a later backtick (see [Residual cases](#residual-lone-backtick)).
 - In a table row, a `|` inside an element must be written `\|`: elements are not atoms, so the row splitter sees their pipes.
 
-```tern {.live}
+```luccet {.live}
 \:kbd[x], :kbd[\]] and :kbd[\`]
 ```
 
@@ -1382,7 +1389,7 @@ An unmatched plain `[` is silent, and the element after it closes normally:
 An `@` before an id makes a link to that element, with text taken from the target: "Theorem 1", "(2)", a heading's text.
 
 :::syntax
-```tern
+```luccet
 @id
 @id{ref=label}  @id{ref=number}  @id{ref=title}  @id{ref=full}
 @id{}
@@ -1391,7 +1398,7 @@ An `@` before an id makes a link to that element, with text taken from the targe
 
 This example uses the demo schema, which counts and labels theorems (see [the demo schema](schema.html#demo-schema)). Equations with an id are numbered by the core:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm-rn}
 If $V$ is finite-dimensional, $\dim V = \dim \ker T + \dim \operatorname{im} T$.
 :::
@@ -1411,7 +1418,7 @@ The output is `<a class="t-ref" href="#id">`, filled by the `refs` transform. A 
 - **A glued group** binds to the `<a>`; any group. `ref=` in it chooses the text (below). A reference is the only place `ref=` applies: anywhere else it gets `attr.malformed` (see [Reserved keys](#reserved-keys)).
 - **The fragment** is emitted as written (`href="#résumé"`): it is an id, not a URL, so it is not percent-encoded.
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel}
 
 See @kernel: (@kernel), "@kernel", [@kernel], —@kernel, @kernel's dimension, the @kernel-- and @kernel{.x}.
@@ -1419,7 +1426,7 @@ See @kernel: (@kernel), "@kernel", [@kernel], —@kernel, @kernel's dimension, t
 
 The test on the character before is ASCII only, so a reference glued to CJK text before it opens. After it, the IDENT swallows CJK text; end it with a space or `{}`:
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel}
 
 これは@kernel です, これは@kernel{}です
@@ -1427,7 +1434,7 @@ The test on the character before is ASCII only, so a reference glued to CJK text
 
 IDENT is Unicode:
 
-```tern {.live}
+```luccet {.live}
 ## Résumé {#résumé}
 
 See @résumé.
@@ -1448,7 +1455,7 @@ Unless `ref=` says otherwise, the text depends on the target:
 
 The text is a copy, flattened so that links never nest: links inside it are unwrapped, footnote references are dropped, and references become their target's plain text. Without a schema, nothing is counted or labelled:
 
-```tern {.live}
+```luccet {.live}
 :::theorem[Rank–nullity]{#thm-rn}
 Body.
 :::
@@ -1467,7 +1474,7 @@ The [kernel]{#k} is closed. See @thm-rn and @k.
 
 With the demo schema:
 
-```tern {.live schema=demo}
+```luccet {.live schema=demo}
 :::theorem[Rank–nullity]{#thm-rn}
 Body.
 :::
@@ -1479,7 +1486,7 @@ Body.
 - A part the target lacks (`ref=title` on an untitled block, `ref=number` on a heading) gives the default text, silently.
 - A group after a space is not glued, so it is text and chooses nothing.
 
-```tern {.live expect="attr.malformed"}
+```luccet {.live expect="attr.malformed"}
 ## Kernel {#kernel}
 
 @kernel{ref=number}, @kernel{ref=bogus} and @kernel {ref=title}.
@@ -1487,7 +1494,7 @@ Body.
 
 **Your own text.** A reference with custom text is an ordinary fragment link, which the `refs` transform validates too (see [Fragment links](#fragment-links)):
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel}
 
 See [the null space](#kernel).
@@ -1497,7 +1504,7 @@ See [the null space](#kernel).
 
 E-mail addresses, numbers, an `@` before a space, an `@` after a slash, and `@` inside code, math or link text:
 
-```tern {.live}
+```luccet {.live}
 Write to me@x.org. In @2024 we met @ noon at a/@b. `@alice`, $@alice$ and [mail @bob](https://example.com).
 ```
 
@@ -1505,13 +1512,13 @@ Write to me@x.org. In @2024 we met @ noon at a/@b. `@alice`, $@alice$ and [mail 
 
 A reference whose id names nothing in the note stays literal text, with [`ref.dangling`](diagnostics.html#ref-dangling) (warning) at the `@`. The hint is the escape: `\@alice`.
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 Thanks @alice!
 ```
 
 **Writing it literally.** `\@` is a literal `@`:
 
-```tern {.live}
+```luccet {.live}
 Thanks \@alice!
 ```
 
@@ -1520,14 +1527,14 @@ Thanks \@alice!
 A caret label in brackets refers to a footnote, defined elsewhere in the note with `[^label]:` (see [Footnote definitions](syntax-blocks.html#footnote-definition)).
 
 :::syntax
-```tern
+```luccet
 text.[^label]
 
 [^label]: The footnote.
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 Both are subspaces.[^subspace]
 
 [^subspace]: Closed under addition and scaling.
@@ -1542,7 +1549,7 @@ Both are subspaces.[^subspace]
 - A strong group glued after it binds to the `<sup>`.
 - `[^]` and `[^ x]` are text.
 
-```tern {.live}
+```luccet {.live}
 Cites b[^b] then a[^a], and b[^b]{.again} again.
 
 [^a]: Note A.
@@ -1551,14 +1558,14 @@ Cites b[^b] then a[^a], and b[^b]{.again} again.
 
 **Labels are case-insensitive.** Two labels match when their `label.toLowerCase().toUpperCase().toLowerCase()` are equal, so `[^A]` reaches `[^a]:`, and `[^ß]` reaches `[^ss]:`. The ids use the *definition's* label as written:
 
-```tern {.live}
+```luccet {.live}
 Once[^KERNEL], twice[^kernel], and Straße[^ß].
 
 [^Kernel]: Mixed case.
 [^ss]: Folded.
 ```
 
-```tern {.live}
+```luccet {.live}
 One[^1], two[^2b], three[^x_3-c]; empty [^] and spaced [^ x] stay text.
 
 [^1]: Digits only.
@@ -1570,11 +1577,11 @@ One[^1], two[^2b], three[^x_3-c]; empty [^] and spaced [^ x] stay text.
 - [`footnote.undefined`](diagnostics.html#footnote-undefined) (warning, at the `[`): no definition has the label. The reference stays literal.
 - [`footnote.nested`](diagnostics.html#footnote-nested) (warning): a reference inside a footnote definition stays literal. Footnotes cannot nest.
 
-```tern {.live expect="footnote.undefined"}
+```luccet {.live expect="footnote.undefined"}
 See the note[^missing].
 ```
 
-```tern {.live expect="footnote.nested"}
+```luccet {.live expect="footnote.nested"}
 Text.[^a] More.[^b]
 
 [^a]: See also[^b].
@@ -1583,7 +1590,7 @@ Text.[^a] More.[^b]
 
 **Writing it literally.** `\[^x]` or `[\^x]`; neither draws the LaTeX hint.
 
-```tern {.live}
+```luccet {.live}
 \[^x] and [\^x]
 ```
 
@@ -1592,14 +1599,14 @@ Text.[^a] More.[^b]
 A URL becomes a link by itself, in angle brackets or bare.
 
 :::syntax
-```tern
+```luccet
 <https://example.com/a?b=1>
 <someone@example.com>
 https://example.com/a
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 <https://a.b/c?d=1&e=2>, <me@x.org> and https://example.com/docs.
 ```
 
@@ -1609,16 +1616,16 @@ CommonMark's rule:
 - `<`, a scheme (a letter, then 1 to 31 letters, digits, `+`, `.` or `-`), `:`, then no spaces, `<`, `>` or control characters, then `>`. Any scheme works.
 - Or `<`, an e-mail address, `>`, which gets `mailto:`.
 - The text is the URL as written. `&` is escaped in both the `href` and the text.
-- It is an atom: nothing inside is Tern.
+- It is an atom: nothing inside is Luccet.
 - A strong group glued after the `>` binds to the `<a>`.
 
-```tern {.live}
+```luccet {.live}
 <ftp://x.org/f>, <mailto:me@x.org>, <ab:c>, <https://x.org/*a*> and <https://x.org>{.ext}
 ```
 
 A space ends any chance of an angle autolink, and a one-letter scheme is not one:
 
-```tern {.live}
+```luccet {.live}
 <https://a b> and <a:b>
 ```
 
@@ -1632,30 +1639,30 @@ A space ends any chance of an angle autolink, and a one-letter scheme is not one
 - **Group.** It stops at `{`, so a strong group glued there binds to the link; a weak one stays text.
 - The text and the `href` are the URL as written.
 
-```tern {.live}
+```luccet {.live}
 See https://x.com/_a_/docs. Or https://x.org/a, https://x.org/b; maybe https://x.org/c? (https://x.org/d)
 ```
 
 Balanced parentheses stay, an unbalanced final one is trimmed, and trimming repeats:
 
-```tern {.live}
+```luccet {.live}
 https://en.wikipedia.org/wiki/Foo_(bar) and (see https://x.org).
 ```
 
 The trim set includes `*`, `~`, `=` and `\`, so a URL gives back a closing delimiter or a hard break:
 
-```tern {.live}
+```luccet {.live}
 **https://x.org**, ==https://x.org== and https://x.org\
 next line
 ```
 
 It starts after quotes and a tag's `>`, and stops at the characters that structure the text around it:
 
-```tern {.live}
+```luccet {.live}
 "https://a.b" and 'https://a.b', <b>https://x.org</b>, [https://x.org]{.u}, :kbd[https://x], https://a.b/c<d and https://a.b/g`h`
 ```
 
-```tern {.live}
+```luccet {.live}
 | URL | Note |
 |---|---|
 |https://a.b|note|
@@ -1663,25 +1670,25 @@ It starts after quotes and a tag's `>`, and stops at the characters that structu
 
 The scheme is matched in any case. Other schemes, `www.` addresses and URLs glued to a word are text:
 
-```tern {.live}
+```luccet {.live}
 HTTPS://x.org and Http://y.org; ftp://x.org, www.example.com, xhttps://a.b; http:// alone.
 ```
 
 A bare URL is an atom, so stars, tildes and an `@` inside it are not syntax, and a strong group glued after it binds to it:
 
-```tern {.live}
+```luccet {.live}
 https://x.org/a*b*c, https://x.org/?@kernel and https://x.org{.ext}
 ```
 
 Inside link text, code and math, a URL is not a link:
 
-```tern {.live}
+```luccet {.live}
 [see https://x.org](https://example.com), `https://x.org` and $https://x.org$
 ```
 
 **Writing it literally.** `https\://x` is text: the escaped colon breaks the scheme. For an angle form, `\<`.
 
-```tern {.live}
+```luccet {.live}
 https\://x.org and \<https://x.org>
 ```
 
@@ -1690,12 +1697,12 @@ https\://x.org and \<https://x.org>
 Lower-case phrasing tags, custom-element tags and comments pass through unchanged.
 
 :::syntax
-```tern
+```luccet
 x <b class="y">z</b> <br> <span style="color:red">r</span> <!-- c -->
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 x <b class="y">z</b> <br> <span style="color:red">r</span> <!-- c -->
 ```
 
@@ -1704,21 +1711,21 @@ x <b class="y">z</b> <br> <span style="color:red">r</span> <!-- c -->
 - An open tag, a closing tag or a comment that matches CommonMark's tag grammar. A `>` may appear inside a quoted attribute value.
 - The name must be lower case, and either a phrasing element or a valid custom-element name (lower case, starting with `a`–`z`, containing `-`).
 - The phrasing elements are: `a abbr audio b bdi bdo br button canvas cite code data datalist del dfn em embed i iframe img input ins kbd label mark meter object optgroup option output picture progress q rp rt ruby s samp select small source span strong sub sup time track u var video wbr`.
-- Each tag or comment is its own atom: an `html` node with `data.tern.kind: "inline"`. The content *between* an opening and a closing tag is ordinary Tern.
+- Each tag or comment is its own atom: an `html` node with `data.luccet.kind: "inline"`. The content *between* an opening and a closing tag is ordinary Luccet.
 - A comment is `<!--` up to `-->`; `<!-->` and `<!--->` are complete comments. A comment with no `-->` in the same inline content is text.
 - A line that starts with a phrasing tag begins a paragraph (block-level tags start a [raw HTML block](syntax-blocks.html#raw-html) instead).
 
-```tern {.live}
+```luccet {.live}
 Press <kbd>*Ctrl*</kbd> now. A <span title="a > b">tip</span>, <tide-clock station="leith"></tide-clock>, a<br>b and <a href="https://example.com">a raw link</a>.
 ```
 
 Form controls are phrasing, so a small form works inline:
 
-```tern {.live}
+```luccet {.live}
 <label>Size <select name="s"><option>M</option><option>L</option></select></label> <input name="q"> <button>Go</button>
 ```
 
-```tern {.live}
+```luccet {.live}
 a <!--> b <!---> c, and an unclosed <!-- comment is text
 ```
 
@@ -1726,11 +1733,11 @@ a <!--> b <!---> c, and an unclosed <!-- comment is text
 
 An inline `<svg …>`, `<math …>` or `<textarea …>` is taken verbatim up to its own closing tag, as one node: nothing inside is parsed. The closing tag matches in any case, with optional whitespace before its `>` (`</svg >`). Without that closing tag in the same inline content, the `<` is text, with `html.inline-escaped`.
 
-```tern {.live}
+```luccet {.live}
 A dot <svg width="8" height="8"><circle cx="4" cy="4" r="4"/></svg > and <textarea name="n">*raw* <div> @x</textarea>.
 ```
 
-```tern {.live expect="html.inline-escaped html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped html.inline-escaped"}
 A <svg width="8"> and a <textarea> are *never* closed.
 ```
 
@@ -1744,7 +1751,7 @@ Everything else is text, with `<` escaped as `&lt;`:
 
 Lower case only is on purpose. Single-capital generics (`<A>`, `<B>`, `<I>`, `<S>`, `<U>`, `<Q>`) would otherwise open `a`, `b`, `i`, `s`, `u` and `q`.
 
-```tern {.live}
+```luccet {.live}
 a < b, <3, Vec<T>, List<int>, Rust's Box<A>, old <center>x</center>, <?php x ?> and <!DOCTYPE html>.
 ```
 
@@ -1757,37 +1764,37 @@ a < b, <3, Vec<T>, List<int>, Rust's Box<A>, old <center>x</center>, <?php x ?> 
 
 See [`html.inline-escaped`](diagnostics.html#html-inline-escaped).
 
-```tern {.live expect="html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped"}
 Wrap it in a <div>x</div> first.
 ```
 
-```tern {.live expect="html.inline-escaped html.inline-escaped html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped html.inline-escaped html.inline-escaped"}
 An <EM>old</EM> tag, a <Div> and an <H1> too.
 ```
 
-```tern {.live expect="html.inline-escaped"}
+```luccet {.live expect="html.inline-escaped"}
 Old pages wrote <B>bold</B>, but List<B> is a type.
 ```
 
 **`html.inline-unclosed`** (warning, at the tag). Inline content opens a non-void phrasing tag, or a custom element, and never closes it. The browser would carry a formatting tag such as `<b>` into the following paragraphs. Void elements (`br`, `img`, `input`, `wbr` …) and those whose end tag HTML lets you omit (`rt`, `rp`, `option`, `optgroup`) are exempt. A tag closed in the next paragraph is still unclosed in its own. See [`html.inline-unclosed`](diagnostics.html#html-inline-unclosed).
 
-```tern {.live expect="html.inline-unclosed"}
+```luccet {.live expect="html.inline-unclosed"}
 This is <b>bold forever. But a<br>b, <img src="x.png" alt=""> and <wbr> are fine.
 ```
 
-```tern {.live expect="html.inline-unclosed"}
+```luccet {.live expect="html.inline-unclosed"}
 The tide is <tide-clock station="leith">never closed.
 ```
 
 **`html.stray-closer`** (info, at the `<`). An end tag that passes through has no matching open tag before it in the same inline content. The tag still passes through. As for `html.inline-unclosed`, void elements and those whose end tag HTML lets you omit are exempt: `</br>`, `</wbr>`, `</rt>` and `</option>` are silent. An escaped end tag (`</div>`, `</B>`) is text, with no diagnostic. See [`html.stray-closer`](diagnostics.html#html-stray-closer).
 
-```tern {.live expect="html.inline-unclosed html.stray-closer"}
+```luccet {.live expect="html.inline-unclosed html.stray-closer"}
 Start <b>bold
 
 end</b> here.
 ```
 
-```tern {.live expect="html.stray-closer"}
+```luccet {.live expect="html.stray-closer"}
 A stray </b> here; </br>, </wbr>, </rt> and </option> are exempt.
 ```
 
@@ -1797,7 +1804,7 @@ A stray </b> here; </br>, </wbr>, </rt> and </option> are exempt.
 
 **Writing it literally.** `\<` is a literal `<` that opens nothing.
 
-```tern {.live}
+```luccet {.live}
 \<b>not bold\</b>
 ```
 
@@ -1806,12 +1813,12 @@ A stray </b> here; </br>, </wbr>, </rt> and </option> are exempt.
 HTML character references work as in HTML.
 
 :::syntax
-```tern
+```luccet
 &nbsp;  &copy;  &#8704;  &#x2203;
 ```
 :::
 
-```tern {.live}
+```luccet {.live}
 AT&T, 10&nbsp;km, &copy; 2026, &#8704; and &#x2203;
 ```
 
@@ -1821,19 +1828,19 @@ AT&T, 10&nbsp;km, &copy; 2026, &#8704; and &#x2203;
 - An entity is an atom: `&#42;` is a star in the text, never a delimiter, and `&#91;` never opens a link.
 - `&nbsp;` is the documented non-breaking space.
 - Inside code and math an entity is not decoded. In link destinations and titles it is.
-- In the AST, an entity is a `text` node whose `value` is the decoded character, and whose `data.tern.entity` is the spelling, which the emitter writes back.
+- In the AST, an entity is a `text` node whose `value` is the decoded character, and whose `data.luccet.entity` is the spelling, which the emitter writes back.
 
-```tern {.live}
+```luccet {.live}
 &copy 2026, &#x;, &foo; and &bogus; are text; &amp; is an entity.
 ```
 
-```tern {.live}
-&#42;not em&#42; and &#91;not a link&#93;(u); `&amp;` and $a &amp; b$.
+```luccet {.live}
+&#42;not em&#42; and &#91;not a link&#93;(u); `&amp;` and $a \&amp; b$.
 ```
 
 **Writing it literally.** `\&` is a literal `&` that cannot start an entity:
 
-```tern {.live}
+```luccet {.live}
 \&amp; shows the spelling.
 ```
 
@@ -1844,7 +1851,7 @@ AT&T, 10&nbsp;km, &copy; 2026, &#8704; and &#x2203;
 - `<`, `>`, `&` and `"` in text are escaped.
 - In the AST, adjacent text and soft breaks merge into one `text` node holding the `\n` (see [The AST](api.html#ast)).
 
-```tern {.live}
+```luccet {.live}
 one
   two
 a < b & c > d "e"
@@ -1852,7 +1859,7 @@ a < b & c > d "e"
 
 `#`, `%`, a lone `~` or `^`, and TeX's marks outside math are plain text:
 
-```tern {.live}
+```luccet {.live}
 Use C# and #tags; see #1. x^2, a ~ b, ~x~, ^y^ and 100% stay text.
 ```
 
@@ -1905,7 +1912,7 @@ A line starting with three colons and a name opens a container, wherever it appe
 The rest of such a line is junk, shown as an error paragraph, and the container runs to the end of its parent, taking what follows with it.
 :::
 
-```tern {.live expect="block.unclosed block.opener-junk"}
+```luccet {.live expect="block.unclosed block.opener-junk"}
 :::note
 Text
 
@@ -1919,13 +1926,13 @@ Write `\:::` at the start of such a line (see [Containers](syntax-blocks.html#co
 
 Named elements are not atoms, so the row splitter sees a pipe inside one. Escape it as `\|`:
 
-```tern {.live expect="inline.unclosed table.extra-cell"}
+```luccet {.live expect="inline.unclosed table.extra-cell"}
 | A | B |
 |---|---|
 | :kbd[a|b] | c |
 ```
 
-```tern {.live}
+```luccet {.live}
 | A | B |
 |---|---|
 | :kbd[a\|b] | c |
@@ -1944,7 +1951,7 @@ In paragraphs, headings, titles, cells, and leaf and element content:
 
 See [Backslash escapes](#escape) and [Hard breaks](#hard-break).
 
-```tern {.live}
+```luccet {.live}
 ## a\*b\* {#ab}
 
 | A |
@@ -1975,19 +1982,19 @@ These escapes turn a line that would start a block into text. Each one is shown 
 
 A heading:
 
-```tern {.live}
+```luccet {.live}
 \# Not a heading
 ```
 
 A quote:
 
-```tern {.live}
+```luccet {.live}
 \> Not a quote
 ```
 
 The four list markers, each at the start of a line:
 
-```tern {.live}
+```luccet {.live}
 \- not a bullet
 \+ not a bullet
 \* not a bullet
@@ -1996,14 +2003,14 @@ The four list markers, each at the start of a line:
 
 A table: escape every line that would be read as a row, the delimiter row included. An unescaped delimiter row under a text line gets `table.stray-delimiter`.
 
-```tern {.live}
+```luccet {.live}
 \| a | b |
 \|---|---|
 ```
 
 A container and a leaf:
 
-```tern {.live}
+```luccet {.live}
 \:::note is not a block.
 
 \::toc is not a leaf.
@@ -2011,32 +2018,32 @@ A container and a leaf:
 
 Display math:
 
-```tern {.live}
+```luccet {.live}
 \$$ is not display math
 ```
 
 An attribute line:
 
-```tern {.live}
+```luccet {.live}
 \{#intro}
 Text
 ```
 
 A raw HTML block:
 
-```tern {.live}
+```luccet {.live}
 \<div> is a tag name.
 ```
 
 A footnote definition:
 
-```tern {.live}
+```luccet {.live}
 \[^x]: not a definition.
 ```
 
 A cell separator, inside a container:
 
-```tern {.live}
+```luccet {.live}
 :::box
 One
 \+++
@@ -2044,16 +2051,16 @@ Two
 :::
 ```
 
-A thematic break; unescaped, `---` under a line of text is a rule, since Tern has no setext headings:
+A thematic break; unescaped, `---` under a line of text is a rule, since Luccet has no setext headings:
 
-```tern {.live}
+```luccet {.live}
 Text
 \---
 ```
 
 A fence:
 
-````tern {.live}
+````luccet {.live}
 \```js is not a fence
 ````
 
@@ -2068,11 +2075,11 @@ A backslash is an ordinary character:
 
 Link destinations and titles *do* take escapes and entities, as in CommonMark (see [Links](#normalisation)).
 
-```tern {.live}
+```luccet {.live}
 `\*`, [x]{title="a\*b" data-k=\.} and <span title="\*">b</span>
 ```
 
-````tern {.live}
+````luccet {.live}
 ```
 \*
 ```
@@ -2080,9 +2087,9 @@ Link destinations and titles *do* take escapes and entities, as in CommonMark (s
 
 ### In math {#escapes-math}
 
-Inside `$…$`, `$$` and `:::macros`, the backslash belongs to TeX. When looking for the closing dollar, the scanner only skips `\` + any character, so `\$` inside math is TeX's dollar, and `\\` is a pair that does not hide the dollar after it:
+Inside `$…$`, `$$` and `:::macros`, the backslash belongs to TeX. When looking for the closing dollar, the scanner only skips `\` + any character, so `\$` inside math is TeX's dollar, and `\\` is a pair that does not hide the dollar after it. (The formula `a\\` itself is [`tex.misplaced`](diagnostics.html#tex-misplaced): in TeX, `\\` ends a row, which needs an environment.)
 
-```tern {.live}
+```luccet {.live expect="tex.misplaced"}
 $\{x\}$, $\$$ and $a\\$ then $b$
 ```
 
@@ -2094,7 +2101,7 @@ $\{x\}$, $\$$ and $a\\$ then $b$
 
 See [Tables](syntax-blocks.html#tables).
 
-```tern {.live}
+```luccet {.live}
 | A | B |
 |---|---|
 | `a|b` | c\|d |
@@ -2110,25 +2117,25 @@ These cases are accepted and documented: the rules produce them on purpose, or t
 
 `$5 then x$`, `$100 (US$)` and `$5-$x$` are math: this is Pandoc's residue. `math.suspect-price` flags spans like the first. The fix is `\$`.
 
-```tern {.live expect="math.suspect-price"}
+```luccet {.live expect="math.suspect-price"}
 $5 then x$
 ```
 
-```tern {.live}
+```luccet {.live}
 $100 (US$) and $5-$x$
 ```
 
-```tern {.live}
+```luccet {.live}
 \$5 then x$, \$100 (US$) and \$5-$x$
 ```
 
 `$]0,1[$` and `$[0,1[$` are text, with `math.bracket`. Write verbatim math:
 
-```tern {.live expect="math.bracket math.bracket"}
+```luccet {.live expect="math.bracket math.bracket"}
 $]0,1[$ and $[0,1[$
 ```
 
-```tern {.live}
+```luccet {.live}
 $`]0,1[` and $`[0,1[`
 ```
 
@@ -2136,7 +2143,7 @@ $`]0,1[` and $`[0,1[`
 
 `2*3*4` is `2<em>3</em>4`, as in CommonMark, so CommonMark's examples import unchanged. Write it with spaces, in math, or with escaped stars:
 
-```tern {.live}
+```luccet {.live}
 2*3*4, but 2 * 3 * 4, $2 \cdot 3 \cdot 4$ and 2\*3\*4
 ```
 
@@ -2144,11 +2151,11 @@ $`]0,1[` and $`[0,1[`
 
 `x <b and c> y` is a raw `<b>` tag: it matches CommonMark's tag grammar, with the attributes `and` and `c`. It is loud, since the tag is never closed. Write `\<`, or use math:
 
-```tern {.live expect="html.inline-unclosed"}
+```luccet {.live expect="html.inline-unclosed"}
 x <b and c> y
 ```
 
-```tern {.live}
+```luccet {.live}
 x \<b and c> y, or $x < b$
 ```
 
@@ -2156,13 +2163,13 @@ x \<b and c> y, or $x < b$
 
 A lone backtick pairs with the next single backtick in the same paragraph or row. Inside a named element, the code span then swallows the element's `]`:
 
-```tern {.live expect="inline.unclosed"}
+```luccet {.live expect="inline.unclosed"}
 Press :kbd[`] then type `x`.
 ```
 
 Write `` \` ``:
 
-```tern {.live}
+```luccet {.live}
 Press :kbd[\`] then type `x`.
 ```
 
@@ -2170,17 +2177,17 @@ Press :kbd[\`] then type `x`.
 
 Code spans bind tighter than link destinations and attribute values, as in CommonMark. A backtick inside them pairs with a later backtick as code, and the link or the group is lost:
 
-```tern {.live}
+```luccet {.live}
 [a](x`y) `z`
 ```
 
-```tern {.live}
+```luccet {.live}
 [w]{title="a`b"} `c`
 ```
 
 Write `%60` in a destination, or `&#96;` in a quoted value:
 
-```tern {.live}
+```luccet {.live}
 [a](x%60y) `z` and [w]{title="a&#96;b"} `c`
 ```
 
@@ -2188,13 +2195,13 @@ Write `%60` in a destination, or `&#96;` in a quoted value:
 
 `これは@kernelです` references `kernelです`, because an IDENT runs on through letters of any script. Write a space, or `{}`, which after a reference is a terminator with no attributes:
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 ## Kernel {#kernel}
 
 これは@kernelです
 ```
 
-```tern {.live}
+```luccet {.live}
 ## Kernel {#kernel}
 
 これは@kernel です, これは@kernel{}です
@@ -2204,7 +2211,7 @@ Write `%60` in a destination, or `&#96;` in a quoted value:
 
 `| $a | b$ |` is one cell: the math span contains the pipe, and atoms are opaque to the row splitter.
 
-```tern {.live}
+```luccet {.live}
 | A | B |
 |---|---|
 | $a | b$ | c |
@@ -2214,11 +2221,11 @@ Write `%60` in a destination, or `&#96;` in a quoted value:
 
 `@alice` is a reference. With no element of that id it stays text, with `ref.dangling`. Write `\@alice`:
 
-```tern {.live expect="ref.dangling"}
+```luccet {.live expect="ref.dangling"}
 Thanks @alice!
 ```
 
-```tern {.live}
+```luccet {.live}
 Thanks \@alice!
 ```
 
@@ -2226,7 +2233,7 @@ Thanks \@alice!
 
 `2019. was a year` after a blank line is a list, as in CommonMark. Write `2019\.`:
 
-```tern {.live}
+```luccet {.live}
 Busy.
 
 2019. was a year
@@ -2236,7 +2243,7 @@ Busy.
 
 A wrapped prose line that starts with `+ ` or `- ` interrupts the paragraph as a bullet. Write `\+` or `\-`:
 
-```tern {.live}
+```luccet {.live}
 The total is 5
 + 3 more.
 
@@ -2246,13 +2253,13 @@ The total is 5
 
 ### HTML soup {#residual-html-soup}
 
-A forgotten `</div>` turns everything up to the next `:::` line, the parent's end or the end of the note into raw HTML. This is loud: `html.unclosed` at the tag, and visible soup. Here the Tern line inside also gets `html.wrapper`, and the `:::note` line ends the soup. See [Raw HTML blocks](syntax-blocks.html#raw-html).
+A forgotten `</div>` turns everything up to the next `:::` line, the parent's end or the end of the note into raw HTML. This is loud: `html.unclosed` at the tag, and visible soup. Here the Luccet line inside also gets `html.wrapper`, and the `:::note` line ends the soup. See [Raw HTML blocks](syntax-blocks.html#raw-html).
 
-```tern {.live expect="html.unclosed html.wrapper"}
+```luccet {.live expect="html.unclosed html.wrapper"}
 <div class="box">
 Some *text*.
 :::note
-Back in Tern.
+Back in Luccet.
 :::
 ```
 
@@ -2260,7 +2267,7 @@ Back in Tern.
 
 An unclosed fence, comment or raw-text element (such as `<script>`) runs to the end of its parent's prefix (a quote, a list item, a footnote) or to the end of the note, *through* `:::` closers, because each may legitimately contain them. The fence shows the rest as code; the comment and the raw-text element show it as escaped source in `<pre class="t-error">`.
 
-````tern {.live expect="block.unclosed block.unclosed-fence"}
+````luccet {.live expect="block.unclosed block.unclosed-fence"}
 :::box
 ```
 code
@@ -2268,13 +2275,13 @@ code
 after
 ````
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 <!-- a note to self
 
 ## Heading
 ```
 
-```tern {.live expect="html.unclosed"}
+```luccet {.live expect="html.unclosed"}
 <script>
 let x = 1;
 :::

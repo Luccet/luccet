@@ -8,7 +8,7 @@ spec: syntax-blocks#leaf elements#allowlists
 
 The leaf allowlist reaches the embedded elements, so media needs no raw HTML; a bare key is a boolean attribute.
 
-````tern
+````luccet
 ::video{src=media/tide.mp4 controls width=640}
 ````
 
@@ -22,7 +22,7 @@ spec: syntax-blocks#leaf elements#names
 
 A valid custom-element name becomes that element, its attributes passed through.
 
-````tern
+````luccet
 ::tide-clock{station=leith units=m}
 ````
 
@@ -36,7 +36,7 @@ spec: syntax-blocks#leaf elements#output-contract
 
 A name outside the allowlist is a `div`; the bracket content is inline, and the group's id goes on the element.
 
-````tern
+````luccet
 ::fig[Caption *x*]{#f}
 ````
 
@@ -50,7 +50,7 @@ spec: syntax-blocks#leaf
 
 Content and group are both optional.
 
-````tern
+````luccet
 ::spacer
 ````
 
@@ -64,7 +64,7 @@ spec: syntax-blocks#leaf
 
 The grammar allows spaces between the name, the content and the group.
 
-````tern
+````luccet
 ::fig [Cap] {#f}
 ````
 
@@ -78,7 +78,7 @@ spec: syntax-blocks#leaf syntax-inline#inline-element
 
 Leaf content follows the rules of a container's title: brackets nest, `\]` escapes, code and math are atoms. So an inline element inside the content nests its brackets.
 
-````tern
+````luccet
 ::fig[Press :kbd[Ctrl]]
 ````
 
@@ -92,7 +92,7 @@ spec: syntax-blocks#leaf elements#allowlists
 
 `p` is in the leaf allowlist (and not the container one); author classes follow the name class.
 
-````tern
+````luccet
 ::p[Lead text]{.lead}
 ````
 
@@ -106,7 +106,7 @@ spec: syntax-blocks#leaf syntax-blocks#thematic-break
 
 A thematic break takes no attributes; `::hr{…}` is the spelling for a styled rule.
 
-````tern
+````luccet
 ::hr{.thin}
 ````
 
@@ -120,7 +120,7 @@ spec: syntax-blocks#leaf elements#allowlists syntax-blocks#character-classes
 
 Names are case-sensitive and the leaf allowlist is lower-case, so `::HR` is not `<hr>`: it falls back to `div` with the name as written as its class, and its content is ordinary content.
 
-````tern
+````luccet
 ::HR[x]{.thin}
 ````
 
@@ -137,7 +137,7 @@ spec: syntax-blocks#leaf elements#allowlists
 
 A void element from the leaf allowlist has no content and no end tag.
 
-````tern
+````luccet
 ::img{src=a.png alt="A cat"}
 ````
 
@@ -151,7 +151,7 @@ spec: syntax-blocks#leaf elements#allowlists
 
 A non-void media element keeps its inline content as fallback.
 
-````tern
+````luccet
 ::audio[No audio support.]{src=a.ogg controls}
 ````
 
@@ -165,7 +165,7 @@ spec: syntax-blocks#leaf
 
 Content on a void leaf gets `leaf.void-content` at the leaf and is emitted after the element, in a `<p>` because block context needs a block.
 
-````tern
+````luccet
 ::hr[x]
 ````
 
@@ -184,7 +184,7 @@ spec: syntax-blocks#leaf
 
 A line starting `::NAME` that is not a whole-line leaf is a paragraph, with an info at the `::`.
 
-````tern
+````luccet
 ::before and ::after are pseudo-elements.
 ````
 
@@ -193,7 +193,7 @@ A line starting `::NAME` that is not a whole-line leaf is a paragraph, with an i
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## leaf/trailing-text-demoted
@@ -202,7 +202,7 @@ spec: syntax-blocks#leaf
 
 Text after the content breaks the whole-line match, so the line is demoted.
 
-````tern
+````luccet
 ::fig[Cap] trailing
 ````
 
@@ -211,7 +211,7 @@ Text after the content breaks the whole-line match, so the line is demoted.
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## leaf/unclosed-bracket-demoted
@@ -220,7 +220,7 @@ spec: syntax-blocks#leaf
 
 Content cut off before its `]` (as auto-wrap does) demotes the line.
 
-````tern
+````luccet
 ::fig[Caption
 ````
 
@@ -229,7 +229,7 @@ Content cut off before its `]` (as auto-wrap does) demotes the line.
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## leaf/bare-double-colon
@@ -238,7 +238,7 @@ spec: syntax-blocks#leaf
 
 `::` alone is a paragraph, with no diagnostic.
 
-````tern
+````luccet
 ::
 ````
 
@@ -255,7 +255,7 @@ spec: syntax-blocks#leaf
 
 A space between `::` and the name makes a paragraph with `block.spaced-name`.
 
-````tern
+````luccet
 :: toc
 ````
 
@@ -273,7 +273,7 @@ spec: syntax-blocks#leaf syntax-blocks#positions
 
 A trailing group that does not parse makes the line a paragraph, with `attr.malformed` at the first bad column (the `%`) and nothing else: a leaf with a malformed group is not also `leaf.demoted`.
 
-````tern
+````luccet
 ::spacer{#f %}
 ````
 
@@ -291,7 +291,7 @@ spec: syntax-blocks#leaf syntax-blocks#positions
 
 With brackets before it, the group that does not parse still gets `attr.malformed` once, at the first bad column: the line is a paragraph whose `[…]{…}` is also a failed bare span, which is not reported a second time. The same holds for such a line inside a paragraph.
 
-````tern
+````luccet
 ::video[Tide at *dawn*]{.a!}
 
 Text
@@ -315,7 +315,7 @@ spec: syntax-blocks#leaf syntax-blocks#line-algorithm
 
 A whole-line leaf interrupts a paragraph.
 
-````tern
+````luccet
 Some text
 ::spacer
 ````
@@ -331,7 +331,7 @@ spec: syntax-blocks#leaf syntax-blocks#line-algorithm
 
 A line that is not a whole-line leaf does not interrupt a paragraph: it continues it, and still gets `leaf.demoted`, which a demoted line carries wherever it appears.
 
-````tern
+````luccet
 Some text
 ::before is a pseudo-element.
 ````
@@ -342,7 +342,7 @@ Some text
 ````
 
 ````diagnostics
-2:1 info leaf.demoted
+2:1 warning leaf.demoted
 ````
 
 ## leaf/escaped
@@ -351,7 +351,7 @@ spec: syntax-blocks#leaf syntax-inline#escapes
 
 `\::` turns a would-be leaf into text.
 
-````tern
+````luccet
 \::spacer
 ````
 
@@ -365,7 +365,7 @@ spec: syntax-blocks#leaf elements#output-contract
 
 `{depth=N}` on a toc lists the levels from the lower bound of its range (the schema's `2-3`, so 2) to N; `depth` is consumed, not emitted. A level-1 heading stays out either way.
 
-````tern
+````luccet
 ::toc{depth=2}
 
 ::toc{depth=4}
@@ -394,7 +394,7 @@ spec: syntax-blocks#leaf elements#output-contract syntax-blocks#heading
 
 A toc entry is a link holding a copy of the heading's inline content, flattened as a reference's text is: the link keeps only its text, the footnote reference is left out, and the reference becomes its text.
 
-````tern
+````luccet
 ::toc
 
 ## See [the docs](https://x.org)[^n] and @k
@@ -419,7 +419,7 @@ spec: elements#output-contract elements#references syntax-blocks#leaf
 
 A reference in a toc entry is its target's plain text, exactly as in ref text: `@map` reads "The map", without the heading's `<em>`, and `@rn{ref=title}` reads "Theorem 1", the target's default text: `ref=` chooses the text of the reference itself, not of a copy of it.
 
-````tern
+````luccet
 ::toc
 
 ## The *map* {#map}
@@ -452,7 +452,7 @@ options: schema=extended
 
 A leaf counted or labelled by its schema has no title element, so its label is its first child, `span.t-label`, followed by a space when content follows; a reference to it uses the schema's `ref`. `bib` is the documented citation style, `{counter: 'bib', ref: '[{n}]'}`, whose label is its number. A void element (`photo`, an `img`) has nowhere to put a label and gets none.
 
-````tern
+````luccet
 ::bib[Knuth, *TAOCP*]{#knuth}
 ::bib{#lamport}
 ::photo[Osprey]{src=osprey.jpg}
@@ -479,7 +479,7 @@ options: schema=extended
 
 A toc leaf with a label (`contents: {tag: 'nav', transform: 'toc', label: 'Contents'}`) gets it as its first child, before the list, as any labelled leaf does.
 
-````tern
+````luccet
 ::contents
 
 ## A

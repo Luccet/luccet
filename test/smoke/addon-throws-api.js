@@ -1,4 +1,4 @@
 // SPDX-License-Identifier: MIT
-// An add-on of test/smoke/addon-throws.html whose tern.transform call throws
-// inside tern.js: a built-in name.
-tern.transform('figures', () => {});
+// An add-on of test/smoke/addon-throws.html whose luccet.transform call throws
+// inside luccet.js: a built-in name.
+luccet.transform('figures', () => {});

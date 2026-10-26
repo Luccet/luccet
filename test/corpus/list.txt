@@ -10,7 +10,7 @@ spec: syntax-blocks#lists
 
 The lists example: task items, and an ordered list nested at the item's content column.
 
-````tern
+````luccet
 - [x] Motions
 - [ ] Operators
   1. inner vs around
@@ -30,7 +30,7 @@ spec: syntax-blocks#lists
 
 `[X]` checks the box like `[x]`, and an ordered item can be a task item too.
 
-````tern
+````luccet
 - [X] Upper-case x
 1. [x] Ordered
 ````
@@ -46,7 +46,7 @@ spec: syntax-blocks#lists
 
 Only `[ ]`, `[x]` or `[X]` followed by a space or the end of the line make a task item: `[x]Done` is glued to its text and `[-]` is not a checkbox.
 
-````tern
+````luccet
 - [x]Done
 - [-] Partial
 ````
@@ -61,7 +61,7 @@ spec: syntax-blocks#lists
 
 `- [ ]` at the end of a line (after trimming) is a task item with no text, as on GitHub, so an empty checklist line in a template is a checkbox.
 
-````tern
+````luccet
 - [ ]
 - [x]
 ````
@@ -76,7 +76,7 @@ spec: syntax-blocks#lists
 
 Items with the same bullet character form one list; a different bullet starts a new list.
 
-````tern
+````luccet
 - dash
 - dash
 + plus
@@ -95,7 +95,7 @@ spec: syntax-blocks#lists
 
 The same holds for the ordered delimiter: `1)` after `1.` items starts a new list.
 
-````tern
+````luccet
 1. foo
 1. bar
 1) baz
@@ -113,7 +113,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 `2.` and `3.` after `1.` are further items of the same list (CommonMark).
 The interrupt restrictions apply only when every prefix matched (the lazy-continuation rule).
 
-````tern
+````luccet
 1. one
 2. two
 3. three
@@ -130,7 +130,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 An empty item between two items is a third item (CommonMark).
 The interrupt restrictions apply only when every prefix matched (the lazy-continuation rule).
 
-````tern
+````luccet
 - one
 -
 - three
@@ -146,7 +146,7 @@ spec: syntax-blocks#lists
 
 Numbers need not increase; `1.` items are siblings (and each would interrupt a paragraph anyway).
 
-````tern
+````luccet
 1. a
 1. b
 1. c
@@ -162,7 +162,7 @@ spec: syntax-blocks#lists
 
 An ordered list starting at n ≠ 1 gets `start="n"`, zero included.
 
-````tern
+````luccet
 0. zero
 
 3) three
@@ -179,7 +179,7 @@ spec: syntax-blocks#lists
 
 Leading zeros are digits of the marker; the start is the number.
 
-````tern
+````luccet
 007. bond
 ````
 
@@ -193,7 +193,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 An ordered marker has 1 to 9 digits; ten digits make a paragraph.
 
-````tern
+````luccet
 123456789. nine
 
 1234567890. ten
@@ -210,7 +210,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 A marker must be followed by a space, a tab or the end of the line.
 
-````tern
+````luccet
 -foo
 +bar
 1.baz
@@ -231,7 +231,7 @@ options: escaped
 
 A tab may follow the marker.
 
-````tern
+````luccet
 -\tfoo
 ````
 
@@ -245,7 +245,7 @@ spec: syntax-blocks#lists
 
 A marker alone on its line is an empty item.
 
-````tern
+````luccet
 -
 
 1.
@@ -262,7 +262,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm syntax-blocks#r2
 
 After a blank line, a line belongs to the item only when indented to the content column (marker width plus spaces: 2 here).
 
-````tern
+````luccet
 - a
 
   b
@@ -281,7 +281,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 The content column of `10. a` is 4: four spaces belong to the item, three do not.
 
-````tern
+````luccet
 10. a
 
     b
@@ -300,7 +300,7 @@ spec: syntax-blocks#lists syntax-blocks#r2
 
 With more than four spaces after the marker the content column is the marker width plus one, and the extra spaces are just leading whitespace (no indented code).
 
-````tern
+````luccet
 -      a
 
   b
@@ -316,7 +316,7 @@ spec: syntax-blocks#lists
 
 With exactly four spaces after the marker they all count: the content column is 5, so a line indented 2 is outside the item.
 
-````tern
+````luccet
 -    a
 
   b
@@ -333,7 +333,7 @@ spec: syntax-blocks#lists syntax-blocks#r2
 
 Indentation before the marker counts toward the content column (as in CommonMark): it is 5 here, so `b`, indented 2, is outside the item.
 
-````tern
+````luccet
    - a
 
   b
@@ -350,7 +350,7 @@ spec: syntax-blocks#lists
 
 An item may start empty and get its content on the next line, indented to its content column.
 
-````tern
+````luccet
 -
   foo
 ````
@@ -365,7 +365,7 @@ spec: syntax-blocks#lists
 
 An item whose first line is empty has content column = marker width + 1 (as in CommonMark), 2 here, so a line indented one space does not belong to it; with no paragraph open in the item it is not lazy either.
 
-````tern
+````luccet
 -
  foo
 ````
@@ -381,7 +381,7 @@ spec: syntax-blocks#lists
 
 At most one blank line may open an item (as in CommonMark): a marker alone, a blank line, then an indented line is an empty item followed by a paragraph.
 
-````tern
+````luccet
 -
 
   foo
@@ -398,7 +398,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 A paragraph line that is not indented continues the item's paragraph lazily.
 
-````tern
+````luccet
 - a
 b
 ````
@@ -414,7 +414,7 @@ spec: syntax-blocks#lists
 
 A blank line between items makes the list loose: item paragraphs get `<p>`.
 
-````tern
+````luccet
 - a
 
 - b
@@ -430,7 +430,7 @@ spec: syntax-blocks#lists
 
 A blank line inside one item makes the whole list loose.
 
-````tern
+````luccet
 - a
 
   b
@@ -447,7 +447,7 @@ spec: syntax-blocks#lists
 
 A blank line inside a nested item makes the nested list loose, not the outer one: "loose" means a blank line directly inside an item (as in CommonMark).
 
-````tern
+````luccet
 - a
   - b
 
@@ -465,7 +465,7 @@ spec: syntax-blocks#lists
 
 A blank line after the last item, before a paragraph that does not belong, leaves the list tight.
 
-````tern
+````luccet
 - a
 - b
 
@@ -483,7 +483,7 @@ spec: syntax-blocks#lists syntax-blocks#r2
 
 Indentation to the content column nests; a marker below it returns to the outer list.
 
-````tern
+````luccet
 - a
   - b
     - c
@@ -500,7 +500,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 A non-empty bullet item interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 - item
 ````
@@ -516,7 +516,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 A non-empty ordered item numbered 1 interrupts a paragraph, with either delimiter.
 
-````tern
+````luccet
 Some prose
 1) first
 ````
@@ -532,7 +532,7 @@ spec: syntax-blocks#lists syntax-inline#residual-lists
 
 After a blank line, `2019. was a year` is a list, as in CommonMark.
 
-````tern
+````luccet
 Some prose
 
 2019. was a year
@@ -549,7 +549,7 @@ spec: syntax-blocks#lists syntax-inline#escapes syntax-inline#residual-lists
 
 `2019\.` keeps a line-start year as prose.
 
-````tern
+````luccet
 2019\. was a year
 ````
 
@@ -563,7 +563,7 @@ spec: syntax-blocks#lists syntax-inline#residual-lists
 
 A wrapped prose line starting `+ ` interrupts the paragraph as a bullet (a documented residual case).
 
-````tern
+````luccet
 The total is the base price
 + tax, rounded up.
 ````
@@ -579,7 +579,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 Inside an item, an ordered marker other than 1 does not interrupt the item's paragraph either.
 
-````tern
+````luccet
 - a
   2. b
 ````
@@ -596,7 +596,7 @@ options: schema=none
 
 A container may nest in an item at its content column; tightness unwraps only paragraphs that are direct children of an item, so the container keeps its `<p>`.
 
-````tern
+````luccet
 - :::box
   Inside.
   :::
@@ -610,10 +610,11 @@ A container may nest in an item at its content column; tightness unwraps only pa
 ## list/nests-table-and-math
 
 spec: syntax-blocks#lists syntax-blocks#tables syntax-blocks#display-math
+options: math=tex
 
 Tables and display math nest in items at the content column.
 
-````tern
+````luccet
 - | a | b |
   |---|---|
   | 1 | 2 |
@@ -635,7 +636,7 @@ spec: syntax-blocks#lists syntax-blocks#blockquote
 
 A quote nests in an item; the item's prefix is matched first, then the quote's.
 
-````tern
+````luccet
 - > a
   > b
 ````
@@ -651,7 +652,7 @@ spec: syntax-blocks#lists syntax-blocks#r2
 
 Indentation beyond the content column is ignored inside the item: six spaces give a heading, not indented code.
 
-````tern
+````luccet
 - a
 
       # Heading
@@ -667,7 +668,7 @@ spec: syntax-blocks#lists syntax-blocks#line-algorithm
 
 The 65th nested list item would make the stack deeper than 64, so from there the line is paragraph text, with `nesting.limit` at that marker. Items count toward the depth, `list` nodes and the root do not; if lists counted, the 33rd item would be refused (column 65).
 
-````tern js
+````luccet js
 '- '.repeat(65) + 'x\n'
 ````
 
@@ -681,7 +682,7 @@ spec: syntax-blocks#lists syntax-blocks#fence
 
 The blank lines before `- next` end the first item and belong to nothing, so the fence left open in the item ends before them: its code is `code` alone, and it is unclosed at its opener.
 
-````tern
+````luccet
 - item
 
   ```
@@ -708,7 +709,7 @@ spec: syntax-blocks#lists
 In a loose list the checkbox goes inside the item's first paragraph, as on GitHub.
 In a loose list the checkbox goes inside the item's first paragraph, as on GitHub.
 
-````tern
+````luccet
 - [x] Done
 
 - [ ] Todo

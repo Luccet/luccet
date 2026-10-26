@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-// npm packages for the tools and the tests: a version's tarball from the npm
+// npm packages for the tests (axe-core): a version's tarball from the npm
 // registry, checked against its sha512, unpacked once into
-// node_modules/.cache/tern-smoke/FOLDER/. jsDelivr's /npm/ files are the
+// node_modules/.cache/luccet-smoke/FOLDER/. jsDelivr's /npm/ files are the
 // package's bytes, so SRI hashes taken from these copies hold, and
 // test/smoke.js answers CDN requests from them.
 //
@@ -16,7 +16,7 @@ const zlib = require('zlib');
 const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
-const CACHE = path.join(ROOT, 'node_modules', '.cache', 'tern-smoke');
+const CACHE = path.join(ROOT, 'node_modules', '.cache', 'luccet-smoke');
 
 // The files of a ustar/pax tarball whose path starts with `prefix`.
 function untar(buf, prefix, onFile) {

@@ -1,85 +1,60 @@
 // SPDX-License-Identifier: MIT
-// The base stylesheet, injected by the runtime as <style id="tern-style"> and
-// published as tern.css. It styles the emitter's output: blocks have no look
-// of their own; add-ons and the note's own CSS style them by class and data-t.
-// It uses logical properties throughout and isolates math and code as LTR, so
-// RTL notes work.
+// The base stylesheet, injected by the runtime as <style id="luccet-style"> and
+// published as luccet.css. It is functional only: a note looks like plain HTML,
+// as the browser draws it (light or dark, by the reader's system), and this
+// adds what Luccet's own constructs need to work: line numbers and highlighted
+// lines, grids, math (a math font, and what Chromium's MathML leaves to CSS),
+// an equation's number at its end, the end mark, task lists,
+// scrolling where content would overflow, visible errors and the diagnostics
+// panel, math and code isolated as LTR in an RTL note, and print without
+// clipping. The look (a reading column, type, a palette) is a theme's
+// (github.com/Luccet/themes). The --t-* properties are the contract between
+// the two: here they default to the system's colours, or to colours of their
+// own where the system has none (errors, a highlighted line). Code's colours,
+// --t-code-*, are the code add-on's (github.com/Luccet/code).
 'use strict';
 
 const css = `:root {
   color-scheme: light dark;
-  --t-bg: #fdfdfb; --t-fg: #1f2328; --t-muted: #636c76; --t-line: #d9dde3; --t-line-strong: #767676; --t-soft: #f3f4f1;
-  --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
-  --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
-  --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
-  --t-font: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
-  --t-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --t-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  --t-width: 40rem; --t-size: 1.125rem; --t-leading: 1.6; /* 18px at the browser's default size, so a reader's own size setting holds */
+  --t-bg: Canvas; --t-fg: CanvasText; --t-muted: CanvasText; --t-line: GrayText; --t-line-strong: GrayText; --t-soft: ButtonFace;
+  --t-link: LinkText; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
+  --t-sans: system-ui, sans-serif; --t-mono: monospace;
+  --t-math: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Libertinus Math", "TeX Gyre Termes Math", "DejaVu Math TeX Gyre", "Noto Sans Math", math;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --t-bg: #16181c; --t-fg: #dcdfe4; --t-muted: #8b949e; --t-line: #30363d; --t-line-strong: #8b949e; --t-soft: #1f2329;
-    --t-link: #6cb0ff; --t-mark: #5c4d00; --t-error: #ffb4ab; --t-error-bg: #3b1714; --t-warn: #e3b341;
-    --t-code-comment: #949da6; --t-code-keyword: #ff7b72; --t-code-string: #a5d6ff; --t-code-number: #79c0ff; --t-code-function: #d2a8ff;
-    --t-code-type: #ffa657; --t-code-variable: #79c0ff; --t-code-meta: #7ee787; --t-code-inserted: #7ee787; --t-code-deleted: #ffa198;
+    --t-mark: #5c4d00; --t-error: #ffb4ab; --t-error-bg: #3b1714; --t-warn: #e3b341;
   }
 }
-html { background: var(--t-bg); color: var(--t-fg); font: var(--t-size)/var(--t-leading) var(--t-font); -webkit-text-size-adjust: 100%; }
-body { margin: 0; padding: 2.5rem 1rem 6rem; }
-.tern { max-width: var(--t-width); margin-inline: auto; overflow-wrap: break-word; hanging-punctuation: first last; }
-.tern > :first-child { margin-block-start: 0; }
-.tern :is(h1, h2, h3, h4, h5, h6) { font-family: var(--t-sans); line-height: 1.25; margin-block: 2em .6em; text-wrap: balance; }
-/* Body text wraps for an even rag and no stranded last word; headings balance. */
-.tern :is(p, li, dd, blockquote, figcaption, caption, .t-title) { text-wrap: pretty; }
-.tern h1 { font-size: 1.9rem; }
-.tern h2 { font-size: 1.4rem; padding-block-end: .25em; border-block-end: 1px solid var(--t-line); }
-.tern h3 { font-size: 1.15rem; }
-.tern :is(h4, h5, h6) { font-size: 1rem; }
-.tern :is(p, ul, ol, dl, pre, table, blockquote, figure, details), .t-block, .t-eq { margin-block: 0 1rem; margin-inline: 0; }
-.tern a { color: var(--t-link); text-decoration-thickness: .06em; text-underline-offset: .15em; }
-.tern :is(ul, ol) { padding-inline-start: 1.6rem; }
-.tern li > :is(ul, ol) { margin-block-end: 0; }
-.tern li > p { margin-block-end: .5rem; }
-.tern hr { border: 0; border-block-start: 1px solid var(--t-line); margin-block: 2rem; }
-.tern blockquote { padding-inline-start: 1rem; border-inline-start: 3px solid var(--t-line); color: var(--t-muted); }
-/* Text in a highlight is the text colour, whatever it was (muted, a link, which keeps its underline): the pair that is checked is fg on mark. */
-.tern mark, .tern mark a { color: var(--t-fg); }
-.tern mark { background: var(--t-mark); padding-inline: .15em; border-radius: 2px; }
+/* The page in the system's colours, as the browser draws it, said outright: a theme sets them, and
+   a tool reading the page (a contrast check, an add-on) sees what the reader sees. GrayText is
+   too faint for text in some browsers, so muted text is the text colour until a theme says otherwise. */
+html { background: var(--t-bg); color: var(--t-fg); }
+.luccet { overflow-wrap: break-word; }
+/* A link in a highlight takes the highlight's text colour: a link colour on yellow is unreadable in dark. */
+.luccet mark a { color: inherit; }
 
-/* Media keep their aspect ratio when max-width shrinks them. */
-.tern :is(img, video, canvas, picture) { max-inline-size: 100%; height: auto; }
-.tern :is(iframe, embed, object) { max-inline-size: 100%; }
+/* Media keep their aspect ratio when max-width shrinks them, and stay in the page. */
+.luccet :is(img, video, canvas, picture) { max-inline-size: 100%; height: auto; }
+.luccet :is(iframe, embed, object) { max-inline-size: 100%; }
 
-/* Code. Math and code read left to right in a right-to-left note. */
-.tern :is(code, kbd, samp, pre) { font-family: var(--t-mono); font-size: .85em; }
-.tern pre code { font-size: 1em; }
-.tern :not(pre) > code { background: var(--t-soft); padding: .12em .35em; border-radius: 4px; }
-.tern kbd { border: 1px solid var(--t-line-strong); border-block-end-width: 2px; border-radius: 4px; padding: .05em .4em; }
-.t-math, .tern :is(pre, code, kbd, samp) { direction: ltr; unicode-bidi: isolate; }
-.tern pre { text-align: start; background: var(--t-soft); padding: .8rem 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
-.tern pre[data-lines] code { counter-reset: t-line; }
-.tern pre[data-lines][data-start] code { counter-reset: t-line calc(var(--t-start, 1) - 1); } /* --t-start: the emitter's, or the runtime's (CSSOM) */
-.tern pre[data-lines] .t-line::before {
+/* Code: long lines scroll; math and code read left to right in a right-to-left note. */
+.t-math, .luccet :is(pre, code, kbd, samp) { direction: ltr; unicode-bidi: isolate; }
+.luccet pre { text-align: start; overflow-x: auto; }
+.luccet pre[data-lines] code { counter-reset: t-line; }
+.luccet pre[data-lines][data-start] code { counter-reset: t-line calc(var(--t-start, 1) - 1); } /* --t-start: the emitter's, or the runtime's (CSSOM) */
+.luccet pre[data-lines] .t-line::before {
   counter-increment: t-line; content: counter(t-line); display: inline-block; min-inline-size: 2.5ch;
   margin-inline-end: 1.5ch; text-align: end; color: var(--t-muted); user-select: none;
 }
-.tern .t-hl { display: inline-block; min-inline-size: 100%; background: var(--t-mark); }
+.luccet .t-hl { display: inline-block; min-inline-size: 100%; background: var(--t-mark); }
 
-/* Tables scroll when wider than the column. */
-.tern table { border-collapse: collapse; display: block; inline-size: max-content; max-inline-size: 100%; overflow-x: auto; font-size: .95em; }
-.tern :is(th, td) { border: 1px solid var(--t-line); padding: .35em .7em; }
-.tern th { background: var(--t-soft); font-family: var(--t-sans); font-size: .9em; }
-.tern caption { caption-side: top; text-align: start; padding-block-end: .4em; }
+/* Tables scroll when wider than the page. */
+.luccet table { display: block; inline-size: max-content; max-inline-size: 100%; overflow-x: auto; }
 
-/* Named blocks, titles, labels and end marks. */
-.t-title { font-weight: 600; margin-block-end: .4rem; }
-.tern :is(figcaption, caption).t-title { font-weight: normal; color: var(--t-muted); font-size: .95em; }
-.tern figcaption.t-title { margin-block: .4rem 0; }
-.t-label { font-weight: 700; }
+/* A generated label reads as one; the end mark sits at the end. */
+.t-label { font-weight: bold; }
 .t-end { display: block; text-align: end; }
-.t-block > :last-child, .t-cell > :last-child, .tern blockquote > :last-child { margin-block-end: 0; }
-.tern figure > img { display: block; margin-inline: auto; }
 
 /* Grids: --t-cols from cols= or the cell count; one column on narrow screens. */
 .t-cols { display: grid; grid-template-columns: var(--t-cols, repeat(auto-fit, minmax(12rem, 1fr))); gap: 1rem 1.5rem; }
@@ -88,23 +63,57 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .t-cell { min-inline-size: 0; }
 @media (max-width: 36rem) { .t-cols { grid-template-columns: minmax(0, 1fr); } }
 
-/* Math: display equations scroll rather than overflow; the number sits at the end. */
+/* Math (src/tex.js) is MathML, laid out by the browser in a math font, one with OpenType's math
+   table, which stretches brackets and roots and sizes big operators: --t-math names the common ones
+   before the browser's own, which on Linux is often not one. Chromium's MathML leaves table alignment,
+   boxes and strikes to CSS; a negative space is a negative margin, in TeX's mu. */
+.luccet math { font-family: var(--t-math); }
+.luccet mtd { padding: .5ex .4em; }
+.luccet mtable.t-align > mtr > mtd { padding-block: .25em; }
+.luccet mtable.t-align > mtr > mtd:nth-child(odd) { text-align: right; text-align: -webkit-right; padding-inline-end: 0; }
+.luccet mtable.t-align > mtr > mtd:nth-child(even) { text-align: left; text-align: -webkit-left; padding-inline-start: 0; }
+.luccet mtable.t-align > mtr > mtd:nth-child(even):not(:last-child) { padding-inline-end: 2em; }
+.luccet mtable.t-cases > mtr > mtd { text-align: left; text-align: -webkit-left; padding-inline: 0 1em; }
+.luccet mtable.t-substack > mtr > mtd { padding: 0; }
+.luccet mtd.t-left { text-align: left; text-align: -webkit-left; }
+.luccet mtd.t-right { text-align: right; text-align: -webkit-right; }
+.luccet mtd.t-vline { border-inline-start: .06em solid; }
+.luccet mtd.t-vline-end { border-inline-end: .06em solid; }
+.luccet mtr.t-hline > mtd { border-block-start: .06em solid; }
+.luccet mtr.t-hline-end > mtd { border-block-end: .06em solid; }
+.luccet mrow.t-boxed { border: .06em solid; padding: .2em .3em; }
+.luccet mrow.t-overline { border-block-start: .06em solid; padding-block-start: .1em; }
+.luccet mrow.t-underline { border-block-end: .06em solid; padding-block-end: .1em; }
+.luccet mrow.t-colorbox { padding-inline: .3em; }
+.luccet mrow:is(.t-cancel, .t-bcancel, .t-xcancel) { padding-inline: .1em; background-repeat: no-repeat; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.luccet mrow.t-cancel { background-image: linear-gradient(to top right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)); }
+.luccet mrow.t-bcancel { background-image: linear-gradient(to bottom right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)); }
+.luccet mrow.t-xcancel { background-image: linear-gradient(to top right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)), linear-gradient(to bottom right, transparent calc(50% - .04em), currentColor calc(50% - .04em) calc(50% + .04em), transparent calc(50% + .04em)); }
+.luccet mtext.t-bold { font-weight: bold; }
+.luccet mtext.t-italic { font-style: italic; }
+.luccet mtext.t-mono { font-family: var(--t-mono); }
+.luccet mtext.t-sans { font-family: var(--t-sans); }
+.luccet mspace.t-n1 { margin-inline-start: -.0556em; }
+.luccet mspace.t-n3 { margin-inline-start: -.1667em; }
+.luccet mspace.t-n4 { margin-inline-start: -.2222em; }
+.luccet mspace.t-n5 { margin-inline-start: -.2778em; }
+.luccet mspace.t-n9 { margin-inline-start: -.5em; }
+.luccet mspace.t-n18 { margin-inline-start: -1em; }
+
+/* Display equations scroll rather than overflow; the number sits at the end. */
 .t-eq { display: flex; align-items: center; gap: 1rem; overflow-x: auto; overflow-y: hidden; }
 .t-eq > .t-math { flex: 1; text-align: center; min-inline-size: 0; }
-.t-eqno { color: var(--t-muted); font-family: var(--t-font); white-space: nowrap; }
+.t-eqno { white-space: nowrap; }
 .t-math[data-display] { display: block; }
 .t-macros[hidden] { display: none !important; }
 
-/* Footnotes and task lists. */
-.t-fnref { line-height: 0; font-size: .75em; }
-.t-fnref a, .t-fnback { text-decoration: none; }
-.t-footnotes { border-block-start: 1px solid var(--t-line); margin-block-start: 3rem; padding-block-start: 1rem; font-size: .9em; }
-.tern li.t-task { list-style: none; }
-.tern li.t-task > input, .tern li.t-task > p:first-child > input { margin-inline: -1.4rem .3rem; vertical-align: middle; }
+/* A task list's checkbox stands for its bullet. */
+.luccet li.t-task { list-style: none; }
+.luccet li.t-task > input, .luccet li.t-task > p:first-child > input { margin-inline: -1.4rem .3rem; vertical-align: middle; }
 
 /* Problems stay visible where they are. */
-.tern .t-error { color: var(--t-error); background: var(--t-error-bg); border-inline-start: 3px solid var(--t-error); padding: .3em .6em; white-space: pre-wrap; font-family: var(--t-mono); font-size: .85em; }
-.tern .t-eq.t-error { display: block; }
+.luccet .t-error { color: var(--t-error); background: var(--t-error-bg); border-inline-start: 3px solid var(--t-error); padding: .3em .6em; white-space: pre-wrap; font-family: var(--t-mono); }
+.luccet .t-eq.t-error { display: block; }
 
 /* The diagnostics panel: fixed at the end corner, outside main, never printed. */
 .t-diagnostics {
@@ -123,42 +132,34 @@ body { margin: 0; padding: 2.5rem 1rem 6rem; }
 .t-diag-code { font-family: var(--t-mono); font-size: .95em; }
 .t-diag-hint { display: block; }
 
-/* A reader asking for more contrast: muted text in the text colour, rules and borders in the strong line. */
-@media (prefers-contrast: more) {
-  :root { --t-muted: #1f2328; --t-line: #767676; }
-  @media (prefers-color-scheme: dark) { :root { --t-muted: #dcdfe4; --t-line: #8b949e; } }
-}
-/* Forced colours (Windows high-contrast themes): the system's palette throughout; a highlight keeps its pair. */
+/* Forced colours (Windows high-contrast themes): the system's palette throughout, a theme's
+   colours notwithstanding (!important), so no theme has to repeat this; a highlight keeps its pair. */
 @media (forced-colors: active) {
   :root {
-    --t-bg: Canvas; --t-fg: CanvasText; --t-muted: GrayText; --t-line: CanvasText; --t-line-strong: CanvasText; --t-soft: Canvas;
-    --t-link: LinkText; --t-mark: Highlight; --t-error: CanvasText; --t-error-bg: Canvas; --t-warn: CanvasText;
+    --t-bg: Canvas !important; --t-fg: CanvasText !important; --t-muted: GrayText !important; --t-line: CanvasText !important;
+    --t-line-strong: CanvasText !important; --t-soft: Canvas !important; --t-link: LinkText !important; --t-mark: Highlight !important;
+    --t-error: CanvasText !important; --t-error-bg: Canvas !important; --t-warn: CanvasText !important;
   }
-  .tern mark, .tern .t-hl { color: HighlightText; forced-color-adjust: none; }
-  .tern .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mark, .luccet .t-hl { color: HighlightText; forced-color-adjust: none; }
+  .luccet .t-error, .t-diagnostics { forced-color-adjust: none; border-color: CanvasText; }
+  .luccet mrow:is(.t-cancel, .t-bcancel, .t-xcancel) { forced-color-adjust: none; }
 }
 
 @media print {
   .t-diagnostics { display: none; }
-  .tern > * { content-visibility: visible !important; } /* the runtime's held blocks (src/runtime.js) */
-  /* Every colour: black on white, the rest the light palette's, even for a reader in dark mode. */
+  .luccet > * { content-visibility: visible !important; } /* the runtime's held blocks (src/runtime.js) */
+  /* Dark on light paper, whatever the reader's scheme and the theme (!important, so no theme has to
+     repeat this): the system's light colours, and these where the system has none. */
   :root {
-    color-scheme: light; --t-size: 11pt;
-    --t-bg: #fff; --t-fg: #000; --t-muted: #555; --t-line: #d9dde3; --t-line-strong: #767676; --t-soft: #f3f4f1;
-    --t-link: #0b62c4; --t-mark: #fff2a8; --t-error: #b3261e; --t-error-bg: #fdecea; --t-warn: #8a5300;
-    --t-code-comment: #59636e; --t-code-keyword: #cf222e; --t-code-string: #0a3069; --t-code-number: #0550ae; --t-code-function: #6639ba;
-    --t-code-type: #953800; --t-code-variable: #0550ae; --t-code-meta: #116329; --t-code-inserted: #116329; --t-code-deleted: #82071e;
+    color-scheme: light !important;
+    --t-bg: Canvas !important; --t-fg: CanvasText !important; --t-muted: GrayText !important; --t-line: GrayText !important;
+    --t-line-strong: GrayText !important; --t-soft: ButtonFace !important; --t-link: LinkText !important; --t-mark: #fff2a8 !important;
+    --t-error: #b3261e !important; --t-error-bg: #fdecea !important; --t-warn: #8a5300 !important;
   }
-  body { padding: 0; }
-  .tern { max-width: none; }
-  /* Paged typesetting: no stranded lines across a page break, no heading left
-     at a page's foot, and figures, equations, quotes and table rows kept whole. */
-  .tern :is(p, li, blockquote) { orphans: 3; widows: 3; }
-  .tern :is(h1, h2, h3, h4, h5, h6) { break-after: avoid; }
-  .tern :is(figure, figcaption, .t-eq, blockquote, tr) { break-inside: avoid; }
-  .tern pre { white-space: pre-wrap; }
-  .tern pre, .tern table, .t-eq { overflow: visible; }
-  .tern table { display: table; inline-size: auto; }
+  /* What scrolls on screen is shown whole on paper. */
+  .luccet pre { white-space: pre-wrap; }
+  .luccet pre, .luccet table, .t-eq { overflow: visible; }
+  .luccet table { display: table; inline-size: auto; }
 }
 `;
 

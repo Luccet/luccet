@@ -13,7 +13,7 @@ spec: syntax-blocks#raw-html elements#raw-html-scoping syntax-blocks#r1
 
 From html-block-end-regex-leak: a `<pre>` block followed by a `<div>` block swallowed the rest of the note; each raw block now owns its end condition.
 
-````tern
+````luccet
 <pre>
 x
 </pre>
@@ -44,7 +44,7 @@ spec: syntax-blocks#raw-html elements#raw-html-scoping
 
 From html-block-end-regex-leak: a `<script>` block then a `<p>` block; `<p>` is the one-line kind and the heading after it is parsed.
 
-````tern
+````luccet
 <script>
 let n = 1;
 </script>
@@ -67,7 +67,7 @@ spec: syntax-blocks#raw-html elements#raw-html-scoping
 
 From html-block-end-regex-leak: a comment block, then a custom-element block in the same scope; the custom element ends at its own closing tag.
 
-````tern
+````luccet
 <!-- note -->
 
 # Plot
@@ -90,9 +90,9 @@ From html-block-end-regex-leak: a comment block, then a custom-element block in 
 
 spec: syntax-blocks#raw-html elements#raw-html-scoping
 
-From html-block-end-regex-leak: the documented pattern (a `<style>` block, then a `<div>` wrapper) no longer swallows the note. The wrapper's body is raw HTML, shown as written, and the heading after it is a heading. The body's first line holds Tern syntax (`*`, `$`), so it gets `html.wrapper` even with no blank line before it; the `<style>` block, a raw-text kind, never does.
+From html-block-end-regex-leak: the documented pattern (a `<style>` block, then a `<div>` wrapper) no longer swallows the note. The wrapper's body is raw HTML, shown as written, and the heading after it is a heading. The body's first line holds Luccet syntax (`*`, `$`), so it gets `html.wrapper` even with no blank line before it; the `<style>` block, a raw-text kind, never does.
 
-````tern
+````luccet
 <style>
 .box { border: 1px solid; }
 </style>
@@ -127,7 +127,7 @@ spec: syntax-blocks#raw-html
 
 From html-block-end-regex-leak: a one-line `<style>…</style>` block ends on its own line, so the `<div>` after it is an ordinary generic block.
 
-````tern
+````luccet
 <style>p{color:red}</style>
 <div>
 y
@@ -150,7 +150,7 @@ spec: syntax-blocks#raw-html
 
 From html-block-end-regex-leak: a `<textarea>` block then a `<figure>` block; the figure is depth-counted to its own `</figure>`.
 
-````tern
+````luccet
 <textarea name="t">
 a
 </textarea>
@@ -177,7 +177,7 @@ spec: syntax-blocks#raw-html syntax-blocks#r7
 
 From r2-1/editor-comment-insertion-triggers-html-leak: the comment an editor's `gcc` or `<!-- prettier-ignore -->` inserts on the note's first line no longer makes a later `<div>` swallow the note; the markdown-in-div habit gets `html.wrapper` instead.
 
-````tern
+````luccet
 <!-- prettier-ignore -->
 
 # Title
@@ -217,7 +217,7 @@ spec: syntax-inline#emphasis syntax-inline#algorithm
 
 From exponential-emphasis-hang: the pathological shapes, small. Unclosed mixed-width `*` openers are literal, `**a*` runs resolve by CommonMark's delimiter algorithm, and `_` is never a delimiter. The large versions are in test/perf.js.
 
-````tern
+````luccet
 *a **b *a **b *a **b
 
 In Python, *args collects positional arguments and **kwargs collects keyword arguments.
@@ -240,7 +240,7 @@ spec: syntax-inline#algorithm syntax-inline#inline-math syntax-inline#strike-hig
 
 From quadratic-unclosed-delimiters and test-coverage-gaps: openers that never close stay literal. Only an unclosed inline element is reported, once per opener; prices make no noise. The large versions are in test/perf.js.
 
-````tern
+````luccet
 *word *word *word
 
 [a [a [a
@@ -281,7 +281,7 @@ spec: syntax-blocks#fence syntax-inline#code-span
 
 From quadratic-unclosed-delimiters (the fence-opener regex took 3 s on a 50,000-character line with a stray backtick): a backtick in a backtick fence's info makes the line a paragraph.
 
-````tern
+````luccet
 ```a`b`
 ````
 
@@ -295,7 +295,7 @@ spec: syntax-blocks#blockquote syntax-blocks#line-algorithm
 
 From uncaught-parser-exceptions-blank-page: `>` repeated without spaces overflowed the stack; `>` followed by another `>` does not open a quote, so it is one paragraph.
 
-````tern
+````luccet
 >>>>>>>>>> x
 ````
 
@@ -309,7 +309,7 @@ spec: syntax-blocks#line-algorithm syntax-blocks#blockquote syntax-blocks#r7
 
 From uncaught-parser-exceptions-blank-page: 100 nested quotes stop at the depth cap with one `nesting.limit` instead of a blank page; the rest of the line is paragraph text. The exact cap is the `container/depth-64` seed's business.
 
-````tern js
+````luccet js
 '> '.repeat(100) + 'x'
 ````
 
@@ -323,7 +323,7 @@ spec: syntax-inline#inline-element syntax-inline#algorithm
 
 From uncaught-parser-exceptions-blank-page: nested `:a[` elements recursed per level; they nest through the bracket stack. The 5,000-deep version is in test/perf.js.
 
-````tern
+````luccet
 :a[:a[:a[x]]]
 ````
 
@@ -334,10 +334,11 @@ From uncaught-parser-exceptions-blank-page: nested `:a[` elements recursed per l
 ## audit/price-then-formula
 
 spec: syntax-inline#inline-math
+options: math=tex
 
 From dollar-price-swallows-prose: a price no longer opens a span that runs to the next formula, across lines or into a code span; the first dollar decides and a whitespace-preceded candidate aborts.
 
-````tern
+````luccet
 costs $5 and $x$
 
 I paid $5 for it.
@@ -362,7 +363,7 @@ spec: syntax-blocks#tables syntax-inline#inline-math syntax-inline#algorithm
 
 From table-dollar-toggle-breaks-rows: `| Coffee | $3 |` collapsed the row into one cell; rows are split by the same atom scanner as inline text, and `$3` is not math.
 
-````tern
+````luccet
 | Item | Price |
 |---|---|
 | Coffee | $3 |
@@ -387,7 +388,7 @@ spec: syntax-blocks#tables syntax-inline#inline-math
 
 From table-dollar-toggle-breaks-rows: `Cost ($)` in the header turned the table into one column; `$)` cannot open math, so the header has two cells.
 
-````tern
+````luccet
 | Cost ($) | n |
 |---|---|
 | 1 | 2 |
@@ -407,10 +408,11 @@ From table-dollar-toggle-breaks-rows: `Cost ($)` in the header turned the table 
 ## audit/table-prices-and-math
 
 spec: syntax-blocks#tables syntax-inline#inline-math syntax-inline#algorithm
+options: math=tex
 
 From table-dollar-toggle-breaks-rows: two prices, a price beside a formula, and a shell variable each keep the row's cells.
 
-````tern
+````luccet
 | cost | val |
 |---|---|
 | $5 | $10 |
@@ -437,7 +439,7 @@ spec: syntax-blocks#tables syntax-blocks#paragraph syntax-blocks#line-algorithm
 
 From table-cannot-interrupt-paragraph: a header row plus delimiter row directly under a text line starts a table instead of joining the paragraph.
 
-````tern
+````luccet
 Some text
 | a | b |
 |---|---|
@@ -462,7 +464,7 @@ spec: syntax-blocks#slugs syntax-blocks#character-classes
 
 From ascii-only-slugs-and-ids: accented, Cyrillic and CJK headings became `berblick`, `section`, `section-2`; slugs keep letters from any script, and only a heading with no letter falls back to `section`.
 
-````tern
+````luccet
 # Überblick
 # 日本語
 # 数学 1
@@ -494,7 +496,7 @@ spec: syntax-blocks#character-classes syntax-blocks#attribute-grammar syntax-blo
 
 From ascii-only-slugs-and-ids: `{#über}` stayed visible, `#über` emitted `ber=""`, `{#fïg}` emitted `id="f" g=""` and `@thé` linked to `#th`; IDENT is Unicode everywhere. A reference's `href` fragment is the id as written, not percent-encoded.
 
-````tern
+````luccet
 ## Übersicht {#über}
 
 ## Intro {#intro-é}
@@ -519,10 +521,11 @@ See @über, @intro-é and @thé.
 ## audit/slug-yields-to-earlier-ids
 
 spec: elements#ids syntax-blocks#slugs elements#references
+options: math=tex
 
 From id-collisions-across-kinds: block, equation and span ids were never registered, so a later heading got the same id. One registry in document order: a slug that meets an earlier id of any kind gets `-2`, silently, and the references reach the earlier element.
 
-````tern
+````luccet
 :::thm{#intro}
 x
 :::
@@ -556,7 +559,7 @@ spec: elements#ids elements#references
 
 From id-collisions-across-kinds: `## Kernel` then `:::definition[Kernel] #kernel` gave two `id="kernel"` and no warning. Ids an author wrote are registered before heading slugs, so the definition keeps `kernel`, the earlier heading's slug yields to `kernel-2` silently, and `@kernel` reaches the definition ("Definition 1").
 
-````tern
+````luccet
 ## Kernel
 
 :::definition[Kernel]{#kernel}
@@ -595,7 +598,7 @@ spec: elements#ids elements#references
 
 From id-collisions-across-kinds: two blocks with `#dup` were both emitted and `@dup` went to whichever the browser found first, silently. An explicit duplicate keeps the first; the later element drops its `id` attribute, `id.duplicate` is reported at both places, at the `#` of each `#dup`, and `@dup` reaches the first.
 
-````tern
+````luccet
 :::thm[First]{#dup}
 A.
 :::
@@ -641,7 +644,7 @@ options: schema=none
 
 From digit-first-ids-unreferenceable: `#2024-plan` was accepted but `@2024-plan` could never reach it. A digit-first id can only be given through `id=`. It is a valid HTML id that is not an IDENT, so it is kept and gets `ref.unreferenceable` (never also `id.invalid`, which is for empty or spaced values), at the first letter of `id=`; `@2024-plan` is plain text.
 
-````tern
+````luccet
 :::note{id=2024-plan}
 x
 :::
@@ -668,10 +671,11 @@ see @2024-plan
 ## audit/digit-first-id-on-display-math
 
 spec: syntax-blocks#display-math syntax-blocks#finding-the-group syntax-inline#reference
+options: math=tex
 
 From digit-first-ids-unreferenceable: `$$x$$ #1` numbered an equation that `@1` could not reach. `{#1}` is not an attribute group (`#` needs an IDENT), so after the closer it is junk: `math.closer-tail`, a paragraph after an unnumbered equation, and `@1` is text.
 
-````tern
+````luccet
 $$
 x
 $$ {#1}
@@ -695,7 +699,7 @@ spec: syntax-blocks#heading syntax-blocks#positions syntax-inline#reference
 
 From digit-first-ids-unreferenceable: `# Plan {#2024-plan}` used a digit-first id. The group does not parse, so it stays heading text with `attr.malformed`, and the slug comes from the whole text. The first bad column is the first character the grammar rejects: the `2` after `#`, which cannot start an IDENT.
 
-````tern
+````luccet
 # Plan {#2024-plan}
 
 see @2024-plan
@@ -713,10 +717,11 @@ see @2024-plan
 ## audit/unclosed-display-math-keeps-heading
 
 spec: syntax-blocks#display-math diagnostics#three-mistakes syntax-blocks#r7
+options: math=tex
 
 From unclosed-display-math-eats-sections: the audit's exact input. The blank line ends the unclosed `$$` with `math.unclosed`; its source is shown in `.t-eq.t-error`, the heading and prose survive, and the next equation is an equation.
 
-````tern
+````luccet
 $$
 E = mc^2
 
@@ -747,10 +752,11 @@ E = mc^2</div>
 ## audit/unclosed-display-math-heading-terminates
 
 spec: syntax-blocks#display-math syntax-blocks#line-algorithm
+options: math=tex
 
 From unclosed-display-math-eats-sections: with no blank line, the heading line itself is a terminator and is reprocessed; the following one-line equation is untouched.
 
-````tern
+````luccet
 The energy is
 $$
 E = mc^2
@@ -778,7 +784,7 @@ spec: syntax-blocks#display-math syntax-blocks#r7
 
 From silent-authoring-errors-no-diagnostics: an unclosed `$$` at the end of the note degraded to a paragraph silently; it is now shown as source with `math.unclosed`.
 
-````tern
+````luccet
 $$
 \int_0^1 f(x) dx
 = F(1) - F(0)
@@ -801,7 +807,7 @@ options: schema=none
 
 From closer-scan-ignores-raw-html: a `:::` line inside a `<pre>` inside a container closed the container and put `</div>` inside the `<pre>`. The raw-text block is a verbatim leaf, so the line is content.
 
-````tern
+````luccet
 :::note
 <pre>
 :::
@@ -825,7 +831,7 @@ options: schema=none
 
 From closer-scan-ignores-raw-html: a `:::` line inside a template literal in a `<script>` closed the container and broke the script.
 
-````tern
+````luccet
 :::note
 <script>
 var s = `
@@ -851,7 +857,7 @@ options: schema=none
 
 From closer-scan-ignores-raw-html: a `:::` line inside a comment closed the container mid-comment.
 
-````tern
+````luccet
 :::note
 <!--
 :::
@@ -875,7 +881,7 @@ options: schema=none
 
 From closer-scan-ignores-raw-html: an opener line inside a `<pre>` counted as nesting, so the real closer was swallowed and the container ran to the end of its parent.
 
-````tern
+````luccet
 :::note
 <pre>
 :::example
@@ -900,7 +906,7 @@ options: schema=none
 
 From closer-scan-ignores-raw-html: `+++` inside a `<pre>` split the element across two cells; it is code, and the container has no cells.
 
-````tern
+````luccet
 :::row
 <pre>
 a
@@ -926,7 +932,7 @@ options: schema=none
 
 From closer-scan-ignores-raw-html (the "wider than claimed" `<div>` reproduction; a blank line is added before the last `:::`). A generic block left open is cut by the `:::` line, which then closes the container: loud HTML soup, not a silent early close.
 
-````tern
+````luccet
 :::note
 <div>
 :::
@@ -958,7 +964,7 @@ options: schema=none
 
 From parser-closed-no-verbatim-container: a `:::mermaid` body lost its `*`, `_` and indentation. With `{raw}` the body is one verbatim text node, emitted escaped.
 
-````tern
+````luccet
 :::mermaid{raw}
 graph LR
 A[Start] --> B{x*y*z} --> C
@@ -984,7 +990,7 @@ spec: syntax-blocks#raw-html elements#ids elements#references
 
 From three-implementations-drift: the editor indexed a heading inside a comment (`setup`, shifting the real one to `setup-2`) and an equation id inside a `<pre>`. Raw HTML is opaque: the real heading is `setup`, and `@eq1` is dangling.
 
-````tern
+````luccet
 # Intro
 
 <!--
@@ -1028,7 +1034,7 @@ spec: syntax-blocks#leaf elements#ids syntax-inline#reference
 
 From three-implementations-drift: `:: toc` was a paragraph in the browser and a leaf in the editor; a block id and a later heading shared `foo`; `@a::b` was read two ways. Now: `:: toc` is a paragraph with `block.spaced-name`, the heading is `foo-2`, and `@a::b` is the reference `a` then text.
 
-````tern
+````luccet
 :::theorem[Main result]{#foo}
 x
 :::
@@ -1059,10 +1065,11 @@ See @foo, @foo-2 and @a::b.
 ## audit/ref-shows-number
 
 spec: elements#references elements#numbering syntax-inline#reference syntax-blocks#display-math
+options: math=tex
 
 From refs-cannot-show-numbers: `@id` to an untitled theorem rendered the raw id and to a titled one its title. References now show the label and number (theorem and lemma share a counter), equations `(n)`, headings their text, and `ref=` chooses.
 
-````tern
+````luccet
 :::theorem{#thm-1}
 A.
 :::
@@ -1110,10 +1117,11 @@ Also @thm-2{ref=full}, number @thm-2{ref=number}, and @thm-typo.
 ## audit/ref-text-keeps-math
 
 spec: elements#references syntax-inline#reference elements#title-slots
+options: math=tex
 
 From textcontent-copies-raw-tex-into-refs-toc-title: reference text was copied from `textContent`, so math became raw TeX and `**bold**` plain. A reference to a heading carries the heading's inline content, and `ref=title` the title's, math and markup included.
 
-````tern
+````luccet
 ## Energy $E = mc^2$ {#energy}
 
 :::theorem[Bound on $\sum_i x_i$ is **bold**]{#t}
@@ -1134,10 +1142,11 @@ See @energy, @t and @t{ref=title}.
 ## audit/ref-not-in-atoms
 
 spec: syntax-inline#algorithm syntax-inline#reference syntax-inline#raw-inline-html
+options: math=tex
 
 From lsp-refs-matched-in-code-math-attributes: the editor renamed `@thm` inside code, math, an attribute and a comment. References never occur inside atoms: the line has exactly one reference, so a rename has exactly one edit.
 
-````tern
+````luccet
 ## Theorem {#thm}
 
 By @thm. In code: `@thm` and `use @thm here`. In math: $x_{@thm}$. In a <span title="@thm">tag</span>. <!-- @thm --> Also CSS `@page` and email a@thm.
@@ -1154,7 +1163,7 @@ spec: syntax-blocks#closer diagnostics#three-mistakes syntax-blocks#r7
 
 From silent-authoring-errors-no-diagnostics: a container left open swallowed the heading after it with no message. The body still runs to the end of the note, but the opener is reported.
 
-````tern
+````luccet
 :::theorem[Never closed]{#open}
 body
 
@@ -1181,7 +1190,7 @@ spec: syntax-blocks#closer syntax-inline#reference
 
 From silent-authoring-errors-no-diagnostics: `::::warning` closed by `:::` swallowed the rest of the note in the browser while the editor showed it closed. A bare closer closes the innermost block whatever its count, with a hint; the dangling `@nowhere` is reported.
 
-````tern
+````luccet
 ::::warning
 text
 :::
@@ -1208,7 +1217,7 @@ spec: syntax-inline#reference syntax-inline#residual-mentions
 
 From silent-authoring-errors-no-diagnostics: a misspelled reference and a mention were plain text with no message; both are `ref.dangling`, and the email is not a reference.
 
-````tern
+````luccet
 By @rank-nulity (typo) the result follows. Email me at a@b.c, ping @alice.
 ````
 
@@ -1228,7 +1237,7 @@ options: strict
 
 From silent-authoring-errors-no-diagnostics: `:::theorm` rendered as an anonymous block with no message. With `schema.strict` an unknown name gets `name.unknown`; the element is still the `div` fallback.
 
-````tern
+````luccet
 :::theorm[Rank]
 x
 :::
@@ -1250,7 +1259,7 @@ spec: syntax-blocks#leaf syntax-blocks#r7
 
 From leaf-syntax-and-fixed-delimiters: any line starting `::word` became an empty element and its words empty attributes. A leaf must fill the line; anything else is a paragraph with `leaf.demoted`.
 
-````tern
+````luccet
 ::marker is the list bullet
 
 ::std::vector<int> v;
@@ -1262,8 +1271,8 @@ From leaf-syntax-and-fixed-delimiters: any line starting `::word` became an empt
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
-3:1 info leaf.demoted
+1:1 warning leaf.demoted
+3:1 warning leaf.demoted
 ````
 
 ## audit/bare-double-colon-line
@@ -1273,7 +1282,7 @@ options: schema=none
 
 From leaf-syntax-and-fixed-delimiters: a bare `::` line became a stray paragraph inside the still-open container, silently. `::` alone is paragraph text (here it continues "body"), and the container left open is reported.
 
-````tern
+````luccet
 :::note
 body
 ::
@@ -1299,7 +1308,7 @@ spec: syntax-blocks#leaf syntax-blocks#container
 
 From leaf-syntax-and-fixed-delimiters: `:: name` was a paragraph while `::: name` opened a block. Both spaced forms are now paragraph text with `block.spaced-name`.
 
-````tern
+````luccet
 :: name[x]
 ````
 
@@ -1317,7 +1326,7 @@ spec: syntax-blocks#container syntax-blocks#closer
 
 From leaf-syntax-and-fixed-delimiters: the audit's `::: name[x]` ⏎ `body` ⏎ `:::`, which opened a container. The spaced opener matches no block row, so it is an ordinary paragraph line that `body` continues; the closer then has nothing to close, and a closer-shaped line that falls back to text interrupts the paragraph and forms its own.
 
-````tern
+````luccet
 ::: name[x]
 body
 :::
@@ -1340,7 +1349,7 @@ spec: syntax-inline#latex-delimiters syntax-inline#latex-linebreak syntax-inline
 
 From latex-habit-footguns and leaf-syntax-and-fixed-delimiters: `\(…\)` is an escape (with one hint per note, at the first paired delimiter), a trailing `\\` is a literal backslash with a hint, `a==b and c==d` is not a highlight, `$100 ($USD)` is not math, and `_` inside a bare URL is not emphasis.
 
-````tern
+````luccet
 Let \(x\) be real and \[x^2 \ge 0\].
 
 \(y\) starts a line.
@@ -1366,8 +1375,8 @@ line two</p>
 ````
 
 ````diagnostics
-1:5 info latex.delimiters
-5:10 info latex.linebreak
+1:5 warning latex.delimiters
+5:10 warning latex.linebreak
 ````
 
 ## audit/literal-escapes
@@ -1376,7 +1385,7 @@ spec: syntax-inline#escapes syntax-inline#escape
 
 From leaf-syntax-and-fixed-delimiters: there is no per-note switch for `::`, `$`, `@` or `:`, so their escapes are the literal spelling; escaped, none of them warns.
 
-````tern
+````luccet
 \::marker is the list bullet
 
 Costs \$5 and \$10, ping \@alice, type \:kbd[x].
@@ -1391,10 +1400,10 @@ Costs \$5 and \$10, ping \@alice, type \:kbd[x].
 
 spec: elements#reserved syntax-blocks#reserved
 
-From leaf-syntax-and-fixed-delimiters: `:::tern` picked up the page's own `.tern` rules and `:t-math[…]` was sent to KaTeX. The names `tern` and `t-*` are reserved: checked before the custom-element rule (so `t-math` is not a custom element), they fall back to `div`/`span` without the reserved name as a class, with `name.reserved` at the name. The output contract's `data-t` is kept.
+From leaf-syntax-and-fixed-delimiters: `:::luccet` picked up the page's own `.luccet` rules and `:t-math[…]` was sent to KaTeX. The names `luccet` and `t-*` are reserved: checked before the custom-element rule (so `t-math` is not a custom element), they fall back to `div`/`span` without the reserved name as a class, with `name.reserved` at the name. The output contract's `data-t` is kept.
 
-````tern
-:::tern
+````luccet
+:::luccet
 x
 :::
 
@@ -1402,7 +1411,7 @@ x
 ````
 
 ````html
-<div class="t-block" data-t="tern"><p>x</p></div>
+<div class="t-block" data-t="luccet"><p>x</p></div>
 <p><span data-t="t-math">\frac12</span></p>
 ````
 
@@ -1418,7 +1427,7 @@ options: schema=none
 
 From attribute-grammar-fails-silently: `data-t="zzz"` emitted a second `data-t` and hijacked dispatch. The key is reserved, reported and dropped.
 
-````tern
+````luccet
 :::callout{data-t="zzz"}
 b
 :::
@@ -1439,7 +1448,7 @@ options: schema=none
 
 From attribute-grammar-fails-silently: `j='z w'` split into the junk attributes `j="'z"` and `w=""`. Single-quoted values are values.
 
-````tern
+````luccet
 :::a{k="x y" j='z w' m=p}
 b
 :::
@@ -1455,7 +1464,7 @@ spec: syntax-blocks#finding-the-group syntax-inline#inline-element
 
 From attribute-grammar-fails-silently: an inline group ended at the first `}` even inside quotes, leaking `"}` into the text. The candidate ends at the first unquoted `}`.
 
-````tern
+````luccet
 :a[b]{k="}"}
 ````
 
@@ -1470,7 +1479,7 @@ options: schema=none
 
 From attribute-grammar-fails-silently: `class="z"` produced a second `class` attribute and the browser dropped it. `class=` and `id=` merge with `.` and `#`: classes accumulate in source order, the last id wins.
 
-````tern
+````luccet
 :::a{.x class="z" #p id=q}
 b
 :::
@@ -1480,6 +1489,10 @@ b
 <div id="q" class="t-block a x z" data-t="a"><p>b</p></div>
 ````
 
+````diagnostics
+1:19-1:21 warning attr.overridden
+````
+
 ## audit/opener-unclosed-title
 
 spec: syntax-blocks#container syntax-blocks#r7
@@ -1487,7 +1500,7 @@ options: schema=none
 
 From attribute-grammar-fails-silently: `:::a[t` turned the unclosed title into a stray `t=""` attribute. The block opens, the rest of the line is shown as the junk paragraph, and the error is at the `[`.
 
-````tern
+````luccet
 :::a[t
 b
 :::
@@ -1511,7 +1524,7 @@ options: schema=none
 
 From attribute-grammar-fails-silently: `::: end` opened a phantom container that swallowed the rest of the parent. `:::end` acts as a bare closer, with `name.reserved`.
 
-````tern
+````luccet
 :::x
 b
 :::end
@@ -1535,7 +1548,7 @@ options: schema=none
 
 From attribute-grammar-fails-silently: the audit's exact `:::x` ⏎ `b` ⏎ `::: end` ⏎ ⏎ `after`. The spaced line opens nothing: it continues the paragraph, and `:::x` is reported as unclosed instead of being silently nested. A line that never matched a block row carries its diagnostic wherever it appears, continuation lines included, so `block.spaced-name` still fires.
 
-````tern
+````luccet
 :::x
 b
 ::: end
@@ -1563,7 +1576,7 @@ options: escaped
 
 From codespan-trim-strips-all-whitespace: code spans were `trim()`med. One space is stripped from each side only when both sides have one and the content is not all spaces; tabs are kept.
 
-````tern
+````luccet
 `  a  ` and ` a` and `a ` and `   ` and ` a ` and `\ta\t`
 ````
 
@@ -1594,7 +1607,7 @@ options: escaped
 
 From r2-1/trailing-whitespace-trimming-removes-hard-breaks: editors deleted two-space hard breaks. Trailing spaces mean nothing (lines are right-trimmed); the one hard break is a trailing `\`.
 
-````tern
+````luccet
 line one\u0020\u0020
 line two\\
 line three
@@ -1612,7 +1625,7 @@ spec: syntax-blocks#container syntax-inline#reference publishing#auto-wrap synta
 
 From r2-1/textwidth-autowrap-breaks-one-line-constructs: `textwidth=60` wrapped a long opener (here inside its title, where Vim breaks the braced form). The block opens with the junk shown in red and `block.opener-junk`; the attributes on the next line are plain text, so the reference to the lost id is dangling.
 
-````tern
+````luccet
 :::theorem[Rank-nullity for linear maps between
 spaces]{#rank-nullity .important}
 The statement.
@@ -1641,7 +1654,7 @@ spec: syntax-blocks#tables publishing#auto-wrap
 
 From r2-1/textwidth-autowrap-breaks-one-line-constructs: a header row wrapped mid-cell. Without a delimiter row under the first line no table starts; the delimiter-shaped line is flagged with the "rows start with `|`" hint.
 
-````tern
+````luccet
 | Space | Dimension of the space | Comment about the
 dimension |
 |---|---|---|
@@ -1662,10 +1675,11 @@ dimension |
 ## audit/autowrap-display-math-id
 
 spec: syntax-blocks#display-math syntax-blocks#attribute-line publishing#auto-wrap
+options: math=tex
 
 From r2-1/textwidth-autowrap-breaks-one-line-constructs: a `$$ … $$ {#id}` one-liner wrapped before its group. The equation is complete and unnumbered; the group alone on the next line is an attribute line with no block after it.
 
-````tern
+````luccet
 $$ \int_0^1 f(x)\,dx = \sum_{k=1}^{n} c_k e_k $$
 {#eq-long}
 
@@ -1689,7 +1703,7 @@ spec: syntax-blocks#leaf syntax-inline#span publishing#auto-wrap
 
 From r2-1/textwidth-autowrap-breaks-one-line-constructs: a wrapped `::leaf[…]{…}` became a div with garbage attributes. The first line no longer fills a leaf, so the two lines are a paragraph with `leaf.demoted`; the bracket and its glued group across the soft break are a bare span.
 
-````tern
+````luccet
 ::note[A leaf whose content is rather long so that it
 wraps]{.cls key=value}
 ````
@@ -1700,7 +1714,7 @@ wraps</span></p>
 ````
 
 ````diagnostics
-1:1 info leaf.demoted
+1:1 warning leaf.demoted
 ````
 
 ## audit/figure-and-table-captions
@@ -1709,7 +1723,7 @@ spec: elements#figures elements#table-caption elements#references elements#raw-h
 
 From no-figure-table-captions: `![cap](x.png){#fig1 width=50%}` was literal, and a raw `<figure>` was referenced by its bare id. An image with an id is a numbered figure, `:::table[…]` captions and numbers a table, and raw HTML is opaque, so `@fig-a` is dangling.
 
-````tern
+````luccet
 ![cap](x.png){#fig1 width=50%}
 
 :::table[Table caption]{#tbl-1}
@@ -1747,7 +1761,7 @@ spec: syntax-blocks#attribute-line syntax-blocks#tables
 
 From no-figure-table-captions: a `{#tbl1}` line after a table stayed literal. Attributes go on a line before the table; after it, the line ends the table and has nothing to attach to.
 
-````tern
+````luccet
 {#tbl1}
 | a |
 |---|
@@ -1775,7 +1789,7 @@ spec: syntax-blocks#footnote-definition syntax-inline#footnote-reference syntax-
 
 From no-footnotes-citations: `[^1]` was literal text. Footnotes are core; a citation is a reference to a titled block, here inside literal brackets.
 
-````tern
+````luccet
 Text[^1] here, as shown in [@knuth84].
 
 [^1]: The note.
@@ -1796,7 +1810,7 @@ spec: syntax-blocks#lists
 
 From study-state-not-persisted and accessibility-gaps: task checkboxes were live, unlabelled inputs whose ticks were lost on reload. They are `disabled`, as on GitHub; the source is the state.
 
-````tern
+````luccet
 - [x] done task
 - [ ] open task
 ````
@@ -1814,7 +1828,7 @@ spec: elements#title-slots elements#output-contract
 
 From r2-4/titled-callout-colour-only (also r2-3/std-labels-missing-from-copied-text, accessibility-gaps): a title replaced the kind word, so `:::tip[Shortcut]` and `:::warning[Shortcut]` differed only by colour, and labels were CSS-only. The label is real text, before the title.
 
-````tern
+````luccet
 :::tip[Shortcut]
 Use `dd`.
 :::
@@ -1839,7 +1853,7 @@ spec: syntax-blocks#cells elements#title-slots
 
 From r2-6/std-labels-become-grid-items-in-cols-blocks: `::before` labels became grid cells in a `cols` block. The label is a real element in the title slot, before the cells; spanning it across the grid is the stylesheet's job (smoke).
 
-````tern
+````luccet
 :::note{cols=2}
 Left.
 +++
@@ -1860,7 +1874,7 @@ spec: elements#output-contract
 
 From r2-6/proof-end-mark-overprints-last-block: the `∎` was a pseudo-element pulled into whatever ended the proof. It is a real `span.t-end` after the body, here after a code block; placing it is the stylesheet's job (smoke).
 
-````tern
+````luccet
 :::proof
 By induction:
 ```python
@@ -1883,7 +1897,7 @@ spec: syntax-blocks#leaf elements#numbering
 
 From r2-6/toc-empty-box-without-headings: `::toc` with no headings drew an empty box. A toc with no entries emits nothing at all, and no diagnostic applies.
 
-````tern
+````luccet
 ::toc
 
 Just a paragraph.
@@ -1899,10 +1913,11 @@ Just a paragraph.
 ## audit/macros-block-and-no-include
 
 spec: syntax-blocks#macros syntax-blocks#leaf syntax-inline#reference
+options: math=tex
 
 From shared-macros-undocumented-no-include: macros are a `:::macros` block, and notes are single files: `::include[…]` is an inert leaf and a reference to another file's id is dangling.
 
-````tern
+````luccet
 :::macros
 \gdef\R{\mathbb{R}}
 :::
@@ -1929,9 +1944,9 @@ See @thm-from-other-file.
 
 spec: elements#meta-block syntax-inline#raw-inline-html syntax-blocks#raw-html
 
-From rewrite-discards-head-no-metadata-config (also accessibility-gaps, r2-4/rtl-math-mirrored): a `<meta>` in the body was wrapped in `<p>` and there was no way to set lang or dir. Metadata goes in `:::meta`, which emits nothing in the body and fills `root.data.tern.meta`, a plain `{key: string}` object. A `<meta>` tag in the note is escaped text with `html.inline-escaped`: an escaped start tag with a lower-case, non-phrasing name.
+From rewrite-discards-head-no-metadata-config (also accessibility-gaps, r2-4/rtl-math-mirrored): a `<meta>` in the body was wrapped in `<p>` and there was no way to set lang or dir. Metadata goes in `:::meta`, which emits nothing in the body and fills `root.data.luccet.meta`, a plain `{key: string}` object. A `<meta>` tag in the note is escaped text with `html.inline-escaped`: an escaped start tag with a lower-case, non-phrasing name.
 
-````tern
+````luccet
 <meta name="description" content="Kernel and image">
 
 :::meta
@@ -1944,7 +1959,7 @@ dir: rtl
 ````
 
 ````json ast
-{"type": "root", "data": {"tern": {"meta": {"description": "Kernel and image", "lang": "ar", "dir": "rtl"}}}}
+{"type": "root", "data": {"luccet": {"meta": {"description": "Kernel and image", "lang": "ar", "dir": "rtl"}}}}
 ````
 
 ````html
@@ -1963,7 +1978,7 @@ options: escaped
 
 From test-coverage-gaps (no CRLF/BOM case existed): a leading BOM is dropped, CRLF and CR become LF, NUL becomes U+FFFD.
 
-````tern
+````luccet
 \uFEFF# Title\r\n\r\nLine one\rLine\0two
 ````
 

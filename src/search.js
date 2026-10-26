@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Search over notes (docs/api.html#search): the pipeline behind the search
-// add-on (addons/search.js), `tern search` and `tern index`. records()
+// add-on (github.com/Luccet/search), `luccet search` and `luccet index`. records()
 // splits a transformed AST into entries — one per heading's section and one
 // per named block with an id — index() builds a lexical index over the
 // entries of any number of notes, query() ranks them BM25-style, snippet()
@@ -8,10 +8,10 @@
 // notes holds for one. Pure functions over the tree and plain data: the
 // add-ons fetch and draw, the command line reads and writes files.
 //
-// An index is written out by `tern index` and read back by the add-on and
-// `tern search --index`, so its words must be the reader's. The file
+// An index is written out by `luccet index` and read back by the add-on and
+// `luccet search --index`, so its words must be the reader's. The file
 // records the format of its words and its data (`format`, FORMAT below)
-// beside the version that wrote it (`tern`), and a reader takes a file of
+// beside the version that wrote it (`luccet`), and a reader takes a file of
 // its own format whatever version wrote it: the folding, the segmentation
 // and the stemmer change only with the number, in a major release.
 'use strict';
@@ -77,7 +77,7 @@ const entities = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, body) => dec
 function title(head, ast) {
   const m = /<title[^>]*>([^<]*)<\/title>/i.exec(head || '');
   if (m && m[1].trim()) return entities(m[1].trim());
-  const meta = (ast && ast.data && ast.data.tern && ast.data.tern.meta) || {};
+  const meta = (ast && ast.data && ast.data.luccet && ast.data.luccet.meta) || {};
   if (meta.title) return String(meta.title);
   const h = ((ast && ast.children) || []).find((n) => n.type === 'heading');
   return h ? plain(h) : '';
@@ -100,7 +100,7 @@ function headMeta(head) {
 }
 
 // describe(head, ast) -> {title, description, meta, headings, links}: what a
-// catalogue of notes holds for one (`tern index`, docs/tools.html#index).
+// catalogue of notes holds for one (`luccet index`, docs/tools.html#index).
 // `title` is title()'s; `description` the head's <meta name="description">,
 // else `:::meta`'s, else ''; `meta` the `:::meta` keys with the head's
 // <meta> names over them (the head wins, as the engine resolves a conflict),
@@ -108,7 +108,7 @@ function headMeta(head) {
 // `links` the URLs the note's links name, as written, each once, in order,
 // a link to a fragment of the note itself left out.
 function describe(head, ast) {
-  const block = (ast && ast.data && ast.data.tern && ast.data.tern.meta) || {};
+  const block = (ast && ast.data && ast.data.luccet && ast.data.luccet.meta) || {};
   const meta = Object.assign({}, block, headMeta(head));
   const headings = [];
   const links = [];
@@ -167,9 +167,9 @@ function records(ast, { url = '', title: pageTitle = '' } = {}) {
       continue;
     }
     if (c.type === 'containerDirective' && c.attributes && c.attributes.id) {
-      const tern = (c.data && c.data.tern) || {};
+      const luccet = (c.data && c.data.luccet) || {};
       const titleNode = (c.children || []).find((k) => k.type === 'paragraph' && k.data && k.data.directiveLabel);
-      const r = entry(c.attributes.id, lineOf(c), endLineOf(c), c.name, tern.text || c.name, titleNode ? plain(titleNode) : '');
+      const r = entry(c.attributes.id, lineOf(c), endLineOf(c), c.name, luccet.text || c.name, titleNode ? plain(titleNode) : '');
       frames.push({ list: (c.children || []).filter((k) => k !== titleNode), i: 0, back: current });
       current = r;
       continue;

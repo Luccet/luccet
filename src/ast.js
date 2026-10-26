@@ -103,7 +103,7 @@ function spanPosition(ctx, span, a, b) {
 
 // ---------------------------------------------------------------- trees
 
-// unist-util-visit, the subset tern needs: visit(tree, [type,] fn), with
+// unist-util-visit, the subset luccet needs: visit(tree, [type,] fn), with
 // fn(node, index, parent). Returning false skips the node's children. The
 // walk keeps its own stack, so a deep tree cannot overflow the call stack;
 // a child list is read live, as a loop would, so fn may change it.

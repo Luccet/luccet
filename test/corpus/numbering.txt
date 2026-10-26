@@ -22,7 +22,7 @@ spec: elements#numbering
 
 Names that share a counter share one sequence; each keeps its own label.
 
-````tern
+````luccet
 :::theorem
 A.
 :::
@@ -48,7 +48,7 @@ spec: elements#numbering
 
 Different counters count independently.
 
-````tern
+````luccet
 :::definition
 A.
 :::
@@ -79,7 +79,7 @@ spec: elements#numbering
 
 Numbers follow document order: an outer block is numbered at its opener, before the blocks nested in it.
 
-````tern
+````luccet
 :::theorem
 :::lemma
 Inner.
@@ -103,7 +103,7 @@ spec: elements#numbering elements#references
 
 A reference before its target gets the target's document-order number.
 
-````tern
+````luccet
 By @thm-b, done.
 
 :::theorem{#thm-a}
@@ -125,7 +125,7 @@ spec: elements#numbering elements#title-slots
 
 A labelled name without a counter (Proof) gets its label and no number, and takes no number from any counter.
 
-````tern
+````luccet
 :::proof
 Trivial.
 :::
@@ -143,10 +143,11 @@ A.
 ## numbering/equations-need-id
 
 spec: elements#numbering syntax-blocks#display-math
+options: math=tex
 
 Only equations with an id are numbered, on the counter `equation`, in document order.
 
-````tern
+````luccet
 $$ a $$
 
 $$ b $$ {#eq-b}
@@ -168,7 +169,7 @@ spec: elements#numbering syntax-blocks#fence elements#references
 
 Titled fences are listings on the counter `code`, numbered with or without an id; an untitled fence takes no number.
 
-`````tern
+`````luccet
 ```js[First]
 a();
 ```
@@ -197,7 +198,7 @@ spec: elements#numbering elements#figures
 
 Explicit and implicit figures are one name, `figure`, on one counter.
 
-````tern
+````luccet
 :::figure[First]{#fig-a}
 Body.
 :::
@@ -216,7 +217,7 @@ spec: elements#numbering elements#table-caption elements#title-slots elements#re
 
 A `:::table` caption carries the schema's label "Table 1", and a reference to it reads the same.
 
-````tern
+````luccet
 :::table[Phases]{#tbl-phases}
 | Phase | Weeks |
 |---|---|
@@ -231,13 +232,13 @@ See @tbl-phases.
 <p>See <a class="t-ref" href="#tbl-phases">Table 1</a>.</p>
 ````
 
-## numbering/data-tern-fields
+## numbering/data-luccet-fields
 
 spec: elements#numbering elements#references
 
-The transforms record the tag, counter, number and label text under `data.tern`, and fill the `ref` node's children with the target's text.
+The transforms record the tag, counter, number and label text under `data.luccet`, and fill the `ref` node's children with the target's text.
 
-````tern
+````luccet
 :::theorem{#t1}
 :::
 
@@ -247,10 +248,10 @@ See @t1.
 ````json transformed
 {"children":[
  {"type":"containerDirective","name":"theorem",
-  "data":{"tern":{"tag":"section","counter":"theorem","number":1,"text":"Theorem 1"}}},
+  "data":{"luccet":{"tag":"section","counter":"theorem","number":1,"text":"Theorem 1"}}},
  {"type":"paragraph","children":[
   {"type":"text","value":"See "},
-  {"type":"ref","id":"t1","children":[{"type":"text","value":"Theorem 1"}],"data":{"tern":{"resolved":true}}},
+  {"type":"ref","id":"t1","children":[{"type":"text","value":"Theorem 1"}],"data":{"luccet":{"resolved":true}}},
   {"type":"text","value":"."}]}]}
 ````
 
@@ -258,14 +259,14 @@ See @t1.
 
 spec: elements#numbering syntax-blocks#display-math
 
-A numbered equation records its number and the text `(n)` under `data.tern`.
+A numbered equation records its number and the text `(n)` under `data.luccet`.
 
-````tern
+````luccet
 $$ x $$ {#eq-x}
 ````
 
 ````json transformed
-{"children":[{"type":"math","value":"x","attributes":{"id":"eq-x"},"data":{"tern":{"number":1,"text":"(1)"}}}]}
+{"children":[{"type":"math","value":"x","attributes":{"id":"eq-x"},"data":{"luccet":{"number":1,"text":"(1)"}}}]}
 ````
 
 ## numbering/within-section
@@ -274,7 +275,7 @@ spec: schema#field-within elements#numbering
 
 A counter within h2 restarts at each level-2 heading, and its number follows the section's. The h1 is the note's title and counts for nothing; before the first section, the section is 0.
 
-````tern
+````luccet
 :::problem
 Before any section.
 :::
@@ -314,7 +315,7 @@ spec: schema#field-within elements#ref-select
 
 A reference reads the number as shown, section included: through the `ref` template, `ref=number` and `ref=label`.
 
-````tern
+````luccet
 ## Vectors
 
 :::problem{#p-a}
@@ -342,7 +343,7 @@ spec: schema#field-within
 
 `within` is per counter: `theorem` still runs over the whole note, and a deeper heading does not restart a counter within h2.
 
-````tern
+````luccet
 ## One
 
 :::theorem
@@ -382,7 +383,7 @@ spec: schema#field-within
 
 A later h1 is a part: it neither restarts a counter within h2 nor resets the section count, so no number repeats.
 
-````tern
+````luccet
 # Part one
 
 ## A
@@ -417,7 +418,7 @@ spec: schema#field-within
 
 Every heading counts, in document order, including one inside a container: the same headings a table of contents lists.
 
-````tern
+````luccet
 ## One
 
 :::problem
@@ -444,7 +445,7 @@ spec: schema#field-within api#transformed-ast
 
 In the AST, `number` restarts per section and `section` holds the section's number; the text joins them.
 
-````tern
+````luccet
 ## A
 
 :::problem
@@ -459,7 +460,7 @@ In the AST, `number` restarts per section and `section` holds the section's numb
  {"type":"heading"},
  {"type":"containerDirective","name":"problem"},
  {"type":"containerDirective","name":"problem",
-  "data":{"tern":{"tag":"section","counter":"problem","number":2,"section":"1","text":"Problem 1.2"}}}]}
+  "data":{"luccet":{"tag":"section","counter":"problem","number":2,"section":"1","text":"Problem 1.2"}}}]}
 ````
 
 ## numbering/within-h3
@@ -469,7 +470,7 @@ options: schema=extended
 
 A counter within h3 shows the h2 and h3 numbers, and restarts at both; a section with no h3 yet is 0.
 
-````tern
+````luccet
 ## One
 
 ### A
@@ -509,7 +510,7 @@ options: schema=extended
 
 A counter within h1 counts h1s and restarts at each of them; h2s do not restart it.
 
-````tern
+````luccet
 # Part one
 
 :::axiom
@@ -542,7 +543,7 @@ options: schema=extended
 
 `within` belongs to the counter: `remark`, on `problem`'s counter with no `within` of its own, shares its sequence and its restarts.
 
-````tern
+````luccet
 ## One
 
 :::problem
@@ -571,7 +572,7 @@ spec: elements#references
 
 The default text for a counted block is `{label} {n}`, even when it has a title.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -589,7 +590,7 @@ spec: elements#references
 
 A counted block whose schema entry has no `ref` template uses the default `{label} {n}`.
 
-````tern
+````luccet
 :::definition{#def-ker}
 The kernel.
 :::
@@ -605,10 +606,11 @@ By @def-ker.
 ## numbering/ref-equation
 
 spec: elements#references syntax-blocks#display-math
+options: math=tex
 
 The default text for an equation is `({n})`.
 
-````tern
+````luccet
 $$ E = mc^2 $$ {#eq-e}
 
 By @eq-e.
@@ -622,10 +624,11 @@ By @eq-e.
 ## numbering/ref-heading-inline-content
 
 spec: elements#references syntax-inline#reference
+options: math=tex
 
 A reference to a heading reads the heading's inline content, markup and math included.
 
-````tern
+````luccet
 ## The *map* $T$ {#map}
 
 See @map.
@@ -642,7 +645,7 @@ spec: elements#references elements#ids
 
 A heading's slug is an id like any other, so `@results` resolves to it.
 
-````tern
+````luccet
 ## Results
 
 As @results shows.
@@ -659,7 +662,7 @@ spec: elements#references
 
 A titled block that is not counted is referenced by its title, even when it has a label.
 
-````tern
+````luccet
 :::warning[Hot surface]{#hot}
 Do not touch.
 :::
@@ -678,7 +681,7 @@ spec: elements#references
 
 A target that is neither counted, an equation, a heading nor titled is referenced by its id.
 
-````tern
+````luccet
 A [key term]{#term} here.
 
 See @term.
@@ -695,7 +698,7 @@ spec: elements#references
 
 A labelled target that is neither counted nor titled (an untitled Proof) reads as its label, "Proof", a row of the default-text table.
 
-````tern
+````luccet
 :::proof{#pf}
 Trivial.
 :::
@@ -714,7 +717,7 @@ spec: elements#references syntax-inline#reference
 
 `ref=label` gives the label and number.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -732,7 +735,7 @@ spec: elements#references syntax-inline#reference
 
 `ref=number` gives the number alone.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -750,7 +753,7 @@ spec: elements#references syntax-inline#reference
 
 `ref=title` gives the title.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -768,7 +771,7 @@ spec: elements#references syntax-inline#reference
 
 `ref=full` gives the label, the number and the title in parentheses.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -783,10 +786,11 @@ See @thm-rn{ref=full}.
 ## numbering/ref-select-number-equation
 
 spec: elements#references
+options: math=tex
 
 `ref=number` on an equation gives the bare number, without the parentheses of its default text.
 
-````tern
+````luccet
 $$ x $$ {#eq-x}
 
 Equation @eq-x{ref=number}.
@@ -803,7 +807,7 @@ spec: elements#references syntax-inline#reference
 
 `ref=title` on a target without a title asks for a part it lacks: the reference gets the default text, silently.
 
-````tern
+````luccet
 :::theorem{#thm-u}
 :::
 
@@ -824,7 +828,7 @@ spec: elements#references syntax-inline#reference syntax-blocks#merging-and-emis
 
 A `ref=` value other than `label`, `number`, `title` or `full` gets `attr.malformed` (W) at the first rejected character, the value's first letter, and the reference keeps its default text.
 
-````tern
+````luccet
 :::theorem[Rank–nullity]{#thm-rn}
 :::
 
@@ -846,7 +850,7 @@ spec: elements#references
 
 A fragment link to an existing id is an ordinary link with the author's text, and is silent.
 
-````tern
+````luccet
 ## Results
 
 See [the results](#results).
@@ -866,7 +870,7 @@ spec: elements#references syntax-inline#reference syntax-blocks#r7
 
 A fragment link to a missing id gets `ref.dangling` at the link's `[`; unlike an unresolved `@id`, it stays a link.
 
-````tern
+````luccet
 See [the proof](#nowhere).
 ````
 
@@ -884,7 +888,7 @@ spec: elements#references syntax-inline#reference syntax-blocks#r7
 
 An unresolved `@name` stays literal text, with `ref.dangling` at the `@` and a hint to escape it.
 
-````tern
+````luccet
 Ask @alice.
 ````
 

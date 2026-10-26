@@ -3,25 +3,28 @@
 // data-use="docs.js docs.css" (index.html: docs/docs.js docs/docs.css).
 //
 // It declares the pages' vocabulary, exposes the demo schema that live
-// examples use with schema=demo, and adds two behaviours:
+// examples use with schema=demo, and adds four behaviours:
 //   - site-nav: draws the site navigation, with the mark before the home
 //     link; `::logo` puts the same mark, small, before the text of the
 //     heading that follows it (the home page's title). The mark is
-//     tern.png on a light theme and tern-white.png on a dark one, chosen by
-//     the text colour and followed when the theme changes;
-//   - code: turns each live example (a `tern` fence with the class `live`)
+//     luccet.png on every theme;
+//   - code: turns each live example (a `luccet` fence with the class `live`)
 //     into source, result, diagnostics and generated HTML, computed here by
-//     the engine, and highlights every `tern` fence. A result is isolated
+//     the engine, and highlights every `luccet` fence. A result is isolated
 //     from the page: its ids are prefixed, its scripts do not run, its styles
-//     are scoped, and its math is typeset here with its own macros, its
-//     KaTeX errors listed in the example rather than the page.
+//     are scoped, and its math, translated by the engine with the example's
+//     own macros, has its diagnostics in the example rather than the page;
+//   - copy: a button on every fence that copies its code (the docs' own: a
+//     note does without);
+//   - tex-symbols: draws the table of every TeX symbol command, from the
+//     engine's own list (luccet.tex.symbols), on the Math page.
 //
-// Under node (tern check, the LSP, test/docs.js) only the vocabulary and
-// window.ternDocs matter: the behaviours are registered with the inert shim
+// Under node (luccet check, the LSP, test/docs.js) only the vocabulary and
+// window.luccetDocs matter: the behaviours are registered with the inert shim
 // and never run.
 (function () {
   'use strict';
-  const T = window.tern;
+  const T = window.luccet;
   if (!T) return;
 
   // ---------------------------------------------------------------- vocabulary
@@ -30,6 +33,7 @@
   T.leaf('toc', { tag: 'nav', transform: 'toc', depth: '2-3', attrs: { 'aria-label': 'Contents' } });
   T.leaf('site-nav', { tag: 'nav', attrs: { 'aria-label': 'Site' } });
   T.leaf('logo', { tag: 'div', attrs: { 'aria-hidden': 'true' } }); // the mark alone, filled by logoImage() below
+  T.leaf('tex-symbols', { tag: 'div' }); // filled by the behaviour below
   T.block('note', callout('Note'));
   T.block('tip', callout('Tip'));
   T.block('warning', callout('Warning'));
@@ -44,7 +48,7 @@
 
   // What `{.live schema=demo}` renders with: exactly test/fixtures/schema.js,
   // the vocabulary the conformance corpus assumes (test/docs.js checks that
-  // the two are equal). Plain data, as tern.block/leaf/inline write it.
+  // the two are equal). Plain data, as luccet.block/leaf/inline write it.
   const theoremLike = (label) => ({ tag: 'section', counter: 'theorem', label, ref: '{label} {n}' });
   const demoCallout = (label) => ({ label });
   const demo = {
@@ -79,13 +83,15 @@
   // The site, in navigation order (docs/README.md "The pages"); paths from
   // the site root. The examples follow, under one heading.
   const PAGES = [
-    ['index.html', 'Tern'],
+    ['index.html', 'Luccet'],
     ['docs/guide.html', 'Guide'],
     ['docs/syntax-blocks.html', 'Syntax: blocks'],
     ['docs/syntax-inline.html', 'Syntax: inline'],
+    ['docs/math.html', 'Math'],
     ['docs/elements.html', 'Elements and output'],
     ['docs/schema.html', 'Vocabulary and behaviour'],
     ['docs/addons.html', 'Add-ons'],
+    ['docs/addon-api.html', 'Writing an add-on'],
     ['docs/diagnostics.html', 'Diagnostics'],
     ['docs/tools.html', 'Command line and editors'],
     ['docs/publishing.html', 'Publishing'],
@@ -99,7 +105,7 @@
     ['examples/layout.html', 'Project plan'],
   ];
 
-  window.ternDocs = { demo, schemas: { none, demo }, pages: PAGES, examples: EXAMPLES };
+  window.luccetDocs = { demo, schemas: { none, demo }, pages: PAGES, examples: EXAMPLES };
 
   // ---------------------------------------------------------------- the browser
 
@@ -159,37 +165,9 @@
 
   // ---------------------------------------------------------------- the mark
 
-  // The mark is an <img>, not a CSS mask: a browser fetches a mask image
-  // with CORS rules and will not paint one for a note opened from disk. It
-  // is tern.png where the text is dark and tern-white.png where it is light,
-  // which is how a theme, including one that follows the system, says it is
-  // dark; rechecked when the system scheme changes, after a render (a theme
-  // may arrive late) and when a theme switcher says so.
-  const logos = new Set();
-  function darkTheme() {
-    const c = getComputedStyle(document.querySelector('main.tern') || document.body).color.match(/[\d.]+/g) || [];
-    const [r = 0, g = 0, b = 0] = c.map(Number);
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 128; // light text, so a dark theme
-  }
-  function paint(img, dark = darkTheme()) {
-    const want = img.getAttribute(dark ? 'data-dark' : 'data-light');
-    if (img.getAttribute('src') !== want) img.setAttribute('src', want);
-  }
-  function repaint() {
-    const dark = logos.size ? darkTheme() : false; // one style read for every mark
-    for (const m of logos) m.isConnected ? paint(m, dark) : logos.delete(m);
-  }
-  function logoImage(at, cls) {
-    const img = el('img', { class: cls, alt: '', width: '256', height: '256', 'data-light': link('docs/tern.png', at), 'data-dark': link('docs/tern-white.png', at) });
-    logos.add(img); // painted by the 'render' repaint, once the note's DOM is in
-    return img;
-  }
-  if (typeof matchMedia === 'function') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
-  window.addEventListener('load', repaint);
-  window.addEventListener('tern:theme', repaint);
-  T.on('render', (root, info) => {
-    if (!(info && info.safe)) repaint();
-  });
+  // The mark is luccet.png, a gold emblem on a navy disc that reads on a
+  // light theme and a dark one alike, so every theme gets the same file.
+  const logoImage = (at, cls) => el('img', { class: cls, alt: '', width: '256', height: '256', src: link('docs/luccet.png', at) });
 
   // The mark goes into the heading that follows the leaf, before its text;
   // the leaf is then empty and hidden. With no heading after it, the leaf
@@ -208,6 +186,38 @@
   });
 
   // ---------------------------------------------------------------- site-nav
+
+  // ---------------------------------------------------------------- tex-symbols
+
+  // Every symbol command, by class: the engine's own list, each drawn by the
+  // engine (luccet.tex), so the page shows what a formula gets.
+  const CLASSES = [
+    ['mi', 'Ordinary: letters and symbols'],
+    ['ord', 'Ordinary, usable as brackets'],
+    ['bin', 'Binary operators'],
+    ['rel', 'Relations and arrows'],
+    ['open', 'Opening brackets'],
+    ['close', 'Closing brackets'],
+    ['punct', 'Punctuation'],
+    ['inner', 'Dots'],
+    ['op', 'Big operators, limits above and below'],
+    ['opn', 'Big operators, limits beside'],
+  ];
+  T.define('tex-symbols', (box) => {
+    if (box.childElementCount || !T.tex || !T.tex.symbols) return;
+    for (const [k, title] of CLASSES) {
+      const list = T.tex.symbols.filter((s) => s[2] === k && /^[A-Za-z]+$/.test(s[0]));
+      if (!list.length) continue;
+      const grid = el('ul', { class: 'docs-symbols' });
+      for (const [name] of list) {
+        const r = T.tex(`\\${name}`);
+        const sym = el('span', { class: 'docs-symbol' });
+        if (r.mathml) sym.innerHTML = r.mathml; // the engine's own MathML
+        grid.append(el('li', null, sym, el('code', null, `\\${name}`)));
+      }
+      box.append(el('p', { class: 'docs-symbols-title' }, `${title} (${list.length})`), grid);
+    }
+  });
 
   T.define('site-nav', (nav) => {
     if (inResult(nav)) return;
@@ -237,11 +247,57 @@
 
   T.define('code', (node) => {
     if (inResult(node)) return;
-    const code = node.querySelector('code.language-tern');
+    copyButton(node);
+    const code = node.querySelector('code.language-luccet');
     if (!code) return;
     if (node.classList.contains('live')) live(node, code, ++examples);
     else highlightTern(code);
   });
+
+  // A button on every fence of the pages (not in an example's result) that
+  // copies its code as written, without line numbers or highlighting: "Copy",
+  // then "Copied" for a moment, said to a screen reader too. The clipboard
+  // API where the page may use it, else a selection, which works inside a
+  // click everywhere. A live example's source keeps its fence, and the button.
+  let copyStatus = null;
+  function copyButton(node) {
+    const pre = node.matches('pre') ? node : node.querySelector(':scope > pre');
+    const code = pre && pre.querySelector(':scope > code');
+    if (!code || pre.querySelector(':scope > .docs-copy')) return;
+    const b = el('button', { type: 'button', class: 'docs-copy' }, 'Copy');
+    let timer = 0;
+    b.addEventListener('click', () => {
+      copyText(code.textContent).then((ok) => {
+        const word = ok ? 'Copied' : 'Copy failed';
+        b.textContent = word;
+        b.setAttribute('data-done', ok ? 'yes' : 'no');
+        if (!copyStatus || !copyStatus.isConnected) document.body.append((copyStatus = el('div', { class: 'docs-copy-status', role: 'status' })));
+        copyStatus.textContent = word;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          b.textContent = 'Copy';
+          b.removeAttribute('data-done');
+        }, 1800);
+      });
+    });
+    pre.classList.add('docs-copyable');
+    pre.prepend(b);
+  }
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) return await navigator.clipboard.writeText(text), true;
+    } catch {}
+    const area = el('textarea', { readonly: '', 'aria-hidden': 'true', class: 'docs-copy-status' });
+    area.value = text;
+    document.body.append(area);
+    area.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch {}
+    area.remove();
+    return ok;
+  }
 
   // A live example: the fence, then what the engine makes of it. Nothing it
   // contains can break the page: a failure is shown in its place.
@@ -257,26 +313,24 @@
     node.replaceWith(box);
     box.append(part(id, 'source', 'Source', 'docs-live-source', node));
     try {
-      const schema = Object.prototype.hasOwnProperty.call(window.ternDocs.schemas, schemaName) ? window.ternDocs.schemas[schemaName] : null;
+      const schema = Object.prototype.hasOwnProperty.call(window.luccetDocs.schemas, schemaName) ? window.luccetDocs.schemas[schemaName] : null;
       if (!schema) throw new Error(`schema="${schemaName}" is not a schema docs.js knows (none, demo)`);
       const opts = { schema, positions: false };
       if (head != null) opts.head = head;
       // One parse and one transform, which toHTML and check would each run
       // again: both emits and the diagnostics read the same tree, and the
-      // diagnostics are in tern.check's order (src/diag.js sortDiagnostics).
+      // diagnostics are in luccet.check's order (src/diag.js sortDiagnostics).
       const { ast, diagnostics: parsed } = T.parse(source, opts);
       T.transform(ast, opts);
       const html = T.emit(ast, opts);
-      const diagnostics = parsed.concat(ast.data.tern.diagnostics).sort((a, b) => a.position.start.offset - b.position.start.offset || a.position.end.offset - b.position.end.offset || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+      const diagnostics = parsed.concat(ast.data.luccet.diagnostics).sort((a, b) => a.position.start.offset - b.position.start.offset || a.position.end.offset - b.position.end.offset || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 
-      // The result is the same HTML with positions (data-pos), so that a
-      // formula KaTeX rejects is placed in the example. Its math is hidden
-      // from the runtime and typeset here, with the example's own macros.
+      // The result is the same HTML with positions (data-pos). Its math is
+      // MathML already, translated with the example's own macros.
       const out = el('div', { class: 'docs-live-out' });
       const tpl = document.createElement('template');
       tpl.innerHTML = T.emit(ast, { ...opts, positions: true });
       neutralise(tpl.content, `ex${n}-`);
-      const math = isolateMath(tpl.content);
       out.append(tpl.content);
       box.append(part(id, 'result', 'Result', 'docs-live-result', out));
 
@@ -293,7 +347,6 @@
       const markup = el('details', { class: 'docs-live-part docs-live-markup' }, el('summary', { class: 'docs-live-label' }, 'HTML'));
       htmlPane(markup, html);
       box.append(markup);
-      queueMath(box, out, math);
     } catch (e) {
       box.classList.add('docs-live-failed');
       box.append(el('p', { class: 'docs-live-problem docs-live-error', role: 'alert' }, `This example could not be rendered: ${(e && e.message) || e}`));
@@ -400,32 +453,7 @@
     }
   }
 
-  // ---------------------------------------------------------------- example math
-
-  // An example is a note of its own, so its math must not reach the page's:
-  // the runtime typesets every .t-math and reads every .t-macros under the
-  // root after the behaviours ran, into one macro table, and reports what
-  // KaTeX rejects as the page's diagnostics. So the result's formulas become
-  // .docs-math and its :::macros .docs-macros before they are inserted (the
-  // runtime never sees them: behaviours run before its math pass), and docs.js
-  // typesets them itself once window.katex is there, example by example:
-  //   - each example's macro table is its own :::macros bodies, in order;
-  //   - a formula keeps the runtime's look, and once typeset it is a .t-math
-  //     again with its data-tex: the runtime skips a typeset formula, and its
-  //     copy handler copies it as $tex$;
-  //   - one KaTeX rejects keeps its TeX with t-error, as the runtime shows
-  //     it, and is a math.error in the example's Diagnostics, never the page's;
-  //   - without KaTeX (data-katex="none", offline, quirks), the TeX stays.
-  function isolateMath(root) {
-    const macros = [...root.querySelectorAll('.t-macros')];
-    const formulas = [...root.querySelectorAll('.t-math')];
-    for (const m of macros) m.classList.replace('t-macros', 'docs-macros');
-    for (const f of formulas) {
-      if (!f.hasAttribute('data-tex')) f.setAttribute('data-tex', f.textContent);
-      f.classList.replace('t-math', 'docs-math');
-    }
-    return { macros, formulas };
-  }
+  // ---------------------------------------------------------------- the HTML pane
 
   // An example's generated HTML, pretty-printed and highlighted, goes into
   // its panel when the panel first opens, or when the page is idle once it
@@ -457,114 +485,6 @@
   }
   // From the frame after the first paint: an idle period can come before it.
   T.on('ready', () => panes.length && requestAnimationFrame(() => requestAnimationFrame(() => idle(fillPanes))));
-
-  const jobs = []; // examples waiting for their math: {box, out, macros, formulas, table, started}
-  let pumping = false;
-  let K = null;
-
-  function queueMath(box, out, { macros, formulas }) {
-    if (!macros.length && !formulas.length) return;
-    jobs.push({ box, out, macros, formulas, table: {}, started: false });
-    if (pumping) return;
-    pumping = true;
-    katexReady().then((k) => {
-      K = k;
-      if (k) pump();
-      else (jobs.length = 0), (pumping = false); // no KaTeX: the TeX stays
-    });
-  }
-
-  // KaTeX for the examples' math. A docs page loads addons/katex.js for its own
-  // prose math, which sets window.katex; if it has not (a page with no prose
-  // math), docs.js loads KaTeX here. Pinned to addons/katex.js's version.
-  const KATEX = {
-    base: 'https://cdn.jsdelivr.net/npm/katex@0.19.0/dist',
-    js: 'sha384-QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk',
-    css: 'sha384-3rdsX6e5mueWyoweR9NIVmtEsUkokpBT/0ALqKKIBMr9j4qhHkaIkAcGgsE6uVlp',
-  };
-  const katexReady_ = () => window.katex && typeof window.katex.render === 'function';
-  let waiting = null;
-  function katexReady() {
-    if (waiting) return waiting;
-    if (document.compatMode === 'BackCompat') return (waiting = Promise.resolve(null));
-    return (waiting = new Promise((resolve) => {
-      if (katexReady_()) return resolve(window.katex);
-      // Load it once, unless addons/katex.js already is.
-      if (!document.querySelector('script[src*="katex.min.js"]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = `${KATEX.base}/katex.min.css`;
-        link.integrity = KATEX.css;
-        link.crossOrigin = 'anonymous';
-        document.head.append(link);
-        const js = document.createElement('script');
-        js.src = `${KATEX.base}/katex.min.js`;
-        js.async = true;
-        js.integrity = KATEX.js;
-        js.crossOrigin = 'anonymous';
-        document.head.append(js);
-      }
-      const t0 = Date.now();
-      (function poll() {
-        if (katexReady_()) return resolve(window.katex);
-        if (Date.now() - t0 > 30000) return resolve(null);
-        setTimeout(poll, 50);
-      })();
-    }));
-  }
-
-  // In slices of about 8 ms, one per frame (at once while the page is hidden).
-  function pump(budget = 8) {
-    const end = performance.now() + budget;
-    do {
-      const job = jobs[0];
-      if (!job.started) {
-        job.started = true;
-        for (const m of job.macros) defineMacros(job, m);
-      }
-      if (job.formulas.length) typesetFormula(job, job.formulas.shift());
-      if (!job.formulas.length) jobs.shift();
-    } while (jobs.length && performance.now() < end);
-    if (!jobs.length) return void (pumping = false);
-    if (document.hidden) setTimeout(() => pump(), 0);
-    else requestAnimationFrame(() => setTimeout(() => pump(), 0));
-  }
-  // Printing takes the layout right away: everything pending first.
-  window.addEventListener('beforeprint', () => {
-    if (K && jobs.length) pump(Infinity);
-  });
-
-  // An example's position of an element: its data-pos, within the result.
-  function where(job, e) {
-    const at = e.closest('[data-pos]');
-    const m = at && job.out.contains(at) && /^(\d+):(\d+)$/.exec(at.getAttribute('data-pos'));
-    if (!m) return null;
-    const p = { line: Number(m[1]), column: Number(m[2]) };
-    return { start: p, end: p };
-  }
-
-  function defineMacros(job, m) {
-    try {
-      K.renderToString(m.textContent, { macros: job.table, globalGroup: true, throwOnError: true, displayMode: false });
-    } catch (e) {
-      addDiagnostic(job.box, { code: 'math.error', severity: 'error', message: `the :::macros block does not parse: ${e.message}`, hint: 'fix the TeX of the definitions', position: where(job, m) });
-    }
-  }
-
-  function typesetFormula(job, f) {
-    if (!f.isConnected) return;
-    const span = document.createElement('span');
-    try {
-      K.render(f.getAttribute('data-tex') || '', span, { macros: job.table, throwOnError: true, displayMode: f.hasAttribute('data-display') });
-    } catch (e) {
-      f.classList.add('t-error');
-      f.title = e.message;
-      addDiagnostic(job.box, { code: 'math.error', severity: 'error', message: `KaTeX cannot typeset this formula: ${e.message}`, hint: 'the formula is shown as written; fix its TeX', position: where(job, f) });
-      return;
-    }
-    f.replaceChildren(...span.childNodes);
-    f.classList.replace('docs-math', 't-math');
-  }
 
   // ---------------------------------------------------------------- HTML
 
@@ -658,7 +578,7 @@
     return frag;
   }
 
-  // Tern: block markers at line starts, names, attributes, math, code,
+  // Luccet: block markers at line starts, names, attributes, math, code,
   // emphasis, references, raw HTML tags. Light by design: a fence's body and
   // a $$ block are one colour each; everything else is a line-local guess.
   const NAME = '[\\p{L}][\\p{L}\\p{M}\\p{N}_-]*';
@@ -680,7 +600,7 @@
   const inline = (s) => spans(s, INLINE, INLINE_CLASSES);
   const mark = (s, cls = 'tk-mark') => (s ? el('span', { class: cls }, s) : '');
 
-  function ternLine(line, frag) {
+  function luccetLine(line, frag) {
     let m;
     if (/^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line)) return frag.append(mark(line));
     // Prefixes: quote markers and list markers, then the line's own construct.
@@ -730,9 +650,9 @@
         if (!m[3].includes('$$')) math = true;
         return frag.append(m[1], mark(m[2] + m[3], 'tk-math'));
       }
-      ternLine(line, frag);
+      luccetLine(line, frag);
     });
     code.replaceChildren(frag);
-    code.classList.add('docs-tern');
+    code.classList.add('docs-luccet');
   }
 })();

@@ -1,57 +1,49 @@
 {
-  "name": "@ozkrac/tern",
-  "version": "1.1.1",
+  "name": "luccet",
+  "version": "2.0.0",
   "description": "Documents with the full power of HTML, CSS and JS.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OzkrAC/tern.git"
+    "url": "git+https://github.com/Luccet/luccet.git"
   },
-  "homepage": "https://ozkr.ac/tern/",
-  "bugs": "https://github.com/OzkrAC/tern/issues",
+  "homepage": "https://luccet.dev/",
+  "bugs": "https://github.com/Luccet/luccet/issues",
   "keywords": [
     "markdown",
     "html",
     "notes",
     "math",
-    "katex",
+    "mathml",
+    "tex",
     "language-server",
     "static-site"
   ],
-  "main": "tern.js",
-  "types": "tern.d.ts",
+  "main": "luccet.js",
+  "types": "luccet.d.ts",
   "exports": {
     ".": {
-      "types": "./tern.d.ts",
-      "default": "./tern.js"
+      "types": "./luccet.d.ts",
+      "default": "./luccet.js"
     },
-    "./tern.css": "./tern.css",
+    "./luccet.css": "./luccet.css",
     "./cli/*": "./cli/*",
     "./src/*": "./src/*",
-    "./addons/*": "./addons/*",
-    "./themes/*": "./themes/*",
     "./skills/*": "./skills/*",
     "./test/fixtures/detect.json": "./test/fixtures/detect.json",
     "./package.json": "./package.json"
   },
   "bin": {
-    "tern": "tern-cli.js"
+    "luccet": "luccet-cli.js"
   },
   "files": [
-    "tern.js",
-    "tern.css",
-    "tern.d.ts",
-    "tern-cli.js",
+    "luccet.js",
+    "luccet.css",
+    "luccet.d.ts",
+    "luccet-cli.js",
     "cli/",
     "src/",
-    "addons/",
-    "themes/",
     "skills/",
-    "tools/npm.js",
-    "tools/katex.js",
-    "tools/hljs.js",
-    "tools/mermaid.js",
-    "tools/temml.js",
     "test/fixtures/detect.json",
     "CHANGELOG.md"
   ],
@@ -62,16 +54,14 @@
     "build": "node tools/concat.js",
     "bump": "node tools/version.js",
     "tag": "node tools/version.js --tag",
-    "themes": "node tools/themes.js",
-    "hljs": "node tools/hljs.js",
-    "mermaid": "node tools/mermaid.js",
     "test": "node test/all.js",
     "test:corpus": "node test/run.js",
     "lint:corpus": "node test/run.js --lint",
     "samples": "node test/samples.js",
     "perf": "node test/perf.js",
     "fuzz": "node test/fuzz.js",
-    "smoke": "node test/smoke.js"
+    "smoke": "node test/smoke.js",
+    "corpus": "node tools/corpus.js index.html docs examples"
   },
   "devDependencies": {
     "playwright": "1.61.1"

@@ -3,7 +3,7 @@
 Metadata: the preserved head (passed as `opts.head` through an
 `html head` block), the top-level `:::meta` block, conflicts with the head,
 repeated and malformed keys, nesting, the title fallback and the front
-matter pointer. `:::meta` lands in `root.data.tern.meta`, read by the parser
+matter pointer. `:::meta` lands in `root.data.luccet.meta`, read by the parser
 as a plain object from key to value string.
 
 Also: blank lines in the body are ignored and indented lines are
@@ -18,9 +18,9 @@ and honoured only at the top level.
 
 spec: elements#meta-block syntax-blocks#meta
 
-The `:::meta` example: each `key: value` line is read into `root.data.tern.meta`, a plain object from key to string; the value is the rest of the line, colons included.
+The `:::meta` example: each `key: value` line is read into `root.data.luccet.meta`, a plain object from key to string; the value is the rest of the line, colons included.
 
-````tern
+````luccet
 :::meta
 title: Linear maps: kernel, image and rank
 lang: en
@@ -30,7 +30,7 @@ date: 2026-10-07
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"Linear maps: kernel, image and rank","lang":"en","author":"O. Carrera","date":"2026-10-07"}}}}
+{"data":{"luccet":{"meta":{"title":"Linear maps: kernel, image and rank","lang":"en","author":"O. Carrera","date":"2026-10-07"}}}}
 ````
 
 ````html
@@ -42,7 +42,7 @@ spec: elements#meta-block syntax-blocks#meta
 
 A `:::meta` block emits nothing in the body.
 
-````tern
+````luccet
 :::meta
 lang: en
 description: Notes on linear maps
@@ -61,7 +61,7 @@ spec: elements#meta-block syntax-blocks#meta syntax-blocks#r7
 
 `:::meta` emits nothing, so an id, classes or an ordinary key on it apply to no element: each gets `attr.malformed` at its item and is dropped. The id is not registered, so `@m` is dangling rather than a link to nothing.
 
-````tern
+````luccet
 :::meta{#m .a .b lang=en}
 title: T
 :::
@@ -84,16 +84,16 @@ See @m.
 
 spec: elements#meta-block
 
-Values are plain text: nothing in them is parsed as Tern.
+Values are plain text: nothing in them is parsed as Luccet.
 
-````tern
+````luccet
 :::meta
 title: *Linear* maps & $T$
 :::
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"*Linear* maps & $T$"}}}}
+{"data":{"luccet":{"meta":{"title":"*Linear* maps & $T$"}}}}
 ````
 
 ## meta/other-key
@@ -102,7 +102,7 @@ spec: elements#meta-block
 
 Any other key is kept (it becomes `<meta name="key">`); a key may itself contain `:`, and the separator is the first `:` followed by a space.
 
-````tern
+````luccet
 :::meta
 og:image: cover.png
 keywords: kernel, image, rank
@@ -110,7 +110,7 @@ keywords: kernel, image, rank
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"og:image":"cover.png","keywords":"kernel, image, rank"}}}}
+{"data":{"luccet":{"meta":{"og:image":"cover.png","keywords":"kernel, image, rank"}}}}
 ````
 
 ## meta/verbatim-body
@@ -119,7 +119,7 @@ spec: elements#meta-block syntax-blocks#meta syntax-blocks#lines
 
 The body is verbatim: a `:::note` line inside it is not an opener but a malformed meta line, and the next `:::` closes the block.
 
-````tern
+````luccet
 :::meta
 title: Maps
 :::note
@@ -127,14 +127,14 @@ title: Maps
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"Maps"}}}}
+{"data":{"luccet":{"meta":{"title":"Maps"}}}}
 ````
 
 ````html
 ````
 
 ````diagnostics
-3:1 warning meta.malformed
+3:1 error meta.malformed
 ````
 
 ## meta/not-first
@@ -143,7 +143,7 @@ spec: elements#meta-block
 
 `:::meta` conventionally comes first, but a top-level block later in the note is honoured.
 
-````tern
+````luccet
 Intro.
 
 :::meta
@@ -152,7 +152,7 @@ author: O. Carrera
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"author":"O. Carrera"}}}}
+{"data":{"luccet":{"meta":{"author":"O. Carrera"}}}}
 ````
 
 ````html
@@ -170,7 +170,7 @@ When the head and `:::meta` set the same key to different values the head wins, 
 <title>Linear maps</title>
 ````
 
-````tern
+````luccet
 :::meta
 title: Kernels
 :::
@@ -193,7 +193,7 @@ The same value in both places is not a conflict.
 <title>Linear maps</title>
 ````
 
-````tern
+````luccet
 :::meta
 title: Linear maps
 :::
@@ -212,7 +212,7 @@ Keys the head does not set are not conflicts: one place per key.
 <title>Linear maps</title>
 ````
 
-````tern
+````luccet
 :::meta
 author: O. Carrera
 :::
@@ -231,7 +231,7 @@ spec: elements#meta-rules elements#meta-block
 <html lang="de">
 ````
 
-````tern
+````luccet
 :::meta
 lang: en
 :::
@@ -251,7 +251,7 @@ spec: elements#meta-rules elements#meta-block
 <meta name="author" content="A. Author">
 ````
 
-````tern
+````luccet
 :::meta
 author: O. Carrera
 :::
@@ -267,7 +267,7 @@ spec: elements#meta-rules
 
 A repeated key gets `meta.duplicate` at the repeat; the first value wins.
 
-````tern
+````luccet
 :::meta
 title: One
 title: Two
@@ -275,7 +275,7 @@ title: Two
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"One"}}}}
+{"data":{"luccet":{"meta":{"title":"One"}}}}
 ````
 
 ````diagnostics
@@ -288,7 +288,7 @@ spec: elements#meta-rules elements#meta-block
 
 A line that is not `key: value` gets `meta.malformed` at the line: no colon, no space after the colon, a key not starting with a letter.
 
-````tern
+````luccet
 :::meta
 title Linear maps
 lang:en
@@ -298,13 +298,13 @@ lang: en
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"lang":"en"}}}}
+{"data":{"luccet":{"meta":{"lang":"en"}}}}
 ````
 
 ````diagnostics
-2:1 warning meta.malformed
-3:1 warning meta.malformed
-4:1 warning meta.malformed
+2:1 error meta.malformed
+3:1 error meta.malformed
+4:1 error meta.malformed
 ````
 
 ## meta/blank-and-indented-lines
@@ -313,7 +313,7 @@ spec: elements#meta-rules elements#meta-block
 
 Blank lines in the body are ignored; an indented line does not parse as `key: value` and gets `meta.malformed` at the line.
 
-````tern
+````luccet
 :::meta
 title: Maps
 
@@ -323,14 +323,14 @@ author: O. Carrera
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"Maps","author":"O. Carrera"}}}}
+{"data":{"luccet":{"meta":{"title":"Maps","author":"O. Carrera"}}}}
 ````
 
 ````html
 ````
 
 ````diagnostics
-4:1 warning meta.malformed
+4:1 error meta.malformed
 ````
 
 ## meta/value-right-trimmed
@@ -340,7 +340,7 @@ options: escaped
 
 The body is verbatim, but a value is right-trimmed: trailing spaces and tabs are not part of it.
 
-````tern
+````luccet
 :::meta
 title: Maps\u0020\u0020
 lang: en\t
@@ -348,7 +348,7 @@ lang: en\t
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"Maps","lang":"en"}}}}
+{"data":{"luccet":{"meta":{"title":"Maps","lang":"en"}}}}
 ````
 
 ````diagnostics
@@ -360,7 +360,7 @@ spec: elements#meta-rules elements#meta-block
 
 The separator is the first `:` followed by a space, and a key may not end in `:`, so `og:: x` (key `og:`) is `meta.malformed`.
 
-````tern
+````luccet
 :::meta
 og:: x
 note: ok
@@ -368,11 +368,11 @@ note: ok
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"note":"ok"}}}}
+{"data":{"luccet":{"meta":{"note":"ok"}}}}
 ````
 
 ````diagnostics
-2:1 warning meta.malformed
+2:1 error meta.malformed
 ````
 
 ## meta/several-blocks-merge
@@ -381,7 +381,7 @@ spec: elements#meta-rules elements#meta-block
 
 Several top-level `:::meta` blocks merge into one `meta`; a key repeated in a later block is a `meta.duplicate` at the repeat, and the first value wins.
 
-````tern
+````luccet
 :::meta
 title: Maps
 :::
@@ -395,7 +395,7 @@ title: Other
 ````
 
 ````json ast
-{"data":{"tern":{"meta":{"title":"Maps","author":"O. Carrera"}}}}
+{"data":{"luccet":{"meta":{"title":"Maps","author":"O. Carrera"}}}}
 ````
 
 ````html
@@ -416,7 +416,7 @@ spec: elements#meta-rules elements#head
 <html lang="en-GB">
 ````
 
-````tern
+````luccet
 :::meta
 lang: en-gb
 :::
@@ -435,7 +435,7 @@ Every key but `lang` compares exactly, so a title differing only in case conflic
 <title>Linear Maps</title>
 ````
 
-````tern
+````luccet
 :::meta
 title: Linear maps
 author: O. Carrera
@@ -443,7 +443,7 @@ author: O. Carrera
 ````
 
 ````json transformed
-{"data":{"tern":{"meta":{"title":"Linear Maps","author":"O. Carrera"}}}}
+{"data":{"luccet":{"meta":{"title":"Linear Maps","author":"O. Carrera"}}}}
 ````
 
 ````diagnostics
@@ -457,7 +457,7 @@ options: schema=none
 
 A `:::meta` that is not at the top level gets `meta.nested` at its opener line and is ignored; its body is verbatim everywhere, so its lines are not rendered.
 
-````tern
+````luccet
 :::box
 :::meta
 title: Inner
@@ -471,16 +471,16 @@ Body.
 ````
 
 ````diagnostics
-2:1 warning meta.nested
+2:1 error meta.nested
 ````
 
 ## meta/title-fallback
 
 spec: elements#meta-rules
 
-With no title anywhere, the document title is the plain text of the first level-1 heading, which the transforms record in `root.data.tern.meta.title`.
+With no title anywhere, the document title is the plain text of the first level-1 heading, which the transforms record in `root.data.luccet.meta.title`.
 
-````tern
+````luccet
 ## Overview
 
 # Linear *maps*
@@ -489,7 +489,7 @@ Text.
 ````
 
 ````json transformed
-{"data":{"tern":{"meta":{"title":"Linear maps"}}}}
+{"data":{"luccet":{"meta":{"title":"Linear maps"}}}}
 ````
 
 ## meta/frontmatter-not-meta
@@ -498,7 +498,7 @@ spec: elements#meta-rules syntax-blocks#front-matter
 
 There is no front matter: `---` … `---` is a rule, a paragraph and a rule, with `doc.frontmatter` pointing to `:::meta`.
 
-````tern
+````luccet
 ---
 title: Linear maps
 ---
@@ -511,14 +511,14 @@ title: Linear maps
 ````
 
 ````diagnostics
-1:1 info doc.frontmatter
+1:1 warning doc.frontmatter
 ````
 
 ## meta/head-not-in-body
 
 spec: elements#head syntax-blocks#note-start
 
-The preserved head is HTML the browser already parsed; none of it reaches the body, and the note's lines count from the line after `tern.js`.
+The preserved head is HTML the browser already parsed; none of it reaches the body, and the note's lines count from the line after `luccet.js`.
 
 ````html head
 <title>Maps</title>
@@ -526,7 +526,7 @@ The preserved head is HTML the browser already parsed; none of it reaches the bo
 <style>main { max-width: 40em }</style>
 ````
 
-````tern
+````luccet
 # Maps
 
 :::meta
@@ -539,5 +539,30 @@ title Maps
 ````
 
 ````diagnostics
-4:1 warning meta.malformed
+4:1 error meta.malformed
+````
+
+## meta/indented
+
+spec: syntax-blocks#r2 syntax-blocks#meta diagnostics#meta-malformed
+
+From the audit (A28): an indented `:::meta` kept its indentation on every line, so no line was `key: value` and each was `meta.malformed`, against R2. A raw body loses up to its opener's indentation, as a fence's lines do; a line indented further is still malformed.
+
+````luccet
+  :::meta
+  title: Indented
+  lang: de
+    author: deeper
+  :::
+````
+
+````json ast
+{"data":{"luccet":{"meta":{"title":"Indented","lang":"de"}}}}
+````
+
+````html
+````
+
+````diagnostics
+4:3 error meta.malformed "a `:::meta` line is `key: value`"
 ````

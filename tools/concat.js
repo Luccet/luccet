@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// Builds the committed tern.js from src/. Each module keeps its own scope:
+// Builds the committed luccet.js from src/. Each module keeps its own scope:
 // the bundle is one IIFE holding the modules as functions, in a fixed order,
 // with a ten-line require. Under node the bundle is the module's export; in
-// the browser it is window.tern, and a second copy leaves the first in place.
-// It also writes tern.css, the base stylesheet of src/css.js, which a page
+// the browser it is window.luccet, and a second copy leaves the first in place.
+// It also writes luccet.css, the base stylesheet of src/css.js, which a page
 // links instead of the runtime's inline <style> under a strict CSP.
 //
 // The bundle's third line asks V8 to compile every function as the file
@@ -14,7 +14,7 @@
 // small note's parse, transform and emit. It must come before the code; the
 // release's minified build keeps it (terser --comments).
 //
-//   node tools/concat.js           write tern.js and tern.css
+//   node tools/concat.js           write luccet.js and luccet.css
 //   node tools/concat.js --check   exit 1 if either is not the current build (CI)
 'use strict';
 
@@ -24,12 +24,12 @@ const zlib = require('zlib');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const OUT = path.join(ROOT, 'tern.js');
-const CSS_OUT = path.join(ROOT, 'tern.css');
+const OUT = path.join(ROOT, 'luccet.js');
+const CSS_OUT = path.join(ROOT, 'luccet.css');
 
 // Dependencies first. A file in src/ that is not listed is an error, so a
 // new module cannot be left out of the build silently.
-const ORDER = ['diag', 'scan', 'ast', 'entities', 'inline', 'block', 'outline', 'search', 'glossary', 'schema', 'transform', 'emit', 'css', 'use', 'runtime', 'index'];
+const ORDER = ['diag', 'scan', 'ast', 'entities', 'inline', 'block', 'outline', 'search', 'glossary', 'schema', 'tex-symbols', 'tex', 'transform', 'emit', 'css', 'use', 'runtime', 'index'];
 const ENTRY = 'index';
 
 function build() {
@@ -39,7 +39,7 @@ function build() {
   const version = /const version = '([^']+)'/.exec(fs.readFileSync(path.join(SRC, `${ENTRY}.js`), 'utf8'))[1];
   const parts = [
     '// SPDX-License-Identifier: MIT',
-    `// tern.js ${version}: built from src/ by tools/concat.js. Edit the sources, not this file.`,
+    `// luccet.js ${version}: built from src/ by tools/concat.js. Edit the sources, not this file.`,
     '//# allFunctionsCalledOnLoad',
     '(function (global) {',
     "  'use strict';",
@@ -64,21 +64,21 @@ function build() {
     parts.push(`  // ---- src/${m}.js`, `  defs['${m}'] = function (module, exports, require) {`, body, '  };');
   }
   parts.push(
-    `  var tern = require('${ENTRY}');`,
-    "  if (typeof module === 'object' && module && module.exports) module.exports = tern;",
-    '  else if (!(global.tern && global.tern.version)) global.tern = tern;',
+    `  var luccet = require('${ENTRY}');`,
+    "  if (typeof module === 'object' && module && module.exports) module.exports = luccet;",
+    '  else if (!(global.luccet && global.luccet.version)) global.luccet = luccet;',
     "})(typeof globalThis !== 'undefined' ? globalThis : this);",
     '',
   );
   return parts.join('\n');
 }
 
-// tern.css: the same stylesheet the runtime injects as <style id="tern-style">.
+// luccet.css: the same stylesheet the runtime injects as <style id="luccet-style">.
 function buildCss() {
   const file = path.join(SRC, 'css.js');
   delete require.cache[require.resolve(file)];
   const { css } = require(file);
-  return `/* SPDX-License-Identifier: MIT */\n/* tern.css: built from src/css.js by tools/concat.js. Edit the source, not this file. */\n${css}`;
+  return `/* SPDX-License-Identifier: MIT */\n/* luccet.css: built from src/css.js by tools/concat.js. Edit the source, not this file. */\n${css}`;
 }
 
 function main() {
@@ -90,17 +90,17 @@ function main() {
   const size = `${lines} lines, ${(bytes / 1024).toFixed(1)} KB, ${(gz / 1024).toFixed(1)} KB gzipped`;
   if (process.argv.includes('--check')) {
     const current = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
-    const stale = [current(OUT) !== out && 'tern.js', current(CSS_OUT) !== sheet && 'tern.css'].filter(Boolean);
+    const stale = [current(OUT) !== out && 'luccet.js', current(CSS_OUT) !== sheet && 'luccet.css'].filter(Boolean);
     if (stale.length) {
       console.log(`✗ ${stale.join(' and ')} ${stale.length > 1 ? 'are' : 'is'} not the current build of src/: run node tools/concat.js`);
       process.exit(1);
     }
-    console.log(`✓ tern.js and tern.css are current; tern.js ${size}`);
+    console.log(`✓ luccet.js and luccet.css are current; luccet.js ${size}`);
     process.exit(0);
   }
   fs.writeFileSync(OUT, out);
   fs.writeFileSync(CSS_OUT, sheet);
-  console.log(`wrote tern.js (${size}) and tern.css (${(Buffer.byteLength(sheet) / 1024).toFixed(1)} KB)`);
+  console.log(`wrote luccet.js (${size}) and luccet.css (${(Buffer.byteLength(sheet) / 1024).toFixed(1)} KB)`);
 }
 
 main();

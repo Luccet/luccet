@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
-// A note's links to files, checked against the disk, for `tern check`
+// A note's links to files, checked against the disk, for `luccet check`
 // (docs/diagnostics.html#tools-codes):
 //   link.missing   a relative URL names a file that does not exist, a folder
 //                  with no index.html, or a name whose case differs from the
 //                  file's (found on this disk, not on a host that tells case
-//                  apart); an error for the tern.js the note loads, since
+//                  apart); an error for the luccet.js the note loads, since
 //                  the note does not render, a warning otherwise
 //   link.dangling  its fragment names no id in the file it points at
-// A Tern link to `#id` in the note itself is the engine's (ref.dangling).
+// A Luccet link to `#id` in the note itself is the engine's (ref.dangling).
 //
-// The links: Tern links and images; the href, src, poster and data of
+// The links: Luccet links and images; the href, src, poster and data of
 // elements; href and src in raw HTML, in the note and in the head; the
-// tern.js tag's src and data-css, and its stylesheet add-ons. Head scripts
+// luccet.js tag's src and data-css, and its stylesheet add-ons. Head scripts
 // and script add-ons are not, being head.script's and addon.failed's. Not
 // checked: URLs with a scheme or starting with // (elsewhere) or / (they
 // depend on where the site is served), and a note with a <base href>, whose
@@ -23,6 +23,7 @@
 //
 //   new Targets(opts)        files as the checks read them (below):
 //     .analyse(file, text?)    cli/note.js analyse(), or null for a non-note
+//     .later(file)             the same as a promise, over opts.analyseAsync
 //     .remember(file, a)       an analysis of the file as it is now
 //     .parsed(file)            {text, a}: the file's text and parsed(text)
 //     .find(dir, rel)          what a relative path names from a folder:
@@ -30,6 +31,7 @@
 //                              actual the path as the disk spells it, exact
 //                              false when a segment differs in case alone
 //     .ids(file)               a Set, or null when the file has no ids to know
+//                              (or, with opts.analyseAsync, none yet)
 //     .during(fn)              fn(), with each file's stat taken once
 //   urls(a)                  the URLs of a note analysed as `a`, with where
 //                            they are and where they are written; one list
@@ -44,7 +46,7 @@
 //                            its problem, if any
 //   check(file, a, targets)  the link diagnostics of the note at `file`,
 //                            analysed as `a`, in file order, each spanning
-//                            its link (the tern.js line's: column 1)
+//                            its link (the luccet.js line's: column 1)
 //   merge(own, more)         a note's diagnostics and its link diagnostics,
 //                            in file order
 //   lineCol(text, offset)    the line and column (1-based, UTF-16) of an
@@ -54,7 +56,7 @@
 const fs = require('fs');
 const { scanUse } = require('../src/use');
 const path = require('path');
-const { analyse, split, tern } = require('./note');
+const { analyse, split, luccet } = require('./note');
 
 const SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:|^\/\//;
 const URL_KEYS = ['href', 'src', 'poster', 'data'];
@@ -94,18 +96,27 @@ function lineCol(text, offset) {
 // Files as the checks read them. Each value is kept with a stamp of what it
 // came from, and used while the stamp holds: a file's mtime and size, a
 // folder's mtime, an open document's version. So one Targets serves a long
-// run, such as the language server's, as well as one `tern check`. Each
+// run, such as the language server's, as well as one `luccet check`. Each
 // table keeps its last MAX entries, so a long run over a large workspace
 // does not grow without end.
 //   opts.open(file)          an editor's text for the file, {text, stamp},
 //                            or undefined: the editor's text wins over the
 //                            disk's, and an open file exists
 //   opts.analyse(text, file) analyses a note (default cli/note.js analyse)
+//   opts.analyseAsync(text, file), opts.landed(file): the language server's.
+//                            A note a link names is analysed over it, never
+//                            waited for: ids() knows none until it lands,
+//                            and landed(file) says when to check again. A
+//                            linked note whose script never returns then
+//                            costs the links to it, not the other notes.
 const MAX = 512;
 class Targets {
-  constructor({ open, analyse: run } = {}) {
+  constructor({ open, analyse: run, analyseAsync, landed } = {}) {
     this.open = open || (() => undefined);
     this.run = run || ((text, file) => analyse(text, file));
+    this.runAsync = analyseAsync || null;
+    this.landed = landed || (() => {});
+    this.pending = new Map(); // file -> {stamp, promise}: analyses over runAsync on their way
     this.dirs = new Map(); // dir -> {stamp, names}
     this.notes = new Map(); // file -> {stamp, a}
     this.idSets = new Map(); // file -> {stamp, ids}
@@ -160,7 +171,7 @@ class Targets {
 
   // The note's analysis; `text` is what the caller read of it. An
   // analysis of the same text, made while the stamp holds, is reused: a note
-  // that `tern check` reads after a link to it was checked is not analysed
+  // that `luccet check` reads after a link to it was checked is not analysed
   // twice.
   analyse(file, text) {
     const src = this.source(file);
@@ -170,6 +181,42 @@ class Targets {
     const a = this.run(read, file);
     this.keep(this.notes, file, { stamp: src.stamp, text: read, a });
     return a;
+  }
+
+  // The note's analysis as a promise, over runAsync when there is one,
+  // shared by every caller while it runs. One that lands for the file as it
+  // still is is kept; either way landed(file) is called. A runner that fails
+  // gives null, kept as an analysis would be, so a check does not start it
+  // again until the file changes.
+  later(file) {
+    const src = this.source(file);
+    const hit = this.notes.get(file);
+    if (hit && hit.stamp === src.stamp) return Promise.resolve(this.keep(this.notes, file, hit).a);
+    const on = this.pending.get(file);
+    if (on && on.stamp === src.stamp) return on.promise;
+    const text = src.text();
+    const entry = { stamp: src.stamp, promise: null };
+    const done = (a) => {
+      if (this.pending.get(file) === entry) this.pending.delete(file);
+      if (this.source(file).stamp === entry.stamp) this.keep(this.notes, file, { stamp: entry.stamp, text, a });
+      this.landed(file);
+      return a;
+    };
+    entry.promise = Promise.resolve()
+      .then(() => (this.runAsync ? this.runAsync(text, file) : this.run(text, file)))
+      .then(done, () => done(null));
+    this.pending.set(file, entry);
+    return entry.promise;
+  }
+
+  // The note's analysis if it is known for the file as it is, else
+  // undefined, with later(file) started.
+  soon(file) {
+    const src = this.source(file);
+    const hit = this.notes.get(file);
+    if (hit && hit.stamp === src.stamp) return this.keep(this.notes, file, hit).a;
+    this.later(file);
+    return undefined;
   }
 
   // An analysis made elsewhere, of the file as it is now (the language
@@ -241,10 +288,11 @@ class Targets {
     if (hit && hit.stamp === src.stamp) return this.keep(this.idSets, file, hit).ids;
     let ids = null;
     if (/\.html?$/i.test(file)) {
-      const a = this.analyse(file);
+      const a = this.runAsync ? this.soon(file) : this.analyse(file);
+      if (a === undefined) return null; // on its way: landed() says when to check again
       if (a) {
-        ids = new Set(Object.keys(a.ast.data.tern.ids));
-        const html = tern.emit(a.ast, { ...a.opts, positions: false });
+        ids = new Set(Object.keys(a.ast.data.luccet.ids));
+        const html = luccet.emit(a.ast, { ...a.opts, positions: false });
         for (const m of html.matchAll(/<[a-zA-Z][^<>]*?\sid="([^"]*)"/g)) ids.add(decode(m[1]));
       } else {
         ids = new Set();
@@ -289,11 +337,11 @@ function markdownAnchors(text) {
 
 // The note's URLs: [{url, what, own, check, position?, filePosition, span}].
 // `what` names it in a message, %s standing for its path; `own` is true for
-// a Tern link within the note, which the engine checks; `check` is false for
+// a Luccet link within the note, which the engine checks; `check` is false for
 // head scripts and script add-ons, which head.script and addon.failed
-// report. `span` is where the URL is written, for tern mv to rewrite it:
+// report. `span` is where the URL is written, for luccet mv to rewrite it:
 // {in: 'head' | 'tag' | 'note', from, to, quote}, offsets in a.head, a.tag
-// or a.note, quote one of " ' < (a Tern link's <…>), '' (bare) or ' ' (an
+// or a.note, quote one of " ' < (a Luccet link's <…>), '' (bare) or ' ' (an
 // entry of data-use's list); null when it cannot be placed. The list is
 // made once per analysis and shared, so callers read it and do not change
 // it: a check, a search over the workspace and the language server's
@@ -310,7 +358,7 @@ function noteUrls(a) {
   const point = (p) => ({ start: p, end: p });
   const value = (m, g) => (m[g] !== undefined ? g : m[g + 1] !== undefined ? g + 1 : g + 2); // the group that matched
   const QUOTE = ['"', "'", ''];
-  // The head and the tern.js tag, in file lines; the tag's items at column
+  // The head and the luccet.js tag, in file lines; the tag's items at column
   // 1, as addon.failed is.
   const head = uncomment(a.head);
   for (const m of head.matchAll(TAG)) {
@@ -331,7 +379,7 @@ function noteUrls(a) {
   };
   const tagAt = point({ line: a.line, column: 1 });
   const src = attr('src');
-  if (src) out.push({ url: src.value, what: 'the tern.js this note loads, %s,', tern: true, filePosition: tagAt, span: { in: 'tag', from: src.from, to: src.to, quote: src.quote } });
+  if (src) out.push({ url: src.value, what: 'the luccet.js this note loads, %s,', luccet: true, filePosition: tagAt, span: { in: 'tag', from: src.from, to: src.to, quote: src.quote } });
   const css = attr('data-css');
   if (css && css.value) out.push({ url: css.value, what: 'the stylesheet in data-css, %s,', filePosition: tagAt, span: { in: 'tag', from: css.from, to: css.to, quote: css.quote } });
   const use = attr('data-use');
@@ -348,13 +396,13 @@ function noteUrls(a) {
     return { position, filePosition: a.toFile(position) };
   };
   // The leading `:::use` block's entries, as data-use's: a stylesheet is
-  // checked; a script is addon.failed's. Bare, so tern mv rewrites them.
+  // checked; a script is addon.failed's. Bare, so luccet mv rewrites them.
   for (const e of a.use || []) {
     const start = { line: e.line, column: e.column, offset: e.offset };
     const end = { line: e.line, column: e.column + e.url.length, offset: e.offset + e.url.length };
     out.push({ url: e.url, what: 'the add-on %s', check: /\.css(?:[?#]|$)/i.test(e.url), ...place(start, end), span: { in: 'note', from: e.offset, to: e.offset + e.url.length, quote: '' } });
   }
-  tern.visit(a.ast, (node) => {
+  luccet.visit(a.ast, (node) => {
     if (!node.position) return;
     const pos = (p) => ({ line: p.line, column: p.column, offset: p.offset });
     const [start, end] = [pos(node.position.start), pos(node.position.end)];
@@ -382,7 +430,7 @@ function noteUrls(a) {
 }
 
 // Where a span of urls() is written, as file positions: the head's lines are
-// the file's first; the tag is on the tern.js line, after what the head
+// the file's first; the tag is on the luccet.js line, after what the head
 // holds of it; a note line n is file line n + a.line.
 function spanRange(a, span) {
   const at = (off) => {
@@ -394,7 +442,7 @@ function spanRange(a, span) {
   return { start: at(span.from), end: at(span.to) };
 }
 
-// The fragment of a URL as written: the span after its first `#` (a Tern
+// The fragment of a URL as written: the span after its first `#` (a Luccet
 // link may escape one as `\#`, which is not it), or null without one.
 function fragmentSpan(a, u) {
   if (!u.span || !u.url.includes('#')) return null;
@@ -407,7 +455,7 @@ function fragmentSpan(a, u) {
   return null;
 }
 
-// Where a Tern link's or image's destination is written: after the `](`
+// Where a Luccet link's or image's destination is written: after the `](`
 // that ends its text, as <…> or a bare run with balanced parentheses. A
 // candidate counts when the engine reads it as the node's URL.
 function destination(note, node) {
@@ -436,7 +484,7 @@ function destination(note, node) {
     }
     const raw = quote ? `<${slice.slice(from, to)}>` : slice.slice(from, to);
     let read = null;
-    tern.visit(tern.parse(`[x](${raw})`).ast, (n) => {
+    luccet.visit(luccet.parse(`[x](${raw})`).ast, (n) => {
       if (n.type === 'link' && read === null) read = n.url;
     });
     if (read === node.url) return { in: 'note', from: s + from, to: s + to, quote };
@@ -458,11 +506,11 @@ function attribute(note, node, key) {
 }
 
 // A note parsed but not transformed, its add-ons not run: its URLs are
-// syntax, and this reads them at no risk (tern mv).
+// syntax, and this reads them at no risk (luccet mv).
 function parsed(text) {
   const parts = split(text);
   if (!parts) return null;
-  const { ast } = tern.parse(parts.note, { head: parts.head });
+  const { ast } = luccet.parse(parts.note, { head: parts.head });
   const shift = (p) => ({ line: p.line + parts.line, column: p.column });
   // The leading `:::use` block's entries, as analyse() carries them (urls() reads them).
   const use = scanUse(parts.note, { eof: true }).entries;
@@ -526,14 +574,14 @@ function check(file, a, targets) {
 
 function checkLinks(file, a, targets) {
   const out = [];
-  const say = (u, code, message, hint) => out.push({ code, severity: u.tern ? 'error' : 'warning', message, hint, ...(u.position ? { position: u.position } : {}), filePosition: u.filePosition });
+  const say = (u, code, message, hint) => out.push({ code, severity: u.luccet ? 'error' : 'warning', message, hint, ...(u.position ? { position: u.position } : {}), filePosition: u.filePosition });
   for (const u of urls(a)) {
     if (u.own || u.check === false) continue;
     const r = resolve(file, u.url, targets);
     if (!r || !r.problem) continue;
     const named = u.what.replace('%s', r.path);
     if (r.problem === 'no-index') say(u, 'link.missing', `${named} has no index.html`, 'link to a file in the folder, or add its index.html');
-    else if (r.problem === 'missing') say(u, 'link.missing', `${named} does not exist${u.tern ? ', so the note does not render' : ''}`, 'fix the path: it resolves from the folder of this note');
+    else if (r.problem === 'missing') say(u, 'link.missing', `${named} does not exist${u.luccet ? ', so the note does not render' : ''}`, 'fix the path: it resolves from the folder of this note');
     else if (r.problem === 'case') say(u, 'link.missing', `${named} is spelt ${r.actual} on this disk; a host that tells case apart will not find it`, `write it as the disk does: ${r.actual}`);
     else if (/\.(md|markdown)$/i.test(r.dest)) say(u, 'link.dangling', `${r.path || 'this note'} has no heading with the anchor ${r.frag}`, 'check the anchor after #: GitHub makes it from the heading, in lower case with hyphens');
     else say(u, 'link.dangling', `${r.path || 'this note'} has no element with the id ${r.frag}`, 'check the id after #: ids are case-sensitive');

@@ -82,8 +82,8 @@ jobs:
       # browsers; restored after npm ci, which empties node_modules.
       - uses: actions/cache@v6
         with:
-          path: node_modules/.cache/tern-smoke
-          key: tern-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+          path: node_modules/.cache/luccet-smoke
+          key: luccet-smoke-${{ hashFiles('test/smoke.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -93,7 +93,7 @@ jobs:
       - run: node test/smoke.js
 
   build:
-    name: tern.js is the build of src/
+    name: luccet.js is the build of src/
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -102,17 +102,17 @@ jobs:
           node-version: 22
       - run: node tools/concat.js --check
       - run: node tools/version.js --check # every place that names the version agrees with package.json
-      - run: node test/themes.js # themes/ is the build of tools/themes.js, and readable
+      - run: node test/palette.js # luccet.css's own palettes are readable (the themes are checked in Luccet/themes)
       - run: node test/package.js # what npm pack ships, the exports map, the declarations
       # The package, installed from its tarball into an empty folder: the
       # engine requires, the command runs, a subpath export resolves.
       - name: the package installs and runs
         run: |
           npm pack --ignore-scripts
-          mkdir -p /tmp/pkg && cd /tmp/pkg && npm init -y >/dev/null && npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/ozkrac-tern-*.tgz
-          node -e "const t = require('@ozkrac/tern'); if (t.version !== require('@ozkrac/tern/package.json').version) throw new Error('version'); console.log('require ok', t.version, t.toHTML('# Hi').trim())"
-          node -e "require('@ozkrac/tern/cli/language.js'); require('@ozkrac/tern/test/fixtures/detect.json'); console.log('subpaths ok')"
-          npx tern --version
+          mkdir -p /tmp/pkg && cd /tmp/pkg && npm init -y >/dev/null && npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/luccet-*.tgz
+          node -e "const t = require('luccet'); if (t.version !== require('luccet/package.json').version) throw new Error('version'); console.log('require ok', t.version, t.toHTML('# Hi').trim())"
+          node -e "require('luccet/cli/language.js'); require('luccet/test/fixtures/detect.json'); console.log('subpaths ok')"
+          npx luccet --version
 
   cli:
     name: API, command line, language server and documentation
@@ -123,7 +123,6 @@ jobs:
         with:
           node-version: 22
       - run: node test/api.js
-      - run: node test/addons.js # addons/ under the command line; code.js's highlight.js table
       - run: node test/cli.js
       - run: node test/lsp.js
       - run: node test/docs.js # the documentation's pages, live examples and links
@@ -155,8 +154,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - uses: actions/cache@v6
         with:
-          path: node_modules/.cache/tern-smoke
-          key: tern-smoke-${{ hashFiles('addons/katex.js', 'addons/code.js', 'addons/mermaid.js', 'addons/mathml.js') }}
+          path: node_modules/.cache/luccet-smoke
+          key: luccet-smoke-${{ hashFiles('test/smoke.js') }}
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -177,10 +176,10 @@ jobs:
         with:
           node-version: 22
       - run: |
-          for t in run api samples addons themes package cli language lsp docs skills; do
+          for t in run tex api samples palette package cli language lsp docs skills; do
             npx --yes c8@12.0.0 --clean=false --reporter=none node test/$t.js || exit 1
           done
-          npx --yes c8@12.0.0 report --reporter=text-summary --reporter=lcov --include='tern.js' --include='cli/**' --include='addons/**' --include='tools/**'
+          npx --yes c8@12.0.0 report --reporter=text-summary --reporter=lcov --include='luccet.js' --include='cli/**' --include='tools/**'
       - uses: actions/upload-artifact@v6
         with:
           name: coverage

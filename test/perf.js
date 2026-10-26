@@ -36,7 +36,7 @@ const FACTOR = Number(opt('factor') || process.env.PERF_FACTOR || 2);
 const rep = (s, n) => s.repeat(n);
 const note = (f) => {
   const s = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-  const i = s.indexOf('\n', s.search(/<script\b[^>]*tern\.js/));
+  const i = s.indexOf('\n', s.search(/<script\b[^>]*luccet\.js/));
   return s.slice(i + 1);
 };
 const samples = () =>
@@ -96,6 +96,8 @@ const CASES = [
   { name: 'table with continued rows', gen: (n) => '| a | b |\n|---|---|\n' + rep('| $x | y\\\n', n) + '| z |\n', n: 3000 },
   { name: 'unclosed raw <div> lines', gen: (n) => rep('<div>\n', n), n: 6000 },
   { name: 'raw <div> nesting on one line', gen: (n) => rep('<div>', n) + rep('</div>', n) + '\n', n: 5000 },
+  { name: 'raw HTML hazards: selects in a template', gen: (n) => '<div><template>' + rep('<select>', n) + rep('</template>', n) + '</div>\n', n: 5000 },
+  { name: 'raw HTML hazards: attributes and quotes', gen: (n) => '<div>' + rep('<a b="c" d=e f/>', n) + '</div>\n', n: 5000 },
   { name: 'alternating $$ lines', gen: (n) => rep('$$\nx\n', n), n: 6000 },
   { name: 'attribute lines', gen: (n) => rep('{.a}\n', n) + 'x\n', n: 6000 },
   // Documents.
@@ -144,13 +146,13 @@ function growthChild(filter) {
 }
 
 function main() {
-  const { tern, why } = engine.load();
-  if (!tern) {
+  const { luccet, why } = engine.load();
+  if (!luccet) {
     console.log(`✗ ${why}`);
     process.exit(2);
   }
   const opts = { schema: fixture };
-  const run = (s) => tern.toHTML(s, opts);
+  const run = (s) => luccet.toHTML(s, opts);
   const filter = opt('filter');
   const cases = CASES.filter((c) => !filter || c.name.includes(filter));
   if (args.includes('--growth')) {

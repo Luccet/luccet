@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: MIT
 // The agent skills in skills/ (skills/README.md), checked against the
 // Agent Skills format (agentskills.io/specification) and against the engine,
-// so that what they teach an agent is what Tern does:
+// so that what they teach an agent is what Luccet does:
 //   - each skill is skills/NAME/SKILL.md, its frontmatter `name` (1-64 of
 //     a-z, 0-9 and single hyphens, the folder's name) and `description`
 //     (1-1024 characters), and no field the format does not define;
 //     SKILL.md has at most 500 lines;
-//   - every ```tern fence is a note body whose diagnostics are exactly its
+//   - every ```luccet fence is a note body whose diagnostics are exactly its
 //     expect= (none by default), under schema=none (the default) or demo,
 //     as a documentation page's live examples (cli/examples.js);
-//   - every ```html fence that is a note (its tern.js line, cli/note.js) is
-//     analysed as `tern check` does, as if at the repository's root, so
-//     that its tern.js, add-ons and themes resolve: no diagnostic but its
+//   - every ```html fence that is a note (its luccet.js line, cli/note.js) is
+//     analysed as `luccet check` does, as if at the repository's root, so
+//     that its luccet.js, add-ons and themes resolve: no diagnostic but its
 //     expect=;
 //   - every relative link names a file of the skill, and every link to the
 //     published documentation names a page and an id it has;
@@ -33,7 +33,7 @@ const fixture = require('./fixtures/schema');
 
 const ROOT = path.join(__dirname, '..');
 const SKILLS = path.join(ROOT, 'skills');
-const DOCS = 'https://ozkrac.github.io/tern/';
+const DOCS = 'https://luccet.dev/';
 const verbose = process.argv.includes('--verbose');
 
 const RUNTIME = fs
@@ -112,7 +112,7 @@ const differs = (want, got) => {
 
 function checkFences(text, file) {
   for (const f of fences(text)) {
-    if (f.lang === 'tern') {
+    if (f.lang === 'luccet') {
       const schema = schemaOf(f.info.schema, file, f.line);
       if (!schema) continue;
       checked++;

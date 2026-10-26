@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-// The schema registry and element resolution. `tern.block`, `tern.leaf` and
-// `tern.inline(name, spec)` write the plain-data registry
-// `tern.schema = {block, leaf, inline}`. The transforms read it through the
+// The schema registry and element resolution. `luccet.block`, `luccet.leaf` and
+// `luccet.inline(name, spec)` write the plain-data registry
+// `luccet.schema = {block, leaf, inline}`. The transforms read it through the
 // helpers below; the emitter never does: it reads what they wrote under
-// `data.tern`.
+// `data.luccet`.
 //
 // Spec fields, all optional (docs/schema.html#fields):
 //   tag           the element, through the level's allowlist
@@ -32,13 +32,13 @@ const schema = { block: {}, leaf: {}, inline: {} };
 const own = (o, k) => !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
 const FULL_NAME = /^\p{L}[\p{L}\p{M}\p{N}_-]*$/u; // a whole element name
 
-// tern.block/leaf/inline(name, spec): registers a name (case-sensitive) and
+// luccet.block/leaf/inline(name, spec): registers a name (case-sensitive) and
 // returns its entry. A reserved name can never apply, so it is refused.
 function define(level) {
   return (name, spec) => {
-    if (typeof name !== 'string' || !FULL_NAME.test(name)) throw new TypeError(`tern.${level}: "${name}" is not an element name`);
-    if (isReservedName(name) || (level === 'block' && CORE.has(name))) throw new TypeError(`tern.${level}: "${name}" is reserved`);
-    if (spec == null || typeof spec !== 'object') throw new TypeError(`tern.${level}("${name}", spec): spec must be an object`);
+    if (typeof name !== 'string' || !FULL_NAME.test(name)) throw new TypeError(`luccet.${level}: "${name}" is not an element name`);
+    if (isReservedName(name) || (level === 'block' && CORE.has(name))) throw new TypeError(`luccet.${level}: "${name}" is reserved`);
+    if (spec == null || typeof spec !== 'object') throw new TypeError(`luccet.${level}("${name}", spec): spec must be an object`);
     return (schema[level][name] = Object.assign({}, spec));
   };
 }
@@ -80,7 +80,7 @@ function resolve(node, want, s, report) {
   if (isReservedName(name)) return { tag: fallback, spec: null, reserved: true, unknown: false };
   const spec = entry(s, level, name);
   const allow = ALLOW[level];
-  const t = (node.data && node.data.tern) || {};
+  const t = (node.data && node.data.luccet) || {};
   const refuse = (tag, at, how) =>
     report &&
     report('tag.not-allowed', at, `${how} \`${tag}\`, which ${level === 'inline' ? 'an inline element' : `a ${level === 'block' ? 'container' : 'leaf'}`} cannot be; the next rule decides`, HINT[level]);
@@ -107,7 +107,7 @@ const HINT = {
 // Where a named element's name is written: recorded by the parser for
 // containers and leaves; an inline element's follows its `:`.
 function namePosition(node) {
-  const t = (node.data && node.data.tern) || {};
+  const t = (node.data && node.data.luccet) || {};
   if (t.namePosition) return t.namePosition;
   const p = node.position;
   if (!p || node.type !== 'textDirective') return p;
@@ -152,7 +152,7 @@ function withins(s) {
 
 // The label of an element of `spec` numbered n (undefined when it is not
 // counted; "2.3" under `within`), in `lang`: {word, text}. `text` is
-// data.tern.text ("Theorem 2", "Proof", or "2" when counted without a label);
+// data.luccet.text ("Theorem 2", "Proof", or "2" when counted without a label);
 // `word` is what {label} stands for in a ref template. A label function's
 // result is both.
 function label(spec, n, node, lang) {
@@ -189,6 +189,8 @@ module.exports = {
   own,
   LEVEL,
   ALLOW,
+  FULL_NAME,
+  TITLE,
   CORE,
   VOID,
   entry,

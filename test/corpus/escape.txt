@@ -10,7 +10,7 @@ spec: syntax-inline#escape syntax-inline#escapes
 
 All 32 ASCII punctuation characters can be escaped, back to back.
 
-````tern
+````luccet
 \!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~
 ````
 
@@ -24,7 +24,7 @@ spec: syntax-inline#escape syntax-inline#escapes syntax-blocks#r4
 
 A backslash before a digit, a space, a non-ASCII letter or non-ASCII punctuation is a literal backslash.
 
-````tern
+````luccet
 \1, a \ b, \é and \—
 ````
 
@@ -38,7 +38,7 @@ spec: syntax-inline#hard-break syntax-inline#ambiguity
 
 `\` at the end of a paragraph line that is not the last is a hard break.
 
-````tern
+````luccet
 a\
 b
 ````
@@ -54,7 +54,7 @@ spec: syntax-inline#hard-break syntax-blocks#r3
 
 Lines are right-trimmed first, so spaces after the backslash do not stop the hard break.
 
-````tern js
+````luccet js
 'a\\   \nb\n'
 ````
 
@@ -69,7 +69,7 @@ spec: syntax-inline#hard-break syntax-inline#ambiguity
 
 At the end of a block (the paragraph's last line) the backslash is literal.
 
-````tern
+````luccet
 a
 b\
 ````
@@ -85,7 +85,7 @@ spec: syntax-inline#hard-break syntax-blocks#paragraph
 
 A heading interrupts the paragraph, so the backslash ends the block and is literal.
 
-````tern
+````luccet
 a\
 # H
 ````
@@ -101,7 +101,7 @@ spec: syntax-inline#hard-break syntax-blocks#heading syntax-inline#ambiguity
 
 A heading is a one-line construct: a trailing backslash is literal (and the slug drops it).
 
-````tern
+````luccet
 ## Title\
 ````
 
@@ -115,7 +115,7 @@ spec: syntax-inline#hard-break syntax-blocks#blockquote
 
 A hard break works in a paragraph inside any container.
 
-````tern
+````luccet
 > a\
 > b
 ````
@@ -131,7 +131,7 @@ spec: syntax-inline#hard-break syntax-blocks#lists
 
 Inside a list item a mid-paragraph backslash breaks; the one at the end of the item's paragraph is literal.
 
-````tern
+````luccet
 - a\
   b\
 - c
@@ -148,7 +148,7 @@ spec: syntax-inline#hard-break syntax-inline#inline-element
 
 Element content may cross a line, and a trailing backslash there is a hard break inside the element.
 
-````tern
+````luccet
 :kbd[a\
 b]
 ````
@@ -164,7 +164,7 @@ spec: syntax-inline#hard-break syntax-inline#ambiguity
 
 Left to right, `\\\` at the end of a line is an escaped backslash followed by a hard break. `latex.linebreak` fires only when a soft break follows the `\\`, that is, when a line break was actually lost; here a hard break follows, so it is silent.
 
-````tern
+````luccet
 a\\\
 b
 ````
@@ -183,7 +183,7 @@ spec: syntax-inline#hard-break
 
 `\\` at the end of the paragraph's last line is a literal backslash. No soft break follows it, so no line break was lost and `latex.linebreak` is silent.
 
-````tern
+````luccet
 a\\
 ````
 
@@ -200,7 +200,7 @@ spec: syntax-inline#latex-delimiters diagnostics#latex-delimiters
 
 `\(` at the start of a line outside math is an escape (no math), with `latex.delimiters` (I) once per note: the later `\begin{` is silent.
 
-````tern
+````luccet
 \(a\) is not math.
 
 \begin{align} x \end{align}
@@ -212,7 +212,7 @@ spec: syntax-inline#latex-delimiters diagnostics#latex-delimiters
 ````
 
 ````diagnostics
-1:1 info latex.delimiters
+1:1 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-bracket
@@ -221,7 +221,7 @@ spec: syntax-inline#latex-delimiters
 
 `\[` at the start of a line gets the hint too; the escaped brackets are text.
 
-````tern
+````luccet
 \[x^2\]
 ````
 
@@ -230,7 +230,7 @@ spec: syntax-inline#latex-delimiters
 ````
 
 ````diagnostics
-1:1 info latex.delimiters
+1:1 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-escapes-silent
@@ -239,7 +239,7 @@ spec: syntax-inline#latex-delimiters
 
 Escaped brackets around prose, and empty or escape-only delimiters, are escapes, not LaTeX: no hint.
 
-````tern
+````luccet
 See \[not a span\], \(\), \( \) and \[\*\].
 ````
 
@@ -256,7 +256,7 @@ spec: syntax-inline#latex-delimiters
 
 `\(…\)` with any content gets the hint; brackets need TeX inside.
 
-````tern
+````luccet
 \(see below\) and \[a\]
 ````
 
@@ -265,7 +265,7 @@ spec: syntax-inline#latex-delimiters
 ````
 
 ````diagnostics
-1:1 info latex.delimiters
+1:1 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-mid-line
@@ -274,7 +274,7 @@ spec: syntax-inline#latex-delimiters
 
 Only `\begin{` must start a line; `\(` anywhere in a paragraph gets the hint when the matching `\)` follows it in the same paragraph. The escapes still apply.
 
-````tern
+````luccet
 see \(x\) here
 ````
 
@@ -283,7 +283,7 @@ see \(x\) here
 ````
 
 ````diagnostics
-1:5 info latex.delimiters
+1:5 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-in-heading
@@ -292,7 +292,7 @@ spec: syntax-inline#latex-delimiters syntax-blocks#heading
 
 `latex.delimiters` counts in any inline content, headings included; the slug is built from the escaped text.
 
-````tern
+````luccet
 ## The map \(T\)
 ````
 
@@ -301,7 +301,7 @@ spec: syntax-inline#latex-delimiters syntax-blocks#heading
 ````
 
 ````diagnostics
-1:12 info latex.delimiters
+1:12 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-continuation-line
@@ -310,7 +310,7 @@ spec: syntax-inline#latex-delimiters syntax-blocks#paragraph diagnostics#latex-d
 
 A paragraph's later line counts too; leading whitespace is stripped but the column is the backslash's own.
 
-````tern
+````luccet
 Consider
   \begin{cases} x \end{cases}
 ````
@@ -321,16 +321,17 @@ Consider
 ````
 
 ````diagnostics
-2:3 info latex.delimiters
+2:3 warning latex.delimiters
 ````
 
 ## escape/latex-delimiters-in-display-math-silent
 
 spec: syntax-inline#latex-delimiters syntax-inline#escapes
+options: math=tex
 
 Inside display math the backslash belongs to TeX: no hint.
 
-````tern
+````luccet
 $$
 \begin{aligned} x \end{aligned}
 $$
@@ -346,7 +347,7 @@ spec: syntax-inline#escapes syntax-blocks#heading
 
 Escapes apply in headings.
 
-````tern
+````luccet
 ## a\*b\* {#ab}
 ````
 
@@ -360,7 +361,7 @@ spec: syntax-inline#escapes syntax-blocks#container
 
 `\]` escapes inside a container title.
 
-````tern
+````luccet
 :::box[a\]b]
 x
 :::
@@ -376,7 +377,7 @@ spec: syntax-inline#escapes syntax-inline#inline-element
 
 `\]` inside an inline element is a literal bracket, not the closer.
 
-````tern
+````luccet
 :kbd[\]]
 ````
 
@@ -390,7 +391,7 @@ spec: syntax-inline#escapes syntax-blocks#leaf
 
 Escapes apply in leaf content.
 
-````tern
+````luccet
 ::p[a\*b\*]
 ````
 
@@ -404,7 +405,7 @@ spec: syntax-inline#escapes syntax-blocks#tables
 
 Escapes apply in table cells.
 
-````tern
+````luccet
 | A |
 |---|
 | a\*b |
@@ -420,7 +421,7 @@ spec: syntax-inline#escapes syntax-blocks#fence
 
 Fence content is verbatim: no escapes.
 
-````tern
+````luccet
 ```
 \*
 ```
@@ -436,7 +437,7 @@ spec: syntax-inline#escapes syntax-blocks#finding-the-group
 
 Attribute values take no escapes, quoted or not, although `\*` and `\.` are escapes in prose.
 
-````tern
+````luccet
 [x]{title="a\*b" data-k=\.}
 ````
 
@@ -450,7 +451,7 @@ spec: syntax-inline#escapes syntax-inline#raw-inline-html
 
 A raw inline tag is an atom: the backslash inside its attribute stays.
 
-````tern
+````luccet
 a <span title="\*">b</span>
 ````
 
@@ -461,10 +462,11 @@ a <span title="\*">b</span>
 ## escape/none-in-math
 
 spec: syntax-inline#escapes syntax-inline#inline-math
+options: math=tex
 
 Inside `$…$` the backslash belongs to TeX; the TeX reaches the output unchanged.
 
-````tern
+````luccet
 $\{x\}$
 ````
 
@@ -478,7 +480,7 @@ spec: syntax-inline#escape syntax-inline#ambiguity syntax-inline#links
 
 `\[` is the literal spelling of a bracket: no link forms.
 
-````tern
+````luccet
 \[a](u)
 ````
 
@@ -492,7 +494,7 @@ spec: syntax-inline#escape syntax-inline#ambiguity syntax-inline#inline-element
 
 `\:` is the literal spelling of an inline-element colon.
 
-````tern
+````luccet
 \:kbd[x]
 ````
 
@@ -506,7 +508,7 @@ spec: syntax-inline#escape syntax-inline#strike-highlight syntax-inline#ambiguit
 
 An escaped `~` or `=` is not part of a delimiter run, so what remains are runs of one: text.
 
-````tern
+````luccet
 \~~a\~~ and \==b\==
 ````
 
@@ -520,7 +522,7 @@ spec: syntax-inline#residual-lists syntax-blocks#lists syntax-inline#escapes
 
 After a blank line `2019. was a year` is an ordered list (CommonMark); `2019\.` is the fix.
 
-````tern
+````luccet
 Busy.
 
 2019. was a year
@@ -540,7 +542,7 @@ spec: syntax-inline#residual-lists syntax-blocks#lists syntax-inline#escapes
 
 A wrapped prose line starting `+ ` interrupts the paragraph as a bullet; `\+` keeps it prose.
 
-````tern
+````luccet
 The total is 5
 + 3 more.
 

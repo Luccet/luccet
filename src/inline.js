@@ -14,21 +14,21 @@
 //     reads as such, are listed too. block.js splits table rows and matches
 //     title brackets with it, so it sees the atoms this parser will.
 //
-// AST conventions beyond mdast (data.tern fields: docs/api.html#data-tern):
+// AST conventions beyond mdast (data.luccet fields: docs/api.html#data-luccet):
 //   - text and soft breaks merge into one text node; a hard break includes
 //     its line ending;
 //   - an entity is its own text node: `value` is the decoded character(s),
-//     `data.tern.entity` the source spelling (`&nbsp;`), which the emitter
+//     `data.luccet.entity` the source spelling (`&nbsp;`), which the emitter
 //     writes back unchanged; entities never merge with neighbouring text;
 //   - a bare span `[x]{.c}` is {type: 'span', attributes, children};
 //   - inline elements are textDirective, references ref {id}, footnote
 //     references footnoteReference {identifier, label} (identifier
 //     case-folded and lower-cased, as mdast; label as written), raw tags and
-//     comments html with data.tern.kind 'inline';
+//     comments html with data.luccet.kind 'inline';
 //   - a glued group is `attributes`, inside the node's position;
 //   - a link's url is normalised and its title is present only when given;
 //     an image has a plain-text alt and no children, and its bracket
-//     content as inline nodes in data.tern.caption; an autolink is a
+//     content as inline nodes in data.luccet.caption; an autolink is a
 //     link whose url is as written (`mailto:` added to an e-mail address).
 'use strict';
 
@@ -46,6 +46,10 @@ const PHRASING = words(
 );
 const VERBATIM = words('svg math textarea');
 const UNTRACKED = words('br embed img input source track wbr rt rp option optgroup'); // void, or end tag optional: never unclosed or stray
+// Phrasing tags that, left open, take the rest of the page with them: an
+// iframe's content is text, a select's is options only. Unclosed in their
+// paragraph, they are shown as text (html.unclosed).
+const SWALLOW = words('iframe select');
 const CURRENT = words(
   'address area article aside base blockquote body caption col colgroup dd details dialog div dl dt fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup hr html legend li link main map menu meta nav noscript ol p pre script search section slot style summary table tbody td template tfoot th thead title tr ul svg math textarea',
 );
@@ -363,7 +367,7 @@ const malformed = (res) =>
 // A failed group where only strong ones bind is reported only when it starts with `#` or `.`.
 const hashOrDot = (at) => /[#.]/.test(text[scan.skipWs(text, at + 1, to)]);
 // Gives the item's node the group's attributes, and extends the item over it.
-// Under data.tern it records where the author's id is written (idPosition)
+// Under data.luccet it records where the author's id is written (idPosition)
 // and where reserved keys that may not apply are (tagPosition, refPosition,
 // rawPosition, colsPosition): the transforms point their diagnostics there.
 function bind(it, res) {
@@ -375,12 +379,12 @@ function bind(it, res) {
   if (a >= 0) {
     const q = text[a + 3];
     const e = text[a] === '#' ? matchAt(scan.IDENT, text, a + 1) : q === '"' || q === "'" ? text.indexOf(q, a + 4) + 1 : matchAt(ID_VALUE, text, a + 3);
-    n.data = { tern: { idPosition: pos(a, Math.max(e, a + 1)) } };
+    ((n.data || (n.data = {})).luccet || (n.data.luccet = {})).idPosition = pos(a, Math.max(e, a + 1)); // kept beside what the node has (a formula's texAt)
   }
   const { ref, tag } = res.attrs;
   if (tag !== undefined) {
     const k = res.keyAt.tag; // for tag.not-allowed, on any node: off an inline element, `tag=` is refused
-    ((n.data || (n.data = {})).tern || (n.data.tern = {})).tagPosition = pos(k, k + 3);
+    ((n.data || (n.data = {})).luccet || (n.data.luccet = {})).tagPosition = pos(k, k + 3);
   }
   // Reserved keys where they do not apply, for attr.malformed: `ref` off
   // references, `raw` anywhere inline, `cols` off inline elements.
@@ -395,7 +399,7 @@ function bind(it, res) {
   if (n.type === 'textDirective' && tag !== undefined && isReservedName(tag))
     rep('name.reserved', res.keyAt.tag, res.keyAt.tag + 3, `tag=${tag} names a reserved element and is ignored`, 'choose a phrasing element such as kbd or abbr');
 }
-const keyPosition = (n, field, k, length) => (((n.data || (n.data = {})).tern || (n.data.tern = {}))[field] = pos(k, k + length));
+const keyPosition = (n, field, k, length) => (((n.data || (n.data = {})).luccet || (n.data.luccet = {}))[field] = pos(k, k + length));
 // Binds the group at `at`, if there is one that `mode` takes, to item it;
 // returns where the scan goes on.
 function glue(it, at, mode) {
@@ -650,7 +654,7 @@ function closeBracket(i) {
       C.n = { type: kind === '!' ? 'image' : 'link', url: d.url };
       if (d.title !== undefined) C.n.title = d.title;
       finish(split(X, s, e), bottom, C);
-      if (kind === '!') C.n.alt = plain(C.v); // its items become data.tern.caption (build)
+      if (kind === '!') C.n.alt = plain(C.v); // its items become data.luccet.caption (build)
       else linkSerial = serial;
       return glue(C, d.end, ANY);
     }
@@ -737,7 +741,11 @@ function dollar(i) {
     let k = i + 2;
     while (text[k] === '`') k++;
     const j = closingRun(k - i - 1, k);
-    if (j >= 0) return atom(i, j + k - i - 1, { type: 'inlineMath', value: codeContent(text.slice(k, j)), position: null }, STRONG);
+    if (j >= 0) {
+      const raw = text.slice(k, j);
+      const value = codeContent(raw);
+      return atom(i, j + k - i - 1, mathNode(value, k + (value.length < raw.length ? 1 : 0)), STRONG);
+    }
     return lit(i, i + 1);
   }
   if (i + 1 >= to || spaceAt(i + 1) || (i > from && text[i - 1] === '$' && !escaped(i - 1))) return lit(i, i + 1);
@@ -755,7 +763,14 @@ function dollar(i) {
   const value = text.slice(i + 1, j);
   if (!atomMode && /[0-9]/.test(nx) && suspect(value))
     rep('math.suspect-price', i, i + 1, 'this formula starts with a digit and holds words: is the `$` a price?', 'if `$` is a price, write `\\$`');
-  return atom(i, j + 1, { type: 'inlineMath', value, position: null }, STRONG);
+  return atom(i, j + 1, mathNode(value, i + 1), STRONG);
+}
+// An inlineMath node; texAt is where its TeX starts in the source, for the
+// math transform's diagnostics inside the formula.
+function mathNode(value, at) {
+  const node = { type: 'inlineMath', value, position: null };
+  if (!atomMode) node.data = { luccet: { texAt: [ctx.point(spanStart(span, at))] } };
+  return node;
 }
 // `<`: a comment (`<!-->` and `<!--->` are complete), an angle autolink, or
 // a raw tag; else text. A tag passes when its name is lower-case and
@@ -763,7 +778,18 @@ function dollar(i) {
 // their end tag. Open tags are tracked for html.stray-closer and
 // html.inline-unclosed. A single capital (`<B>`) gets html.inline-escaped only
 // when its end tag follows, so `List<B>` stays silent.
-const rawHtml = (s, e) => atom(s, e, { type: 'html', value: text.slice(s, e), data: { tern: { kind: 'inline' } }, position: null });
+const rawNode = (s, e) => {
+  const node = { type: 'html', value: text.slice(s, e), data: { luccet: { kind: 'inline' } }, position: null };
+  if (!atomMode && /\bid\s*=/i.test(node.value)) node.data.luccet.htmlAt = htmlAt(s, e); // where its ids are (the ids transform)
+  return node;
+};
+const rawHtml = (s, e) => atom(s, e, rawNode(s, e));
+// Where each line of text[s, e) starts in the source.
+function htmlAt(s, e) {
+  const at = [ctx.point(offset(s))];
+  for (let k = text.indexOf('\n', s); k !== -1 && k < e; k = text.indexOf('\n', k + 1)) at.push(ctx.point(offset(k + 1)));
+  return at;
+}
 const autolink = (s, e, url, label) => atom(s, e, { type: 'link', url, children: [{ type: 'text', value: label, position: atomMode ? null : pos(s + 1, e - 1) }], position: null }, STRONG);
 function angle(i) {
   let m;
@@ -780,12 +806,13 @@ function angle(i) {
       const c = endTag(name, e);
       if (c.at >= 0) return rawHtml(i, c.end);
     } else if (name === lower && passes(name)) {
+      const node = rawNode(i, e);
       if (!UNTRACKED.has(name) && !atomMode) {
         if (!openTags) openTags = new Map();
         if (!openTags.has(name)) openTags.set(name, []);
-        openTags.get(name).push(i, e);
+        openTags.get(name).push(i, e, node);
       }
-      return rawHtml(i, e);
+      return atom(i, e, node);
     }
     if (name === lower && CURRENT.has(name)) rep('html.inline-escaped', i, e, `<${name}> is not an inline tag, so it is shown as text`, 'put block HTML on its own line');
     else if (name !== lower && CURRENT.has(lower) && (name.length > 1 || endTag(lower, e).at >= 0))
@@ -793,7 +820,7 @@ function angle(i) {
   } else if ((m = exec(CLOSE_TAG, i)) && passes(m[1])) {
     const e = CLOSE_TAG.lastIndex;
     const open = openTags && openTags.get(m[1]);
-    if (open && open.length) open.splice(-2);
+    if (open && open.length) open.splice(-3);
     else if (!UNTRACKED.has(m[1])) rep('html.stray-closer', i, e, `</${m[1]}> closes no open <${m[1]}> in this paragraph`, `open it with <${m[1]}> earlier in the paragraph, or remove it`);
     return rawHtml(i, e);
   }
@@ -924,10 +951,19 @@ function scanAll() {
   processEmphasis(null);
   if (openTags)
     for (const [name, at] of openTags)
-      for (let k = 0; k < at.length; k += 2) rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
+      for (let k = 0; k < at.length; k += 3) {
+        if (!SWALLOW.has(name)) {
+          rep('html.inline-unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph`, `close it with </${name}> before the paragraph ends`);
+          continue;
+        }
+        const node = at[k + 2];
+        node.type = 'text';
+        delete node.data;
+        rep('html.unclosed', at[k], at[k + 1], `<${name}> is never closed in this paragraph, so the browser would hide the rest of the page inside it; it is shown as text`, `close it with </${name}> before the paragraph ends`);
+      }
   if (latexAt < Infinity && !ctx.flags['latex.delimiters']) {
     ctx.flags['latex.delimiters'] = true;
-    rep('latex.delimiters', latexAt, latexAt + 2, "LaTeX's delimiters are not math in tern; the backslash is an escape", 'math is `$…$` and `$$`');
+    rep('latex.delimiters', latexAt, latexAt + 2, "LaTeX's delimiters are not math in luccet; the backslash is an escape", 'math is `$…$` and `$$`');
   }
   return build();
 }
@@ -981,7 +1017,7 @@ function build() {
       (ts = it.s), (te = it.e), (parts = null); // its source, as pending text
       continue;
     }
-    const node = it.k === ENT ? { type: 'text', value: it.v, data: { tern: { entity: it.n } }, position: null } : it.n;
+    const node = it.k === ENT ? { type: 'text', value: it.v, data: { luccet: { entity: it.n } }, position: null } : it.n;
     node.position = pos(it.s, it.e);
     out.push(node);
     if (it.k === PARENT && (it.v || node.type !== 'image')) {
@@ -989,8 +1025,8 @@ function build() {
       stackOut.push(out);
       next = it.v;
       // An image has no children: its bracket content, as inline nodes, is
-      // data.tern.caption, which becomes an implicit figure's caption.
-      out = node.type === 'image' ? (((node.data || (node.data = {})).tern || (node.data.tern = {})).caption = []) : (node.children = []);
+      // data.luccet.caption, which becomes an implicit figure's caption.
+      out = node.type === 'image' ? (((node.data || (node.data = {})).luccet || (node.data.luccet = {})).caption = []) : (node.children = []);
     }
   }
 }

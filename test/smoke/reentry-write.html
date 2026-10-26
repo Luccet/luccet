@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><script src="/tern.js"></script>
+<!doctype html><meta charset="utf-8"><script src="/luccet.js"></script>
 
 # Smoke: a nested render keeps the write guard
 
@@ -6,7 +6,7 @@
   const box = document.createElement('div');
   box.id = 'nested';
   document.currentScript.after(box);
-  tern.render(box, '<script>window.__nested = true;<\/script>\n');
+  luccet.render(box, '<script>window.__nested = true;<\/script>\n');
 </script>
 
 <script>

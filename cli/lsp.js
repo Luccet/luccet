@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-// `tern lsp`, the language server (docs/tools.html#lsp): a hand-rolled
+// `luccet lsp`, the language server (docs/tools.html#lsp): a hand-rolled
 // JSON-RPC 2.0 server over stdio, with Content-Length framing and no
 // dependencies; main() starts it. It runs the engine on a note and
 // publishes its diagnostics, as the browser reports them, and the
-// `tern/outline` digest; cli/language.js answers the requests from the
+// `luccet/outline` digest; cli/language.js answers the requests from the
 // analysis, and this file maps its answers onto the protocol's shapes. A
-// file renamed in the editor gets tern mv's link edits (cli/relocate.js).
+// file renamed in the editor gets luccet mv's link edits (cli/relocate.js).
 // Positions are UTF-16 code units, as the engine's columns are; note line n
 // is file line n + the head's line count (cli/note.js).
 // A note's code runs over the sandbox's asynchronous bridge, so the server
@@ -26,7 +26,7 @@ const links = require('./links');
 const { relocate } = require('./relocate');
 const { pathEnd } = require('./relocate');
 
-const { tern } = note;
+const { luccet } = note;
 const PACE = 150; // ms: while a document changes, its analyses start at most this often
 const SEVERITY = { error: 1, warning: 2, info: 3 };
 const SYMBOL = { heading: 15, container: 5, leaf: 8 }; // LSP SymbolKind: String, Class, Field
@@ -34,7 +34,7 @@ const COMPLETION = { name: 7, core: 14, closer: 14, element: 10, id: 18 }; // LS
 const HIGHLIGHT = { read: 2, write: 3 }; // LSP DocumentHighlightKind
 const ERROR = { invalid: -32602, refused: -32803 }; // a LanguageError's code: InvalidParams, RequestFailed
 
-const log = (s) => process.stderr.write(`tern lsp: ${s}\n`);
+const log = (s) => process.stderr.write(`luccet lsp: ${s}\n`);
 const fail = (code, message) => Object.assign(new Error(message), { rpc: { code, message } });
 const guard = (fn) => {
   try {
@@ -55,7 +55,7 @@ const notify = (method, params) => send({ method, params });
 const asked = new Map(); // id -> the method
 let askedId = 0;
 const request = (method, params) => {
-  const id = `tern-${++askedId}`;
+  const id = `luccet-${++askedId}`;
   asked.set(id, method);
   send({ id, method, params });
 };
@@ -179,7 +179,7 @@ const REQUESTS = {
     noScripts = !!(init && init.noScripts);
     const ws = params.capabilities && params.capabilities.workspace;
     watches = !!(ws && ws.didChangeWatchedFiles && ws.didChangeWatchedFiles.dynamicRegistration);
-    return { capabilities: CAPABILITIES, serverInfo: { name: 'tern', version: tern.version } };
+    return { capabilities: CAPABILITIES, serverInfo: { name: 'luccet', version: luccet.version } };
   },
   shutdown() {
     phase = 'down';
@@ -203,7 +203,7 @@ const REQUESTS = {
 
 const NOTIFICATIONS = {
   // A client that can watch files is asked to, once it is ready.
-  initialized: () => watches && request('client/registerCapability', { registrations: [{ id: 'tern-watch', method: 'workspace/didChangeWatchedFiles', registerOptions: WATCH }] }),
+  initialized: () => watches && request('client/registerCapability', { registrations: [{ id: 'luccet-watch', method: 'workspace/didChangeWatchedFiles', registerOptions: WATCH }] }),
   'textDocument/didOpen': didOpen,
   'textDocument/didChange': didChange,
   'textDocument/didClose': didClose,
@@ -355,7 +355,7 @@ function analysed(doc, version, a) {
   if (a && doc.file) targets.remember(doc.file, a);
   doc.links = linksOf(doc);
   publish(doc);
-  if (a || doc.wasNote) guard(() => notify('tern/outline', { uri: doc.uri, version, ...language.outline(a) }));
+  if (a || doc.wasNote) guard(() => notify('luccet/outline', { uri: doc.uri, version, ...language.outline(a) }));
   doc.wasNote = !!a;
   doc.index = null;
   guard(() => (doc.index = language.index(a)));
@@ -371,12 +371,19 @@ function publish(doc) {
 
 // cli/links.js over the disk, an open document's text winning over its
 // file's; its values are kept while their file, or document version, holds.
+// A note a link names is analysed over the sandbox's asynchronous bridge and
+// never waited for: its links are checked again when it lands, so a linked
+// note whose script never returns stalls no other document.
 const targets = new links.Targets({
   open(file) {
     for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
     return undefined;
   },
   analyse: (text, file) => note.analyse(text, file, { noScripts }),
+  analyseAsync: (text, file) => note.analyseAsync(text, file, { noScripts }),
+  landed: () => {
+    if (phase === 'running') guard(() => refresh(null));
+  },
 });
 
 // The link diagnostics of an open note; none for an untitled document.
@@ -414,11 +421,11 @@ function fileOf(uri) {
 }
 
 // An engine diagnostic as LSP's: a 0-based range from the file position, the
-// tern code, and the hint after the message and in `data`.
+// luccet code, and the hint after the message and in `data`.
 function diagnostic(d) {
   const p = d.filePosition;
   const at = (q) => ({ line: Math.max(q.line - 1, 0), character: Math.max(q.column - 1, 0) });
-  const out = { range: { start: at(p.start), end: at(p.end) }, severity: SEVERITY[d.severity] || 3, code: d.code, source: 'tern' };
+  const out = { range: { start: at(p.start), end: at(p.end) }, severity: SEVERITY[d.severity] || 3, code: d.code, source: 'luccet' };
   out.message = d.hint ? `${d.message}\n${d.hint}` : d.message;
   if (d.hint) out.data = { hint: d.hint };
   return out;
@@ -449,7 +456,7 @@ async function definition(params) {
 async function references(params) {
   const doc = await current(params);
   const want = !!(params.context && params.context.includeDeclaration);
-  const t = idUnder(doc, params.position);
+  const t = await idUnder(doc, params.position);
   if (!t) return null;
   const out = [];
   const own = t.index && language.references(t.index, t.at, { includeDeclaration: want });
@@ -482,7 +489,7 @@ async function prepareRename(params) {
 // link `page.html#id`. An element's name: its opener and closer only.
 async function rename(params) {
   const doc = await settled(await current(params));
-  const t = idUnder(doc, params.position);
+  const t = await idUnder(doc, params.position);
   const changes = {};
   if (!t) {
     const edits = language.rename(doc.index, params.position, params.newName);
@@ -593,7 +600,7 @@ const same = (p, q) => p.line === q.line && p.character === q.character;
 const digests = new WeakMap(); // analysis -> {lines, outline}
 function digest(a) {
   let d = digests.get(a);
-  if (!d) digests.set(a, (d = { lines: a.note.split('\n'), outline: tern.outline(a.ast) }));
+  if (!d) digests.set(a, (d = { lines: a.note.split('\n'), outline: luccet.outline(a.ast) }));
   return d;
 }
 
@@ -664,25 +671,26 @@ function linkAt(doc, pos) {
 // `index` the index of the note declaring it (null for a file that is not a
 // note) and `at` a position of the id in that note's index; or null off an
 // id. In the note itself, or in the file a link `page.html#id` names.
-function idUnder(doc, pos) {
+async function idUnder(doc, pos) {
   const own = language.idAt(doc.index, pos);
   if (own !== null) return { file: doc.file, id: own, index: doc.index, at: pos };
   const to = linkAt(doc, pos);
   if (!to || !to.frag) return null;
-  const index = indexOf(to.dest);
+  const index = await indexOf(to.dest);
   const decl = index && language.declaration(index, to.frag);
   return { file: to.dest, id: to.frag, index, at: decl ? decl.start : pos };
 }
 
 // The index of another note: an open document's, else of the file's
-// analysis (cli/links.js's, kept while the file holds).
+// analysis (cli/links.js's, kept while the file holds), awaited over the
+// sandbox's asynchronous bridge.
 const indexes = new Map(); // file -> {stamp, index}
-function indexOf(file) {
+async function indexOf(file) {
   for (const d of docs.values()) if (d.file === file && d.index) return d.index;
   const stamp = targets.source(file).stamp;
   const hit = indexes.get(file);
   if (hit && hit.stamp === stamp) return hit.index;
-  const index = language.index(targets.analyse(file));
+  const index = language.index(await targets.later(file));
   indexes.delete(file);
   indexes.set(file, { stamp, index });
   if (indexes.size > 64) indexes.delete(indexes.keys().next().value);
@@ -692,8 +700,8 @@ function indexOf(file) {
 // Where an id is declared in a file: in a note, its declaration; in another
 // HTML file, its id attribute or <a name>; in a Markdown file, the heading
 // with that anchor. Each a location, or null.
-function declarationIn(file, id) {
-  const index = /\.html?$/i.test(file) ? indexOf(file) : null;
+async function declarationIn(file, id) {
+  const index = /\.html?$/i.test(file) ? await indexOf(file) : null;
   if (index) {
     const range = language.declaration(index, id);
     return range && { uri: uriOf(file), range };
@@ -762,7 +770,7 @@ function workspaceNotes(more = []) {
 
 // ---------------------------------------------------------------- files
 
-// workspace/willRenameFiles: the edits tern mv makes, which the client
+// workspace/willRenameFiles: the edits luccet mv makes, which the client
 // applies before it renames, so they name the files where they are. The
 // notes read are the workspace folders' and the open documents, an open
 // note's text winning over its file's; a move outside the workspace reads
@@ -798,7 +806,7 @@ function willRenameFiles(params) {
     if (p.base) left.push(`${shown(p.file)} has a <base href>, so its URLs do not resolve from its folder; they are left as they are`);
     for (const l of p.lost) left.push(`${shown(p.file)}:${l.line}:${l.column}: ${l.url} moves, but where it is written was not found; it is left as it is`);
   }
-  if (left.length) notify('window/showMessage', { type: 2, message: left.map((s) => `tern: ${s}`).join('\n') });
+  if (left.length) notify('window/showMessage', { type: 2, message: left.map((s) => `luccet: ${s}`).join('\n') });
   return Object.keys(changes).length ? { changes } : null;
 }
 

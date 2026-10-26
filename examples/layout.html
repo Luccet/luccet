@@ -1,10 +1,10 @@
-<!doctype html><meta charset="utf-8">
+<!doctype html><meta charset="utf-8"><link rel="icon" href="../docs/favicon.ico"><link rel="apple-touch-icon" href="../docs/apple-touch-icon.png">
 <script>
-  // This note's vocabulary (window.TERN.schema). `table` gives the captioned
+  // This note's vocabulary (window.LUCCET.schema). `table` gives the captioned
   // table its "Table 1" label and number, `toc` fills ::toc with the headings.
   // :::row, :::grid, :::card, :::glance and :::center need no entry: unknown names become
   // div.row, div.grid and so on, and the styles at the end give them their look.
-  window.TERN = {schema: {
+  window.LUCCET = {schema: {
     block: {
       note: {tag: 'aside', label: 'Note'},
       table: {tag: 'table', counter: 'table', label: 'Table'},
@@ -14,14 +14,14 @@
     },
   }};
 </script>
-<script src="../tern.js"></script>
+<script src="../luccet.js" data-use="../docs/docs.css"></script>
 
 :::meta
 title: Project plan: Q4
 lang: en-GB
 author: O. Carrera
 date: 2026-10-07
-description: Phases, workstreams and exit criteria for the Tern rewrite
+description: Phases, workstreams and exit criteria for the Luccet rewrite
 :::
 
 # Project plan: Q4
@@ -31,13 +31,14 @@ This example is about layout. It shows a floating aside that holds the contents,
 row with a muted second cell, a three-column grid of cards, collapsible sections, a centred
 line, an inline margin note, and a table with a numbered caption and a continued row. Only
 `note`, `table` and `toc` are declared; the rest is HTML names, plain names and CSS. Part of
-[Tern's documentation](../index.html).
+[Luccet's documentation](../index.html), whose look it wears through
+`../docs/docs.css`.
 :::
 
 {.byline}
 O. Carrera · 7 October 2026
 
-:::aside[Contents]{#side-toc .sticky}
+:::aside{#side-toc .sticky}
 ::toc{depth=2}
 :::
 
@@ -65,7 +66,7 @@ Three phases ship in order; each one gates on its tests (see @tbl-phases).
 Container stack, delimiter stack, positions on every node.
 :::
 :::card[Runtime]
-In-place mount, scripts re-created in order, KaTeX in batches.
+In-place mount, scripts re-created in order, math as MathML.
 :::
 :::card[Editor]
 A stdio LSP; Neovim becomes a client.
@@ -98,15 +99,20 @@ Roughly 5,000 lines, zero runtime dependencies.
 :::
 
 <style>
-  [data-t="note"] { background: var(--t-soft); border-inline-start: 4px solid var(--t-link); padding: .7rem 1rem; border-radius: 4px; font-size: .92em; }
-  #side-toc { position: sticky; top: 1rem; float: right; width: 14rem; margin-left: 1rem; font-size: .9em; }
-  #side-toc ol { padding-inline-start: 1.2rem; margin: 0; }
+  /* The palette, the type and the contents card are docs.css's; --docs-* are its variables. */
+  [data-t="note"] { font-size: .92em; }
+  #side-toc { float: right; width: 14rem; margin-left: 1rem; font-size: .9em; }
+  #side-toc nav.toc { margin: 0; }
+  /* With room beside the column, the contents stand in the margin and stay in
+     view as the page scrolls; in the column, staying in view would cover the text. */
+  @media (min-width: 84rem) { #side-toc { position: sticky; top: 1rem; margin-right: -16rem; } }
   .byline { color: var(--t-muted); margin-top: -1rem; }
-  .tern h2 { display: flow-root; } /* a heading's rule stops at the floating contents */
+  .luccet h2 { display: flow-root; } /* a heading's rule stops at the floating contents */
   .t-cell.muted { color: var(--t-muted); }
-  .glance { background: var(--t-soft); padding: .6rem 1rem; border-radius: 6px; }
-  span.aside { display: block; font-size: .85em; color: var(--t-muted); border-inline-start: 2px solid var(--t-line); padding-inline-start: .6rem; margin-block: .5rem; }
-  [data-t="card"] { border: 1px solid var(--t-line); border-radius: 6px; padding: .8rem 1rem; }
+  .glance { background: var(--t-soft); padding: .6rem 1rem; border-radius: 6px; border-block-start: 2px solid var(--docs-gold); }
+  span.aside { display: block; font-size: .85em; color: var(--t-muted); border-inline-start: 2px solid var(--docs-gold); padding-inline-start: .6rem; margin-block: .5rem; }
+  [data-t="card"] { border: 1px solid var(--t-line); border-block-start: 2px solid var(--docs-gold); border-radius: 6px; padding: .8rem 1rem; }
+  [data-t="card"] > .t-title { font-family: var(--docs-heading); font-size: 1.25em; color: var(--docs-head); font-variant-numeric: lining-nums; }
   [data-t="details"] > summary { cursor: pointer; }
   .center { text-align: center; }
   @media (max-width: 60rem) { #side-toc { float: none; width: auto; position: static; } }

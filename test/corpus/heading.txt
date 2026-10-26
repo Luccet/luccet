@@ -9,7 +9,7 @@ spec: syntax-blocks#heading
 
 The heading example: a trailing strong group gives the id and class.
 
-````tern
+````luccet
 ## Kernel and image {#kernel .wide}
 ````
 
@@ -23,7 +23,7 @@ spec: syntax-blocks#heading
 
 One to six `#` give `h1` to `h6`.
 
-````tern
+````luccet
 # One
 ## Two
 ### Three
@@ -47,7 +47,7 @@ spec: syntax-blocks#heading syntax-blocks#line-algorithm
 
 Seven `#` is not a heading.
 
-````tern
+````luccet
 ####### Seven
 ````
 
@@ -61,7 +61,7 @@ spec: syntax-blocks#heading syntax-inline#ambiguity
 
 `#hashtag`, `#1 priority` and `C#` are not headings: a heading needs a space (or the end of the line) after the `#` run at the line start.
 
-````tern
+````luccet
 #hashtag
 #1 priority
 C# is a language
@@ -80,7 +80,7 @@ options: escaped
 
 A tab after the `#` run counts as a space (as in CommonMark), so `#<TAB>Title` is a heading.
 
-````tern
+````luccet
 #\tTitle
 ````
 
@@ -97,7 +97,7 @@ spec: syntax-blocks#heading
 
 A closing run of `#` is text: `# C# #` keeps both, and so does `## Title ##`.
 
-````tern
+````luccet
 # C# #
 ## Title ##
 ````
@@ -114,7 +114,7 @@ options: schema=none
 
 A slug keeps letters from any script; NFKC then lower case.
 
-````tern
+````luccet
 ## Überblick
 ### 日本語
 ````
@@ -133,7 +133,7 @@ spec: syntax-blocks#slugs
 
 Everything before the first letter or `_` is dropped, so section numbers do not reach the slug (and slugs stay referenceable).
 
-````tern
+````luccet
 ## 2. Results
 ## 3.1 Paragraph
 ## 2nd edition
@@ -151,7 +151,7 @@ spec: syntax-blocks#slugs syntax-blocks#character-classes
 
 NFKC is applied before lower-casing: the ligature `ﬁ` and full-width letters fold to ASCII, and `²` becomes a digit that is then dropped as leading.
 
-````tern
+````luccet
 ## ﬁle Ｓｙｓｔｅｍ
 ## ²nd place
 ````
@@ -167,7 +167,7 @@ spec: syntax-blocks#slugs
 
 A slug may start at `_`, and `_` is kept.
 
-````tern
+````luccet
 ## _private
 ## __init__
 ````
@@ -183,7 +183,7 @@ spec: syntax-blocks#slugs
 
 With no letter or `_`, nothing is left and the slug is `section`; repeats get `-2`, `-3`, `-4`. An empty heading is allowed.
 
-````tern
+````luccet
 ## 1984
 ## ---
 ## ①
@@ -203,7 +203,7 @@ spec: syntax-blocks#slugs syntax-blocks#character-classes
 
 Combining marks (`\p{M}`) are kept by step 3, so Devanagari vowel signs and the virama stay in the slug, and `İ` lower-cases to `i` + U+0307 (Unicode default case mapping), which is kept too.
 
-````tern
+````luccet
 ## हिन्दी
 ## İstanbul
 ````
@@ -219,7 +219,7 @@ spec: syntax-blocks#slugs elements#ids
 
 A repeated slug gets `-2`, then `-3`.
 
-````tern
+````luccet
 ## Notes
 ## Notes
 ## Notes
@@ -237,7 +237,7 @@ spec: syntax-blocks#slugs elements#ids
 
 Slugs share one registry with explicit ids, and explicit ids are registered first: a slug that meets an id already taken gets `-2`, with no diagnostic.
 
-````tern
+````luccet
 ## Intro {#notes}
 ## Notes
 ````
@@ -253,7 +253,7 @@ spec: syntax-blocks#slugs elements#ids elements#references
 
 Explicit ids beat slugs: ids an author wrote are registered before any slug, so an explicit `#kernel` that comes after a heading slugged `kernel` keeps its id, the earlier heading's slug yields to `kernel-2`, there is no diagnostic, and `@kernel` reaches the explicit id.
 
-````tern
+````luccet
 ## Kernel
 ## Definition {#kernel}
 
@@ -275,7 +275,7 @@ spec: syntax-blocks#slugs
 
 The slug is built from the plain text of the rendered inline content, so a link contributes its text and not its URL (from the source the id would be `see-the-docs-https-x-org`).
 
-````tern
+````luccet
 ## See [the docs](https://x.org)
 ````
 
@@ -286,10 +286,11 @@ The slug is built from the plain text of the rendered inline content, so a link 
 ## heading/slug-plain-text
 
 spec: syntax-blocks#slugs syntax-inline#raw-inline-html syntax-inline#entities
+options: math=tex
 
 The plain text the slug is built from: tags dropped, entities decoded, math as its TeX, footnote references ignored. From the source the id would be `caf-eacute-b-bold-b-t-n`; with the footnote number it would end in `-1`.
 
-````tern
+````luccet
 ## Caf&eacute; <b>bold</b> $T^*$[^n]
 
 [^n]: A note.
@@ -309,7 +310,7 @@ spec: syntax-blocks#heading syntax-inline#algorithm
 
 Heading text is inline content.
 
-````tern
+````luccet
 ## *Emph* and `code`
 ````
 
@@ -323,7 +324,7 @@ spec: syntax-blocks#heading-attributes syntax-blocks#strong-and-weak syntax-bloc
 
 Only a strong group binds to a heading; weak (`{x}`, `{open}`) and unparsable (`{1, 2}`) groups stay heading text, silently.
 
-````tern
+````luccet
 ## The set {x}
 ## Options {open}
 ## Pairs {1, 2}
@@ -343,7 +344,7 @@ spec: syntax-blocks#heading-attributes syntax-blocks#positions
 
 The group may be glued to the text or follow spaces; an explicit id is used as written.
 
-````tern
+````luccet
 ## Kernel{#Ker_nel}
 ## Image   {#img}
 ````
@@ -359,7 +360,7 @@ spec: syntax-blocks#heading-attributes syntax-blocks#merging-and-emission
 
 A group with `key=value` is strong; without `#id` the heading still gets its slug.
 
-````tern
+````luccet
 ## Title {data-x=1 .a}
 ````
 
@@ -373,7 +374,7 @@ spec: syntax-blocks#heading-attributes syntax-blocks#positions
 
 A trailing group starting with `#` that does not parse stays heading text, with `attr.malformed` at the first bad column, which is the first character the grammar rejects: the `!`, column 14, not the `#` of the item or the `{`.
 
-````tern
+````luccet
 ## Kernel {#k!}
 ````
 
@@ -391,7 +392,7 @@ spec: syntax-blocks#heading-attributes syntax-blocks#positions
 
 A trailing group that does not parse gets `attr.malformed` once, at the first bad column, also when it is glued to a `]` or a `*` closer, where the inline parser sees a failed group too.
 
-````tern
+````luccet
 ## Title [x]{#a!}
 ## *T*{#b!}
 ````
@@ -412,7 +413,7 @@ spec: syntax-blocks#heading-attributes syntax-blocks#positions
 
 A group that is not at the end of the line is text, and is not a malformed trailing group.
 
-````tern
+````luccet
 ## {#a} title
 ````
 
@@ -426,7 +427,7 @@ spec: syntax-blocks#heading syntax-inline#escapes
 
 `\{` makes the trailing group text, with no diagnostic.
 
-````tern
+````luccet
 ## Title \{#t}
 ````
 
@@ -440,7 +441,7 @@ spec: syntax-blocks#heading syntax-blocks#r1
 
 A heading ends on its line; nothing continues it.
 
-````tern
+````luccet
 # Title
 continued
 ````
@@ -456,7 +457,7 @@ spec: syntax-blocks#heading syntax-blocks#r1 syntax-blocks#thematic-break
 
 There are no setext headings: a block is recognised from its first line, so `=====` is paragraph text and `---` is a rule.
 
-````tern
+````luccet
 Title
 =====
 
@@ -477,7 +478,7 @@ spec: syntax-blocks#heading syntax-blocks#line-algorithm
 
 Row 5: a heading interrupts a paragraph.
 
-````tern
+````luccet
 Some prose
 ## Next
 ````
@@ -493,7 +494,7 @@ spec: syntax-blocks#heading syntax-inline#hard-break
 
 A `\` at the end of a heading is literal: a heading is a one-line construct.
 
-````tern
+````luccet
 ## Title\
 ````
 

@@ -1,8 +1,8 @@
-<!doctype html><meta charset="utf-8">
+<!doctype html><meta charset="utf-8"><link rel="icon" href="../docs/favicon.ico"><link rel="apple-touch-icon" href="../docs/apple-touch-icon.png">
 <script>
-  // This note's vocabulary (window.TERN.schema): without it, :::theorem would
+  // This note's vocabulary (window.LUCCET.schema): without it, :::theorem would
   // be a plain div with no label, no number and nothing for @thm-… to say.
-  window.TERN = {schema: {
+  window.LUCCET = {schema: {
     block: {
       note: {tag: 'aside', label: 'Note'},
       definition: {tag: 'section', counter: 'definition', label: 'Definition'},
@@ -17,7 +17,7 @@
     },
   }};
 </script>
-<script src="../tern.js" data-use="../addons/katex.js"></script>
+<script src="../luccet.js" data-use="../docs/docs.css"></script>
 
 :::meta
 title: Linear maps: kernel, image and rank
@@ -33,7 +33,8 @@ This example is a lecture. It shows numbered definitions and theorems, a lemma t
 the theorems' counter, proofs that end with ∎, numbered equations, references with `@id`,
 TeX macros, a footnote, a figure and a collapsible question. The vocabulary that makes the
 labels and numbers is declared in the script at the top of the file; the styles are at the
-end. Part of [Tern's documentation](../index.html).
+end. Part of [Luccet's documentation](../index.html), whose look it wears through
+`../docs/docs.css`.
 :::
 
 {.byline}
@@ -113,12 +114,15 @@ When its determinant is nonzero; equivalently, by @thm-bij, when its kernel is t
 :::
 
 <style>
-  /* Selectors key on data-t, the name, never on the element. */
-  [data-t="note"] { background: var(--t-soft); border-inline-start: 4px solid var(--t-link); padding: .7rem 1rem; border-radius: 4px; font-size: .92em; }
-  [data-t="theorem"], [data-t="lemma"] { font-style: italic; }
+  /* Selectors key on data-t, the name, never on the element. The palette and
+     the type are docs.css's; --docs-* are its variables. */
+  [data-t="note"] { font-size: .92em; }
+  [data-t="theorem"], [data-t="lemma"] { font-style: italic; background: var(--t-soft); border-inline-start: 3px solid var(--docs-head); border-radius: 4px; padding: .7rem 1rem; }
   [data-t="theorem"] .t-title, [data-t="lemma"] .t-title { font-style: normal; }
-  [data-t="definition"] { border-inline-start: 3px solid var(--t-line); padding-inline-start: 1rem; }
+  [data-t="definition"] { border-inline-start: 3px solid var(--docs-gold); padding-inline-start: 1rem; }
+  :is([data-t="definition"], [data-t="theorem"], [data-t="lemma"]) > .t-title { font-family: var(--docs-heading); font-size: 1.2em; color: var(--docs-head); font-variant-numeric: lining-nums; }
   [data-t="proof"] > .t-title .t-label { font-weight: normal; font-style: italic; }
+  [data-t="proof"] .t-end { color: var(--docs-gold-ink); }
   [data-t="recall"] > summary { cursor: pointer; }
   .byline { color: var(--t-muted); margin-block-start: -.5rem; }
 </style>

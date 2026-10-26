@@ -9,7 +9,7 @@ spec: syntax-inline#links
 
 An inline link with a double-quoted title.
 
-````tern
+````luccet
 [text](https://x.y "T")
 ````
 
@@ -23,7 +23,7 @@ spec: syntax-inline#links syntax-blocks#positions
 
 A group glued after the `)` attaches to the link.
 
-````tern
+````luccet
 [t](u){.btn}
 ````
 
@@ -37,7 +37,7 @@ spec: syntax-inline#images syntax-blocks#positions
 
 An image takes a title and a glued group; the alt is the bracket text.
 
-````tern
+````luccet
 See ![alt](img.png "T"){width=50%}.
 ````
 
@@ -51,7 +51,7 @@ spec: syntax-inline#links
 
 A title may be single-quoted.
 
-````tern
+````luccet
 [a](u 'T')
 ````
 
@@ -65,7 +65,7 @@ spec: syntax-inline#links
 
 Only `"…"` and `'…'` titles exist; CommonMark's `(…)` title makes the link fail, and the `]` falls back to text.
 
-````tern
+````luccet
 [a](u (T))
 ````
 
@@ -79,7 +79,7 @@ spec: syntax-inline#links
 
 A `<…>` destination may hold an unbalanced parenthesis.
 
-````tern
+````luccet
 [a](<u(v>)
 ````
 
@@ -93,7 +93,7 @@ spec: syntax-inline#links
 
 A bare destination may hold balanced parentheses.
 
-````tern
+````luccet
 [docs](https://x.org/a_(b))
 ````
 
@@ -107,7 +107,7 @@ spec: syntax-inline#links
 
 With the parentheses unbalanced there is no closing `)`, so no link.
 
-````tern
+````luccet
 [a](f(x)
 ````
 
@@ -121,7 +121,7 @@ spec: syntax-inline#links syntax-inline#span
 
 The `(` must follow the `]` immediately.
 
-````tern
+````luccet
 [a] (u)
 ````
 
@@ -135,7 +135,7 @@ spec: syntax-inline#links syntax-inline#algorithm
 
 The destination ends at whitespace, and `v` is neither a title nor `)`: no link.
 
-````tern
+````luccet
 [a](u v)
 ````
 
@@ -149,7 +149,7 @@ spec: syntax-inline#links syntax-blocks#merging-and-emission
 
 `&` in a destination is escaped in the `href`.
 
-````tern
+````luccet
 [q](/s?a=1&b=2)
 ````
 
@@ -163,7 +163,7 @@ spec: syntax-inline#links syntax-inline#ambiguity
 
 There are no reference links: `[a][b]` and `[c][]` are text.
 
-````tern
+````luccet
 [a][b] and [c][]
 ````
 
@@ -177,7 +177,7 @@ spec: syntax-inline#links
 
 With no reference links there are no definitions either: the line is a paragraph.
 
-````tern
+````luccet
 [a]: /url
 ````
 
@@ -191,7 +191,7 @@ spec: syntax-inline#links syntax-inline#algorithm
 
 The inner link wins; the outer brackets are text.
 
-````tern
+````luccet
 [a [b](u) c](v)
 ````
 
@@ -205,7 +205,7 @@ spec: syntax-inline#links syntax-inline#algorithm
 
 Plain brackets nest inside link text.
 
-````tern
+````luccet
 [a [b] c](u)
 ````
 
@@ -219,7 +219,7 @@ spec: syntax-inline#links syntax-inline#reference
 
 A reference inside link text is text, so `@bob` does not dangle.
 
-````tern
+````luccet
 ## Kernel {#kernel}
 
 [mail @bob](#kernel)
@@ -236,7 +236,7 @@ spec: syntax-inline#links syntax-inline#autolinks
 
 A bare URL inside link text is text: no nested link.
 
-````tern
+````luccet
 [see https://x.org](u)
 ````
 
@@ -250,7 +250,7 @@ spec: syntax-inline#images
 
 An image inside link text.
 
-````tern
+````luccet
 [![a](i.png)](u)
 ````
 
@@ -264,7 +264,7 @@ spec: syntax-inline#images
 
 The alt is the plain text of the bracket content.
 
-````tern
+````luccet
 See ![*a* `b`](i.png).
 ````
 
@@ -278,7 +278,7 @@ spec: syntax-inline#images syntax-blocks#positions
 
 After an image any group attaches, weak ones included.
 
-````tern
+````luccet
 See ![v](x.mp4){controls}.
 ````
 
@@ -292,7 +292,7 @@ spec: syntax-inline#links syntax-blocks#merging-and-emission
 
 A glued group with an id, a class and a key merges into the link's attributes.
 
-````tern
+````luccet
 [t](u "T"){#l .c k=v}
 ````
 
@@ -306,7 +306,7 @@ spec: syntax-inline#links syntax-blocks#positions diagnostics#attr-malformed
 
 A glued group that does not parse stays text after the link, with `attr.malformed` (W) at the first bad column.
 
-````tern
+````luccet
 [t](u){.a "b"}
 ````
 
@@ -324,7 +324,7 @@ spec: syntax-inline#links syntax-blocks#positions
 
 A group after a space is not glued.
 
-````tern
+````luccet
 [t](u) {.c}
 ````
 
@@ -338,7 +338,7 @@ spec: syntax-inline#reference elements#references
 
 Custom reference text is an ordinary fragment link; its target exists, so nothing is reported.
 
-````tern
+````luccet
 ## Kernel {#kernel}
 
 See [the kernel](#kernel).
@@ -355,7 +355,7 @@ spec: elements#references syntax-inline#reference diagnostics#ref-dangling
 
 A fragment link whose target does not exist gets `ref.dangling` (W) at the link's `[`, and stays a link.
 
-````tern
+````luccet
 See [the proof](#missing).
 ````
 
@@ -373,7 +373,7 @@ spec: syntax-inline#ambiguity syntax-inline#escape syntax-inline#images
 
 `\!` is the literal spelling of `!`: the escaped `!` does not make an image, and the link remains.
 
-````tern
+````luccet
 \![a](u)
 ````
 
@@ -387,7 +387,7 @@ spec: syntax-inline#images syntax-inline#span syntax-inline#ambiguity
 
 An image needs `(` after its `]`; with a glued group instead, `![a]{.c}` is the text `!` followed by a bare span.
 
-````tern
+````luccet
 ![a]{.c}
 ````
 
@@ -401,7 +401,7 @@ spec: syntax-inline#images syntax-inline#footnote-reference syntax-inline#algori
 
 `![` opens an image only when no `^` follows, so `![^a](x.png)` is `!`, a footnote reference, then the text `(x.png)`.
 
-````tern
+````luccet
 ![^a](x.png)
 
 [^a]: Note.
@@ -420,7 +420,7 @@ spec: syntax-inline#links syntax-inline#escape syntax-inline#entities
 
 Backslash escapes and entities apply in link destinations and titles, as in CommonMark: an escaped `(` does not count for balance, and `&eacute;` decodes before the destination is percent-encoded.
 
-````tern
+````luccet
 [a](/a\(b "T &amp; U") and [b](/caf&eacute;)
 ````
 
@@ -434,7 +434,7 @@ spec: syntax-inline#links
 
 Destinations are normalised as in CommonMark: non-ASCII and unsafe characters such as a space are percent-encoded, an existing `%XX` is kept, and an empty destination gives `href=""`.
 
-````tern
+````luccet
 [a](/é%20x) [b](<c d>) [e]()
 ````
 
@@ -448,7 +448,7 @@ spec: syntax-inline#links syntax-inline#algorithm syntax-inline#code-span
 
 Code spans bind tighter than link destinations: the backtick inside the destination pairs as code, the code span swallows the `)`, and with no `)` left there is no link.
 
-````tern
+````luccet
 [a](u`x)` b
 ````
 
@@ -462,7 +462,7 @@ spec: syntax-inline#links syntax-inline#algorithm
 
 A bare destination may nest parentheses 32 deep.
 
-````tern js
+````luccet js
 '[a](' + '('.repeat(32) + 'x' + ')'.repeat(32) + ')\n'
 ````
 
@@ -476,7 +476,7 @@ spec: syntax-inline#links syntax-inline#algorithm
 
 At 33 levels the destination fails, so there is no link and everything is text.
 
-````tern js
+````luccet js
 '[a](' + '('.repeat(33) + 'x' + ')'.repeat(33) + ')\n'
 ````
 
@@ -491,7 +491,7 @@ spec: syntax-inline#images elements#figures
 An `alt=` attribute replaces the bracket text as the alt of any image, not only of an implicit figure.
 `alt=` overrides the bracket text on any image, not only on implicit figures.
 
-````tern
+````luccet
 ![Bracket](a.png){alt="Attribute"}
 ````
 

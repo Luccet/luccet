@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
-// tern new, check, parse, build, mv, search, index and corpus, and the
-// arguments of tern lsp.
-// Each command takes its arguments and returns the exit code (tern lsp: none,
+// luccet new, check, parse, build, mv, search and index, and the
+// arguments of luccet lsp.
+// Each command takes its arguments and returns the exit code (luccet lsp: none,
 // it runs until its client exits it):
 //   0  done
 //   1  check: a diagnostic at or above --fail-on; new: it refused (the file
 //      exists, or the line it would write is not detected); mv: it refused
 //      (a destination exists, a folder into itself) or a move failed;
-//      search: nothing matched; index --check: a file is missing or stale;
-//      corpus: an example whose diagnostics differ from its expect, or a
-//      bad schema=
+//      search: nothing matched; index --check: a file is missing or stale
 //   2  a usage error, or a path that cannot be used
 // Diagnostics print as `file:line:col: severity code: message`, the hint
 // indented below, with file lines (cli/note.js filePosition).
@@ -19,35 +17,56 @@ const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
 const { spawnSync } = require('child_process');
-const { split, notNote, attributes, analyse, htmlFiles, repository, tern, clean, readText } = require('./note');
+const { split, notNote, attributes, analyse, htmlFiles, repository, luccet, clean, readText } = require('./note');
 const { build, escAttr } = require('./build');
-const { drawInto } = require('./diagrams');
 const links = require('./links');
-const examples = require('./examples');
 const { relocate, apply } = require('./relocate');
 
+// The commands, one table: luccet-cli.js dispatches from it, the usage
+// below prints it, and test/cli.js checks that the docs, the README, the
+// skill and the header comments name the same commands, and EXIT_1 the
+// same reasons for exit 1.
 const SYNOPSIS = {
-  new: 'tern new FILE [--tern=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
-  check: 'tern check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
-  parse: 'tern parse FILE [--transformed] [--compact] [--no-scripts]',
-  build: 'tern build FILE… [-o OUT] [--math katex|mathml] [--diagrams] [--json] [--no-scripts]',
-  mv: 'tern mv FROM… TO [--root=DIR] [--dry-run] [--json]',
-  search: 'tern search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
-  index: 'tern index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
-  corpus: 'tern corpus PATH… [--out=DIR]',
-  vendor: 'tern vendor DIR [--katex] [--code] [--mermaid] [--mathml]',
-  lsp: 'tern lsp [--stdio]',
+  new: 'luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
+  check: 'luccet check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
+  parse: 'luccet parse FILE [--transformed] [--compact] [--no-scripts]',
+  build: 'luccet build FILE… [-o OUT] [--json] [--no-scripts]',
+  mv: 'luccet mv FROM… TO [--root=DIR] [--dry-run] [--json]',
+  search: 'luccet search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
+  index: 'luccet index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
+  lsp: 'luccet lsp [--stdio]',
+};
+
+// Why a command exits 1, by command; any other exits 0 or 2.
+const EXIT_1 = {
+  check: 'check found a diagnostic at or above --fail-on',
+  new: 'new refused to write the file',
+  mv: 'mv refused to move, or a move failed',
+  search: 'search found nothing',
+  index: 'index --check found a file missing or stale',
+};
+// The exit codes as the usage ends with them, wrapped as the rest is.
+const exitCodes = () => {
+  const list = Object.values(EXIT_1);
+  const words = `Exit codes: 0 done; 1 ${list.slice(0, -1).join('; ')}; or ${list[list.length - 1]}; 2 a usage error.`.split(' ');
+  const lines = [''];
+  for (const w of words) {
+    const last = lines.length - 1;
+    if (lines[last] && lines[last].length + 1 + w.length > 78) lines.push(w);
+    else lines[last] += (lines[last] ? ' ' : '') + w;
+  }
+  return lines.join('\n');
 };
 
 const usage = () =>
-  `usage: tern COMMAND …
+  `usage: luccet COMMAND …
 
   ${SYNOPSIS.new}
-      Write a new note: the canonical first line, loading the nearest tern.js
+      Write a new note: the canonical first line, loading the nearest luccet.js
       in FILE's directory or above (or PATH); --use lists add-ons in a :::use
       block (separated by commas or spaces), each preloaded from the first
       line; --title adds a :::meta block and --lang its language. The line
-      ends with a guard that shows the source, readable, when tern.js does
+      ends with a guard that shows the source, readable, when luccet.js does
       not load, in the note's language; --bare leaves the guard out.
   ${SYNOPSIS.check}
       Print the diagnostics of notes; directories are searched for .html
@@ -59,12 +78,9 @@ const usage = () =>
       --no-scripts analyses without running the note's own code.
   ${SYNOPSIS.build}
       Write a static, pre-rendered page (to stdout without -o) that still
-      loads tern.js. Several FILEs, or a folder, need -o DIR: each note's
+      loads luccet.js. Several FILEs, or a folder, need -o DIR: each note's
       page goes into DIR, under its name, or under its path in the folder
-      given. --math katex pre-renders formulas with the katex
-      package (--katex is the same), --math mathml renders native MathML
-      with the temml package and turns KaTeX off. --diagrams draws the
-      mermaid fences ahead, in a headless Chromium (the playwright package).
+      given. Formulas are MathML, as the engine writes them.
       --json prints one object instead (the page in it without -o).
       --no-scripts builds without running the note's own code.
   ${SYNOPSIS.mv}
@@ -79,7 +95,7 @@ const usage = () =>
       named block with an id — ranked for QUERY, and printed as FILE:LINE:
       the entry's label and title, then its passage with the matching words.
       A query word stands for the words it begins. --limit caps the results
-      (20). --index searches a search.json that tern index wrote instead of
+      (20). --index searches a search.json that luccet index wrote instead of
       reading the notes. Exit 1 when nothing matches.
   ${SYNOPSIS.index}
       Write what a site's add-ons read about the notes under each PATH
@@ -96,25 +112,11 @@ const usage = () =>
       said on stderr. --check writes nothing and exits 1 when a file is
       missing or differs from what would be written. --json prints the
       summary as one object.
-  ${SYNOPSIS.corpus}
-      Print the live examples of documentation pages (tern fences with the
-      class live) as conformance-corpus cases. A case's spec: line is the
-      fence's spec=, else PAGE#ID, the section of docs/PAGE.html it is in
-      (PAGE#top before any heading; guide#top for a page outside docs/).
-      --out writes DIR/docs-PAGE.txt.
-  ${SYNOPSIS.vendor}
-      Write local copies of the libraries the add-ons load from jsDelivr —
-      KaTeX, highlight.js, Mermaid, Temml — in the layout their ?base= option
-      takes, under DIR/katex, DIR/highlight, DIR/mermaid and DIR/temml, from
-      the pinned packages (downloaded once, checked against the registry's
-      hash). Without a flag, all four. For offline notes and strict policies.
   ${SYNOPSIS.lsp}
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
 
-Exit codes: 0 done; 1 check found problems, new or mv refused, search found
-nothing, index --check found a file missing or stale, or corpus found an
-example that does not match its expect; 2 a usage error.
+${exitCodes()}
 `;
 
 class UsageError extends Error {
@@ -138,7 +140,7 @@ function options(args, spec) {
 const command = (name, fn) => (args) => {
   const usage = (e) => {
     if (!(e instanceof UsageError)) throw e;
-    process.stderr.write(`tern ${name}: ${e.message}\n${e.synopsis ? `usage: ${SYNOPSIS[name]}\n` : ''}`);
+    process.stderr.write(`luccet ${name}: ${e.message}\n${e.synopsis ? `usage: ${SYNOPSIS[name]}\n` : ''}`);
     return 2;
   };
   try {
@@ -160,14 +162,14 @@ function help(name) {
 }
 // A command declines: the reason on stderr, exit 1.
 function refuse(reason, name = 'new') {
-  warn(`tern ${name}: ${reason}`);
+  warn(`luccet ${name}: ${reason}`);
   return 1;
 }
 const RANK = { info: 1, warning: 2, error: 3 };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 // A note file's text; one that is not UTF-8 is said on stderr (cli/note.js
-// readText), as `tern COMMAND: …`.
+// readText), as `luccet COMMAND: …`.
 function read(file, command) {
   let r;
   try {
@@ -175,7 +177,7 @@ function read(file, command) {
   } catch (e) {
     throw new UsageError(`cannot read ${file}: ${e.code === 'ENOENT' ? 'no such file' : e.code === 'EISDIR' ? 'it is a directory' : e.message}`, false);
   }
-  if (r.warning && command) warn(`tern ${command}: ${r.warning}`);
+  if (r.warning && command) warn(`luccet ${command}: ${r.warning}`);
   return r.text;
 }
 
@@ -188,10 +190,10 @@ function format(file, d) {
 
 // ---------------------------------------------------------------- new
 
-// The guard, the rest of the tern.js line (left out with --bare): it shows
-// the source when tern.js does not run, and is inert when it does, since
-// tern.js's capture swallows the rest of the file, this included.
-//   - Scripts on, tern.js missing: the <noscript> is inert text in the head;
+// The guard, the rest of the luccet.js line (left out with --bare): it shows
+// the source when luccet.js does not run, and is inert when it does, since
+// luccet.js's capture swallows the rest of the file, this included.
+//   - Scripts on, luccet.js missing: the <noscript> is inert text in the head;
 //     the script writes the message and an <xmp hidden> that the </xmp> right
 //     after it closes, and <plaintext> shows the note as text, wrapped.
 //   - Scripts off: the <noscript>'s <p> starts the body, and its <xmp hidden>
@@ -200,26 +202,26 @@ function format(file, d) {
 // English otherwise, and the message and the text carry the language. An
 // apostrophe is typographic: the second message is a single-quoted string.
 const GUARD_WORDS = {
-  en: ['JavaScript is off; the source follows.', 'tern.js did not load; the source follows.'],
-  de: ['JavaScript ist aus; es folgt der Quelltext.', 'tern.js wurde nicht geladen; es folgt der Quelltext.'],
-  fr: ['JavaScript est désactivé ; voici la source.', 'tern.js n’a pas été chargé ; voici la source.'],
-  es: ['JavaScript está desactivado; sigue el código fuente.', 'tern.js no se cargó; sigue el código fuente.'],
-  pt: ['O JavaScript está desativado; segue o código-fonte.', 'O tern.js não foi carregado; segue o código-fonte.'],
-  it: ['JavaScript è disattivato; segue il sorgente.', 'tern.js non è stato caricato; segue il sorgente.'],
-  nl: ['JavaScript staat uit; hierna volgt de brontekst.', 'tern.js is niet geladen; hierna volgt de brontekst.'],
+  en: ['JavaScript is off; the source follows.', 'luccet.js did not load; the source follows.'],
+  de: ['JavaScript ist aus; es folgt der Quelltext.', 'luccet.js wurde nicht geladen; es folgt der Quelltext.'],
+  fr: ['JavaScript est désactivé ; voici la source.', 'luccet.js n’a pas été chargé ; voici la source.'],
+  es: ['JavaScript está desactivado; sigue el código fuente.', 'luccet.js no se cargó; sigue el código fuente.'],
+  pt: ['O JavaScript está desativado; segue o código-fonte.', 'O luccet.js não foi carregado; segue o código-fonte.'],
+  it: ['JavaScript è disattivato; segue il sorgente.', 'luccet.js non è stato caricato; segue il sorgente.'],
+  nl: ['JavaScript staat uit; hierna volgt de brontekst.', 'luccet.js is niet geladen; hierna volgt de brontekst.'],
 };
 const LANG_TAG = /^[a-z]{2,3}(?:-[a-z0-9]{1,8})*$/i; // a language tag as --lang takes it: en, pt-BR, zh-Hant
 function guard(lang) {
   const l = String(lang || '').toLowerCase();
   const [off, missing] = GUARD_WORDS[l] || GUARD_WORDS[l.split('-')[0]] || GUARD_WORDS.en;
   const at = lang ? ` lang="${escAttr(lang)}"` : '';
-  return `<noscript><p${at}>${off}</p><xmp hidden></noscript><script>self.tern||document.write('<p${at}>${missing}</p><xmp hidden>')</script></xmp><plaintext${at} style="white-space:pre-wrap">`;
+  return `<noscript><p${at}>${off}</p><xmp hidden></noscript><script>self.luccet||document.write('<p${at}>${missing}</p><xmp hidden>')</script></xmp><plaintext${at} style="white-space:pre-wrap">`;
 }
 
-// The nearest tern.js in dir or above, relative to dir with forward slashes.
+// The nearest luccet.js in dir or above, relative to dir with forward slashes.
 function nearestTern(dir) {
   for (let d = dir; ; d = path.dirname(d)) {
-    const f = path.join(d, 'tern.js');
+    const f = path.join(d, 'luccet.js');
     try {
       if (fs.statSync(f).isFile()) return path.relative(dir, f).split(path.sep).join('/');
     } catch {}
@@ -229,7 +231,7 @@ function nearestTern(dir) {
 
 function newNote(args) {
   const { values: o, positionals } = options(args, {
-    tern: { type: 'string' },
+    luccet: { type: 'string' },
     use: { type: 'string', multiple: true },
     title: { type: 'string' },
     lang: { type: 'string' },
@@ -244,7 +246,7 @@ function newNote(args) {
   const file = path.resolve(given);
   const dir = path.dirname(file);
   if (o.title !== undefined && (!o.title.trim() || /[\r\n]/.test(o.title))) throw new UsageError('--title is one non-empty line');
-  if (o.tern !== undefined && !o.tern.trim()) throw new UsageError('--tern is empty');
+  if (o.luccet !== undefined && !o.luccet.trim()) throw new UsageError('--luccet is empty');
   if (o.lang !== undefined && !LANG_TAG.test(o.lang.trim())) throw new UsageError('--lang is a language tag such as en, de or pt-BR');
   if (o.bare && o.guarded) throw new UsageError('--bare and --guarded contradict; the guard is the default');
   let st = null;
@@ -260,13 +262,13 @@ function newNote(args) {
   }
 
   // The canonical first line, then the optional :::meta.
-  const found = o.tern === undefined ? nearestTern(dir) : null;
-  const src = o.tern !== undefined ? o.tern.trim() : found || 'tern.js';
+  const found = o.luccet === undefined ? nearestTern(dir) : null;
+  const src = o.luccet !== undefined ? o.luccet.trim() : found || 'luccet.js';
   const use = (o.use || []).flatMap((u) => u.split(/[\s,]+/)).filter(Boolean);
   const title = o.title === undefined ? null : o.title.trim();
   const lang = o.lang === undefined ? null : o.lang.trim();
-  // A preload for each add-on: tern.js finds a :::use entry only once it has
-  // the note, so the head asks for the file alongside tern.js itself.
+  // A preload for each add-on: luccet.js finds a :::use entry only once it has
+  // the note, so the head asks for the file alongside luccet.js itself.
   const preload = use.map((u) => `<link rel="preload" href="${escAttr(u)}" as="${/\.css(?:[?#]|$)/i.test(u) ? 'style' : 'script'}">`).join('');
   const first = `<!doctype html><meta charset="utf-8">${preload}<script src="${escAttr(src)}"></script>${o.bare ? '' : guard(lang)}`;
   const fields = `${title === null ? '' : `title: ${title}\n`}${lang === null ? '' : `lang: ${lang}\n`}`;
@@ -274,13 +276,13 @@ function newNote(args) {
 
   // What is written must read back as a note with that line, src and title.
   const parts = split(text);
-  const meta = parts && tern.parse(parts.note, { head: parts.head }).ast.data;
+  const meta = parts && luccet.parse(parts.note, { head: parts.head }).ast.data;
   if (!parts || parts.line !== 1 || attributes(parts.tag).src !== src) {
-    return refuse(`<script src="${src}"> would not make ${given} a note: the src must name a file called tern.js`);
+    return refuse(`<script src="${src}"> would not make ${given} a note: the src must name a file called luccet.js`);
   }
-  if (title !== null && !(meta && meta.tern && meta.tern.meta && meta.tern.meta.title === title)) return refuse(`the title does not read back from :::meta`);
-  if (lang !== null && !(meta && meta.tern && meta.tern.meta && meta.tern.meta.lang === lang)) return refuse(`the language does not read back from :::meta`);
-  if (use.length && JSON.stringify((meta && meta.tern && meta.tern.use ? meta.tern.use : []).map((u) => u.url)) !== JSON.stringify(use)) return refuse(`the add-ons do not read back from :::use`);
+  if (title !== null && !(meta && meta.luccet && meta.luccet.meta && meta.luccet.meta.title === title)) return refuse(`the title does not read back from :::meta`);
+  if (lang !== null && !(meta && meta.luccet && meta.luccet.meta && meta.luccet.meta.lang === lang)) return refuse(`the language does not read back from :::meta`);
+  if (use.length && JSON.stringify((meta && meta.luccet && meta.luccet.use ? meta.luccet.use : []).map((u) => u.url)) !== JSON.stringify(use)) return refuse(`the add-ons do not read back from :::use`);
 
   try {
     fs.writeFileSync(file, text, { flag: o.force ? 'w' : 'wx' });
@@ -288,11 +290,11 @@ function newNote(args) {
     return refuse(`cannot write ${given}: ${e.code === 'EEXIST' ? 'it exists' : e.message}`);
   }
   say(`created ${given}, loading ${src}${o.bare ? ', bare' : ''}`);
-  if (o.tern === undefined && !found) warn(`tern new: no tern.js in ${path.dirname(given)} or above; the note loads tern.js from its own directory`);
+  if (o.luccet === undefined && !found) warn(`luccet new: no luccet.js in ${path.dirname(given)} or above; the note loads luccet.js from its own directory`);
   for (const u of use) {
     const local = u.replace(/[?#].*$/, '');
     if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(local) || local.startsWith('/')) continue;
-    if (!fs.existsSync(path.resolve(dir, local))) warn(`tern new: :::use names ${u}, which does not exist yet`);
+    if (!fs.existsSync(path.resolve(dir, local))) warn(`luccet new: :::use names ${u}, which does not exist yet`);
   }
   return 0;
 }
@@ -336,14 +338,14 @@ function check(args) {
     try {
       text = read(f.shown, 'check');
     } catch (e) {
-      warn(`tern check: ${e.message}`);
+      warn(`luccet check: ${e.message}`);
       broken = true;
       continue;
     }
     const file = path.resolve(f.shown);
     const a = targets.analyse(file, text);
     if (!a) {
-      if (f.named && !o.quiet) warn(`tern check: ${f.shown} is not a note (${notNote(text)}); skipped`);
+      if (f.named && !o.quiet) warn(`luccet check: ${f.shown} is not a note (${notNote(text)}); skipped`);
       continue;
     }
     notes++;
@@ -359,7 +361,7 @@ function check(args) {
   if (o.json) say(JSON.stringify(out, null, 2));
   if (!o.quiet) {
     const found = [plural(count.error, 'error'), plural(count.warning, 'warning'), plural(count.info, 'info')].join(', ');
-    warn(notes ? `tern check: ${plural(notes, 'note')}: ${found}` : 'tern check: no notes found');
+    warn(notes ? `luccet check: ${plural(notes, 'note')}: ${found}` : 'luccet check: no notes found');
   }
   return broken ? 2 : failed ? 1 : 0;
 }
@@ -388,9 +390,9 @@ function filesOf(positionals) {
   return files;
 }
 
-// A search.json `tern index` wrote, read back: its entries' URLs are
+// A search.json `luccet index` wrote, read back: its entries' URLs are
 // relative to the file's folder, and its lines are file lines. It must be
-// of the format this tern.js reads (src/search.js FORMAT), whatever
+// of the format this luccet.js reads (src/search.js FORMAT), whatever
 // version wrote it; a file with no format is from before 1.0.
 function readIndex(file) {
   let data;
@@ -401,9 +403,9 @@ function readIndex(file) {
     throw new UsageError(`${file} is not JSON: ${e.message}`, false);
   }
   if (!data || typeof data !== 'object' || !Array.isArray(data.entries) || !data.terms || typeof data.terms !== 'object' || !Array.isArray(data.lengths)) {
-    throw new UsageError(`${file} is not a search index written by tern index`, false);
+    throw new UsageError(`${file} is not a search index written by luccet index`, false);
   }
-  if (data.format !== tern.search.format) throw new UsageError(`${file} was written by tern ${data.tern || '?'} in a format this tern (${tern.version}) does not read: run tern index again`, false);
+  if (data.format !== luccet.search.format) throw new UsageError(`${file} was written by luccet ${data.luccet || '?'} in a format this luccet (${luccet.version}) does not read: run luccet index again`, false);
   return data;
 }
 
@@ -412,7 +414,7 @@ function search(args) {
   if (o.help) return help('search');
   if (!positionals.length) throw new UsageError('QUERY is missing');
   const [query, ...paths] = positionals;
-  if (!tern.search.tokens(query).length) throw new UsageError('QUERY has no word to search for');
+  if (!luccet.search.tokens(query).length) throw new UsageError('QUERY has no word to search for');
   let limit = 20;
   if (o.limit !== undefined) {
     if (o.limit === 'all') limit = Infinity;
@@ -434,27 +436,27 @@ function search(args) {
     try {
       text = read(f.shown, 'search');
     } catch (e) {
-      warn(`tern search: ${e.message}`);
+      warn(`luccet search: ${e.message}`);
       broken = true;
       continue;
     }
     const a = analyse(text, f.shown, { noScripts: o['no-scripts'] });
     if (!a) {
-      if (f.named) warn(`tern search: ${f.shown} is not a note (${notNote(text)}); skipped`);
+      if (f.named) warn(`luccet search: ${f.shown} is not a note (${notNote(text)}); skipped`);
       continue;
     }
     notes++;
-    const title = tern.search.title(a.head, a.ast) || path.basename(f.shown);
+    const title = luccet.search.title(a.head, a.ast) || path.basename(f.shown);
     titles.set(f.shown, title);
-    for (const r of tern.search.records(a.ast, { url: f.shown, title })) {
+    for (const r of luccet.search.records(a.ast, { url: f.shown, title })) {
       const pos = r.line ? a.toFile({ start: { line: r.line, column: 1 }, end: { line: r.endLine || r.line, column: 1 } }) : null;
       entries.push({ ...r, file: f.shown, fileLine: pos ? pos.start.line : undefined, fileEndLine: pos ? pos.end.line : undefined });
     }
   }
-  const hits = tern.search.query(tern.search.index(entries), query, { limit });
+  const hits = luccet.search.query(luccet.search.index(entries), query, { limit });
   const out = [];
   for (const { entry, score, matched } of hits) {
-    const snippet = tern.search.snippet(entry.text || entry.title || entry.label, matched);
+    const snippet = luccet.search.snippet(entry.text || entry.title || entry.label, matched);
     const heading = [entry.label, entry.title].filter(Boolean).join(' ');
     if (o.json) {
       const { file, fileLine, fileEndLine, url, text, line, endLine, ...rest } = entry;
@@ -465,11 +467,11 @@ function search(args) {
     }
   }
   if (o.json) say(JSON.stringify(out, null, 2));
-  warn(notes ? `tern search: ${plural(notes, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}: ${plural(hits.length, 'result')}` : 'tern search: no notes found');
+  warn(notes ? `luccet search: ${plural(notes, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}: ${plural(hits.length, 'result')}` : 'luccet search: no notes found');
   return broken ? 2 : hits.length ? 0 : 1;
 }
 
-// tern search --index FILE: the same hits from a search.json, no note read.
+// luccet search --index FILE: the same hits from a search.json, no note read.
 // Files print relative to the current folder, as the live search prints
 // the paths it was given.
 function searchIndex(file, query, limit, json) {
@@ -477,10 +479,10 @@ function searchIndex(file, query, limit, json) {
   const base = path.dirname(path.resolve(file));
   const shown = (url) => slash(path.relative(process.cwd(), path.resolve(base, url))) || '.';
   const titles = new Map((idx.notes || []).map((n) => [n.url, n.title]));
-  const hits = tern.search.query(idx, query, { limit });
+  const hits = luccet.search.query(idx, query, { limit });
   const out = [];
   for (const { entry, score, matched } of hits) {
-    const snippet = tern.search.snippet(entry.text || entry.title || entry.label, matched);
+    const snippet = luccet.search.snippet(entry.text || entry.title || entry.label, matched);
     const heading = [entry.label, entry.title].filter(Boolean).join(' ');
     if (json) {
       const { url, text, ...rest } = entry;
@@ -492,7 +494,7 @@ function searchIndex(file, query, limit, json) {
   }
   if (json) say(JSON.stringify(out, null, 2));
   const n = (idx.notes || []).length;
-  warn(`tern search: ${plural(n, 'note')}, ${idx.entries.length} ${idx.entries.length === 1 ? 'entry' : 'entries'} in ${file}: ${plural(hits.length, 'result')}`);
+  warn(`luccet search: ${plural(n, 'note')}, ${idx.entries.length} ${idx.entries.length === 1 ? 'entry' : 'entries'} in ${file}: ${plural(hits.length, 'result')}`);
   return hits.length ? 0 : 1;
 }
 
@@ -501,6 +503,32 @@ function searchIndex(file, query, limit, json) {
 const NOTES_JSON = 'notes.json';
 const SEARCH_JSON = 'search.json';
 const GLOSSARY_JSON = 'glossary.json';
+// The format of notes.json, as luccet.search.format is search.json's: a
+// reader takes a file of its own format, whatever version wrote it. 1 since
+// 2.0 (a file with none is 1.x's); it changes only in a major release, and
+// fields may be added in a minor one, which a reader ignores.
+const NOTES_FORMAT = 1;
+
+// The innermost entry of a note's search records (luccet.search.records,
+// a section or a named block) with an id that holds note line `line`: the
+// id a link is written in, or null before any.
+function within(records, line) {
+  let best = null;
+  for (const r of records) {
+    if (!r.id || !r.line || line < r.line || line > (r.endLine || r.line)) continue;
+    if (!best || (r.endLine || r.line) - r.line < (best.endLine || best.line) - best.line) best = r;
+  }
+  return best ? best.id : null;
+}
+const fragmentOf = (url) => {
+  const k = url.indexOf('#');
+  if (k < 0 || k === url.length - 1) return null;
+  try {
+    return decodeURIComponent(url.slice(k + 1));
+  } catch {
+    return url.slice(k + 1);
+  }
+};
 
 // git, run in a repository: {out, truncated}, or null when it fails or is
 // not there. Output past the buffer's size is cut, and said so, rather than
@@ -612,7 +640,7 @@ function index(args) {
     left++;
     return false;
   });
-  if (noGit) warn('tern index: git is not available, so untracked and ignored files are indexed too');
+  if (noGit) warn('luccet index: git is not available, so untracked and ignored files are indexed too');
   // The commit dates of the notes to index, by repository, from one log each.
   const byRepo = new Map();
   for (const f of kept) {
@@ -624,7 +652,7 @@ function index(args) {
 
   const notes = [];
   const entries = [];
-  const terms = []; // what the notes define (tern.glossary), for glossary.json
+  const terms = []; // what the notes define (luccet.glossary), for glossary.json
   const uses = []; // every :term[…], to say which has no definition
   let robots = 0;
   let broken = false;
@@ -634,16 +662,16 @@ function index(args) {
     try {
       text = read(f.shown, 'index');
     } catch (e) {
-      warn(`tern index: ${e.message}`);
+      warn(`luccet index: ${e.message}`);
       broken = true;
       continue;
     }
     const a = analyse(text, f.shown, { noScripts: o['no-scripts'] });
     if (!a) {
-      if (f.named) warn(`tern index: ${f.shown} is not a note (${notNote(text)}); skipped`);
+      if (f.named) warn(`luccet index: ${f.shown} is not a note (${notNote(text)}); skipped`);
       continue;
     }
-    const d = tern.search.describe(a.head, a.ast);
+    const d = luccet.search.describe(a.head, a.ast);
     if (/\bnoindex\b/i.test(String(d.meta.robots || ''))) {
       robots++;
       continue;
@@ -654,7 +682,7 @@ function index(args) {
     let date = String(d.meta.date || '').trim();
     // The catalogue's dates are YYYY-MM-DD (a time after it allowed): one
     // that is not is written as it is, said here, and sorts last in ::notes.
-    if (date && !/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(date)) warn(`tern index: ${f.shown}: the date "${clean(date)}" is not YYYY-MM-DD; it is written as it is, and lists sort it last`);
+    if (date && !/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(date)) warn(`luccet index: ${f.shown}: the date "${clean(date)}" is not YYYY-MM-DD; it is written as it is, and lists sort it last`);
     if (!date) {
       const root = repository(path.dirname(abs));
       const info = root ? repoInfo(root) : null;
@@ -666,16 +694,22 @@ function index(args) {
       if (info && info.truncated && !committed && info.changed !== null && !info.changed.has(abs)) undated++;
       date = committed || (info && (info.changed === null || info.changed.has(abs)) ? today() : dayOf(abs));
     }
-    const links = [];
-    for (const u of d.links) {
-      const file = linkFile(path.dirname(abs), u);
-      if (file && file !== abs && !links.includes(file)) links.push(file);
-    }
-    notes.push({ url, title, description: d.description, date, headings: d.headings, links, abs });
     const fileLine = (line) => (line ? a.toFile({ start: { line, column: 1 }, end: { line, column: 1 } }).start.line : 0);
-    for (const t of tern.glossary.terms(a.ast)) terms.push({ ...t, url, title, line: fileLine(t.line), shown: f.shown });
-    for (const u of tern.glossary.uses(a.ast)) uses.push({ ...u, url, line: fileLine(u.line), shown: f.shown });
-    for (const r of tern.search.records(a.ast, { url, title })) {
+    const records = luccet.search.records(a.ast, { url, title });
+    // Every link to another file, in order: kept below when it names a note
+    // of the catalogue, with its fragment, its file line, and the id of the
+    // section or block it is written in.
+    const links = [];
+    luccet.visit(a.ast, 'link', (n) => {
+      if (typeof n.url !== 'string' || !n.url || n.url.startsWith('#')) return;
+      const file = linkFile(path.dirname(abs), n.url);
+      const line = n.position ? n.position.start.line : 0;
+      if (file && file !== abs) links.push({ file, fragment: fragmentOf(n.url), line: fileLine(line), from: line ? within(records, line) : null });
+    });
+    notes.push({ url, title, description: d.description, date, meta: d.meta, headings: d.headings, links, abs });
+    for (const t of luccet.glossary.terms(a.ast)) terms.push({ ...t, url, title, line: fileLine(t.line), shown: f.shown });
+    for (const u of luccet.glossary.uses(a.ast)) uses.push({ ...u, url, line: fileLine(u.line), shown: f.shown });
+    for (const r of records) {
       const pos = r.line ? a.toFile({ start: { line: r.line, column: 1 }, end: { line: r.endLine || r.line, column: 1 } }) : null;
       const e = { ...r, url };
       if (pos) (e.line = pos.start.line), (e.endLine = pos.end.line);
@@ -685,10 +719,10 @@ function index(args) {
   // A link counts when it names a note in the catalogue, as a path like the note's.
   const known = new Map(notes.map((n) => [n.abs, n.url]));
   for (const n of notes) {
-    n.links = n.links.map((f) => known.get(f)).filter(Boolean);
+    n.links = n.links.filter((l) => known.has(l.file)).map((l) => ({ url: known.get(l.file), fragment: l.fragment, line: l.line, from: l.from }));
     delete n.abs;
   }
-  const idx = tern.search.index(entries);
+  const idx = luccet.search.index(entries);
   // The glossary: the terms by key, then by note; a key defined more than
   // once is said, and so is a use no note defines. Both are kept as they
   // are: the list shows every definition, and a use links to the page.
@@ -698,16 +732,16 @@ function index(args) {
   for (const list of defined.values()) {
     if (list.length < 2) continue;
     const at = list.map((t) => `${t.shown}:${t.line}`);
-    warn(`tern index: the term "${clean(list[0].term)}" is defined in ${at.slice(0, -1).join(', ')} and ${at[at.length - 1]}; the glossary lists ${list.length === 2 ? 'both' : 'all of them'}`);
+    warn(`luccet index: the term "${clean(list[0].term)}" is defined in ${at.slice(0, -1).join(', ')} and ${at[at.length - 1]}; the glossary lists ${list.length === 2 ? 'both' : 'all of them'}`);
   }
-  for (const u of uses) if (!defined.has(u.key)) warn(`tern index: ${u.shown}:${u.line}: the term "${clean(u.term)}" has no definition in these notes`);
+  for (const u of uses) if (!defined.has(u.key)) warn(`luccet index: ${u.shown}:${u.line}: the term "${clean(u.term)}" has no definition in these notes`);
   const outputs = [
-    [NOTES_JSON, `${JSON.stringify({ tern: tern.version, notes }, null, 2)}\n`],
-    [SEARCH_JSON, lineJSON({ tern: tern.version, format: tern.search.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
-    [GLOSSARY_JSON, lineJSON({ tern: tern.version, format: tern.glossary.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), terms: terms.map(({ shown, title, ...t }) => t) })],
+    [NOTES_JSON, `${JSON.stringify({ luccet: luccet.version, format: NOTES_FORMAT, notes }, null, 2)}\n`],
+    [SEARCH_JSON, lineJSON({ luccet: luccet.version, format: luccet.search.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), entries: idx.entries, terms: idx.terms, lengths: idx.lengths, avg: idx.avg }, ['terms'])],
+    [GLOSSARY_JSON, lineJSON({ luccet: luccet.version, format: luccet.glossary.format, notes: notes.map((n) => ({ url: n.url, title: n.title })), terms: terms.map(({ shown, title, ...t }) => t) })],
   ];
   const where = (name) => slash(path.join(dir, name));
-  if (undated) warn(`tern index: the git log was longer than ${GIT_BUFFER >> 20} MB and was cut, so ${plural(undated, 'note')} ${undated === 1 ? 'is' : 'are'} dated by ${undated === 1 ? 'its' : 'their'} modification time`);
+  if (undated) warn(`luccet index: the git log was longer than ${GIT_BUFFER >> 20} MB and was cut, so ${plural(undated, 'note')} ${undated === 1 ? 'is' : 'are'} dated by ${undated === 1 ? 'its' : 'their'} modification time`);
   const summary = `${plural(notes.length, 'note')}, ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${terms.length ? `, ${plural(terms.length, 'term')}` : ''}${left ? `; ${left} left out (not tracked by git)` : ''}${robots ? `; ${robots} noindex` : ''}`;
   // --json: the summary as one object, on stdout.
   const report = (extra) => say(JSON.stringify({ notes: notes.length, entries: entries.length, terms: terms.length, leftOut: left, noindex: robots, unreadable: broken, files: { notes: where(NOTES_JSON), search: where(SEARCH_JSON), glossary: where(GLOSSARY_JSON) }, ...extra }, null, 2));
@@ -720,9 +754,9 @@ function index(args) {
       } catch {}
       if (have === text) continue;
       stale.push(where(name));
-      warn(`tern index: ${where(name)} is ${have === null ? 'missing' : 'stale'}: run tern index${o.output !== undefined ? ` -o ${o.output}` : ''} ${paths.join(' ')}`);
+      warn(`luccet index: ${where(name)} is ${have === null ? 'missing' : 'stale'}: run luccet index${o.output !== undefined ? ` -o ${o.output}` : ''} ${paths.join(' ')}`);
     }
-    warn(`tern index: ${summary}; ${stale.length ? `${stale.length} of 3 files to write` : 'all three files are up to date'}`);
+    warn(`luccet index: ${summary}; ${stale.length ? `${stale.length} of 3 files to write` : 'all three files are up to date'}`);
     if (o.json) report({ wrote: false, stale });
     return broken ? 2 : stale.length ? 1 : 0;
   }
@@ -732,7 +766,7 @@ function index(args) {
   } catch (e) {
     throw new UsageError(`cannot write ${dir}: ${e.message}`, false);
   }
-  warn(`tern index: ${summary} → ${where(NOTES_JSON)}, ${where(SEARCH_JSON)}, ${where(GLOSSARY_JSON)}`);
+  warn(`luccet index: ${summary} → ${where(NOTES_JSON)}, ${where(SEARCH_JSON)}, ${where(GLOSSARY_JSON)}`);
   if (o.json) report({ wrote: true });
   return broken ? 2 : 0;
 }
@@ -747,8 +781,8 @@ function parse(args) {
   const text = read(file, 'parse');
   const a = analyse(text, file, { transform: !!o.transformed, noScripts: o['no-scripts'] });
   if (!a) throw new UsageError(`${file} is not a note (${notNote(text)})`, false);
-  // The vocabulary problems (no note position) as `tern parse` prints them.
-  for (const d of a.diagnostics) if (!d.position) warn(`tern parse: ${clean(d.message)}`);
+  // The vocabulary problems (no note position) as `luccet parse` prints them.
+  for (const d of a.diagnostics) if (!d.position) warn(`luccet parse: ${clean(d.message)}`);
   say(JSON.stringify(a.ast, null, o.compact ? 0 : 2));
   return 0;
 }
@@ -765,10 +799,8 @@ function parse(args) {
 async function buildPage(args) {
   const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, diagrams: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
-  const math = o.math || (o.katex ? 'katex' : null);
-  if (math && math !== 'katex' && math !== 'mathml') throw new UsageError(`--math must be katex or mathml, not ${math}`);
-  // --diagrams opens the note in a browser, where its head scripts and add-ons run: there is no drawing without running its code.
-  if (o.diagrams && o['no-scripts']) throw new UsageError('--diagrams opens the note in a browser, which runs its code; drop --no-scripts, or build without --diagrams');
+  if (o.math !== undefined || o.katex) throw new UsageError(`${o.katex ? '--katex' : '--math'} is gone: since 2.0 every formula is MathML, written by the engine, with nothing to pre-render`);
+  if (o.diagrams) throw new UsageError('--diagrams is gone: since 2.0 the Mermaid add-on is separate (github.com/Luccet/mermaid), and draws a built page\'s diagrams ahead with its own tools/diagrams.js');
   if (!positionals.length) throw new UsageError('FILE is missing');
   const stat = (p) => {
     try {
@@ -779,7 +811,7 @@ async function buildPage(args) {
   };
   let out = o.output === undefined || o.output === '-' ? null : o.output;
   if (out !== null && !out) throw new UsageError('-o is empty');
-  if (positionals.length > 1 || (stat(positionals[0]) || { isDirectory: () => false }).isDirectory()) return buildMany(positionals, out, o, math);
+  if (positionals.length > 1 || (stat(positionals[0]) || { isDirectory: () => false }).isDirectory()) return buildMany(positionals, out, o);
   const file = positionals[0];
   let into = null; // the directory to create before writing
   let asDir = false;
@@ -790,11 +822,11 @@ async function buildPage(args) {
     if (asDir) out = path.join(out, path.basename(file));
   }
   if (out && path.resolve(out) === path.resolve(file)) throw new UsageError(`-o ${o.output} is the note itself`, false);
-  const json = await buildOne(file, out, into, o, math, { named: true, urls: true });
+  const json = await buildOne(file, out, into, o, { named: true, urls: true });
   if (out && !asDir && !path.extname(out)) {
     const w = `${o.output} is written as a file; end -o with / to write ${path.basename(file)} into a directory of that name`;
     json.warnings.push(clean(w));
-    warn(`tern build: ${clean(w)}`);
+    warn(`luccet build: ${clean(w)}`);
   }
   if (o.json) say(JSON.stringify(json, null, 2));
   return 0;
@@ -804,7 +836,7 @@ async function buildPage(args) {
 // every output path checked before anything is written (two notes onto one
 // page, or a page onto its note, stop the run). Pages already in DIR, when
 // DIR is inside a folder given, are not notes to build.
-async function buildMany(positionals, dir, o, math) {
+async function buildMany(positionals, dir, o) {
   if (!dir) throw new UsageError('several notes, or a folder, need -o DIR');
   let st = null;
   try {
@@ -843,12 +875,12 @@ async function buildMany(positionals, dir, o, math) {
   const built = [];
   let left = 0;
   for (const j of jobs) {
-    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, math, { named: j.named, urls: false });
+    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, { named: j.named, urls: false });
     if (json) built.push(json);
     else left++;
   }
-  warn(`tern build: ${plural(built.length, 'page')} written into ${slash(dir)}${left ? `; ${plural(left, 'file')} in the folders not a note, left out` : ''}`);
-  if (built.length) warn(`tern build: relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from each page's folder in ${slash(dir)}`);
+  warn(`luccet build: ${plural(built.length, 'page')} written into ${slash(dir)}${left ? `; ${plural(left, 'file')} in the folders not a note, left out` : ''}`);
+  if (built.length) warn(`luccet build: relative URLs (luccet.js, add-ons, images, links) are kept as written, so they resolve from each page's folder in ${slash(dir)}`);
   if (o.json) say(JSON.stringify(built, null, 2));
   return 0;
 }
@@ -857,28 +889,25 @@ async function buildMany(positionals, dir, o, math) {
 // its warnings and diagnostics on stderr: the --json object, or null for a
 // file found in a folder that is not a note (a named one is an error).
 // `urls`: say when the page's relative URLs resolve from another folder.
-async function buildOne(file, out, into, o, math, { named, urls }) {
+async function buildOne(file, out, into, o, { named, urls }) {
   const shown = slash(file); // paths printed, and in --json, with forward slashes on every platform
   const text = read(file, 'build');
-  const r = build(text, file, { math, noScripts: o['no-scripts'], diagrams: !!o.diagrams });
+  const r = build(text, file, { noScripts: o['no-scripts'] });
   if (!r) {
     if (!named) return null;
     throw new UsageError(`${shown} is not a note (${notNote(text)})`, false);
   }
-  // --diagrams: the mermaid fences drawn into the page by a headless browser.
-  const dg = o.diagrams ? await drawInto(r, file) : null;
   // --json: the warnings and diagnostics in one object on stdout, with the
   // page when no -o takes it; the summary and the warnings go to stderr too.
   const warnings = [];
-  const diagnostics = [...r.diagnostics, ...r.failures.map((f) => ({ severity: 'warning', code: 'math.error', message: f.message, filePosition: r.toFile(f.node.position) })), ...(dg ? dg.failures : [])];
+  const diagnostics = r.diagnostics;
   const said = (w) => {
     warnings.push(clean(w));
-    warn(`tern build: ${clean(w)}`);
+    warn(`luccet build: ${clean(w)}`);
   };
   for (const w of r.warnings) said(w);
-  if (dg) for (const w of dg.warnings) said(w);
   for (const d of diagnostics) warn(format(shown, d));
-  if (urls && out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (tern.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
+  if (urls && out && path.resolve(path.dirname(out)) !== path.dirname(path.resolve(file))) said(`relative URLs (luccet.js, add-ons, images, links) are kept as written, so they resolve from ${slash(path.dirname(out))}`);
   if (!out && !o.json) process.stdout.write(r.html);
   else if (out) {
     try {
@@ -893,9 +922,8 @@ async function buildOne(file, out, into, o, math, { named, urls }) {
     }
   }
   const m = r.math;
-  const drawn = dg ? `; ${plural(dg.total, 'diagram')}${dg.total ? `, ${dg.drawn} drawn ahead${dg.drawn ? ` with Mermaid from ${dg.from}` : ''}` : ''}` : '';
-  warn(`tern build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}${m.engine ? `, ${m.prerendered} pre-rendered as ${m.engine === 'mathml' ? 'MathML' : 'HTML'}` : ''}${drawn}`);
-  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total, prerendered: m.engine ? m.prerendered : 0, engine: m.engine || null }, ...(dg ? { diagrams: { total: dg.total, drawn: dg.drawn, from: dg.drawn ? dg.from : null } } : {}), warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
+  warn(`luccet build: ${out ? `wrote ${slash(out)}` : 'wrote the page'}; ${plural(m.total, 'formula')}`);
+  const json = { file: shown, out: out ? slash(out) : null, math: { total: m.total }, warnings, diagnostics: diagnostics.map((d) => ({ file: shown, ...d, message: clean(d.message), ...(d.hint ? { hint: clean(d.hint) } : {}) })) };
   if (!out) json.html = r.html;
   return json;
 }
@@ -903,7 +931,7 @@ async function buildOne(file, out, into, o, math, { named, urls }) {
 // ---------------------------------------------------------------- mv
 
 // The files under root that are not notes but name a moved file or folder:
-// tern mv does not rewrite them (a name in a script or a Markdown file is
+// luccet mv does not rewrite them (a name in a script or a Markdown file is
 // not a URL it can read), so it lists them to look at.
 const TEXT = /\.(?:md|markdown|txt|html?|[cm]?js|css|json|ya?ml|toml|svg|xml)$/i;
 function mentions(root, moves, notes) {
@@ -976,10 +1004,10 @@ function mv(args) {
   for (const file of files) {
     try {
       const r = readText(file);
-      if (r.warning) warn(`tern mv: ${r.warning.replace(file, shown(file))}`);
+      if (r.warning) warn(`luccet mv: ${r.warning.replace(file, shown(file))}`);
       notes.push({ file, text: r.text });
     } catch (e) {
-      warn(`tern mv: cannot read ${shown(file)}: ${e.message}; its links are left as they are`);
+      warn(`luccet mv: cannot read ${shown(file)}: ${e.message}; its links are left as they are`);
     }
   }
   const plan = relocate(notes, moves);
@@ -988,7 +1016,7 @@ function mv(args) {
   const json = o.json ? { dryRun: dry, moves: moves.map((m) => ({ from: shown(m.from), to: shown(m.to) })), edits: [], left: [] } : null;
   const leave = (file, why, more) => {
     if (json) json.left.push({ file: shown(file), ...more, reason: why });
-    warn(`tern mv: ${shown(file)}${more && more.line ? `:${more.line}:${more.column}` : ''}${more && more.line ? ': ' : ' '}${why}`);
+    warn(`luccet mv: ${shown(file)}${more && more.line ? `:${more.line}:${more.column}` : ''}${more && more.line ? ': ' : ' '}${why}`);
   };
 
   // A move that fails undoes the ones before it, so nothing is half done.
@@ -1002,7 +1030,7 @@ function mv(args) {
       }
     } catch (e) {
       for (const m of done.reverse()) fs.renameSync(m.to, m.from);
-      warn(`tern mv: ${e.message}; nothing was moved, and the links are left as they were`);
+      warn(`luccet mv: ${e.message}; nothing was moved, and the links are left as they were`);
       return 1;
     }
   }
@@ -1022,152 +1050,17 @@ function mv(args) {
   const edited = plan.filter((p) => p.edits.length);
   const text = new Map(notes.map((n) => [n.file, n.text]));
   if (!dry) for (const p of edited) fs.writeFileSync(p.moved, apply(text.get(p.file), p.edits));
-  warn(`tern mv: ${plural(moves.length, 'move')}, ${plural(count, 'link')} in ${plural(edited.length, 'note')}${dry ? '; a dry run, so nothing changed' : ''}`);
+  warn(`luccet mv: ${plural(moves.length, 'move')}, ${plural(count, 'link')} in ${plural(edited.length, 'note')}${dry ? '; a dry run, so nothing changed' : ''}`);
   if (json) say(JSON.stringify(json, null, 2));
   return 0;
 }
 
-// ---------------------------------------------------------------- corpus
-
-// The live examples of documentation pages as corpus cases (cli/examples.js
-// toCorpus; test/corpus/README.md "Cases from the documentation"). Paths are
-// files or directories, as for check. Without --out the cases go to stdout,
-// page after page; with it, each page with examples is DIR/docs-PAGE.txt
-// (DIR is created). An example that does not match its expect, or names an
-// unknown schema, is left out and reported as `file:line: message`: exit 1.
-function corpus(args) {
-  const { values: o, positionals } = options(args, { out: { type: 'string' } });
-  if (o.help) return help('corpus');
-  if (!positionals.length) throw new UsageError('give at least one PATH');
-  if (o.out !== undefined && !o.out) throw new UsageError('--out is empty');
-  const files = [];
-  const seen = new Set();
-  for (const p of positionals) {
-    let st;
-    try {
-      st = fs.statSync(p);
-    } catch (e) {
-      throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
-    }
-    for (const f of st.isDirectory() ? [...htmlFiles(p)] : [p]) {
-      const key = path.resolve(f);
-      if (!seen.has(key)) seen.add(key), files.push({ shown: slash(f), named: !st.isDirectory() });
-    }
-  }
-  if (o.out) {
-    try {
-      fs.mkdirSync(o.out, { recursive: true });
-    } catch (e) {
-      throw new UsageError(`cannot create ${o.out}: ${e.message}`, false);
-    }
-  }
-  let cases = 0;
-  let pages = 0;
-  let failed = false;
-  const shown = (f) => f.split(path.sep).join('/');
-  const written = new Map(); // output file -> the page that wrote it
-  for (const f of files) {
-    const text = read(f.shown, 'corpus');
-    const x = examples.extract(text, f.shown);
-    if (!x) {
-      if (f.named) warn(`tern corpus: ${f.shown} is not a note (${notNote(text)}); skipped`);
-      continue;
-    }
-    const c = examples.toCorpus(x, shown(f.shown));
-    for (const p of c.problems) warn(`${f.shown}:${p.line}: ${p.message}`);
-    failed = failed || c.problems.length > 0;
-    if (!c.cases) continue;
-    cases += c.cases;
-    pages++;
-    if (!o.out) {
-      process.stdout.write(`${pages > 1 ? '\n' : ''}${c.text}`);
-      continue;
-    }
-    const out = path.join(o.out, `docs-${examples.pageSlug(f.shown)}.txt`);
-    if (written.has(out)) throw new UsageError(`${f.shown} and ${written.get(out)} would both write ${out}`, false);
-    written.set(out, f.shown);
-    fs.writeFileSync(out, c.text);
-  }
-  warn(`tern corpus: ${plural(cases, 'case')} from ${plural(pages, 'page')}${o.out ? `, written to ${o.out}` : ''}`);
-  return failed ? 1 : 0;
-}
-
 // ---------------------------------------------------------------- vendor
 
-// The layout each add-on's `?base=` takes (docs/addons.html), from the
-// package the add-on pins (its version table; tools/*.js fetch the package
-// once into the cache, checked against the registry's hash): the files to
-// copy, as [from, to] relative to the package folder and to DIR/FOLDER.
-const VENDOR = {
-  katex: { flag: 'katex', addon: 'katex.js', folder: 'katex', tool: 'katex', root: 'dist', files: [['katex.min.js'], ['katex.min.css'], ['fonts']] },
-  code: { flag: 'code', addon: 'code.js', folder: 'highlight', tool: 'hljs', root: '', files: [['highlight.min.js'], ['languages']] },
-  mermaid: { flag: 'mermaid', addon: 'mermaid.js', folder: 'mermaid', tool: 'mermaid', root: 'dist', files: [['mermaid.min.js']] },
-  mathml: { flag: 'mathml', addon: 'mathml.js', folder: 'temml', tool: 'temml', root: 'dist', files: [['temml.min.js'], ['Temml-Local.css'], ['Temml.woff2']] },
-};
-
-// The version an add-on pins, from its table.
-function pinned(addon) {
-  const m = /version: '([\d.]+)'/.exec(fs.readFileSync(path.join(__dirname, '..', 'addons', addon), 'utf8'));
-  if (!m) throw new Error(`addons/${addon} pins no version`);
-  return m[1];
-}
-
-async function vendor(args) {
-  const { values: o, positionals } = options(args, { katex: { type: 'boolean' }, code: { type: 'boolean' }, mermaid: { type: 'boolean' }, mathml: { type: 'boolean' } });
-  if (o.help) return help('vendor');
-  if (positionals.length !== 1) throw new UsageError(positionals.length ? 'give one DIR' : 'DIR is missing');
-  const dir = positionals[0];
-  if (!dir.trim()) throw new UsageError('DIR is empty');
-  const st = fs.statSync(dir, { throwIfNoEntry: false });
-  if (st && !st.isDirectory()) throw new UsageError(`${dir} is not a folder`, false);
-  const chosen = Object.values(VENDOR).filter((v) => o[v.flag]);
-  const list = chosen.length ? chosen : Object.values(VENDOR);
-  const shown = (p) => path.relative(process.cwd(), p).split(path.sep).join('/') || '.';
-  const lines = [];
-  let files = 0;
-  let bytes = 0;
-  let failed = false;
-  for (const v of list) {
-    const version = pinned(v.addon);
-    let pkg;
-    try {
-      pkg = await require(`../tools/${v.tool}`).packageDir(version);
-    } catch (e) {
-      warn(`tern vendor: ${v.addon.replace(/\.js$/, '')} ${version} could not be fetched (${clean((e && e.message) || e)}); is the network there?`);
-      failed = true;
-      continue;
-    }
-    const from = path.join(pkg, v.root);
-    const to = path.join(dir, v.folder);
-    fs.mkdirSync(to, { recursive: true });
-    let n = 0;
-    const copy = (src, dest) => {
-      const s = fs.statSync(src);
-      if (s.isDirectory()) {
-        fs.mkdirSync(dest, { recursive: true });
-        for (const name of fs.readdirSync(src).sort()) copy(path.join(src, name), path.join(dest, name));
-        return;
-      }
-      fs.copyFileSync(src, dest);
-      n++;
-      bytes += s.size;
-      say(shown(dest));
-    };
-    for (const [rel] of v.files) {
-      const src = path.join(from, rel);
-      if (!fs.existsSync(src)) {
-        warn(`tern vendor: ${v.addon}: the package has no ${rel}; the layout the add-on expects has changed`);
-        failed = true;
-        continue;
-      }
-      copy(src, path.join(to, rel));
-    }
-    files += n;
-    lines.push(`${v.addon.replace(/\.js$/, '')} ${version} → ${shown(to)} (${plural(n, 'file')}); load it with addons/${v.addon}?base=${shown(to)}`);
-  }
-  for (const l of lines) warn(`tern vendor: ${l}`);
-  warn(`tern vendor: ${plural(lines.length, 'package')}, ${plural(files, 'file')}, ${(bytes / 1048576).toFixed(1)} MB; a ?base= resolves from the note's folder, so write the path from there`);
-  return failed ? 1 : 0;
+// `luccet vendor` went with the add-ons it served, in 2.0: each add-on that
+// loads a library has its own tools/vendor.js.
+function vendor() {
+  throw new UsageError('this command is gone: since 2.0 the add-ons are separate (github.com/Luccet), and each one that loads a library has its own tools/vendor.js; math needs nothing', false);
 }
 
 // ---------------------------------------------------------------- lsp
@@ -1182,6 +1075,8 @@ function lsp(args) {
 }
 
 module.exports = {
+  SYNOPSIS,
+  EXIT_1,
   usage,
   new: command('new', newNote),
   check: command('check', check),
@@ -1190,7 +1085,6 @@ module.exports = {
   mv: command('mv', mv),
   search: command('search', search),
   index: command('index', index),
-  corpus: command('corpus', corpus),
   vendor: command('vendor', vendor),
   lsp: command('lsp', lsp),
 };
