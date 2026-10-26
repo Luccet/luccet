@@ -92,7 +92,7 @@ Node shapes are mdast's, remark-directive's and mdast-util-math's, plus Luccet's
 
 ## Cases from the documentation
 
-`luccet corpus FILE…` prints a documentation page's live examples (`docs/README.md` "Live examples") as cases in this format, and `--out=DIR` writes one file per page (`DIR/docs-PAGE.txt`).
+`node tools/corpus.js FILE…` (`npm run corpus` for the site) prints a documentation page's live examples (`docs/README.md` "Live examples") as cases in this format, and `--out=DIR` writes one file per page (`DIR/docs-PAGE.txt`).
 
 - **Id.** `## docs/PAGE-SLUG`. PAGE is the file name (`examples-NAME` for a page in `examples/`). SLUG is the fence's own `#id` when it has one; otherwise it is the id of the heading the example follows plus its number under that heading (`docs/syntax-blocks-fence-2`), or its number on the page before any heading. So adding an example renumbers only its own section.
 - **`spec:`** is the fence's `spec="…"` attribute when it has one (anchors, as above). Otherwise it is the section the example is in: `PAGE#ID` for the nearest heading with an id before it, or `PAGE#top` before any. `index.html` cites its own sections (`index#tour-math`); a page in `examples/` cites `guide#top`.

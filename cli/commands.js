@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// luccet new, check, parse, build, mv, search, index and corpus, and the
+// luccet new, check, parse, build, mv, search and index, and the
 // arguments of luccet lsp.
 // Each command takes its arguments and returns the exit code (luccet lsp: none,
 // it runs until its client exits it):
@@ -7,9 +7,7 @@
 //   1  check: a diagnostic at or above --fail-on; new: it refused (the file
 //      exists, or the line it would write is not detected); mv: it refused
 //      (a destination exists, a folder into itself) or a move failed;
-//      search: nothing matched; index --check: a file is missing or stale;
-//      corpus: an example whose diagnostics differ from its expect, or a
-//      bad schema=
+//      search: nothing matched; index --check: a file is missing or stale
 //   2  a usage error, or a path that cannot be used
 // Diagnostics print as `file:line:col: severity code: message`, the hint
 // indented below, with file lines (cli/note.js filePosition).
@@ -22,7 +20,6 @@ const { spawnSync } = require('child_process');
 const { split, notNote, attributes, analyse, htmlFiles, repository, luccet, clean, readText } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
-const examples = require('./examples');
 const { relocate, apply } = require('./relocate');
 
 const SYNOPSIS = {
@@ -33,7 +30,6 @@ const SYNOPSIS = {
   mv: 'luccet mv FROM… TO [--root=DIR] [--dry-run] [--json]',
   search: 'luccet search QUERY [PATH…] [--index=FILE] [--json] [--limit=N|all] [--no-scripts]',
   index: 'luccet index [PATH…] [-o DIR] [--check] [--all] [--json] [--no-scripts]',
-  corpus: 'luccet corpus PATH… [--out=DIR]',
   lsp: 'luccet lsp [--stdio]',
 };
 
@@ -91,19 +87,12 @@ const usage = () =>
       said on stderr. --check writes nothing and exits 1 when a file is
       missing or differs from what would be written. --json prints the
       summary as one object.
-  ${SYNOPSIS.corpus}
-      Print the live examples of documentation pages (luccet fences with the
-      class live) as conformance-corpus cases. A case's spec: line is the
-      fence's spec=, else PAGE#ID, the section of docs/PAGE.html it is in
-      (PAGE#top before any heading; guide#top for a page outside docs/).
-      --out writes DIR/docs-PAGE.txt.
   ${SYNOPSIS.lsp}
       The language server, over stdio (--stdio, which some editors pass, is
       accepted and changes nothing).
 
 Exit codes: 0 done; 1 check found problems, new or mv refused, search found
-nothing, index --check found a file missing or stale, or corpus found an
-example that does not match its expect; 2 a usage error.
+nothing, or index --check found a file missing or stale; 2 a usage error.
 `;
 
 class UsageError extends Error {
@@ -1010,71 +999,6 @@ function mv(args) {
   return 0;
 }
 
-// ---------------------------------------------------------------- corpus
-
-// The live examples of documentation pages as corpus cases (cli/examples.js
-// toCorpus; test/corpus/README.md "Cases from the documentation"). Paths are
-// files or directories, as for check. Without --out the cases go to stdout,
-// page after page; with it, each page with examples is DIR/docs-PAGE.txt
-// (DIR is created). An example that does not match its expect, or names an
-// unknown schema, is left out and reported as `file:line: message`: exit 1.
-function corpus(args) {
-  const { values: o, positionals } = options(args, { out: { type: 'string' } });
-  if (o.help) return help('corpus');
-  if (!positionals.length) throw new UsageError('give at least one PATH');
-  if (o.out !== undefined && !o.out) throw new UsageError('--out is empty');
-  const files = [];
-  const seen = new Set();
-  for (const p of positionals) {
-    let st;
-    try {
-      st = fs.statSync(p);
-    } catch (e) {
-      throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
-    }
-    for (const f of st.isDirectory() ? [...htmlFiles(p)] : [p]) {
-      const key = path.resolve(f);
-      if (!seen.has(key)) seen.add(key), files.push({ shown: slash(f), named: !st.isDirectory() });
-    }
-  }
-  if (o.out) {
-    try {
-      fs.mkdirSync(o.out, { recursive: true });
-    } catch (e) {
-      throw new UsageError(`cannot create ${o.out}: ${e.message}`, false);
-    }
-  }
-  let cases = 0;
-  let pages = 0;
-  let failed = false;
-  const shown = (f) => f.split(path.sep).join('/');
-  const written = new Map(); // output file -> the page that wrote it
-  for (const f of files) {
-    const text = read(f.shown, 'corpus');
-    const x = examples.extract(text, f.shown);
-    if (!x) {
-      if (f.named) warn(`luccet corpus: ${f.shown} is not a note (${notNote(text)}); skipped`);
-      continue;
-    }
-    const c = examples.toCorpus(x, shown(f.shown));
-    for (const p of c.problems) warn(`${f.shown}:${p.line}: ${p.message}`);
-    failed = failed || c.problems.length > 0;
-    if (!c.cases) continue;
-    cases += c.cases;
-    pages++;
-    if (!o.out) {
-      process.stdout.write(`${pages > 1 ? '\n' : ''}${c.text}`);
-      continue;
-    }
-    const out = path.join(o.out, `docs-${examples.pageSlug(f.shown)}.txt`);
-    if (written.has(out)) throw new UsageError(`${f.shown} and ${written.get(out)} would both write ${out}`, false);
-    written.set(out, f.shown);
-    fs.writeFileSync(out, c.text);
-  }
-  warn(`luccet corpus: ${plural(cases, 'case')} from ${plural(pages, 'page')}${o.out ? `, written to ${o.out}` : ''}`);
-  return failed ? 1 : 0;
-}
-
 // ---------------------------------------------------------------- vendor
 
 // `luccet vendor` went with the add-ons it served, in 2.0: each add-on that
@@ -1103,7 +1027,6 @@ module.exports = {
   mv: command('mv', mv),
   search: command('search', search),
   index: command('index', index),
-  corpus: command('corpus', corpus),
   vendor: command('vendor', vendor),
   lsp: command('lsp', lsp),
 };

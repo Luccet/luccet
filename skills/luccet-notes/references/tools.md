@@ -1,6 +1,6 @@
 # The command line and publishing
 
-`luccet-cli.js` is Luccet's one command-line program: `new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`. Every command runs the same engine as the browser, on the same file, with the note's own vocabulary, so `luccet check` reports what the page's diagnostics panel reports, except problems found only at run time (a script that fails). A note never loads `luccet-cli.js`; it needs only `luccet.js`.
+`luccet-cli.js` is Luccet's one command-line program: `new`, `check`, `parse`, `build`, `mv`, `search`, `index` and `lsp`. Every command runs the same engine as the browser, on the same file, with the note's own vocabulary, so `luccet check` reports what the page's diagnostics panel reports, except problems found only at run time (a script that fails). A note never loads `luccet-cli.js`; it needs only `luccet.js`.
 
 The examples below are real runs. Paths are relative to the folder the command ran in.
 
@@ -26,7 +26,7 @@ $ sed -n 2p luccet.js
 | Exit | Meaning |
 |---|---|
 | `0` | Done. Also `luccet check` with nothing at or above `--fail-on`, or with no notes found. |
-| `1` | `luccet check` found a diagnostic at or above `--fail-on`; `luccet new` or `luccet mv` refused, or a move failed (and was undone); `luccet corpus` left out an example. |
+| `1` | `luccet check` found a diagnostic at or above `--fail-on`; `luccet new` or `luccet mv` refused, or a move failed (and was undone); `luccet search` found nothing; `luccet index --check` found a file missing or stale. |
 | `2` | Usage error (missing argument, unknown option, bad value), or a path that cannot be used: a missing or unreadable file; for `parse` and `build`, a file that is not a note. |
 
 ## Which files are notes
@@ -263,7 +263,7 @@ Without `--dry-run`, the first line reads `moved …` and the summary drops "a d
 
 **Refusals** (exit 1, nothing moves): a destination exists (`luccet mv: notes/linear/maps.html exists; move or remove it first`); a folder into itself (`luccet mv: cannot move notes into itself`); two FROMs with the same name; FROM already at TO (`… is already there`). A case-only rename on a case-insensitive disk is allowed. A missing FROM, a FROM inside another FROM, or several FROMs with a TO that is not a folder are usage errors (exit 2). A move that fails halfway is undone: nothing moved, no link changed.
 
-## luccet build, luccet parse, luccet corpus
+## luccet build, luccet parse
 
 ```sh
 luccet build FILE… [-o OUT] [--json]
@@ -289,8 +289,6 @@ luccet parse FILE [--transformed] [--compact]
 ```
 
 Prints the syntax tree as JSON (no diagnostics), for debugging what the parser saw. `--transformed` runs the transforms first (ids, numbers, references, `root.data.luccet`); `--compact` prints one line. Positions are note lines. Example: `luccet parse note.html --transformed --compact | jq '.data.luccet.ids'`. Exit 2 for a file that is not a note.
-
-`luccet corpus` turns the live examples of Luccet's own documentation pages into test cases; you will not need it.
 
 ## The language server
 
@@ -380,7 +378,7 @@ Details: [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
 ### Trust
 
 - **In the browser a note is not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
-- **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse` and `lsp` run a note's local head scripts and script add-ons to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
+- **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse`, `search`, `index` and `lsp` run a note's local head scripts and script add-ons (`--no-scripts`, or the server's `noScripts`, runs none) to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
 - **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin jsDelivr tags.
 - **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `luccet.toHTML(text, { safe: true })` and insert the result. See [Trust](https://luccet.dev/docs/publishing.html#trust).
 

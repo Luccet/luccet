@@ -23,6 +23,7 @@
 //
 //   new Targets(opts)        files as the checks read them (below):
 //     .analyse(file, text?)    cli/note.js analyse(), or null for a non-note
+//     .later(file)             the same as a promise, over opts.analyseAsync
 //     .remember(file, a)       an analysis of the file as it is now
 //     .parsed(file)            {text, a}: the file's text and parsed(text)
 //     .find(dir, rel)          what a relative path names from a folder:
@@ -30,6 +31,7 @@
 //                              actual the path as the disk spells it, exact
 //                              false when a segment differs in case alone
 //     .ids(file)               a Set, or null when the file has no ids to know
+//                              (or, with opts.analyseAsync, none yet)
 //     .during(fn)              fn(), with each file's stat taken once
 //   urls(a)                  the URLs of a note analysed as `a`, with where
 //                            they are and where they are written; one list
@@ -101,11 +103,20 @@ function lineCol(text, offset) {
 //                            or undefined: the editor's text wins over the
 //                            disk's, and an open file exists
 //   opts.analyse(text, file) analyses a note (default cli/note.js analyse)
+//   opts.analyseAsync(text, file), opts.landed(file): the language server's.
+//                            A note a link names is analysed over it, never
+//                            waited for: ids() knows none until it lands,
+//                            and landed(file) says when to check again. A
+//                            linked note whose script never returns then
+//                            costs the links to it, not the other notes.
 const MAX = 512;
 class Targets {
-  constructor({ open, analyse: run } = {}) {
+  constructor({ open, analyse: run, analyseAsync, landed } = {}) {
     this.open = open || (() => undefined);
     this.run = run || ((text, file) => analyse(text, file));
+    this.runAsync = analyseAsync || null;
+    this.landed = landed || (() => {});
+    this.pending = new Map(); // file -> {stamp, promise}: analyses over runAsync on their way
     this.dirs = new Map(); // dir -> {stamp, names}
     this.notes = new Map(); // file -> {stamp, a}
     this.idSets = new Map(); // file -> {stamp, ids}
@@ -170,6 +181,42 @@ class Targets {
     const a = this.run(read, file);
     this.keep(this.notes, file, { stamp: src.stamp, text: read, a });
     return a;
+  }
+
+  // The note's analysis as a promise, over runAsync when there is one,
+  // shared by every caller while it runs. One that lands for the file as it
+  // still is is kept; either way landed(file) is called. A runner that fails
+  // gives null, kept as an analysis would be, so a check does not start it
+  // again until the file changes.
+  later(file) {
+    const src = this.source(file);
+    const hit = this.notes.get(file);
+    if (hit && hit.stamp === src.stamp) return Promise.resolve(this.keep(this.notes, file, hit).a);
+    const on = this.pending.get(file);
+    if (on && on.stamp === src.stamp) return on.promise;
+    const text = src.text();
+    const entry = { stamp: src.stamp, promise: null };
+    const done = (a) => {
+      if (this.pending.get(file) === entry) this.pending.delete(file);
+      if (this.source(file).stamp === entry.stamp) this.keep(this.notes, file, { stamp: entry.stamp, text, a });
+      this.landed(file);
+      return a;
+    };
+    entry.promise = Promise.resolve()
+      .then(() => (this.runAsync ? this.runAsync(text, file) : this.run(text, file)))
+      .then(done, () => done(null));
+    this.pending.set(file, entry);
+    return entry.promise;
+  }
+
+  // The note's analysis if it is known for the file as it is, else
+  // undefined, with later(file) started.
+  soon(file) {
+    const src = this.source(file);
+    const hit = this.notes.get(file);
+    if (hit && hit.stamp === src.stamp) return this.keep(this.notes, file, hit).a;
+    this.later(file);
+    return undefined;
   }
 
   // An analysis made elsewhere, of the file as it is now (the language
@@ -241,7 +288,8 @@ class Targets {
     if (hit && hit.stamp === src.stamp) return this.keep(this.idSets, file, hit).ids;
     let ids = null;
     if (/\.html?$/i.test(file)) {
-      const a = this.analyse(file);
+      const a = this.runAsync ? this.soon(file) : this.analyse(file);
+      if (a === undefined) return null; // on its way: landed() says when to check again
       if (a) {
         ids = new Set(Object.keys(a.ast.data.luccet.ids));
         const html = luccet.emit(a.ast, { ...a.opts, positions: false });

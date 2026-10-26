@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // A documentation page's live examples (docs/README.md "Live examples"): the
 // `luccet` fences with the class `live`, which docs/docs.js renders on the
-// page. Shared by `luccet corpus` (cli/commands.js), test/docs.js and the docs
+// page. Shared by tools/corpus.js, test/docs.js and the docs
 // smoke tests, so all three read the same examples the same way. Node only.
 //
 // An example's attributes, as written on the fence and emitted on its
@@ -12,7 +12,7 @@
 //                      demo is window.luccetDocs.demo from the page's add-ons
 //                      (docs.js), which equals test/fixtures/schema.js
 //   head="…"           the preserved head, as a string
-//   spec="PAGE#ID …"   the documentation anchors `luccet corpus` cites on the
+//   spec="PAGE#ID …"   the documentation anchors tools/corpus.js cites on the
 //                      case's spec: line, as `syntax-blocks#fence`; when
 //                      absent, the example's own section (citation below)
 // The example's note is the fence's text plus a final line break, as a
@@ -200,7 +200,7 @@ function toCorpus(x, shown) {
       ].join('\n'),
     );
   }
-  const text = cases ? `# ${shown}: live examples (luccet corpus)\n\n${out.join('\n\n')}\n` : '';
+  const text = cases ? `# ${shown}: live examples (tools/corpus.js)\n\n${out.join('\n\n')}\n` : '';
   return { text, cases, problems };
 }
 

@@ -679,7 +679,7 @@ check('a stuck script: requests are answered meanwhile, the last vocabulary is k
   const b = await c.published(uri);
   assert.strictEqual(b.version, 2);
   assert.deepStrictEqual(b.diagnostics.map((d) => d.code), ['addon.failed', 'block.stray-closer']);
-  assert.ok(b.diagnostics[0].message.includes('did not finish in 2 s') && b.diagnostics[0].message.includes('its vocabulary is kept from its last analysis'), b.diagnostics[0].message);
+  assert.ok(b.diagnostics[0].message.includes('the transforms') && b.diagnostics[0].message.includes('did not finish in the 2 s') && b.diagnostics[0].message.includes('its vocabulary is kept from its last analysis'), b.diagnostics[0].message);
   assert.deepStrictEqual(await names(C), ['schema → <section>'], 'the vocabulary kept: the names are known (the trigger read from the text as it is, C)');
   const cc = await c.published(uri);
   assert.strictEqual(cc.version, 3);
@@ -805,7 +805,10 @@ check('links between files: checked as luccet check does; an open document wins 
   fs.writeFileSync(path.join(L, 'b.html'), B);
   const A = '<script src="../luccet.js"></script>\n# A\n\n[known](b.html#known), [later](b.html#later), [new](new.html).\n';
   const fa = path.join(L, 'a.html');
-  const a = await c.open(fa, A);
+  let a = await c.open(fa, A);
+  // b.html is analysed without waiting for it (cli/links.js analyseAsync):
+  // when it lands, a.html is published again with its fragments checked.
+  if (!a.diagnostics.some((d) => d.code === 'link.dangling')) a = { ...a, diagnostics: (await c.published(a.uri)).diagnostics };
   const codes = (list) => list.map((d) => [d.code, d.message]);
   assert.deepStrictEqual(codes(a.diagnostics), [
     ['link.dangling', 'b.html has no element with the id later\ncheck the id after #: ids are case-sensitive'],
@@ -835,7 +838,11 @@ check('links between files: checked as luccet check does; an open document wins 
   assert.ok(!(await c.published(a.uri)).diagnostics.some((d) => d.code === 'link.missing'), 'on disk now');
   c.notify('textDocument/didClose', doc(b.uri));
   await c.published(b.uri);
-  assert.deepStrictEqual(codes((await c.published(a.uri)).diagnostics).map(([k]) => k), ['link.dangling'], 'b.html closed: its file again, which has #known');
+  // Its file is analysed again without waiting: a.html is published with
+  // the fragments unknown, then again when the analysis lands.
+  let closed = await c.published(a.uri);
+  if (!closed.diagnostics.length) closed = await c.published(a.uri);
+  assert.deepStrictEqual(codes(closed.diagnostics).map(([k]) => k), ['link.dangling'], 'b.html closed: its file again, which has #known');
   c.notify('textDocument/didClose', doc(a.uri));
   await c.published(a.uri);
 
@@ -845,6 +852,32 @@ check('links between files: checked as luccet check does; an open document wins 
   assert.deepStrictEqual((await c.published(u)).diagnostics, []);
   c.notify('textDocument/didClose', doc(u));
   await c.published(u);
+});
+
+// A link's target is analysed without waiting for it (cli/links.js
+// analyseAsync): a linked note whose script never returns costs the links to
+// it their check until the sandbox cuts it off, not the other documents
+// their analysis. Waited for, it held every publish for the sandbox's 2 s.
+check('links to a note whose script never returns: the linking note and the others are published at once; the link is checked when the target lands', async () => {
+  const S = path.join(DIR, 'stuck');
+  fs.mkdirSync(S, { recursive: true });
+  fs.writeFileSync(path.join(S, 'spin.js'), 'for (;;) {}\n');
+  fs.writeFileSync(path.join(S, 'target.html'), '<script src="../luccet.js" data-use="spin.js"></script>\n# Target\n');
+  const A = '<script src="../luccet.js"></script>\n# A\n\n[there](target.html#nowhere)\n';
+  const t0 = Date.now();
+  const a = await c.open(path.join(S, 'a.html'), A);
+  const first = Date.now() - t0;
+  const other = await c.open(path.join(S, 'other.html'), '<script src="../luccet.js"></script>\n# Other\n\n:::\n');
+  const second = Date.now() - t0;
+  assert.ok(first < 1500 && second < 1500, `published in ${first} ms and ${second} ms, not after the sandbox's 2 s`);
+  assert.deepStrictEqual(a.diagnostics, [], 'the fragment is not known yet');
+  assert.deepStrictEqual(other.diagnostics.map((d) => d.code), ['block.stray-closer']);
+  const landed = await c.published(a.uri);
+  assert.deepStrictEqual(landed.diagnostics.map((d) => d.code), ['link.dangling'], 'checked once the target lands, its code cut off');
+  for (const u of [a.uri, other.uri]) {
+    c.notify('textDocument/didClose', doc(u));
+    await c.published(u);
+  }
 });
 
 check('willRenameFiles: luccet mv’s edits, for the files where they are; the workspace folders, else the moved file’s folder', async () => {

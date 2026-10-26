@@ -37,6 +37,11 @@ function run(args, { cwd = TMP, env } = {}) {
   const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env: { ...process.env, NODE_PATH: '', ...env } });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
+// tools/corpus.js, the repository's tool that was `luccet corpus` before 2.0.
+function corpus(args) {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'corpus.js'), ...args], { cwd: TMP, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } });
+  return { code: r.status, out: r.stdout, err: r.stderr };
+}
 
 class Skip extends Error {}
 const tests = [];
@@ -641,14 +646,21 @@ test('check, build: a :::use block in a CRLF note loads its add-ons; only ::: or
   ok(/<span class="t-label">Box<\/span>/.test(run(['build', 'crlf/a.html']).out), 'box.js under an attribute line is loaded');
 });
 
-test('check: a transform that never returns is addon.failed, not a hang', () => {
+// The 2 s cover the note's code and the analysis the sandbox makes with it;
+// the message names where the time went (cli/sandbox.js's phase marker).
+test('check: a transform that never returns is addon.failed, not a hang, and the message says the transforms took the time; a script that never returns, the scripts', () => {
   write('sb/spin.js', "luccet.transform('spin', function () { while (true) {} });\n");
   write('sb/spin.html', `${FIRST}<script src="luccet.js" data-use="spin.js"></script>\n# x\n`);
   const t0 = Date.now();
   const r = run(['check', 'sb/spin.html']);
   ok(Date.now() - t0 < 8000, `cut off well before the wedged deadline (${Date.now() - t0}ms)`);
   exits(r, 1, 'check');
-  ok(/error addon\.failed: the note's scripts did not finish in 2 s/.test(r.out), `timeout: ${r.out}`);
+  ok(/error addon\.failed: the note's code ran, but the transforms \(its add-ons', and the engine's with their label functions\) did not finish in the 2 s the sandbox gives both/.test(r.out), `timeout in the transforms: ${r.out}`);
+  write('sb/loop.js', 'while (true) {}\n');
+  write('sb/loop.html', `${FIRST}<script src="luccet.js" data-use="loop.js"></script>\n# x\n`);
+  const l = run(['check', 'sb/loop.html']);
+  exits(l, 1, 'check');
+  ok(/error addon\.failed: the note's scripts did not finish in 2 s, so they were not run/.test(l.out), `timeout in the code: ${l.out}`);
 });
 
 test('check: a note that crashes the sandbox is addon.failed, and the run goes on', () => {
@@ -658,7 +670,7 @@ test('check: a note that crashes the sandbox is addon.failed, and the run goes o
   write('sb/fine.html', `${FIRST}<script src="luccet.js" data-use="fine.js"></script>\n:::aside{#a}\nx\n:::\n`);
   const r = run(['check', 'sb/bomb.html', 'sb/fine.html']);
   exits(r, 1, 'check');
-  ok(/sb\/bomb\.html:1:1: error addon\.failed: the note's scripts used too much memory or crashed/.test(r.out), `crash: ${r.out}`);
+  ok(/sb\/bomb\.html:1:1: error addon\.failed: the note's code, or the analysis with it, used too much memory or crashed/.test(r.out), `crash: ${r.out}`);
   ok(!/sb\/fine\.html/.test(r.out), `the next note is fine, on a fresh child: ${r.out}`);
 });
 
@@ -1542,12 +1554,12 @@ const DOC_PAGE = [
   '',
 ].join('\n');
 
-test('corpus: live examples become corpus cases (ids, spec, options, blocks) that parse and pass', () => {
+test('tools/corpus.js: live examples become corpus cases (ids, spec, options, blocks) that parse and pass', () => {
   write('c/docs/demo.js', DEMO_ADDON);
   write('c/docs/page.html', DOC_PAGE);
-  const r = run(['corpus', 'c/docs/page.html']);
+  const r = corpus(['c/docs/page.html']);
   exits(r, 0, 'corpus');
-  ok(/luccet corpus: 7 cases from 1 page/.test(r.err), `the summary: ${r.err}`);
+  ok(/^corpus: 7 cases from 1 page/m.test(r.err), `the summary: ${r.err}`);
   write('c/out1/a.txt', r.out);
   const { cases, errors } = loadAll(at('c/out1'));
   eq(errors.map((e) => e.message), [], 'the cases parse');
@@ -1576,7 +1588,7 @@ test('corpus: live examples become corpus cases (ids, spec, options, blocks) tha
   // --out writes DIR/docs-PAGE.txt, the same text; a page in examples/ gets examples- in its ids.
   write('c/examples/demo.js', DEMO_ADDON);
   write('c/examples/lecture.html', `${FIRST}<script src="../luccet.js"></script>\n${F3}luccet {.live}\nx\n${F3}\n`);
-  const o = run(['corpus', 'c/docs/page.html', 'c/examples', '--out=c/out2/sub']);
+  const o = corpus(['c/docs/page.html', 'c/examples', '--out=c/out2/sub']);
   exits(o, 0, 'corpus --out');
   eq(fs.readFileSync(at('c/out2/sub/docs-page.txt'), 'utf8'), r.out, '--out writes what stdout prints');
   const lecture = fs.readFileSync(at('c/out2/sub/docs-examples-lecture.txt'), 'utf8');
@@ -1585,9 +1597,9 @@ test('corpus: live examples become corpus cases (ids, spec, options, blocks) tha
   eq(o.out, '', 'nothing on stdout with --out');
 });
 
-test('corpus: an example that does not match its expect, or has no schema, is reported and left out (exit 1); usage', () => {
+test('tools/corpus.js: an example that does not match its expect, or has no schema, is reported and left out (exit 1); usage', () => {
   write('c/bad/page.html', [`${FIRST}<script src="luccet.js"></script>`, `${F3}luccet {.live expect="block.unclosed"}`, 'fine', F3, '', `${F3}luccet {.live schema=demo}`, 'x', F3, '', `${F3}luccet {.live schema=mine}`, 'y', F3, '', `${F3}luccet {.live}`, 'z', F3, ''].join('\n'));
-  const r = run(['corpus', 'c/bad/page.html']);
+  const r = corpus(['c/bad/page.html']);
   exits(r, 1, 'corpus with problems');
   const lines = r.err.trimEnd().split('\n');
   ok(lines.some((l) => /^c\/bad\/page\.html:2: example page-1: expect="block\.unclosed" but the engine reports nothing/.test(l)), `the mismatch, at its file line: ${r.err}`);
@@ -1595,12 +1607,12 @@ test('corpus: an example that does not match its expect, or has no schema, is re
   ok(lines.some((l) => /^c\/bad\/page\.html:10: schema="mine" is not a schema/.test(l)), 'an unknown schema');
   eq((r.out.match(/^## /gm) || []).length, 1, 'only the good example is a case');
   write('c/bad/plain.html', '<!doctype html><p>not a note</p>\n');
-  const n = run(['corpus', 'c/bad/plain.html']);
+  const n = corpus(['c/bad/plain.html']);
   exits(n, 0, 'a file that is not a note');
   ok(/is not a note/.test(n.err), 'says why');
-  exits(run(['corpus']), 2, 'no path');
-  exits(run(['corpus', 'c/nowhere.html']), 2, 'a missing file');
-  exits(run(['corpus', 'c/bad/page.html', '--bogus']), 2, 'an unknown option');
+  exits(corpus([]), 2, 'no path');
+  exits(corpus(['c/nowhere.html']), 2, 'a missing file');
+  exits(corpus(['c/bad/page.html', '--bogus']), 2, 'an unknown option');
 });
 
 // Output piped to a reader that closes early (luccet parse big.html | head):
@@ -1621,11 +1633,13 @@ test('parse | head: a reader that closes early ends the command quietly, exit 0,
 test('usage: help, unknown commands, --help, --version', () => {
   const h = run(['help']);
   exits(h, 0, 'help');
-  for (const c of ['new', 'check', 'parse', 'build', 'corpus', 'lsp']) ok(h.out.includes(`luccet ${c}`), `usage names ${c}`);
+  for (const c of ['new', 'check', 'parse', 'build', 'lsp']) ok(h.out.includes(`luccet ${c}`), `usage names ${c}`);
+  ok(!h.out.includes('luccet corpus'), 'corpus is a tool of the repository now (tools/corpus.js), not a command');
+  exits(run(['corpus', 'x.html']), 2, 'corpus is no command');
   exits(run([]), 0, 'no command');
   exits(run(['bogus']), 2, 'an unknown command');
   exits(run(['usage']), 2, 'usage is not a command');
-  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'corpus', 'lsp']) {
+  for (const c of ['new', 'check', 'parse', 'build', 'mv', 'search', 'index', 'lsp']) {
     const r = run([c, '--help']);
     exits(r, 0, `${c} --help`);
     ok(r.out.startsWith(`usage: luccet ${c}`), `${c} --help prints its synopsis`);

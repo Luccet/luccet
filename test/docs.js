@@ -12,7 +12,7 @@
 //   - Every live example: its diagnostics equal its `expect` as a multiset,
 //     under schema=none or demo and its head=; it renders; what its case
 //     cites (its spec=, else its section) are anchors PAGE#ID that exist.
-//     `luccet corpus` turns the page's examples into corpus cases that parse
+//     tools/corpus.js turns the page's examples into corpus cases that parse
 //     and lint (test/lib/corpus.js, spec.js).
 //   - Every link: a relative link, image or element URL (`[x](page.html#id)`,
 //     `![x](img.svg)`, `::video{src=…}`, raw HTML href/src) names a file that
@@ -123,7 +123,7 @@ function checkExamples({ file, x }) {
     } catch (e) {
       problem(file, ex.line, `live example ${ex.slug} throws: ${(e && e.stack) || e}`);
     }
-    // What `luccet corpus` cites for it: its spec=, else its section.
+    // What tools/corpus.js cites for it: its spec=, else its section.
     for (const s of ex.spec || [ex.cite]) {
       const r = spec.resolve(String(s));
       if (r.error) problem(file, ex.line, `live example ${ex.slug}: ${ex.spec ? `spec="${ex.spec.join(' ')}"` : 'its section'} cites ${s}: ${r.error}`);
@@ -131,7 +131,7 @@ function checkExamples({ file, x }) {
   }
 }
 
-// `luccet corpus` on the pages: the cases parse as corpus cases, and their
+// tools/corpus.js on the pages: the cases parse as corpus cases, and their
 // codes and severities lint. Mismatched examples and the anchors the cases
 // cite are reported with the examples.
 function checkCorpus(checked) {
@@ -143,12 +143,12 @@ function checkCorpus(checked) {
       if (c.text) fs.writeFileSync(path.join(tmp, `${String(++n).padStart(3, '0')}.txt`), c.text);
     }
     const { cases, errors } = loadAll(tmp);
-    for (const e of errors) problems.push(`luccet corpus: ${e.message.replace(/^[^:]*:\d+: /, '')}`);
+    for (const e of errors) problems.push(`corpus: ${e.message.replace(/^[^:]*:\d+: /, '')}`);
     for (const c of cases) {
       for (const d of c.diagnostics || []) {
         const known = spec.codes.get(d.code);
-        if (!known) problems.push(`luccet corpus: ${c.id}: ${d.code} is not an engine code (src/diag.js)`);
-        else if (known !== d.severity) problems.push(`luccet corpus: ${c.id}: ${d.code} is ${known} in src/diag.js, luccet.js says ${d.severity}`);
+        if (!known) problems.push(`corpus: ${c.id}: ${d.code} is not an engine code (src/diag.js)`);
+        else if (known !== d.severity) problems.push(`corpus: ${c.id}: ${d.code} is ${known} in src/diag.js, luccet.js says ${d.severity}`);
       }
     }
     return cases.length;

@@ -60,7 +60,8 @@
     "samples": "node test/samples.js",
     "perf": "node test/perf.js",
     "fuzz": "node test/fuzz.js",
-    "smoke": "node test/smoke.js"
+    "smoke": "node test/smoke.js",
+    "corpus": "node tools/corpus.js index.html docs examples"
   },
   "devDependencies": {
     "playwright": "1.61.1"

@@ -18,7 +18,7 @@ The documentation is a set of Luccet notes. Every page is a `.html` file whose f
 | `docs/addons.html` | Add-ons | what an add-on is and how to load one, and the table of Luccet's add-ons, each linking to its own repository's page (github.com/Luccet/NAME); nothing else in the docs documents an add-on |
 | `docs/addon-api.html` | Writing an add-on | the add-on contract, `luccet.api`: loading, options and failure, a complete add-on, what an add-on registers, the lifecycle, math, foreign content, under node, stability |
 | `docs/diagnostics.html` | Diagnostics | every diagnostic: when it fires, what happens to the content, an example, the fix |
-| `docs/tools.html` | Command line and editors | `luccet new/check/parse/build/mv/search/index/corpus/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
+| `docs/tools.html` | Command line and editors | `luccet new/check/parse/build/mv/search/index/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
 | `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `luccet build`, CSP, math and KaTeX, offline use, browsers, trust, "When it does not render" |
 | `docs/api.html` | JavaScript API | `luccet.*`, options, the AST and `data.luccet`, the transformed AST, the runtime lifecycle, events, config |
 | `examples/*.html` | Examples | complete notes, each declaring its own vocabulary |
@@ -107,4 +107,67 @@ node test/docs.js                                   # pages, live examples and l
 NODE_PATH=… node test/smoke.js --filter=docs        # the pages in Chromium and Firefox
 ```
 
-`luccet corpus FILE…` prints a page's live examples as conformance-corpus cases (the `test/corpus/README.md` format).
+`tools/corpus.js` prints a page's live examples as conformance-corpus cases ([Cases from the documentation](#cases-from-the-documentation)).
+
+## Cases from the documentation
+
+`tools/corpus.js` (`npm run corpus` for the whole site) turns the live examples of these pages into cases of the conformance corpus, the test format of `test/corpus/`, so every example in the documentation is also a test of the engine. It reads the pages through `docs.js`, so it runs their code in the sandbox, as `luccet check` does.
+
+```sh
+node tools/corpus.js PATH… [--out=DIR]
+```
+
+`PATH…` are pages and folders, at least one; folders are searched as `luccet check` searches them. `--out=DIR` writes one file per page with examples, `DIR/docs-PAGE.txt`, and creates `DIR` if needed. Without it, the cases go to stdout, page after page.
+
+An example is a `luccet` fence with the class `live` (above). Its attributes say how to run it: `expect="…"`, the codes it must produce; `schema=none` (the default) or `schema=demo`; `head="…"`, a preserved head; and `spec="syntax-blocks#fence"`, the documentation sections it illustrates. For the first example of the command line's page:
+
+`````sh
+$ node tools/corpus.js docs/tools.html
+# docs/tools.html: live examples (tools/corpus.js)
+
+## docs/tools-check-1
+
+spec: tools#check
+options: schema=none
+
+The live example on line 269 of docs/tools.html.
+
+````luccet
+# The kernel
+
+See @rank for the dimension count.
+
+:::aside
+Every linear map has a kernel.
+
+$$
+\ker f = \{ v : f(v) = 0 \}
+````
+
+````diagnostics
+3:5 warning ref.dangling
+5:1 error block.unclosed
+8:1 error math.unclosed
+````
+…
+corpus: 3 cases from 1 page
+`````
+
+- **The id** is `docs/PAGE-SLUG`. `PAGE` is the file name (`examples-NAME` for a page in `examples/`). `SLUG` is the fence's own `#id` when it has one; otherwise the id of the heading the example follows and its number under that heading, as `check-1` above. Adding an example renumbers only its own section.
+- **`spec:`** cites documentation sections as `PAGE#ID`, where `PAGE` is a page of `docs/` without `.html`. It is the fence's `spec=`, else the section the example is in: the nearest heading before it with an id, as `tools#check` above, or `PAGE#top` before any heading. Examples on a page outside `docs/`, such as `index.html` or an example note, cite `guide#top`.
+- **`options:`** is `schema=none` for an example without a schema. An example with `schema=demo` has no such line: the corpus's own schema, `test/fixtures/schema.js`, is the demo schema. `escaped` is added when the source holds tabs, carriage returns, NUL, a byte-order mark or trailing spaces.
+- **The blocks.** `luccet` is the example's text; `html head` its `head=`; `diagnostics` its expected codes, with the positions and severities the engine gives them.
+
+**Problems.** An example that cannot become a case is left out and reported on stderr as `FILE:LINE: message`, and the script exits 1:
+
+```sh
+$ node tools/corpus.js page.html
+page.html:10: schema=demo, but the page's add-ons expose no demo schema (window.luccetDocs.demo from docs.js)
+page.html:16: schema="other" is not a schema the docs know (none, demo)
+page.html:6: example page-first-1: expect="" but the engine reports ref.dangling (missing nothing, unexpected ref.dangling)
+corpus: 0 cases from 0 pages
+```
+
+- **Exit codes.** 0 when every example became a case; 1 when one was left out; 2 for a usage error: no `PATH`, an empty `--out`, a path that does not exist, or two pages that would write the same file.
+- A page you name that is not a note is skipped, with a note on stderr.
+- `test/docs.js` extracts the examples of every page this way, and checks that the cases parse and pass the corpus lint.

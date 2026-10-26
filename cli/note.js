@@ -19,13 +19,15 @@ const { scanUse } = require('../src/use');
 //   - a <script> tag on it has a src whose file name is luccet.js (any path,
 //     any quotes, a query or fragment allowed; not myluccet.js, luccet.json);
 //   - the tag is not inside a comment opened earlier on the line;
-//   - it has no async, defer or type=module (luccet.js would not capture the
-//     note) and no data-built (a page written by `luccet build` is not a note).
+//   - it runs as a classic script while the page is parsed, so that luccet.js
+//     captures the note: no async, defer or nomodule, and a type that is
+//     empty or a JavaScript MIME type (not module, text/plain, importmap …);
+//   - it has no data-built (a page written by `luccet build` is not a note).
 // The tag must be on one line and hold no < or >; a comment that spans
 // lines is not seen. Each attempt stops at the next < or >, so a line costs
 // linear time.
 const DETECT =
-  /^(?:[^<]|<(?!!--)|<!--(?:[^-]|-(?!->))*-->)*?(<script(?=[\s>/])(?![^<>]*\s(?:async|defer|data-built)(?=[\s=>/]|$))(?![^<>]*\stype\s*=\s*["']?module(?=["'\s>/]|$))[^<>]*?\ssrc\s*=\s*(["']?)(?:[^"'\s<>]*\/)?luccet\.js(?:[?#][^"'\s<>]*)?\2(?=[\s>/])[^<>]*>)/i;
+  /^(?:[^<]|<(?!!--)|<!--(?:[^-]|-(?!->))*-->)*?(<script(?=[\s>/])(?![^<>]*\s(?:async|defer|nomodule|data-built)(?=[\s=>/]|$))(?![^<>]*\stype\s*=\s*(?:"(?!\s*(?:(?:text|application)\/(?:x-)?(?:java|ecma)script|text\/(?:jscript|livescript|javascript1\.[0-5]))?\s*")|'(?!\s*(?:(?:text|application)\/(?:x-)?(?:java|ecma)script|text\/(?:jscript|livescript|javascript1\.[0-5]))?\s*')|(?!["'])(?!(?:(?:text|application)\/(?:x-)?(?:java|ecma)script|text\/(?:jscript|livescript|javascript1\.[0-5]))(?=[\s>/]|$))))[^<>]*?\ssrc\s*=\s*(["']?)(?:[^"'\s<>]*\/)?luccet\.js(?:[?#][^"'\s<>]*)?\2(?=[\s>/])[^<>]*>)/i;
 
 // DETECT on one line: {index, tag} for the luccet.js tag, or null.
 function detect(line) {
@@ -38,8 +40,11 @@ function notNote(text) {
   const m = /<script\b[^<>]*\ssrc\s*=\s*["']?(?:[^"'\s<>]*\/)?luccet\.js(?:[?#][^"'\s<>]*)?(?=["'\s>/])[^<>]*>/i.exec(String(text));
   if (!m) return 'no line loads luccet.js';
   if (/\sdata-built\b/i.test(m[0])) return 'it is a page written by luccet build; check its source note';
-  const how = /\s(async|defer)(?=[\s=>/]|$)/i.exec(m[0]) || /\stype\s*=\s*["']?(module)/i.exec(m[0]);
+  const how = /\s(async|defer|nomodule)(?=[\s=>/]|$)/i.exec(m[0]);
   if (how) return `it loads luccet.js with ${how[1].toLowerCase()}, so luccet.js does not render it; use a plain <script src>`;
+  const type = /\stype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i.exec(m[0]);
+  const t = type ? (type[1] ?? type[2] ?? type[3]).trim() : '';
+  if (type && !JS_TYPE.test(t)) return `it loads luccet.js as type="${t}", which the browser does not run as a classic script; use a plain <script src>`;
   return 'its luccet.js tag is commented out or not on one line';
 }
 
@@ -119,15 +124,19 @@ function headScripts(head) {
 
 const isRemote = (url) => /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//');
 
-// Why the note's scripts were not run, as the addon.failed message: the
-// sandbox timed out, crashed, or could not start (cli/sandbox.js). `kept`
+// Why the note's code did not count, as the addon.failed message: the
+// sandbox timed out, crashed, or could not start (cli/sandbox.js). A time
+// out names where the time went: the code itself, or the parse or the
+// transforms that ran in the sandbox with it, under the same 2 s. `kept`
 // says that the vocabulary of the last analysis stands in.
-const failMessage = (kind, kept) => {
+const failMessage = (kind, kept, phase) => {
   const what = kept ? 'its vocabulary is kept from its last analysis, its transforms are missing' : 'its vocabulary and transforms are missing';
+  if (kind === 'timeout' && phase === 'parse') return `the note's code ran, but parsing the note with it did not finish in the 2 s the sandbox gives both, so its results are not used; ${what}`;
+  if (kind === 'timeout' && phase === 'transform') return `the note's code ran, but the transforms (its add-ons', and the engine's with their label functions) did not finish in the 2 s the sandbox gives both, so its results are not used; ${what}`;
   return kind === 'timeout'
     ? `the note's scripts did not finish in 2 s, so they were not run; ${what}`
     : kind === 'crash'
-      ? `the note's scripts used too much memory or crashed the sandbox, so they were not run; ${what}`
+      ? `the note's code, or the analysis with it, used too much memory or crashed the sandbox, so its results are not used; ${what}`
       : kind === 'unavailable'
         ? `the script sandbox is not available, so the note's scripts were not run; ${what}`
         : kind === 'tripped'
@@ -366,7 +375,7 @@ function finish({ parts, c, transform, stamp, opts }, r) {
       macros = last.macros || undefined;
     }
     ast = here();
-    problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed, !!last) }]);
+    problems = problems.concat([{ kind: 'sandbox', message: failMessage(r.failed, !!last, r.phase) }]);
   } else if (r.hostParse) {
     // The code ran there and declared plain data: the note is parsed here.
     // The diagnostics are copies, as the sandbox's reply would hold, so the

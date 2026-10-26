@@ -175,7 +175,12 @@ function driverSetup() {
 
   G.__luccetDriver = function (req) {
     // The request arrived as a global, and the driver is one: both go
-    // before any note code runs, which sees the engine alone.
+    // before any note code runs, which sees the engine alone. So does the
+    // phase marker, an Int32Array of the host's: where the time went when
+    // the run is cut off (0 the code, 1 the parse, 2 the transforms), read
+    // by the host as plain memory, never through the context.
+    var phase = G.__phase;
+    delete G.__phase;
     delete G.__reqText;
     delete G.__luccetDriver;
     var consoleOut = [];
@@ -331,9 +336,11 @@ function driverSetup() {
     if (hostParse) return stringify({ hostParse: true, schema: schema, lang: lang === undefined ? null : lang, math: math || null, macros: macros || null, luccetDocs: luccetDocs, problems: problems, failures: failures, consoleOut: consoleOut });
 
     var options = { schema: schema, head: req.head, lang: lang, math: math, macros: macros };
+    if (phase) phase[0] = 1;
     var parsed = E.parse(req.note, options);
     var diagnostics = parsed.diagnostics;
     if (req.transform) {
+      if (phase) phase[0] = 2;
       E.transform(parsed.ast, options);
       diagnostics = diagnostics.concat(parsed.ast.data.luccet.diagnostics);
     }
@@ -382,11 +389,14 @@ function childMain() {
       off += w; // a full pipe takes the rest on the next write
     }
   };
+  const PHASES = ['code', 'parse', 'transform'];
   const run = (reqText) => {
     let reply;
+    const phase = new Int32Array(1);
     try {
       const ctx = vm.createContext(Object.create(null), { codeGeneration: { strings: true, wasm: false }, microtaskMode: 'afterEvaluate' });
       ctx.__reqText = reqText;
+      ctx.__phase = phase;
       vm.runInContext('globalThis.module = { exports: {} };', ctx);
       luccetScript.runInContext(ctx, { timeout: STARTUP_MS });
       driverScript.runInContext(ctx, { timeout: STARTUP_MS });
@@ -394,7 +404,7 @@ function childMain() {
       if (typeof reply !== 'string') throw new Error('the driver returned no analysis');
     } catch (e) {
       const timeout = e && e.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT';
-      reply = JSON.stringify({ failed: timeout ? 'timeout' : 'error', message: (e && e.message) || String(e) });
+      reply = JSON.stringify({ failed: timeout ? 'timeout' : 'error', phase: PHASES[phase[0]] || 'code', message: (e && e.message) || String(e) });
     }
     writeFrame(reply);
   };

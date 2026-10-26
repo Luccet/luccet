@@ -371,12 +371,19 @@ function publish(doc) {
 
 // cli/links.js over the disk, an open document's text winning over its
 // file's; its values are kept while their file, or document version, holds.
+// A note a link names is analysed over the sandbox's asynchronous bridge and
+// never waited for: its links are checked again when it lands, so a linked
+// note whose script never returns stalls no other document.
 const targets = new links.Targets({
   open(file) {
     for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
     return undefined;
   },
   analyse: (text, file) => note.analyse(text, file, { noScripts }),
+  analyseAsync: (text, file) => note.analyseAsync(text, file, { noScripts }),
+  landed: () => {
+    if (phase === 'running') guard(() => refresh(null));
+  },
 });
 
 // The link diagnostics of an open note; none for an untitled document.
@@ -449,7 +456,7 @@ async function definition(params) {
 async function references(params) {
   const doc = await current(params);
   const want = !!(params.context && params.context.includeDeclaration);
-  const t = idUnder(doc, params.position);
+  const t = await idUnder(doc, params.position);
   if (!t) return null;
   const out = [];
   const own = t.index && language.references(t.index, t.at, { includeDeclaration: want });
@@ -482,7 +489,7 @@ async function prepareRename(params) {
 // link `page.html#id`. An element's name: its opener and closer only.
 async function rename(params) {
   const doc = await settled(await current(params));
-  const t = idUnder(doc, params.position);
+  const t = await idUnder(doc, params.position);
   const changes = {};
   if (!t) {
     const edits = language.rename(doc.index, params.position, params.newName);
@@ -664,25 +671,26 @@ function linkAt(doc, pos) {
 // `index` the index of the note declaring it (null for a file that is not a
 // note) and `at` a position of the id in that note's index; or null off an
 // id. In the note itself, or in the file a link `page.html#id` names.
-function idUnder(doc, pos) {
+async function idUnder(doc, pos) {
   const own = language.idAt(doc.index, pos);
   if (own !== null) return { file: doc.file, id: own, index: doc.index, at: pos };
   const to = linkAt(doc, pos);
   if (!to || !to.frag) return null;
-  const index = indexOf(to.dest);
+  const index = await indexOf(to.dest);
   const decl = index && language.declaration(index, to.frag);
   return { file: to.dest, id: to.frag, index, at: decl ? decl.start : pos };
 }
 
 // The index of another note: an open document's, else of the file's
-// analysis (cli/links.js's, kept while the file holds).
+// analysis (cli/links.js's, kept while the file holds), awaited over the
+// sandbox's asynchronous bridge.
 const indexes = new Map(); // file -> {stamp, index}
-function indexOf(file) {
+async function indexOf(file) {
   for (const d of docs.values()) if (d.file === file && d.index) return d.index;
   const stamp = targets.source(file).stamp;
   const hit = indexes.get(file);
   if (hit && hit.stamp === stamp) return hit.index;
-  const index = language.index(targets.analyse(file));
+  const index = language.index(await targets.later(file));
   indexes.delete(file);
   indexes.set(file, { stamp, index });
   if (indexes.size > 64) indexes.delete(indexes.keys().next().value);
@@ -692,8 +700,8 @@ function indexOf(file) {
 // Where an id is declared in a file: in a note, its declaration; in another
 // HTML file, its id attribute or <a name>; in a Markdown file, the heading
 // with that anchor. Each a location, or null.
-function declarationIn(file, id) {
-  const index = /\.html?$/i.test(file) ? indexOf(file) : null;
+async function declarationIn(file, id) {
+  const index = /\.html?$/i.test(file) ? await indexOf(file) : null;
   if (index) {
     const range = language.declaration(index, id);
     return range && { uri: uriOf(file), range };
