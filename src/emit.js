@@ -25,7 +25,7 @@
 
 const { decode } = require('./entities');
 const { isReservedName } = require('./scan');
-const { pick } = require('./schema');
+const { pick, ALLOW, FULL_NAME, TITLE } = require('./schema');
 const tex = require('./tex');
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
@@ -43,6 +43,44 @@ const SAFE_SCHEME = /^(?:https?|mailto)$/i;
 // escaped already; this catches `::iframe` and `{tag=form}`.
 const UNSAFE_TAG = new Set('iframe object embed frame frameset base form meta link portal fencedframe applet'.split(' '));
 const unsafeTag = (tag) => UNSAFE_TAG.has(tag) || tag.indexOf('-') >= 0;
+// Under `safe`, a tree is checked where the emitter would otherwise trust
+// what the transforms wrote, so a tree from elsewhere (glossary.json, an
+// add-on's) holds to what a source can make: an element is one its level's
+// allowlist names (src/schema.js ALLOW; a custom element is not), and a
+// title slot one a schema can give. A source's tree passes unchanged.
+const elementTag = (tag, level, fallback) => (!tag ? fallback : safe && (unsafeTag(tag) || !ALLOW[level].has(tag)) ? fallback : tag);
+const SLOTS = new Set(Object.values(TITLE));
+const titleSlot = (slot) => (safe && !SLOTS.has(slot) ? 'div' : slot);
+// MathML on a tree is used under `safe` only in the shape src/tex.js writes:
+// these elements and attributes, quoted values, escaped text, balanced, one
+// <math>. Anything else is translated again from the formula's TeX.
+const MATH_TAG = new Set('math mi mn mo ms mtext mspace mrow mfrac msqrt mroot mstyle merror mpadded mphantom msub msup msubsup munder mover munderover mmultiscripts mprescripts none mtable mtr mtd'.split(' '));
+const MATH_ATTR = new Set('accent accentunder class columnalign columnspacing depth dir display displaystyle fence form height largeop linethickness lspace mathbackground mathcolor mathsize mathvariant maxsize minsize movablelimits rowalign rowspacing rspace scriptlevel separator stretchy symmetric voffset width'.split(' '));
+const MATH_TOKEN = /<(\/?)([a-z]+)((?: [a-z]+="[^"<>]*")*)>|[^<]+/y;
+function mathShape(s) {
+  const open = [];
+  let k = 0;
+  while (k < s.length) {
+    MATH_TOKEN.lastIndex = k;
+    const m = MATH_TOKEN.exec(s);
+    if (!m) return false;
+    k = MATH_TOKEN.lastIndex;
+    if (m[2] === undefined) {
+      if (!open.length) return false; // text inside <math> only
+      continue;
+    }
+    // <math> is the outermost element, and only it
+    if (!MATH_TAG.has(m[2]) || (m[2] === 'math') !== (open.length === (m[1] ? 1 : 0))) return false;
+    if (m[1]) {
+      if (m[3] || open.pop() !== m[2]) return false;
+      if (!open.length) return k === s.length;
+    } else {
+      for (const a of m[3].matchAll(/ ([a-z]+)=/g)) if (!MATH_ATTR.has(a[1])) return false;
+      open.push(m[2]);
+    }
+  }
+  return false;
+}
 // Under `safe`, attributes dropped from every element whatever their value:
 // event handlers (on*, caught by the regex), ones that run or submit, ones
 // that steer navigation or focus, and ones that drive the host page's own
@@ -71,6 +109,9 @@ const escValue = (s) => (VALUE.test(s) ? s.replace(VALUE_ALL, escChar) : s);
 // well-formed entity kept as written.
 const ATTR = /&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});|[&<"]/g;
 const escAttr = (s) => (VALUE.test(s) ? s.replace(ATTR, (m, body) => (body !== undefined && decode(body) !== null ? m : escChar(m[0]) + m.slice(1))) : s);
+// An entity's spelling, as the parser keeps it: anything else (a tree from
+// elsewhere) is written as its decoded text.
+const ENTITY = /^&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,47});$/;
 
 // Whether a URL may be emitted under `safe`: http(s), mailto or relative.
 // The browser decodes entities and drops tabs, newlines and leading
@@ -160,7 +201,7 @@ function atom(n) {
   switch (n.type) {
     case 'text': {
       const e = n.data && n.data.luccet && n.data.luccet.entity;
-      return e || esc(n.value || ''); // an entity as written
+      return e && typeof e === 'string' && ENTITY.test(e) ? e : esc(n.value || ''); // an entity as written
     }
     case 'break':
       return '<br>\n';
@@ -205,7 +246,7 @@ function wrapped(open, list, close) {
   }
   write(s + close);
 }
-const pos = (node) => (positions && node.position ? ` data-pos="${node.position.start.line}:${node.position.start.column}"` : '');
+const pos = (node) => (positions && node.position ? ` data-pos="${+node.position.start.line}:${+node.position.start.column}"` : ''); // numbers, whatever the tree holds
 
 // ` id="…" class="…"`, luccet's own attributes (`extra`, already escaped),
 // then the author's in order. `pre` and `post` are luccet's
@@ -360,7 +401,7 @@ function node(n) {
       return kids(n.children);
     case 'list': {
       const tag = n.ordered ? 'ol' : 'ul';
-      const start = n.ordered && n.start != null && n.start !== 1 ? ` start="${n.start}"` : '';
+      const start = n.ordered && typeof n.start === 'number' && isFinite(n.start) && n.start !== 1 ? ` start="${n.start}"` : '';
       write(`<${tag}${attrs(a, '', '', start)}>\n`);
       work.push(`</${tag}>\n`);
       return kids(n.children);
@@ -482,7 +523,7 @@ function code(n, a) {
   }
   write(`<figure${attrs(a, 't-block code', '', ` data-t="code"${meta}${pos(n)}`, null, true)}><pre${data}${startStyle ? ` style="${startStyle}"` : ''}>${pre}`);
   work.push('</figure>\n');
-  title(t.slot || 'figcaption', t.text, t.title);
+  title(titleSlot(t.slot || 'figcaption'), t.text, t.title);
 }
 
 // Raw HTML byte for byte; an unclosed comment or raw-text block as escaped
@@ -515,6 +556,7 @@ function formula(n, display) {
   if (!mathml) return { cls: 't-math', attrs: '', body: esc(v) };
   const t = luccet(n);
   let m = t.mathml;
+  if (typeof m === 'string' && safe && !mathShape(m)) m = undefined;
   if (typeof m !== 'string' && !t.texError) m = tex.render(v, { display }).mathml;
   const data = ` data-tex="${escValue(v)}"`;
   return m ? { cls: 't-math', attrs: data, body: m } : { cls: 't-math t-error', attrs: data, body: esc(v) };
@@ -604,7 +646,7 @@ function named(n, a, block) {
   const name = String(n.name);
   const cache = block ? names : inlineNames;
   let parts = cache.get(name); // [class tokens, data-t], the same for every element of a name
-  if (!parts) cache.set(name, (parts = [block + (isReservedName(name) ? '' : (block ? ' ' : '') + name), ` data-t="${escValue(name)}"`]));
+  if (!parts) cache.set(name, (parts = [block + (isReservedName(name) || !FULL_NAME.test(name) ? '' : (block ? ' ' : '') + name), ` data-t="${escValue(name)}"`])); // a name a tree made up is no class
   const pre = parts[0];
   let extra = parts[1];
   let skip = null;
@@ -632,7 +674,7 @@ function container(n, a) {
   // runtime finds macros by `.t-macros`, and `hidden` is luccet's.
   if (name === 'macros') return void write(`<div${attrs(a, 't-macros', '', ` hidden${pos(n)}`, 'hidden')}>${esc(n.value || '')}</div>\n`);
   if (VERBATIM_ERROR.has(name)) return void write(`<pre${attrs(a, 't-error', '', pos(n))}>${esc(n.value || '')}</pre>\n`);
-  const tag = safe && unsafeTag(t.tag || 'div') ? 'div' : t.tag || 'div';
+  const tag = elementTag(t.tag, 'block', 'div');
   const list = n.children || [];
   const label = list[0] && list[0].data && list[0].data.directiveLabel ? list[0] : null;
   const b = label ? 1 : 0; // the body is list[b…]
@@ -645,7 +687,7 @@ function container(n, a) {
   }
   write(open);
   work.push(`</${tag}>\n`);
-  const slot = t.slot !== undefined ? t.slot : label && label.children && label.children.length ? SLOT[tag] || 'div' : t.text ? SLOT[tag] || 'div' : null;
+  const slot = t.slot !== undefined ? titleSlot(t.slot) : label && label.children && label.children.length ? SLOT[tag] || 'div' : t.text ? SLOT[tag] || 'div' : null;
   const last = slot === 'figcaption';
   if (slot && last) title(slot, t.text, label && label.children);
   if (t.end != null && t.end !== '') work.push(`<span class="t-end" aria-hidden="true">${esc(String(t.end))}</span>`);
@@ -669,7 +711,7 @@ function label(t, more) {
 // paragraph; a toc leaf holds its list.
 function leaf(n, a) {
   const t = luccet(n);
-  const tag = safe && unsafeTag(t.tag || 'div') ? 'div' : t.tag || 'div';
+  const tag = elementTag(t.tag, 'leaf', 'div');
   if (Array.isArray(t.toc)) return toc(n, a, tag, t.toc, t);
   const open = `<${tag}${named(n, a, '')}>`;
   if (VOID.has(tag)) {
@@ -735,7 +777,7 @@ function tocNext(t) {
 // An inline element, its label first; a void one is followed by its content.
 function inlineElement(n, a) {
   const t = luccet(n);
-  const tag = safe && unsafeTag(t.tag || 'span') ? 'span' : t.tag || 'span';
+  const tag = elementTag(t.tag, 'inline', 'span');
   if (VOID.has(tag)) return void (write(`<${tag}${named(n, a, '')}>`), kids(n.children));
   wrapped(`<${tag}${named(n, a, '')}>${label(t, n.children && n.children.length > 0)}`, n.children, `</${tag}>`);
 }

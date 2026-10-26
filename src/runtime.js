@@ -201,11 +201,15 @@ function undefine(name) {
   defined.delete(name);
 }
 
-// luccet.render(root, source, {safe, idPrefix}): with a source, root's content
-// is replaced by the note's HTML and its scripts run. Then behaviours run on
-// elements that have not had them and formulas not yet typeset are typeset,
-// so a second call with no source changes nothing. Resolves to the source's
-// diagnostics, which replace luccet.diagnostics when root is the page's main.
+// luccet.render(root, content, {safe, idPrefix}): with content, root's content
+// is replaced by its HTML and its scripts run. Content is a source, or a tree
+// (a root node), emitted as it is: the glossary's definitions, transformed in
+// their own note, would be numbered again by a second transform. Then
+// behaviours run on elements that have not had them and the 'render' and
+// 'math' listeners on root, so a call with no content is how an add-on hands
+// over what it added or showed later. Resolves to the source's diagnostics
+// (none for a tree), which replace luccet.diagnostics when root is the
+// page's main.
 function render(root, source, opts) {
   if (!BROWSER) return Promise.resolve([]);
   return renderRoot(root, source, !!(opts && opts.safe), opts && typeof opts.idPrefix === 'string' ? opts.idPrefix : '', !(opts && opts.scripts === false));
@@ -236,11 +240,13 @@ function retire(root) {
 
 async function renderRoot(root, source, safe, idPrefix, scripts) {
   root = root || main || document.querySelector('main.luccet');
-  if (!root || root.nodeType !== 1) throw new TypeError('luccet.render(root, source): root must be an element');
+  if (!root || root.nodeType !== 1) throw new TypeError('luccet.render(root, content): root must be an element');
   let list = [];
   if (source !== undefined) {
+    const tree = source !== null && typeof source === 'object';
+    if (tree && source.type !== 'root') throw new TypeError('luccet.render(root, content): content must be a source or a tree, a node of type "root"');
     retire(root);
-    const r = compile(String(source), safe, idPrefix);
+    const r = tree ? emitTree(source, safe, idPrefix) : compile(String(source), safe, idPrefix);
     list = r.list;
     const tpl = document.createElement('template');
     tpl.innerHTML = r.html;
@@ -806,6 +812,12 @@ function compile(source, safe, idPrefix) {
   const { ast, diagnostics: parsed } = T.parse(source, opts);
   T.transform(ast, opts);
   return { ast, html: T.emit(ast, Object.assign({ cssom: true, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: sortDiagnostics(parsed.concat(ast.data.luccet.diagnostics)) };
+}
+
+// A tree as it is, without positions: they are lines of another note.
+function emitTree(ast, safe, idPrefix) {
+  const opts = { lang: config.lang || undefined, math: config.math === 'tex' ? 'tex' : undefined };
+  return { ast, html: T.emit(ast, Object.assign({ cssom: true, positions: false, safe: !!safe, idPrefix: idPrefix || '', strings: config.strings }, opts)), list: [] };
 }
 
 // Luccet's own presentational styles, a column's alignment and a grid's

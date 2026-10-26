@@ -91,6 +91,7 @@
     ['docs/elements.html', 'Elements and output'],
     ['docs/schema.html', 'Vocabulary and behaviour'],
     ['docs/addons.html', 'Add-ons'],
+    ['docs/addon-api.html', 'Writing an add-on'],
     ['docs/diagnostics.html', 'Diagnostics'],
     ['docs/tools.html', 'Command line and editors'],
     ['docs/publishing.html', 'Publishing'],

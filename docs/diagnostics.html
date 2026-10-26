@@ -3003,7 +3003,7 @@ note.html:1:1: error addon.failed: the transform "boom" of the add-on tx.js thre
 
 A directory reads `/home/me/notes/dir.js is a directory`. `luccet build` prints these as `luccet build:` warnings, since the page itself is still written.
 
-**Fix.** Check the path in `data-use` or `:::use`. A relative path resolves from the note, as any URL in it does ([add-ons](schema.html#addons)). For an add-on or a transform that throws, fix its code.
+**Fix.** Check the path in `data-use` or `:::use`. A relative path resolves from the note, as any URL in it does ([Loading](addon-api.html#loading)). For an add-on or a transform that throws, fix its code.
 
 **Related.** [`addon.remote`](#addon-remote), [`head.script`](#head-script).
 

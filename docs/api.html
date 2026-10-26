@@ -28,19 +28,22 @@ This page is the reference for both, for the order in which the runtime does thi
 | [`luccet.visit(tree, type, fn)`](#visit) | engine | walks a tree | works |
 | [`luccet.outline(ast)`](#outline) | engine | the editor digest | works |
 | [`luccet.search`](#search) | engine | entries, an index and a ranked query over notes; a note's description for a catalogue | works |
+| [`luccet.glossary`](#glossary) | engine | the terms a note defines, and their uses | works |
 | [`luccet.tex(source, opts)`](#tex) | engine | one formula's TeX → MathML; the symbol commands | works |
 | [`luccet.schema`](#registry) | engine | the vocabulary, as plain data | works |
 | [`luccet.block`, `luccet.leaf`, `luccet.inline`](#registry) | engine | declare a name | works |
 | [`luccet.transforms`](#luccet-transforms) | engine | the transform order | works |
 | [`luccet.css`](#luccet-css) | engine | the base stylesheet, as a string | works |
 | [`luccet.version`](#luccet-version) | engine | `'2.0.0'` | works |
+| [`luccet.api`](#luccet-api) | engine | the add-on contract's number, `2` | works |
 | [`luccet.define`, `luccet.undefine`](#define) | runtime | DOM behaviours | registers; nothing runs |
 | [`luccet.on(event, fn)`](#on) | runtime | `render`, `math`, `ready`, `diagnostic` | registers; nothing fires |
-| [`luccet.render(root, source)`](#render) | runtime | renders into an element | resolves to `[]` |
+| [`luccet.render(root, content)`](#render) | runtime | renders a source or a tree into an element | resolves to `[]` |
 | [`luccet.ready`](#ready) | runtime | a Promise | never settles |
 | [`luccet.diagnostics`](#diagnostics) | runtime | the page's diagnostics | stays `[]` |
 | [`luccet.config`](#config) | runtime | `window.LUCCET` and the tag's `data-*` | `{use: {}}` |
 | [`luccet.style(css)`](#style) | runtime | adds a stylesheet | does nothing |
+| [`luccet.string(key, params, fallback)`](#strings) | runtime | a word the page may translate | works |
 
 ## Loading {#loading}
 
@@ -743,6 +746,10 @@ luccet.css.slice(0, 26);   // → ':root {\n  color-scheme: li'
 
 The version of this luccet.js, as a string: `'2.0.0'`. A script can check it to tell whether `window.luccet` is Luccet's object, as luccet.js itself does before taking over.
 
+#### `luccet.api` {#luccet-api}
+
+The number of the add-on contract, `2` ([Writing an add-on](addon-api.html#api)). It changes only when that contract breaks, which only a major release may do, so an add-on checks it rather than `luccet.version`.
+
 ## The runtime {#runtime}
 
 The runtime is the browser half: it renders the note in the page, runs behaviours, and reports what went wrong. [The lifecycle](#lifecycle) gives the order of everything it does. Its API is on the same object as the engine.
@@ -839,18 +846,19 @@ luccet.ready.then(() => log.push('luccet.ready'));
 
 :::syntax
 ```js
-luccet.render(root = main.luccet, source?, { safe = false, idPrefix = '', scripts = true }?) → Promise<diagnostics>
+luccet.render(root = main.luccet, content?, { safe = false, idPrefix = '', scripts = true }?) → Promise<diagnostics>
 ```
 :::
 
 Renders, or re-renders, a root element.
 
-- **Without a source**, it runs behaviours on the elements under `root` that have not had them. A second call changes nothing. It fires `render` and `math` with `root`.
-- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head, `luccet.config.lang`, `luccet.config.macros` and `luccet.config.math`, so its formulas are MathML, with the page's macros and its own `:::macros`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without a source. What the previous render's scripts registered on `luccet.define`, `luccet.on` and `luccet.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.luccet`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
-- **Untrusted source.** `{ safe: true }` renders `source` as a note you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument. Its formulas are translated as any note's: no TeX command writes a link, an attribute or a request ([what is left out](math.html#unsupported)), and its `:::macros` reach only its own formulas. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
-- **It resolves** to the diagnostics of `source`, parse and transform, or to `[]` without a source.
-- **The page's own root.** When `root` is the page's `main.luccet`, the new diagnostics replace those in [`luccet.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `luccet.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the `source` that element was rendered from.
-- **`root`** defaults to the page's `main.luccet`. Anything other than an element rejects the Promise with `TypeError: luccet.render(root, source): root must be an element`.
+- **Without content**, it runs behaviours on the elements under `root` that have not had them, and fires `render` and `math` with `root`. A second call runs no behaviour twice. It is how an add-on hands over content it adds or shows after the mount ([Content shown later](addon-api.html#later)).
+- **With a source**, it first replaces `root`'s content with the note's HTML: parse, transform and emit, with the page's head, `luccet.config.lang`, `luccet.config.macros` and `luccet.config.math`, so its formulas are MathML, with the page's macros and its own `:::macros`. The `<script>` elements of the new content then run in order, as a note's do ([note scripts](#after-mount)), unless `scripts: false`, which leaves them inert. Then it goes on as without content. What the previous render's scripts registered on `luccet.define`, `luccet.on` and `luccet.style` is retired first, so a live preview that re-renders on every edit does not stack a behaviour, a listener and a stylesheet per edit; what the page's own note scripts registered counts as `main.luccet`'s. A `:::use` block in the source is ignored: add-ons are loaded for the page, before it renders.
+- **A tree.** `content` may be a tree instead, a node of type `root` as [`luccet.transform`](#transform) leaves it. It is emitted as it is, without positions, with `luccet.config.lang` and `luccet.config.math`, and not transformed again: its numbers and references stay those of the note it came from. Then it goes on as with a source. Any other object rejects the Promise with a `TypeError`.
+- **Untrusted content.** `{ safe: true }` renders `content`, a source or a tree, as content you do not trust ([Safe rendering](elements.html#safe)): emit escapes its raw HTML, neutralises dangerous elements and drops risky attributes and URLs, its `<script>` elements do **not** run, and behaviours (a schema's `dom`, `luccet.define`) are not applied to it, then or later. The root is marked `data-t-safe` and remembered: a `luccet.define` registered afterwards, a later `luccet.render(root)` without a source, and a render of a root that holds it all leave it alone. `render` and `math` listeners get `{ safe: true }` as their second argument. Its formulas are translated as any note's: no TeX command writes a link, an attribute or a request ([what is left out](math.html#unsupported)), and its `:::macros` reach only its own formulas. `idPrefix: 'c1-'` prefixes its ids and fragment links ([`luccet.emit`](#emit)). A trusted source rendered into the same root makes it trusted again. A tree is also held to what a source can make, so one from a file another site serves cannot write markup of its own ([Foreign content](addon-api.html#trust)). Use it wherever you render text from others, such as `luccet.render(box, comment, { safe: true, idPrefix: 'c1-' })`.
+- **It resolves** to the diagnostics of a source, parse and transform, or to `[]` for a tree or without content.
+- **The page's own root.** When `root` is the page's `main.luccet`, the new diagnostics replace those in [`luccet.diagnostics`](#diagnostics) (keeping the line-0 ones, which concern the head) and the panel is rebuilt. For any other element, `luccet.diagnostics` is left alone, also later: a `document.write` in one of its scripts fires the [`diagnostic`](#on) event only. Its position counts in the source that element was rendered from.
+- **`root`** defaults to the page's `main.luccet`. Anything other than an element rejects the Promise with `TypeError: luccet.render(root, content): root must be an element`.
 - **`ready`** does not fire again.
 
 A live preview re-renders an element on every edit:

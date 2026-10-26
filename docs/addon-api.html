@@ -1,0 +1,289 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Writing an add-on · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
+
+:::meta
+description: The add-on contract: everything a Luccet add-on may rely on, in the browser and under node, versioned as luccet.api. How an add-on loads and takes options, what it registers, the lifecycle, math, foreign content and the command line.
+:::
+
+::site-nav
+
+# Writing an add-on {#top}
+
+::toc
+
+An add-on is a script or a stylesheet that a note lists in `data-use` or a `:::use` block, to add what the engine leaves out: names and their meaning, behaviour, a look. This page is the contract between the engine and an add-on: everything an add-on may rely on, in the browser and under node, which only a major release may break. [Add-ons](addons.html#top) lists Luccet's own; the reference for each call is on [Vocabulary and behaviour](schema.html#top) and the [JavaScript API](api.html#runtime).
+
+## The contract's number {#api}
+
+`luccet.api` is the number of this contract: `2`. It changes only when the contract breaks, which only a major release may do, and not at every major one: Luccet 3 may keep it. What a minor release adds, such as a member, an event or a schema field, an add-on finds by feature detection (`typeof luccet.x === 'function'`).
+
+An add-on checks the number before it registers anything, and its page says which one it needs:
+
+```js
+if (window.luccet.api !== 2) throw new Error(`needs the add-on API 2; this luccet.js has ${window.luccet.api}`);
+```
+
+Thrown while it loads, that is [`addon.failed`](#addon-failed) with the message, in the browser and in `luccet check`, and the note renders without the add-on. luccet.js 1.x has no `luccet.api`.
+
+## Loading {#loading}
+
+An add-on is listed in `data-use` on the luccet.js tag:
+
+```html
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="lib/callout.js lib/theme.css"></script>
+```
+
+or in a [`:::use` block](syntax-blocks.html#use) at the top of the note, one or more per line:
+
+```html
+<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
+
+:::use
+lib/callout.js
+lib/theme.css
+:::
+```
+
+### Listing add-ons {#data-use}
+
+- **The list** is space-separated on the tag, and one or more entries per line in the block. Each entry is a URL, relative to the page like any `src`.
+- **Two places, one list.** `data-use` is fine for a single add-on; `:::use` is the readable form for several. Both are honoured and merge: the tag's entries load first, then the block's, in order.
+- **`:::use` must lead the note:** at the top level, before any content; only `:::meta`, blank lines and other `:::use` blocks may come before it. luccet.js reads it from the file as it arrives, so its add-ons start loading almost as early as the tag's, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) and is ignored. The block emits nothing.
+- **Stylesheets and scripts.** An entry whose path ends in `.css` is a stylesheet; anything else is a script.
+- **Order matters.** Scripts run in the order listed, so a later add-on sees an earlier one's entries and can change them. Stylesheets cascade in the order listed: a theme listed after an add-on wins at equal specificity.
+- **Under node**, the command line reads the entries the same way: every entry that does not end in `.css` is run as a classic script, `.mjs` or no extension included. One that does not parse as a classic script, or names a directory, is `addon.failed` ([Under node](#node)).
+
+### Options in the query string {#use-options}
+
+An add-on takes options from its URL's query string, in `luccet.config.use`:
+
+```html
+<script src="luccet.js" data-use="lib/callout.min.js?collapse=all&amp;accent=teal"></script>
+```
+
+```js
+luccet.config.use.callout   // {collapse: 'all', accent: 'teal'}
+```
+
+A `:::use` entry takes the same query string, `lib/callout.min.js?collapse=all&accent=teal`, with `&` written as it is: the block's body is verbatim.
+
+- **The key** is the file name without its directory, `.min`, and `.js`, `.mjs` or `.css`: `lib/callout.min.js` is `callout`.
+- **Every entry** gets an object, empty when there is no query.
+- **Values** are strings. A key without `=` gets `''`.
+- **Defaults.** `window.LUCCET.use = {callout: {collapse: 'none'}}` gives defaults; the query string wins key by key.
+- **`&amp;`** is the strict HTML spelling of `&` in an attribute; both work.
+- **Under node** `luccet.config.use` is built the same way, from `window.LUCCET.use` and the query strings of `data-use` and `:::use`, so `luccet check` and `luccet build` see the options the browser sees ([Under node](#node)).
+
+### How they load {#addon-loading}
+
+1. When luccet.js starts, it adds a preload for every script add-on, then appends them all at once: they **download in parallel** and **run in the order listed**. Stylesheets are added as links, in order.
+2. The note is rendered once the document is parsed and **every add-on has loaded or failed**, or 12 seconds after the document was parsed, whichever comes first ([the lifecycle](api.html#capture)).
+3. So an add-on runs **before the mount**. `window.luccet` exists; `window.LUCCET.schema` is not applied yet; the note's elements do not exist yet.
+
+An add-on therefore registers things, for the runtime to apply when the note is rendered ([What an add-on registers](#registry)). It does not look for the note's elements itself: they are not there yet.
+
+### When an add-on fails {#addon-failed}
+
+**`addon.failed`** is an error at the luccet.js line. The note always renders. It is reported when:
+- a script or stylesheet does not load (a wrong path, a network error): the note renders without it;
+- a script throws while it runs: the note renders with what the add-on registered before the error, and the browser's console shows where it threw;
+- a transform the add-on registered throws when it runs: that transform is skipped ([Custom transforms](schema.html#transforms)).
+
+The command line and the language server report the same cases, and a few of their own:
+- a missing file, or a directory;
+- a script that does not parse as a classic script;
+- a script that throws under node, where the browser's globals are stand-ins ([Under node](#node)).
+
+**A remote add-on** (`https://…`) is not loaded under node. That is **`addon.remote`**, an info at the luccet.js line: names it declares are unknown to `luccet check`, which does not fail because of it. `luccet build` warns about it: the page it writes uses those names without their schema entries.
+
+**Diagnostics:** [`addon.failed`](diagnostics.html#addon-failed), [`addon.remote`](diagnostics.html#addon-remote).
+
+## A complete add-on {#callout-addon}
+
+This add-on declares three callouts, `note`, `tip` and `warning`, with labels in three languages, a stylesheet, and a behaviour that folds a callout away.
+
+```js [callout.js, a complete add-on]{#lst-callout}
+// callout.js: callouts for Luccet notes, in English, German and French.
+//   <script src="luccet.js" data-use="callout.js"></script>
+//   <script src="luccet.js" data-use="callout.js?collapse=all"></script>
+(function () {
+  'use strict';
+  const luccet = window.luccet;
+  if (luccet.api !== 2) throw new Error(`needs the add-on API 2; this luccet.js has ${luccet.api}`);
+
+  // 1. Vocabulary: three containers with a label in three languages.
+  const labels = {
+    note: { en: 'Note', de: 'Hinweis', fr: 'Remarque' },
+    tip: { en: 'Tip', de: 'Tipp', fr: 'Astuce' },
+    warning: { en: 'Warning', de: 'Warnung', fr: 'Attention' },
+  };
+  for (const name of Object.keys(labels)) {
+    luccet.block(name, {
+      tag: 'aside',
+      class: 'callout',
+      attrs: { role: 'note' },
+      label: labels[name],
+      dom: collapsible,
+    });
+  }
+
+  // 2. Look: keyed on the classes, never on the tag.
+  luccet.style(`
+.luccet .callout { border-inline-start: 4px solid var(--callout, var(--t-link));
+  background: var(--t-soft); padding: .6rem 1rem; border-radius: 6px; }
+.luccet .callout.tip { --callout: #2f8a46; }
+.luccet .callout.warning { --callout: var(--t-warn); }
+.callout-toggle { margin-inline-start: .5rem; font: inherit; cursor: pointer; }
+@media print { .callout-toggle { display: none; } }
+`);
+
+  // 3. Behaviour: a callout with data-collapse, or every callout with
+  //    ?collapse=all, gets a button that folds its body away.
+  const options = luccet.config.use.callout || {}; // absent when the add-on is not listed
+  function collapsible(el) {
+    const title = el.querySelector(':scope > .t-title');
+    if (!title || !(options.collapse === 'all' || el.hasAttribute('data-collapse'))) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'callout-toggle';
+    button.setAttribute('aria-expanded', 'true');
+    button.textContent = 'Hide';
+    button.addEventListener('click', () => {
+      const open = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!open));
+      button.textContent = open ? 'Show' : 'Hide';
+      for (const child of el.children) if (child !== title) child.hidden = open;
+    });
+    title.append(button);
+  }
+})();
+```
+
+A note that uses it:
+
+```html
+<!doctype html><html lang="de"><meta charset="utf-8"><script src="luccet.js" data-use="callout.js"></script>
+
+:::warning[Strom]{#w data-collapse}
+Erst den Stecker ziehen.
+:::
+```
+
+The engine writes this (as `luccet build` shows it, without positions), and the behaviour then adds the button to the title:
+
+```html
+<aside id="w" class="t-block warning callout" data-t="warning" role="note" data-collapse><div class="t-title"><span class="t-label">Warnung</span> Strom</div><p>Erst den Stecker ziehen.</p>
+</aside>
+```
+
+What each part does:
+- **The wrapper** keeps the add-on's names out of the page's globals, and reads `window.luccet`, which luccet.js defined before any add-on runs. It checks [the contract's number](#api) first.
+- **The vocabulary.** The label map picks "Warnung" from `<html lang="de">` ([Labels in other languages](schema.html#languages)). `class` and `attrs` give every callout the class `callout` and `role="note"`.
+- **The look.** `luccet.style` puts the rules at this add-on's place in the cascade and adds the page's nonce. Most of the rules use luccet's custom properties, so they follow dark mode ([Styling](schema.html#styling)).
+- **The behaviour** reads a per-element option from a `data-*` attribute (`{data-collapse}`), and a per-note option from the query string.
+
+### Guidelines {#addon-guidelines}
+
+- **Register everything while the script runs.** The mount comes after; nothing registered later applies to the note until the next render.
+- **Key CSS and behaviours on the class or `data-t`, never on the tag.** An author can change the tag with `{tag=…}`.
+- **Use `luccet.style`** rather than adding your own `<style>`: it keeps the cascade order of `data-use`, and the nonce of a strict CSP ([CSP](publishing.html#csp)).
+- **Prefer `data-*` attributes** for options on one element. Any key is written to the element as given, but most HTML elements accept only `data-*` and their own attributes.
+- **Guard the options:** `luccet.config.use.NAME || {}`. The object is there for every listed entry, but not for a script the page loads another way.
+- **Use a label map for languages,** not an option: the note's language picks the label, and the vocabulary stays one for every page.
+- **Name what is yours after the add-on:** diagnostic codes (`callout.empty`), string keys (`callout.hide`), and classes and custom properties with a prefix of your own: `t-` is Luccet's.
+- **Touch only stand-ins at load time:** the command line runs the add-on with stand-ins for the DOM ([Under node](#node)), so code that reads what they return gets nothing.
+
+## What an add-on registers {#registry}
+
+Everything an add-on registers while its script runs applies from the mount on ([How they load](#addon-loading)).
+
+- **Vocabulary.** `luccet.block`, `luccet.leaf` and `luccet.inline` register a name with its [schema fields](schema.html#fields), and return the registry's entry: a copy of the spec, so change the entry, not the object you passed. A name that is not an element name, or is [reserved](elements.html#reserved), throws a `TypeError`. `luccet.schema` is the registry, and `luccet.schema.strict = true` turns on [`name.unknown`](diagnostics.html#name-unknown). The note's own `window.LUCCET.schema` is applied after every add-on, so its entry wins for a name both declare.
+- **Behaviours.** [`luccet.define`](schema.html#luccet-define), and a schema entry's [`dom`](schema.html#dom-function), keyed on `data-t`.
+- **Listeners.** [`luccet.on`](schema.html#events) for `render`, `math`, `ready` and `diagnostic` ([The lifecycle](#lifecycle)).
+- **Transforms.** [`luccet.transform`](schema.html#transforms) changes the tree before it is written, in the browser and under node alike. `ctx.report` adds a diagnostic under a code named after the add-on (`glossary.empty`); one that throws is skipped and is `addon.failed`.
+- **Styles.** [`luccet.style`](api.html#style), and a schema entry's `css`, at the add-on's place in the cascade with the page's nonce. Key them on classes and `data-t`, never on the tag, and use the [`--t-*` properties](schema.html#styling), which a theme sets.
+- **Words.** [`luccet.string(key, params, fallback)`](api.html#strings), with keys named after the add-on, which a page translates in `window.LUCCET.strings`.
+
+## The lifecycle {#lifecycle}
+
+When the note mounts, and at each `luccet.render(root)`, for what is under the root:
+
+1. **The behaviours**, in document order, element by element: its schema `dom`, then each `define` function for its name, in the order registered; once per element and function.
+2. **The `render` listeners**, with `(root, {safe})`. They run together, and the runtime awaits the promises they return.
+3. **The `math` listeners**, with `(root, {safe})`: the formulas are final.
+4. **`ready`**, once, after the first mount ([The runtime lifecycle](api.html#lifecycle)).
+
+### Content shown later {#later}
+
+An add-on that adds or reveals content after the mount, such as a list it fills from a file or the formulas of a `<details>` it typesets as it opens, hands it over with `luccet.render(el)`. The behaviours then run on what is new in `el`, and the `render` and `math` listeners run with `el` as the root, so every add-on sees the content as it sees the note.
+
+```js
+details.addEventListener('toggle', () => {
+  if (details.open) luccet.render(details);
+});
+```
+
+A call that finds nothing new runs no behaviour twice, so one call too many is harmless.
+
+## Math {#math}
+
+- **The formulas are MathML** when the behaviours run: each `span.t-math` holds its `<math>`, with its TeX in `data-tex`; display math has `data-display`. A formula that does not translate has the class `t-error` and shows its TeX ([Math](math.html#top)).
+- **To typeset math yourself**, as the [KaTeX add-on](https://github.com/Luccet/katex) does, set `luccet.config.math = 'tex'` while the add-on loads: each `span.t-math` then holds its TeX as text. Typeset in a `render` listener and return its promise, so `math` fires once it settles. Under node the same setting makes `luccet build` write the TeX.
+- **Trust.** A formula in foreign content is typeset with your library's trust off: the listener's `info.safe`, or `el.closest('[data-t-safe]')`, says so ([Foreign content](#trust)).
+- **Macros.** The page's are in `luccet.config.macros` (`window.LUCCET.macros`); a note's own `:::macros` block is a hidden `.t-macros`.
+
+## Foreign content {#trust}
+
+Content from elsewhere, such as a comment, a file fetched from another site or a tree another note made, is rendered with `safe`:
+
+```js
+await luccet.render(el, content, { safe: true, idPrefix: 'c1-' });
+```
+
+- **`content`** is a source, which is parsed and transformed with the page's settings, or a tree: a node of type `root`, as `luccet.transform` leaves it, which is written as it is.
+- **What `safe` guarantees** holds for both: raw HTML escaped, dangerous elements neutralised, risky attributes and URLs dropped ([Safe rendering](elements.html#safe)). A tree is also held to what a source can make: elements from the schema's allowlist, a title slot a schema can give, numbers that are numbers, and entities and MathML in the shapes the engine writes. Anything else becomes a plain element or plain text, and MathML of another shape is translated again from the formula's TeX.
+- **No behaviour touches it,** then or later: `el` is marked `data-t-safe`, its scripts do not run, and a `luccet.define` registered afterwards skips it. Listeners get `{safe: true}`.
+- **`idPrefix`** keeps its ids and fragment links apart from the page's.
+
+The [glossary add-on](https://github.com/Luccet/glossary) renders each definition it reads from `glossary.json` this way.
+
+## Under node {#node}
+
+`luccet check`, `luccet parse`, `luccet build` and `luccet lsp` need a note's vocabulary and its transforms, so they run its code in a node `vm` sandbox, in this order:
+1. the head's classic scripts before the luccet.js tag ([Declaring vocabulary in a single file](schema.html#window-luccet));
+2. the script add-ons of `data-use` and `:::use`, in order;
+3. `window.LUCCET.schema`, on top.
+
+An add-on gets **the engine itself** as `window.luccet`, the object `require('luccet')` returns: the registry with its checks and its return values, the engine's functions (`parse`, `transform`, `emit`, `visit`, `tex`, `search` …), `luccet.api` and `luccet.version`. Two parts are the page's, as in the browser: `luccet.config`, from `window.LUCCET`, `data-*` on the tag and the query strings of `data-use` and `:::use`; and `luccet.string`, which reads `window.LUCCET.strings`. The runtime's members are there, and inert:
+
+:::table[The runtime under node]{#tbl-node}
+| Member | Under node |
+|---|---|
+| `luccet.define`, `luccet.undefine`, `luccet.on` | accepted; nothing they register ever runs or fires |
+| `luccet.style` | accepted; returns `undefined` |
+| `luccet.render` | resolves to `[]` |
+| `luccet.ready` | a promise that never settles |
+| `luccet.diagnostics` | an empty array |
+:::
+
+- **Browser globals** (`document`, `customElements`, `HTMLElement`, `fetch`, `setTimeout` …) are stand-ins that accept anything and do nothing. So `customElements.define(…)` or `class X extends HTMLElement` does not stop the add-on before its `luccet.block` calls.
+- **`window`**, `self` and `globalThis` are the sandbox. Its `console` writes to stderr.
+- **Each script** gets 2 seconds.
+- **Files.** Only local files load: a relative URL from the note's directory, a root-relative one (`/lib/x.js`) from the note's directory or the nearest ancestor that has it. A remote add-on is not loaded: `addon.remote` ([When an add-on fails](#addon-failed)).
+
+What follows:
+- **Vocabulary is identical** under node and in the browser, options included, if the add-on declares it without reading the DOM.
+- **Transforms run** under node as in the browser: `luccet check` reports their diagnostics, and `luccet build` writes their changes into the page. A transform that throws is skipped and reported as `addon.failed`.
+- **Behaviours and styles** do not run under node. A page written by `luccet build` loads the add-on in the browser, where they run.
+
+**The language server** uses the same loader, cached per note directory, luccet.js tag and head scripts. A change to an add-on file takes effect at the note's next edit. Completion lists the schema's names; hover on a name shows its element and whether the schema, the allowlist or neither gave it ([The language server](tools.html#lsp)).
+
+## Stability {#stability}
+
+`luccet.api` 2 covers what this page describes, so only a new number may change it:
+
+- the members it names and their documented behaviour: the registry, behaviours, events and their order, transforms and their context, `luccet.config.use`, `math` and `macros`, `luccet.style`, `luccet.string`, and `luccet.render` with `safe`;
+- the classes and attributes it names on the engine's output: `data-t`, `t-block`, `t-title`, `t-label`, `t-math`, `data-tex`, `data-display`, `t-error`, `t-macros` and `data-t-safe`;
+- the [`--t-*` properties](schema.html#styling), the contract with themes;
+- what runs under node, and how.
+
+A minor release may add members, events, schema fields, `luccet.config` keys and fields of a transform's `ctx`: find them by feature detection. The rest of the HTML each construct becomes is covered by the engine's own promise ([Status](../index.html#status)).

@@ -9,7 +9,7 @@
 //     memory: even past the inner wall it reaches no file, no other process,
 //     no native add-on, no worker (node:permissions);
 //   - inside it, one sealed vm context per note: the note's code sees a fresh
-//     global holding the engine and a `luccet`/`window` shim and nothing of
+//     global holding the engine as `luccet`, an inert `window`, and nothing of
 //     Node, so `this.constructor.constructor` and the like reach no host
 //     object; a time limit stops a runaway script or transform, and dynamic
 //     import() is off.
@@ -62,8 +62,8 @@ const WEDGED_MS = 10000; // the child itself stuck past its own limit: kill it
 // ------------------------------------------------------------------ child
 
 // The trusted driver, set up once in each sealed context: it defines the
-// globals a note's code sees (an inert `window`, a `luccet`/`window.luccet`
-// shim, a buffering console) and __luccetDriver, which runs the code and
+// globals a note's code sees (an inert `window`, the engine as
+// `luccet`/`window.luccet`, a buffering console) and __luccetDriver, which runs the code and
 // returns the analysis as a JSON string. Guest code runs by indirect eval
 // in the context's global scope, as a classic script does; the driver's own
 // helpers stay in this closure, out of its reach. Written as a function and
@@ -74,11 +74,11 @@ function driverSetup() {
   var engine = G.module.exports;
   // The engine functions, captured before any note code runs, so a script
   // that overwrites module.exports cannot redirect the analysis.
-  var E = { parse: engine.parse, emit: engine.emit, toHTML: engine.toHTML, check: engine.check, visit: engine.visit, outline: engine.outline, css: engine.css, transform: engine.transform, version: engine.version };
+  var E = { parse: engine.parse, emit: engine.emit, toHTML: engine.toHTML, check: engine.check, visit: engine.visit, outline: engine.outline, css: engine.css, transform: engine.transform, version: engine.version, block: engine.block, leaf: engine.leaf, inline: engine.inline, schema: engine.schema, config: engine.config };
   var stringify = G.JSON.stringify;
   // The pipeline's transform names, read through the engine's own getter,
-  // taken before any note code runs: a transform the code adds, through the
-  // shim or the engine itself, shows in the list.
+  // taken before any note code runs: a transform the code adds shows in the
+  // list.
   var transformNames = Object.getOwnPropertyDescriptor(engine, 'transforms').get;
   var names = function () { return transformNames.call(engine).join(' '); };
   // What tells plain data, for the host parse below.
@@ -133,10 +133,15 @@ function driverSetup() {
     return out;
   }
 
-  // luccet.config as the runtime builds it (src/runtime.js readConfig): `use`
-  // from window.LUCCET.use and data-use's query strings, and `lang`.
+  // luccet.config as the runtime builds it (src/runtime.js readConfig):
+  // window.LUCCET's keys (strings, addonTimeout …), `use` from
+  // window.LUCCET.use and data-use's query strings, and `lang`.
   function shimConfig(given, dataUse, lang) {
     var g = given && typeof given === 'object' ? given : {};
+    var out = {};
+    try {
+      Object.assign(out, g);
+    } catch (e) {}
     var use = Object.assign(Object.create(null), g.use && typeof g.use === 'object' ? g.use : null);
     (dataUse || '').split(/\s+/).filter(Boolean).forEach(function (entry) {
       var q = entry.indexOf('?');
@@ -163,12 +168,14 @@ function driverSetup() {
       });
       use[name] = Object.assign(Object.create(null), use[name], params);
     });
-    return { use: use, lang: lang };
+    out.use = use;
+    out.lang = lang;
+    return out;
   }
 
   G.__luccetDriver = function (req) {
     // The request arrived as a global, and the driver is one: both go
-    // before any note code runs, which sees the shim and the engine alone.
+    // before any note code runs, which sees the engine alone.
     delete G.__reqText;
     delete G.__luccetDriver;
     var consoleOut = [];
@@ -185,7 +192,7 @@ function driverSetup() {
 
     var run = function (code) {
       // Indirect eval: the code runs in the global scope, as luccet.js runs a
-      // classic script, seeing the shim and nothing of this closure.
+      // classic script, seeing the engine and nothing of this closure.
       return (0, eval)(code);
     };
 
@@ -216,53 +223,37 @@ function driverSetup() {
       problems.push({ kind: 'head', severity: 'warning', url: 'window.LUCCET', message: 'window.LUCCET cannot be read: ' + message(e), line: 1, column: 1, seq: req.vocabSeq });
     }
 
-    var schema = { block: {}, leaf: {}, inline: {} };
+    // The add-ons get the engine itself, as in the browser (the contract,
+    // docs/addon-api.html#node): its registry with its checks, and its
+    // runtime members, inert under node (on and define never fire, render
+    // resolves to [], ready never settles). Only two parts are the page's:
+    // config, as the runtime builds it, and transform, wrapped so that a
+    // transform that throws names its add-on. The analysis below uses what E
+    // captured, whatever the code does to the object.
+    var schema = E.schema;
     var failures = [];
     var current = null;
-    var inertFn = function () { return function () {}; };
-    var shim = {
-      schema: schema,
-      block: function (name, spec) { schema.block[name] = spec; },
-      leaf: function (name, spec) { schema.leaf[name] = spec; },
-      inline: function (name, spec) { schema.inline[name] = spec; },
-      define: inertFn,
-      undefine: function () {},
-      on: inertFn,
-      style: function () {},
-      string: function (key, params, fallback) { return fallback === undefined ? key : String(fallback); },
-      transform: function (name, fn, order) {
-        if (typeof name !== 'string') return E.transform(name, fn); // run the pipeline on a tree
-        var url = current;
-        var wrapped = function (tree, ctx) {
-          try {
-            return fn.call(this, tree, ctx);
-          } catch (e) {
-            failures.push({ url: url, name: name, message: message(e) });
-          }
-        };
-        var off = E.transform(name, wrapped, order);
-        var done = false;
-        return function () {
-          if (done) return;
-          done = true;
-          off();
-        };
-      },
-      render: function () { return Promise.resolve([]); },
-      ready: new Promise(function () {}),
-      diagnostics: [],
-      config: Object.assign(shimConfig(given, req.dataUse, lang), pageMath(given, req.dataMath)),
-      version: E.version,
-      parse: E.parse,
-      emit: E.emit,
-      toHTML: E.toHTML,
-      check: E.check,
-      visit: E.visit,
-      outline: E.outline,
-      css: E.css,
+    Object.assign(E.config, shimConfig(given, req.dataUse, lang), pageMath(given, req.dataMath));
+    engine.transform = function (name, fn, order) {
+      if (typeof name !== 'string') return E.transform(name, fn); // run the pipeline on a tree
+      var url = current;
+      var wrapped = function (tree, ctx) {
+        try {
+          return fn.call(this, tree, ctx);
+        } catch (e) {
+          failures.push({ url: url, name: name, message: message(e) });
+        }
+      };
+      var off = E.transform(name, wrapped, order);
+      var done = false;
+      return function () {
+        if (done) return;
+        done = true;
+        off();
+      };
     };
-    G.luccet = shim;
-    G.window.luccet = shim;
+    G.luccet = engine;
+    G.window.luccet = engine;
 
     // The script add-ons, in order; a transform registers with this
     // context's engine, so engine.transform runs it below. A throw at the
@@ -278,14 +269,20 @@ function driverSetup() {
       current = null;
     }
 
-    // window.LUCCET.schema on top: the note's declaration wins over an add-on's
-    // for the same name, and its `strict` sets schema.strict.
+    // window.LUCCET.schema on top, through the registry as the runtime
+    // applies it (src/runtime.js applyOwnSchema): the note's declaration wins
+    // over an add-on's for the same name, a bad entry is a console warning,
+    // and its `strict` sets schema.strict.
     try {
       var sc = ownSchema && typeof ownSchema === 'object' ? ownSchema : null;
       ['block', 'leaf', 'inline'].forEach(function (level) {
         var entries = sc ? sc[level] : null;
         if (entries && typeof entries === 'object') Object.keys(entries).forEach(function (name) {
-          if (entries[name] && typeof entries[name] === 'object') schema[level][name] = entries[name];
+          try {
+            E[level](name, entries[name]);
+          } catch (e) {
+            say('luccet: window.LUCCET.schema.' + level + ': ' + message(e));
+          }
         });
       });
       if (sc && sc.strict !== undefined) schema.strict = !!sc.strict;
@@ -324,8 +321,8 @@ function driverSetup() {
     var math;
     var macros;
     try {
-      math = shim.config.math === 'tex' ? 'tex' : undefined;
-      macros = texMacros(shim.config.macros);
+      math = E.config.math === 'tex' ? 'tex' : undefined;
+      macros = texMacros(E.config.macros);
     } catch (e) {}
     var hostParse = false;
     try {

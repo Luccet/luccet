@@ -94,7 +94,7 @@ See [Metadata](elements.html#metadata) for every key.
 
 | Attribute | What it does |
 |---|---|
-| `data-use="a.js theme.css"` | Add-ons: scripts and stylesheets, separated by spaces, loaded in parallel and run in order before the note renders. A query string (`a.js?lang=de`) reaches the add-on as `luccet.config.use.a.lang`. A [`:::use` block](syntax-blocks.html#use) at the top of the note lists them the same way, one or more per line; the tag's load first. See [Add-ons](schema.html#addons). |
+| `data-use="a.js theme.css"` | Add-ons: scripts and stylesheets, separated by spaces, loaded in parallel and run in order before the note renders. A query string (`a.js?lang=de`) reaches the add-on as `luccet.config.use.a.lang`. A [`:::use` block](syntax-blocks.html#use) at the top of the note lists them the same way, one or more per line; the tag's load first. See [Loading](addon-api.html#loading). |
 | `data-css="URL"` | Luccet's base stylesheet from this URL instead of the inline copy. |
 | `data-nonce="VALUE"` | A CSP nonce for everything `luccet.js` adds: stylesheets, scripts, links, and the note's own scripts. See [CSP](#csp). |
 | `data-lang="de"` | The language of generated labels, when it differs from `<html lang>`. |
@@ -395,6 +395,8 @@ A note is a web page, and Luccet does not sandbox it.
   ```js
   element.innerHTML = luccet.toHTML(untrustedText, { safe: true });
   ```
+
+  A tree from elsewhere, such as definitions read from a file another site serves, is rendered the same way, `luccet.render(box, tree, { safe: true })`: `safe` holds it to what a source can make ([Foreign content](addon-api.html#trust)).
 - **Math** cannot reach out. No TeX command writes a link, an image, an HTML attribute or a request: `\href`, `\includegraphics` and the `\html…` commands are [`tex.unsupported`](diagnostics.html#tex-unsupported). So a formula from an untrusted source can only show math ([what is left out](math.html#unsupported)).
 - **What `safe` does not promise.** It scopes the untrusted text, not the page: the page's own scripts, add-ons and behaviours still run on the page's own content, a trusted root rendered later still gets its behaviours, and the untrusted text is still parsed and rendered, so a note built to be huge ends in [`output.limit`](diagnostics.html#output-limit) rather than in a crash. It is the whole list in [Safe rendering](elements.html#safe); anything not on it, `safe` does not do.
 - **Readers do not see diagnostics.** The panel shows only on your machine, unless the tag has `data-diagnostics`.

@@ -81,7 +81,7 @@ declare namespace luccet {
   export interface EmitOptions extends ParseOptions {
     /** Write data-pos on block elements (true). */
     positions?: boolean;
-    /** Render an untrusted source: raw HTML escaped, risky attributes and URLs dropped. */
+    /** Untrusted content, a source or a tree from elsewhere: raw HTML escaped, risky attributes and URLs dropped, and a tree's elements and MathML held to what a source can make. */
     safe?: boolean;
     /** Prefix every id and fragment link. */
     idPrefix?: string;
@@ -203,6 +203,8 @@ declare namespace luccet {
 
   export interface Luccet {
     readonly version: string;
+    /** The add-on contract's number (docs/addon-api.html), 2: it changes only when the contract breaks. */
+    readonly api: number;
 
     // ---- the engine
     parse(source: string, opts?: ParseOptions): { ast: Root; diagnostics: Diagnostic[] };
@@ -229,14 +231,15 @@ declare namespace luccet {
     leaf(name: string, spec: Spec): Spec;
     inline(name: string, spec: Spec): Spec;
 
-    // ---- the runtime (inert under node)
+    // ---- the runtime (inert under node: nothing fires, render resolves to [], ready never settles)
     readonly diagnostics: Diagnostic[];
     readonly config: Config;
     readonly ready: Promise<void>;
     define(name: string, fn: (this: Element, el: Element) => void): Remove;
     undefine(name: string): void;
     on(event: LuccetEvent, fn: (root: Element, info: { safe: boolean }) => void | Promise<void>): Remove;
-    render(root?: Element, source?: string, opts?: { safe?: boolean; idPrefix?: string; scripts?: boolean }): Promise<Diagnostic[]>;
+    /** Renders a source, or a tree as it is, into root; with no content, runs the behaviours and the 'render' and 'math' listeners on what root holds. */
+    render(root?: Element, content?: string | Root, opts?: { safe?: boolean; idPrefix?: string; scripts?: boolean }): Promise<Diagnostic[]>;
     style(css: string): HTMLStyleElement | undefined;
     /** The page's string for a key (window.LUCCET.strings), else the fallback, else the runtime's own. */
     string(key: string, params?: Record<string, unknown>, fallback?: string): string;

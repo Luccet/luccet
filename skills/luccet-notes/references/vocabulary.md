@@ -577,7 +577,7 @@ The ```` ```luccet schema=demo ```` examples here, and the documentation's live 
 
 ## See also
 
-- [Vocabulary and behaviour](https://luccet.dev/docs/schema.html#fields): every field in full; [window.LUCCET](https://luccet.dev/docs/schema.html#window-luccet); [add-ons under node](https://luccet.dev/docs/schema.html#addons-under-node); [the demo schema](https://luccet.dev/docs/schema.html#demo-schema).
+- [Vocabulary and behaviour](https://luccet.dev/docs/schema.html#fields): every field in full; [window.LUCCET](https://luccet.dev/docs/schema.html#window-luccet); [add-ons under node](https://luccet.dev/docs/addon-api.html#node); [the demo schema](https://luccet.dev/docs/schema.html#demo-schema).
 - [Numbering](https://luccet.dev/docs/elements.html#numbering), [references](https://luccet.dev/docs/elements.html#references), [title slots](https://luccet.dev/docs/elements.html#title-slots), [allowlists](https://luccet.dev/docs/elements.html#allowlists).
 - [Add-ons](https://luccet.dev/docs/addons.html#top), each linking to its page; [themes](https://luccet.dev/docs/schema.html#themes); [styling](https://luccet.dev/docs/schema.html#styling).
 - [`luccet.define`](https://luccet.dev/docs/api.html#define), [`luccet.on`](https://luccet.dev/docs/api.html#on), [`luccet.style`](https://luccet.dev/docs/api.html#style), [`luccet.config`](https://luccet.dev/docs/api.html#config), [the lifecycle](https://luccet.dev/docs/api.html#lifecycle).

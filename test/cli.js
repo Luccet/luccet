@@ -900,6 +900,27 @@ luccet.transform('stamp', (ast, ctx) => {
 }, { before: 'toc' });
 `;
 
+// The contract under node (docs/addon-api.html#node): an add-on gets the
+// engine itself, so what it sees can be read back from the page it builds.
+test('under node an add-on sees the engine itself: every member, luccet.api, the registry with its checks and return value, config from the page', () => {
+  write('ct/probe.js', [
+    "var bad = 'none'; try { luccet.block('a b', {}); } catch (e) { bad = e instanceof TypeError ? 'TypeError' : 'other'; }",
+    "var entry = luccet.leaf('probe3', { class: 'p3' });",
+    "luccet.leaf('probe', { attrs: {",
+    "  'data-keys': Object.keys(luccet).sort().join(' '), 'data-api': String(luccet.api), 'data-opt': luccet.config.use.probe.x,",
+    "  'data-bad': bad, 'data-entry': String(entry === luccet.schema.leaf.probe3), 'data-tree': String(luccet.visit === undefined ? 'no' : luccet.parse('x').ast.type),",
+    "  'data-string': luccet.string('probe.hi', { who: 'you' }, 'hi {who}'), 'data-own': luccet.string('probe.own'),",
+    "} });",
+  ].join('\n') + '\n');
+  write('ct/probe.html', `${FIRST}<script>window.LUCCET = {strings: {'probe.own': 'from the page'}}</script><script src="luccet.js" data-use="probe.js?x=1"></script>\n::probe\n`);
+  const r = run(['build', 'ct/probe.html']);
+  exits(r, 0, 'build');
+  const attr = (k) => (new RegExp(` ${k}="([^"]*)"`).exec(r.out) || [])[1];
+  eq(attr('data-keys'), Object.keys(require(path.join(ROOT, 'luccet.js'))).sort().join(' '), 'the members, as require() gives them');
+  eq([attr('data-api'), attr('data-opt'), attr('data-bad'), attr('data-entry'), attr('data-tree')], ['2', '1', 'TypeError', 'true', 'root'], 'api, the query option, a bad name, the entry returned, the engine');
+  eq([attr('data-string'), attr('data-own')], ['hi you', 'from the page'], 'luccet.string with params, and window.LUCCET.strings');
+});
+
 test("check, parse, build: an add-on's transforms run for its note only; one that throws is addon.failed", () => {
   write('x/stamp.js', STAMP);
   const body = '::toc\n\n## Plain\n\nSee @nowhere.\n';
@@ -949,15 +970,18 @@ const sameAnalysis = (a, b, what) => {
   eq(keep(a), keep(b), what);
 };
 
-test("analyse: a note whose code declares plain data is parsed here; one whose code adds a transform, a label function or a getter is parsed in the sandbox; the analysis is the same", () => {
+test("analyse: a note whose code declares plain data is parsed here; one whose code adds a transform, a label function or a getter in the registry is parsed in the sandbox; the analysis is the same", () => {
   const note = require(path.join(ROOT, 'cli', 'note.js'));
   const body = ':::box[One]{#one}\nx\n:::\n\nSee @one, :k[Ctrl] and @thm.\n\n:::thm{#thm}\ny\n:::\n';
   write('hp/plain.js', "luccet.block('box', { tag: 'aside', counter: 'box', label: { en: 'Box', fr: 'Boîte' }, ref: '{label} {n}', attrs: { role: 'note' }, dom(el) { el.hidden = false; } });\nluccet.inline('k', { tag: 'kbd' });\nluccet.block('thm', { counter: 'thm', label: 'Theorem' });\n");
   write('hp/transform.js', "luccet.block('box', { tag: 'aside' });\nluccet.transform('mark', (ast, ctx) => ctx.report('mark.ran', ast, 'mark ran', null, 'info'));\n");
   write('hp/label.js', "luccet.block('thm', { counter: 'thm', label: (n) => 'Satz ' + n });\n");
-  write('hp/getter.js', "luccet.block('box', { get tag() { return 'aside'; } });\n");
+  // luccet.block copies its spec, as in the browser, so a getter there is read
+  // once and the entry is plain; one written into the registry itself stays.
+  write('hp/getter.js', "luccet.block('box', {});\nObject.defineProperty(luccet.schema.block.box, 'tag', { get() { return 'aside'; }, enumerable: true });\n");
+  write('hp/copied.js', "luccet.block('box', { get tag() { return 'aside'; } });\n");
   const ways = {};
-  for (const name of ['plain', 'transform', 'label', 'getter']) {
+  for (const name of ['plain', 'transform', 'label', 'getter', 'copied']) {
     write(`hp/${name}.html`, `${FIRST}<script src="luccet.js" data-use="${name}.js"></script>\n${body}`);
     const text = read(`hp/${name}.html`);
     const a = note.analyse(text, at(`hp/${name}.html`));
@@ -966,13 +990,14 @@ test("analyse: a note whose code declares plain data is parsed here; one whose c
     eq(b.vocab.hostParse, false, `${name}: hostParse false parses in the sandbox`);
     sameAnalysis(a, b, `${name}: the analysis parsed here and in the sandbox`);
   }
-  eq(ways, { plain: true, transform: false, label: false, getter: false }, 'parsed here');
+  eq(ways, { plain: true, transform: false, label: false, getter: false, copied: true }, 'parsed here');
   // What each way's analysis holds: the vocabulary applies, the transform and the label function run.
   const html = (name) => pageParts(run(['build', `hp/${name}.html`]).out).main;
   ok(/<aside id="one" class="t-block box"[^>]* role="note">/.test(html('plain')) && /<kbd class="k"[^>]*>Ctrl<\/kbd>/.test(html('plain')) && />Theorem 1</.test(html('plain')), `plain: ${html('plain')}`);
   ok(JSON.parse(run(['check', 'hp/transform.html', '--json']).out).some((d) => d.code === 'mark.ran'), 'the transform ran');
   ok(/>Satz 1</.test(html('label')), `the label function ran: ${html('label')}`);
   ok(/<aside id="one"/.test(html('getter')), `the getter's tag: ${html('getter')}`);
+  ok(/<aside id="one"/.test(html('copied')), `the copied getter's tag: ${html('copied')}`);
 });
 
 test("analyse: every note of the repository gets the same analysis parsed here as in the sandbox; the documentation's pages are parsed here", () => {

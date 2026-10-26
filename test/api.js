@@ -347,6 +347,76 @@ test('safe: attributes that drive the host page are dropped, attribute names are
   eq(luccet.toHTML('x\n', { idPrefix: 7 }), '<p>x</p>\n', 'a prefix that is not a string is none');
 });
 
+// What `safe` may write, whatever the tree: the elements a source can make
+// (the schema's allowlist, luccet's own, MathML) and no handler attribute.
+// A tree from elsewhere is forged here from the corpus's own trees: every
+// string and number the emitter reads replaced with markup, and a tag, a
+// slot and MathML of its own given to every node.
+const PAYLOAD = 'x" onmouseover="alert(1)" a=\'<img src=x onerror=alert(1)>';
+const corpusSources = () => {
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, 'corpus');
+  const out = [];
+  for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.txt'))) {
+    for (const m of fs.readFileSync(path.join(dir, f), 'utf8').matchAll(/^(`{3,})luccet[^\n]*\n([\s\S]*?)\n\1$/gm)) out.push(m[2]);
+  }
+  return out;
+};
+function forge(tree, mode) {
+  luccet.visit(tree, (n) => {
+    const t = ((n.data || (n.data = {})).luccet || (n.data.luccet = {}));
+    if (mode === 'data') {
+      for (const k of Object.keys(t)) if (typeof t[k] === 'string' || typeof t[k] === 'number') t[k] = PAYLOAD;
+      t.tag = t.tag ? PAYLOAD : 'script';
+      t.slot = PAYLOAD;
+      t.mathml = `<math><mi>x</mi></math><img src=x onerror=alert(1)>`;
+      if (n.name) n.name = PAYLOAD;
+    } else {
+      for (const k of Object.keys(n)) if (k !== 'type' && (typeof n[k] === 'string' || typeof n[k] === 'number')) n[k] = PAYLOAD;
+      if (n.position) n.position = { start: { line: PAYLOAD, column: PAYLOAD }, end: n.position.end };
+      if (n.attributes) n.attributes = { [PAYLOAD]: PAYLOAD, onclick: PAYLOAD, href: 'javascript:alert(1)' };
+    }
+  });
+  return tree;
+}
+test('safe: a tree from elsewhere holds to what a source can make: elements from the allowlist, no handler, MathML in the engine\'s shape', () => {
+  const S = require('../src/schema');
+  const own = 'h1 h2 h3 h4 h5 h6 p hr blockquote ol ul li pre code a img sup sub section table thead tbody tr th td caption br input em strong del mark span div figure figcaption summary legend';
+  const math = 'math mi mn mo ms mtext mspace mrow mfrac msqrt mroot mstyle merror mpadded mphantom msub msup msubsup munder mover munderover mmultiscripts mprescripts none mtable mtr mtd';
+  const allowed = new Set([...S.ALLOW.block, ...S.ALLOW.leaf, ...S.ALLOW.inline, ...own.split(' '), ...math.split(' ')]);
+  for (const t of ['iframe', 'object', 'embed', 'form', 'script', 'style']) allowed.delete(t);
+  const TAG = /<([a-zA-Z][\w-]*)((?:\s+[^\s"'>\/=]+(?:="[^"]*")?)*)\s*\/?>/y;
+  let trees = 0;
+  for (const src of corpusSources()) {
+    for (const mode of ['data', 'node']) {
+      let html;
+      try {
+        const { ast } = luccet.parse(src);
+        html = luccet.emit(forge(luccet.transform(ast), mode), { safe: true });
+      } catch (e) {
+        continue; // a tree the emitter cannot read is no output at all
+      }
+      trees++;
+      for (let i = html.indexOf('<'); i >= 0; i = html.indexOf('<', i + 1)) {
+        if (!/[a-zA-Z]/.test(html[i + 1] || '')) continue;
+        TAG.lastIndex = i;
+        const m = TAG.exec(html);
+        const at = `${mode}, ${JSON.stringify(src.slice(0, 40))}`;
+        if (!m) throw new Error(`a start tag the check cannot read at ${html.slice(i, i + 60)} (${at})`);
+        if (!allowed.has(m[1].toLowerCase())) throw new Error(`<${m[1]}> written (${at})`);
+        for (const a of m[2].matchAll(/\s([^\s"'>\/=]+)(?:="([^"]*)")?/g)) {
+          if (/^on/i.test(a[1])) throw new Error(`${a[1]}= on <${m[1]}> (${at})`);
+          if (/^(?:href|src)$/i.test(a[1]) && /^\s*javascript:/i.test(a[2] || '')) throw new Error(`a javascript: URL on <${m[1]}> (${at})`);
+        }
+      }
+    }
+  }
+  if (trees < 2000) throw new Error(`only ${trees} trees were emitted`);
+  const kept = luccet.emit({ type: 'root', children: [{ type: 'paragraph', children: [{ type: 'inlineMath', value: 'q', data: { luccet: { mathml: luccet.tex('\\frac{a}{b}').mathml } } }] }] }, { safe: true, positions: false });
+  eq(kept, '<p><span class="t-math" data-tex="q"><math><mfrac><mi>a</mi><mi>b</mi></mfrac></math></span></p>\n', "MathML in the engine's shape is kept: its macros may be unknown here");
+});
+
 test('parse: maxDepth is a finite number of 1 or more, else 64; a schema label function that throws is addon.failed once per element', () => {
   for (const v of ['abc', Infinity, 0, -1, true, null]) eq(luccet.parse('> > > x', { maxDepth: v }).diagnostics, [], `maxDepth ${String(v)}: the default`);
   for (const v of [2, '2', 2.7]) eq(luccet.parse('> > > x', { maxDepth: v }).diagnostics.map((d) => d.code), ['nesting.limit'], `maxDepth ${String(v)}: two`);

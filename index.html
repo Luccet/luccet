@@ -177,6 +177,7 @@ Then read [the Guide](docs/guide.html#top), which goes from the first line to vo
 | [Elements and output](docs/elements.html#top) | how names become elements, titles and labels, numbering, references, ids, figures, raw HTML, metadata |
 | [Vocabulary and behaviour](docs/schema.html#top) | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, styling, themes |
 | [Add-ons](docs/addons.html#top) | what an add-on is, and Luccet's add-ons, each in its own repository: code highlighting, diagrams, citations, search, a list of notes, a glossary |
+| [Writing an add-on](docs/addon-api.html#top) | the add-on contract, `luccet.api`: loading and options, what an add-on registers, the lifecycle, math, foreign content, under node |
 | [Diagnostics](docs/diagnostics.html#top) | every diagnostic: when it fires, what happens to the content, the fix |
 | [Command line and editors](docs/tools.html#top) | `luccet new`, `check`, `parse`, `build`, `mv`, `corpus` and `lsp`; editor setup; a skill for coding agents |
 | [Publishing](docs/publishing.html#top) | hosting, `luccet build`, CSP, offline use, browsers, trust |
@@ -199,7 +200,7 @@ Complete notes, each declaring its own vocabulary in a few lines at the top. Ope
 **Versions.** The syntax these pages describe and the engine that renders it, `luccet.js`, carry one number from 1.0 on. These pages and the engine's conformance tests are the reference, and every live example on them is checked against the engine. The engine is at version 2.0.0 (`luccet.version`; the tags on GitHub and jsDelivr carry the same number) and follows [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may break. What a release may not break outside a major:
 
 - **Rendering:** the HTML and the diagnostics the conformance corpus records for a note. A fix that changes a case's output is a patch only when the old output contradicted these pages, as a hole in [`safe`](docs/publishing.html#trust) does.
-- **The API:** the members of `luccet` and their documented behaviour, and what an add-on receives.
+- **The API:** the members of `luccet` and their documented behaviour, and the [add-on contract](docs/addon-api.html#top), which carries its own number, `luccet.api`.
 - **The command line:** its commands, options, exit codes and the shape of its `--json` output.
 - **The files `luccet index` writes:** read by their `format` number, which changes only in a major release.
 

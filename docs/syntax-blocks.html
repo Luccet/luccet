@@ -3090,7 +3090,7 @@ The keys, the head and conflicts are on [Metadata](elements.html#metadata).
 
 ### `:::use` {#use}
 
-- The body lists the add-ons the note loads — scripts and stylesheets, as the luccet.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, on [Vocabulary and behaviour](schema.html#addons).
+- The body lists the add-ons the note loads — scripts and stylesheets, as the luccet.js tag's `data-use` lists them — one or more per line, each a URL with optional `?options`. Both are honoured; the tag's entries load first. Which add-ons exist is on [Add-ons](addons.html); how a note lists them, and what an add-on may rely on, on [Writing an add-on](addon-api.html#loading).
 - It must lead the note: at the top level, before any content, after `:::meta` at most. An attribute line above it is not content: it binds to the block, which still leads (and its attributes apply to nothing, as below). The runtime reads it from the file as it arrives, so its add-ons start loading before the note has finished downloading, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) (error) and is ignored: its add-ons could not have been loaded in time.
 - Nothing is emitted, and its body is verbatim. As on `:::meta`, an id, a class or a key on `:::use` gets [`attr.malformed`](diagnostics.html#attr-malformed) (warning) and is dropped.
 - The entries are in the tree as `root.data.luccet.use`, `[{url, position}]`, in order.

@@ -403,7 +403,7 @@ function cliPage(name) {
   try {
     let html;
     if (name === 'built') html = cli(['build', 'test/smoke/built.html']);
-    else if (/^built-(?:own-schema|note-config|addon-throws|poster)$/.test(name)) html = cli(['build', `test/smoke/${name.slice(6)}.html`]);
+    else if (/^built-(?:own-schema|note-config|addon-throws|poster|contract)$/.test(name)) html = cli(['build', `test/smoke/${name.slice(6)}.html`]);
     else if (name === 'built-missing') {
       const file = path.join(tmp, 'missing.html');
       fs.writeFileSync(file, '<!doctype html><meta charset="utf-8"><script src="/luccet.js" data-use="/test/smoke/missing-addon.js /test/smoke/missing-addon.css"></script>\n# Smoke: a built page whose add-ons are missing\n');
@@ -1030,6 +1030,69 @@ const TESTS = [
       if (after.math.join() !== '1,1,1') throw new Error(`<math> per formula after luccet.render() twice: ${after.math.join(', ')}`);
       if (after.html !== html) throw new Error('luccet.render() with no source changed main.luccet');
       ctx.note(`events from the two extra luccet.render() calls: ${after.log.slice(want.length).join(', ') || 'none'}`);
+    },
+  },
+  // ---- the add-on contract (docs/addon-api.html), with fixture add-ons only
+  {
+    name: "add-on contract: luccet.api, every member, options, the registry's checks, dom then define, an awaited 'render' before 'math', 'ready'; transforms and strings; the same vocabulary under node",
+    url: '/test/smoke/contract.html',
+    async setup() {
+      cliPage('built-contract');
+    },
+    async check(page, ctx) {
+      await expect(page, () => window.__contract && window.__contract.includes('ready'), "the contract log to reach 'ready'");
+      const want = ['api 2', 'use {"y":"2","x":"1"}', 'bad TypeError', 'entry true', 'string hi you', 'own from the page', 'dom c1', 'define c1', 'render main safe=false', 'render-done main', 'math main safe=false', 'ready'];
+      const log = await page.evaluate(() => window.__contract.slice());
+      if (JSON.stringify(log) !== JSON.stringify(want)) throw new Error(`log ${JSON.stringify(log)}, expected ${JSON.stringify(want)}`);
+      const keys = await page.evaluate(() => Object.keys(window.luccet).sort().join(' '));
+      const node = Object.keys(require(LUCCET_JS)).sort().join(' ');
+      if (keys !== node) throw new Error(`window.luccet has ${keys}; require() gives ${node}`);
+      if (!ctx.diagnostics.some((d) => d.code === 'contract.ran' && d.severity === 'info')) throw new Error("the add-on's transform reported nothing");
+      // The vocabulary under node: luccet build writes the card as the browser does.
+      const open = (html) => (/<aside id="c1"[^>]*>/.exec(html) || [''])[0].replace(/ data-pos="[^"]*"/, '');
+      const browser = open(await page.evaluate(() => document.getElementById('c1').outerHTML));
+      const built = open(cliPage('built-contract'));
+      if (!browser || browser !== built) throw new Error(`the card in the browser ${JSON.stringify(browser)}, built ${JSON.stringify(built)}`);
+    },
+  },
+  {
+    name: "add-on contract: content shown later is handed over with luccet.render(el): behaviours on what is new, 'render' and 'math' with el as the root",
+    url: '/test/smoke/contract.html',
+    async check(page) {
+      await expect(page, () => window.__contract && window.__contract.includes('ready'), "the contract log to reach 'ready'");
+      const n = await page.evaluate(() => window.__contract.length);
+      await page.evaluate(() => (document.getElementById('l1').open = true));
+      await expect(page, () => window.__contract.includes('math l1 safe=false'), "'math' on the opened details");
+      const log = await page.evaluate((k) => window.__contract.slice(k), n);
+      const want = ['dom late', 'define late', 'render l1 safe=false', 'render-done l1', 'math l1 safe=false'];
+      if (JSON.stringify(log) !== JSON.stringify(want)) throw new Error(`log ${JSON.stringify(log)}, expected ${JSON.stringify(want)}`);
+    },
+  },
+  {
+    name: 'add-on contract: foreign content with luccet.render(el, tree, {safe: true}): data-t-safe, no behaviours then or later, info.safe; a forged tree writes no markup of its own',
+    url: '/test/smoke/contract.html',
+    async check(page) {
+      await expect(page, () => window.__contract && window.__contract.includes('ready'), "the contract log to reach 'ready'");
+      const n = await page.evaluate(() => window.__contract.length);
+      const diagnostics = await page.evaluate(() => window.__foreign().then((d) => d.length));
+      await page.evaluate(() => luccet.define('card', (el) => window.__contract.push(`late-define ${el.id}`)));
+      const r = await page.evaluate((k) => {
+        const host = document.getElementById('host');
+        return { log: window.__contract.slice(k), safe: host.hasAttribute('data-t-safe'), f1: (document.getElementById('f1') || {}).localName, img: !!host.querySelector('img'), xss: window.__xss, math: !!host.querySelector('.t-math > math') };
+      }, n);
+      const want = ['render host safe=true', 'render-done host', 'math host safe=true', 'late-define c1'];
+      if (JSON.stringify(r.log) !== JSON.stringify(want)) throw new Error(`log ${JSON.stringify(r.log)}, expected ${JSON.stringify(want)}`);
+      if (!r.safe || r.f1 !== 'aside' || r.img || r.xss !== undefined || !r.math || diagnostics !== 0) throw new Error(`host ${JSON.stringify(r)}, diagnostics ${diagnostics}`);
+    },
+  },
+  {
+    name: "add-on contract: the math hand-off: config.math = 'tex' while loading, formulas as TeX for an awaited 'render' listener, 'math' once they are typeset",
+    url: '/test/smoke/contract-math.html',
+    async check(page) {
+      await expect(page, () => window.__math && window.__math.length === 2, "the add-on's 'render' and 'math'");
+      const log = await page.evaluate(() => window.__math.slice());
+      const want = ['render 2 tex=true safe=false', 'math 2'];
+      if (JSON.stringify(log) !== JSON.stringify(want)) throw new Error(`log ${JSON.stringify(log)}, expected ${JSON.stringify(want)}`);
     },
   },
   {

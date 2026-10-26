@@ -16,6 +16,7 @@ The documentation is a set of Luccet notes. Every page is a `.html` file whose f
 | `docs/elements.html` | Elements and output | how names become elements, the output contract, titles and labels, numbering, references, ids, figures, table captions, raw HTML, metadata |
 | `docs/schema.html` | Vocabulary and behaviour | schemas, `window.LUCCET.schema`, add-ons, `luccet.define`, transforms, styling, themes, labels in other languages |
 | `docs/addons.html` | Add-ons | what an add-on is and how to load one, and the table of Luccet's add-ons, each linking to its own repository's page (github.com/Luccet/NAME); nothing else in the docs documents an add-on |
+| `docs/addon-api.html` | Writing an add-on | the add-on contract, `luccet.api`: loading, options and failure, a complete add-on, what an add-on registers, the lifecycle, math, foreign content, under node, stability |
 | `docs/diagnostics.html` | Diagnostics | every diagnostic: when it fires, what happens to the content, an example, the fix |
 | `docs/tools.html` | Command line and editors | `luccet new/check/parse/build/mv/search/index/corpus/lsp`, the language server, the language module editors embed, editor setup, the outline notification, note detection |
 | `docs/publishing.html` | Publishing | the file, opening locally, static hosts, `luccet build`, CSP, math and KaTeX, offline use, browsers, trust, "When it does not render" |

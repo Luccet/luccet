@@ -189,6 +189,8 @@ module.exports = {
   own,
   LEVEL,
   ALLOW,
+  FULL_NAME,
+  TITLE,
   CORE,
   VOID,
   entry,

@@ -19,6 +19,10 @@ const { symbols: TEX_SYMBOLS } = require('./tex-symbols');
 const runtime = require('./runtime');
 
 const version = '2.0.0';
+// The add-on contract's number (docs/addon-api.html): it changes only when
+// the contract breaks, which only a major release may do, and not at every
+// major. What a minor release adds, an add-on finds by feature detection.
+const api = 2;
 
 // The schema a call uses: opts.schema when given (the corpus passes one),
 // else the registry that luccet.block/leaf/inline write.
@@ -70,6 +74,7 @@ tex.symbols = Object.freeze([...TEX_SYMBOLS].map(([name, [k, c]]) => Object.free
 
 module.exports = {
   version,
+  api,
   parse,
   transform,
   emit: (ast, opts) => emit(ast, withSchema(opts)),

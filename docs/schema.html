@@ -749,214 +749,7 @@ luccet.schema.block.note.label = 'Hinweis';
 
 ## Add-ons {#addons}
 
-An add-on is a script or a stylesheet listed in `data-use` on the luccet.js tag:
-
-```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="lib/callout.js lib/theme.css"></script>
-```
-
-or in a [`:::use` block](syntax-blocks.html#use) at the top of the note, one or more per line:
-
-```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
-
-:::use
-lib/callout.js
-lib/theme.css
-:::
-```
-
-### Listing add-ons {#data-use}
-
-- **The list** is space-separated on the tag, and one or more entries per line in the block. Each entry is a URL, relative to the page like any `src`.
-- **Two places, one list.** `data-use` is fine for a single add-on; `:::use` is the readable form for several. Both are honoured and merge: the tag's entries load first, then the block's, in order.
-- **`:::use` must lead the note:** at the top level, before any content; only `:::meta`, blank lines and other `:::use` blocks may come before it. luccet.js reads it from the file as it arrives, so its add-ons start loading almost as early as the tag's, and the tools read it before they analyse. One anywhere else gets [`use.late`](diagnostics.html#use-late) and is ignored. The block emits nothing.
-- **Stylesheets and scripts.** An entry whose path ends in `.css` is a stylesheet; anything else is a script.
-- **Order matters.** Scripts run in the order listed, so a later add-on sees an earlier one's entries and can change them. Stylesheets cascade in the order listed: a theme listed after an add-on wins at equal specificity.
-- **Under node**, the command line reads the entries the same way: every entry that does not end in `.css` is run as a classic script, `.mjs` or no extension included. One that does not parse as a classic script, or names a directory, is `addon.failed`.
-
-### Options in the query string {#use-options}
-
-An add-on takes options from its URL's query string, in `luccet.config.use`:
-
-```html
-<script src="luccet.js" data-use="lib/callout.min.js?collapse=all&amp;accent=teal"></script>
-```
-
-```js
-luccet.config.use.callout   // {collapse: 'all', accent: 'teal'}
-```
-
-A `:::use` entry takes the same query string, `lib/callout.min.js?collapse=all&accent=teal`, with `&` written as it is: the block's body is verbatim.
-
-- **The key** is the file name without its directory, `.min`, and `.js`, `.mjs` or `.css`: `lib/callout.min.js` is `callout`.
-- **Every entry** gets an object, empty when there is no query.
-- **Values** are strings. A key without `=` gets `''`.
-- **Defaults.** `window.LUCCET.use = {callout: {collapse: 'none'}}` gives defaults; the query string wins key by key.
-- **`&amp;`** is the strict HTML spelling of `&` in an attribute; both work.
-- **Under node, `luccet.config.use` is empty.** Read options only for behaviour and style, never for vocabulary, or `luccet check` and `luccet build` would not see what the browser sees ([Under node](#addons-under-node)).
-
-### How they load {#addon-loading}
-
-1. When luccet.js starts, it adds a preload for every script add-on, then appends them all at once: they **download in parallel** and **run in the order listed**. Stylesheets are added as links, in order.
-2. The note is rendered once the document is parsed and **every add-on has loaded or failed**, or 12 seconds after the document was parsed, whichever comes first ([the lifecycle](api.html#capture)).
-3. So an add-on runs **before the mount**. `window.luccet` exists; `window.LUCCET.schema` is not applied yet; the note's elements do not exist yet.
-
-An add-on therefore registers things, for the runtime to apply when the note is rendered:
-- vocabulary: `luccet.block`, `luccet.leaf`, `luccet.inline`;
-- behaviours: `luccet.define`;
-- listeners: `luccet.on`;
-- transforms: `luccet.transform`;
-- styles: `luccet.style`.
-
-It does not look for the note's elements itself: they are not there yet.
-
-### When an add-on fails {#addon-failed}
-
-**`addon.failed`** is an error at the luccet.js line. The note always renders. It is reported when:
-- a script or stylesheet does not load (a wrong path, a network error): the note renders without it;
-- a script throws while it runs: the note renders with what the add-on registered before the error, and the browser's console shows where it threw;
-- a transform the add-on registered throws when it runs: that transform is skipped ([Custom transforms](#transforms)).
-
-The command line and the language server report the same cases, and a few of their own:
-- a missing file, or a directory;
-- a script that does not parse as a classic script;
-- a script that uses what the [node shim](#addons-under-node) does not provide.
-
-**A remote add-on** (`https://…`) is not loaded under node. That is **`addon.remote`**, an info at the luccet.js line: names it declares are unknown to `luccet check`, which does not fail because of it. `luccet build` warns about it: the page it writes uses those names without their schema entries.
-
-**Diagnostics:** [`addon.failed`](diagnostics.html#addon-failed), [`addon.remote`](diagnostics.html#addon-remote).
-
-## Writing an add-on {#writing-an-addon}
-
-### A complete add-on {#callout-addon}
-
-This add-on declares three callouts, `note`, `tip` and `warning`, with labels in three languages, a stylesheet, and a behaviour that folds a callout away.
-
-```js [callout.js, a complete add-on]{#lst-callout}
-// callout.js: callouts for Luccet notes, in English, German and French.
-//   <script src="luccet.js" data-use="callout.js"></script>
-//   <script src="luccet.js" data-use="callout.js?collapse=all"></script>
-(function () {
-  'use strict';
-  const luccet = window.luccet;
-
-  // 1. Vocabulary: three containers with a label in three languages.
-  const labels = {
-    note: { en: 'Note', de: 'Hinweis', fr: 'Remarque' },
-    tip: { en: 'Tip', de: 'Tipp', fr: 'Astuce' },
-    warning: { en: 'Warning', de: 'Warnung', fr: 'Attention' },
-  };
-  for (const name of Object.keys(labels)) {
-    luccet.block(name, {
-      tag: 'aside',
-      class: 'callout',
-      attrs: { role: 'note' },
-      label: labels[name],
-      dom: collapsible,
-    });
-  }
-
-  // 2. Look: keyed on the classes, never on the tag.
-  luccet.style(`
-.luccet .callout { border-inline-start: 4px solid var(--callout, var(--t-link));
-  background: var(--t-soft); padding: .6rem 1rem; border-radius: 6px; }
-.luccet .callout.tip { --callout: #2f8a46; }
-.luccet .callout.warning { --callout: var(--t-warn); }
-.callout-toggle { margin-inline-start: .5rem; font: inherit; cursor: pointer; }
-@media print { .callout-toggle { display: none; } }
-`);
-
-  // 3. Behaviour: a callout with data-collapse, or every callout with
-  //    ?collapse=all, gets a button that folds its body away.
-  const options = luccet.config.use.callout || {}; // empty under node
-  function collapsible(el) {
-    const title = el.querySelector(':scope > .t-title');
-    if (!title || !(options.collapse === 'all' || el.hasAttribute('data-collapse'))) return;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'callout-toggle';
-    button.setAttribute('aria-expanded', 'true');
-    button.textContent = 'Hide';
-    button.addEventListener('click', () => {
-      const open = button.getAttribute('aria-expanded') === 'true';
-      button.setAttribute('aria-expanded', String(!open));
-      button.textContent = open ? 'Show' : 'Hide';
-      for (const child of el.children) if (child !== title) child.hidden = open;
-    });
-    title.append(button);
-  }
-})();
-```
-
-A note that uses it:
-
-```html
-<!doctype html><html lang="de"><meta charset="utf-8"><script src="luccet.js" data-use="callout.js"></script>
-
-:::warning[Strom]{#w data-collapse}
-Erst den Stecker ziehen.
-:::
-```
-
-The engine writes this (as `luccet build` shows it, without positions), and the behaviour then adds the button to the title:
-
-```html
-<aside id="w" class="t-block warning callout" data-t="warning" role="note" data-collapse><div class="t-title"><span class="t-label">Warnung</span> Strom</div><p>Erst den Stecker ziehen.</p>
-</aside>
-```
-
-What each part does:
-- **The wrapper** keeps the add-on's names out of the page's globals, and reads `window.luccet`, which luccet.js defined before any add-on runs.
-- **The vocabulary.** The label map picks "Warnung" from `<html lang="de">` ([Labels in other languages](#languages)). `class` and `attrs` give every callout the class `callout` and `role="note"`.
-- **The look.** `luccet.style` puts the rules at this add-on's place in the cascade and adds the page's nonce. Most of the rules use luccet's custom properties, so they follow dark mode ([Styling](#styling)).
-- **The behaviour** reads a per-element option from a `data-*` attribute (`{data-collapse}`), and a per-note option from the query string.
-
-### Guidelines {#addon-guidelines}
-
-- **Register everything while the script runs.** The mount comes after; nothing registered later applies to the note until the next render.
-- **Key CSS and behaviours on the class or `data-t`, never on the tag.** An author can change the tag with `{tag=…}`.
-- **Use `luccet.style`** rather than adding your own `<style>`: it keeps the cascade order of `data-use`, and the nonce of a strict CSP ([CSP](publishing.html#csp)).
-- **Prefer `data-*` attributes** for options on one element. Any key is written to the element as given, but most HTML elements accept only `data-*` and their own attributes.
-- **Guard the options:** `luccet.config.use.NAME || {}`. Under node the object is missing.
-- **Never derive vocabulary from options.** Labels, tags and counters must be the same under node, where `luccet.config.use` is empty, as in the browser. Use a label map for languages.
-- **Walk the tree yourself in a transform.** Under node, `luccet` is a shim without `luccet.visit` (next section), so a transform that calls it fails there.
-- **Stay within the browser** at load time: the command line runs the add-on with stand-ins for the DOM (next section).
-
-### Under node: the command line and the language server {#addons-under-node}
-
-`luccet check`, `luccet parse`, `luccet build` and `luccet lsp` need a note's vocabulary, so they load it in a node `vm` sandbox, in this order:
-1. the head's classic scripts before the luccet.js tag ([Declaring vocabulary in a single file](#window-luccet));
-2. the `data-use` script add-ons, with `window.luccet` set to a **shim**;
-3. `window.LUCCET.schema`, on top.
-
-:::table[The window.luccet shim]{#tbl-shim}
-| Part | Under node |
-|---|---|
-| `luccet.block`, `luccet.leaf`, `luccet.inline` | work: they store the spec as given, without the name checks |
-| `luccet.schema` | the registry being built: `luccet.schema.strict = true` and edits to entries work |
-| function fields (`label`, `dom`) | kept; a label function runs |
-| `luccet.transform` | works: the transform runs in `luccet check`, `luccet parse --transformed`, `luccet build` and the language server |
-| `luccet.version` | the engine's version |
-| `luccet.define`, `undefine`, `on`, `style` | accepted and ignored |
-| `luccet.render` | resolves to `[]` |
-| `luccet.ready` | a promise that never settles |
-| `luccet.diagnostics` | an empty array |
-| `luccet.config` | `{use: {}}`: no query options |
-| everything else on `luccet` (`parse`, `toHTML`, `visit` …) | absent: calling it throws, so the add-on, or the transform that called it, is `addon.failed` |
-:::
-
-- **Browser globals** (`document`, `customElements`, `HTMLElement`, `fetch`, `setTimeout` …) are stand-ins that accept anything and do nothing. So `customElements.define(…)` or `class X extends HTMLElement` does not stop the add-on before its `luccet.block` calls.
-- **`window`**, `self` and `globalThis` are the sandbox. Its `console` writes to stderr.
-- **Each script** gets 2 seconds.
-- **Files.** Only local files load: a relative URL from the note's directory, a root-relative one (`/lib/x.js`) from the note's directory or the nearest ancestor that has it. A remote add-on is not loaded: `addon.remote` ([When an add-on fails](#addon-failed)).
-
-What follows from the shim:
-- **Vocabulary is identical** under node and in the browser, if the add-on declares it without reading options or the DOM.
-- **Transforms run** under node as in the browser: `luccet check` reports their diagnostics, and `luccet build` writes their changes into the page. A transform that throws is skipped and reported as `addon.failed`.
-- **Behaviours and styles** do not run under node. A page written by `luccet build` loads the add-on in the browser, where they run.
-
-**The language server** uses the same loader, cached per note directory, luccet.js tag and head scripts. A change to an add-on file takes effect at the note's next edit. Completion lists the schema's names; hover on a name shows its element and whether the schema, the allowlist or neither gave it ([The language server](tools.html#lsp)).
+An add-on is a script or a stylesheet a note lists in `data-use` or `:::use`, to add vocabulary, behaviour and a look. [Add-ons](addons.html#top) lists Luccet's own, and [Writing an add-on](addon-api.html#top) is the contract one of your own can rely on: how it loads and takes options, what it registers, the lifecycle, math, foreign content and the command line.
 
 ## Behaviours {#behaviours}
 
@@ -1165,16 +958,12 @@ A glossary: `:term[…]` marks a term, and a `::glossary` leaf lists every term 
   luccet.inline('term', { tag: 'dfn' });
   luccet.leaf('glossary', { tag: 'nav' });
 
-  const walk = (node, fn) => {
-    fn(node);
-    if (node.children) for (const child of node.children) walk(child, fn);
-  };
   const text = (nodes) => nodes.map((n) => n.value || (n.children ? text(n.children) : '')).join('');
 
   luccet.transform('glossary', (ast, ctx) => {
     const terms = new Map(); // term -> the id of its first use
     const lists = [];
-    walk(ast, (node) => {
+    luccet.visit(ast, (node) => {
       if (node.type === 'leafDirective' && node.name === 'glossary') lists.push(node);
       if (node.type !== 'textDirective' || node.name !== 'term') return;
       const word = text(node.children).trim();
@@ -1206,7 +995,7 @@ With it, `A :term[kernel] is a set; so is the :term[image].` followed by `::glos
 ```
 
 - It runs **before `ids`**, so the ids it gives the terms are registered: the links are checked like any fragment link, and `@term-1` would resolve.
-- It walks the tree with its own `walk`, not `luccet.visit`, which the command line's shim does not have. So it runs in the browser, in `luccet check` and in `luccet build` alike.
+- It walks the tree with [`luccet.visit`](api.html#visit), which an add-on has under node too ([Under node](addon-api.html#node)). So it runs in the browser, in `luccet check` and in `luccet build` alike.
 - The nodes it builds are mdast nodes ([Node types](api.html#node-types)); the emitter writes them like parsed ones. They have no positions, so they get no `data-pos`.
 - An empty `:term[]` gets `glossary.empty` (warning) at the term.
 
@@ -1221,7 +1010,7 @@ Use a behaviour when the work needs the page: events, measurement, a widget, dat
 
 Where transforms run:
 - **in the browser**, once per tree: at mount, and at each `luccet.render(root, source)`;
-- **under the command line and the language server**, from an add-on: `luccet check` reports their diagnostics, and `luccet build` writes their changes into the page ([Under node](#addons-under-node));
+- **under the command line and the language server**, from an add-on: `luccet check` reports their diagnostics, and `luccet build` writes their changes into the page ([Under node](addon-api.html#node));
 - **under node, in your own script**: a transform registered with `require('./luccet.js').transform(…)` runs in `toHTML`, `check` and `transform`.
 
 ## Styling {#styling}
