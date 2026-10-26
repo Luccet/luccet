@@ -6,7 +6,8 @@
 //   - not throw;
 //   - take ≤ 50 ms (scaled to the machine; the fastest of up to four runs);
 //   - produce output of bounded length (≤ 50 × input + 10 KB, plus the
-//     empty cells a table's short rows are padded with);
+//     empty cells a table's short rows are padded with, and on a page that
+//     defines macros, the tokens tex.limit lets them produce);
 //   - be deterministic (same input, same result);
 //   - keep every invariant in test/lib/invariants.js.
 // A failing input is saved to test/fuzz-failures/ with its seed, and replays
@@ -92,6 +93,27 @@ function padding(node) {
   return n;
 }
 
+// The tokens a page's macros may produce, as src/tex.js allows them
+// (docs/diagnostics.html#tex-limit): each formula ten for each character of
+// its TeX, and a reserve of 5,000 the page's formulas share.
+// A macro's body is written out at each use, so its MathML is in proportion
+// to these, not to the input; none on a page that defines no macro.
+const DEFINES = /\\(?:g?def|newcommand|renewcommand|providecommand|DeclareMathOperator)(?![A-Za-z])/;
+function macroTokens(ast) {
+  let defines = false;
+  let own = 0;
+  (function walk(n) {
+    if (n.type === 'containerDirective' && n.name === 'macros') defines = true;
+    if (n.type === 'math' || n.type === 'inlineMath') {
+      const v = n.value || '';
+      own += 10 * v.length;
+      if (DEFINES.test(v)) defines = true;
+    }
+    for (const c of n.children || []) if (c && typeof c === 'object') walk(c);
+  })(ast);
+  return defines ? own + 5000 : 0;
+}
+
 // Milliseconds for one parse and one render of input.
 function cost(luccet, input, opts) {
   const t = process.hrtime.bigint();
@@ -123,7 +145,7 @@ function runOne(luccet, input, limitMs) {
     return [`threw on a second run: ${(e && e.stack) || e}`];
   }
   if (ms > limitMs) problems.push(`took ${ms.toFixed(1)} ms at best of ${runs} runs (limit ${limitMs.toFixed(0)} ms) for ${input.length} chars`);
-  const allowed = 50 * input.length + 10240 + 48 * padding(parsed.ast);
+  const allowed = 50 * (input.length + macroTokens(parsed.ast)) + 10240 + 48 * padding(parsed.ast);
   if (html.length > allowed) problems.push(`output ${html.length} chars for ${input.length} chars of input (bound ${allowed})`);
   problems.push(...checkParse(parsed, input).slice(0, 5));
   try {

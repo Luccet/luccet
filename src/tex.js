@@ -27,15 +27,14 @@
 const { symbols, classes, text: TEXT_SYMBOLS } = require('./tex-symbols');
 
 const MAX_EXPANSIONS = 10000; // macro expansions in one formula
-// Tokens macro expansion may produce, so that the work stays in proportion
-// to what was written: a formula's own 100, and ten for each character of
-// its TeX; past those, it draws on its page's reserve, which all the page's
-// formulas share. (A macro that used itself, with a long body, grew a
+// Tokens macro expansion may produce, so that the work and the MathML stay
+// in proportion to what was written: a formula's own ten for each character
+// of its TeX; past those, it draws on its page's reserve, which all the
+// page's formulas share. (A macro that used itself, with a long body, grew a
 // six-character formula to 200,000 tokens in 126 ms, and a page of such
 // formulas took seconds.)
-const FORMULA_TOKENS = 100;
 const TOKENS_PER_CHAR = 10;
-const PAGE_TOKENS = 20000;
+const PAGE_TOKENS = 5000;
 const MAX_DEPTH = 100; // groups nested in one formula
 
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -441,7 +440,7 @@ class Parser {
     this.depth = 0;
     this.expansions = 0;
     this.produced = 0; // tokens its macros produced
-    this.own = FORMULA_TOKENS + TOKENS_PER_CHAR * src.length; // the part of them that is the formula's own
+    this.own = TOKENS_PER_CHAR * src.length; // the part of them that is the formula's own
     this.drawn = 0; // and the part drawn on the table's reserve
     this.defined = false;
   }
@@ -508,17 +507,20 @@ class Parser {
       k = 1;
     }
     for (; k < m.n; k++) args.push(this.argTokens(call, `\\${call.v} takes ${m.n} argument${m.n === 1 ? '' : 's'}`));
-    const out = [];
-    for (const b of m.body) {
-      if (b.t === 'arg') for (const a of args[b.v - 1]) out.push(a);
-      else out.push({ t: b.t, v: b.v, at: call.at, end: call.end, prim: b.prim });
-    }
-    this.produced += out.length;
-    const over = Math.min(out.length, this.produced - this.own);
+    // Counted before it is built: a body the budget refuses costs nothing.
+    let size = 0;
+    for (const b of m.body) size += b.t === 'arg' ? args[b.v - 1].length : 1;
+    this.produced += size;
+    const over = Math.min(size, this.produced - this.own);
     if (over > 0) {
       if (over > this.table.reserve) fail('tex.limit', call, `the macros in this formula grow it past ${(this.own + this.drawn + this.table.reserve).toLocaleString('en')} tokens, all the page has left for it`, 'a macro that uses itself grows without end: check its definition');
       this.table.reserve -= over;
       this.drawn += over;
+    }
+    const out = [];
+    for (const b of m.body) {
+      if (b.t === 'arg') for (const a of args[b.v - 1]) out.push(a);
+      else out.push({ t: b.t, v: b.v, at: call.at, end: call.end, prim: b.prim });
     }
     for (let i = out.length - 1; i >= 0; i--) this.q.push(out[i]);
   }
