@@ -6,8 +6,10 @@
 //
 //   render(tex, {display, macros}) -> {mathml, defined} | {error}
 //     macros: a table from table(); a \gdef in the formula writes into it, for
-//     the formulas after (defined: true then). error: {code, at, end, message,
-//     hint}, at and end being offsets into tex.
+//     the formulas after (defined: true then), and its macros draw on the
+//     table's reserve. Without one, the formula has a table of its own, with
+//     no reserve. error: {code, at, end, message, hint}, at and end being
+//     offsets into tex.
 //   table(defs) -> a macro table; defs: {'\\RR': '\\mathbb{R}', …}, the page's
 //     own macros (table.problems lists the ones that do not parse)
 //   define(table, tex) -> error | null   a :::macros body: every definition global
@@ -25,7 +27,15 @@
 const { symbols, classes, text: TEXT_SYMBOLS } = require('./tex-symbols');
 
 const MAX_EXPANSIONS = 10000; // macro expansions in one formula
-const MAX_TOKENS = 200000; // tokens macro expansion may produce in one formula
+// Tokens macro expansion may produce, so that the work stays in proportion
+// to what was written: a formula's own 100, and ten for each character of
+// its TeX; past those, it draws on its page's reserve, which all the page's
+// formulas share. (A macro that used itself, with a long body, grew a
+// six-character formula to 200,000 tokens in 126 ms, and a page of such
+// formulas took seconds.)
+const FORMULA_TOKENS = 100;
+const TOKENS_PER_CHAR = 10;
+const PAGE_TOKENS = 20000;
 const MAX_DEPTH = 100; // groups nested in one formula
 
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -188,10 +198,11 @@ function params(toks, n = 9, at) {
   return out;
 }
 
-// A macro table: {defs: Map(name -> macro), version}. version counts the
-// global definitions, for the caller's caches.
-function table(defs) {
-  const t = { defs: new Map(), version: 0, problems: [] };
+// A macro table: {defs: Map(name -> macro), version, reserve}. version counts
+// the global definitions, for the caller's caches; reserve, the tokens its
+// formulas' macros may still produce past their own (PAGE_TOKENS).
+function table(defs, reserve = PAGE_TOKENS) {
+  const t = { defs: new Map(), version: 0, problems: [], reserve };
   if (defs && typeof defs === 'object') {
     for (const key of Object.keys(defs)) {
       const name = key.replace(/^\\/, '');
@@ -214,7 +225,7 @@ function table(defs) {
   return t;
 }
 
-const copy = (t) => ({ defs: new Map(t.defs), version: t.version, problems: [] });
+const copy = (t) => ({ defs: new Map(t.defs), version: t.version, problems: [], reserve: t.reserve });
 
 // ---------------------------------------------------------------- characters
 
@@ -429,7 +440,9 @@ class Parser {
     this.font = null;
     this.depth = 0;
     this.expansions = 0;
-    this.produced = 0;
+    this.produced = 0; // tokens its macros produced
+    this.own = FORMULA_TOKENS + TOKENS_PER_CHAR * src.length; // the part of them that is the formula's own
+    this.drawn = 0; // and the part drawn on the table's reserve
     this.defined = false;
   }
 
@@ -501,7 +514,12 @@ class Parser {
       else out.push({ t: b.t, v: b.v, at: call.at, end: call.end, prim: b.prim });
     }
     this.produced += out.length;
-    if (this.produced > MAX_TOKENS) fail('tex.limit', call, 'the macros in this formula grow it past 200,000 tokens', 'a macro that uses itself several times grows without end: check its definition');
+    const over = Math.min(out.length, this.produced - this.own);
+    if (over > 0) {
+      if (over > this.table.reserve) fail('tex.limit', call, `the macros in this formula grow it past ${(this.own + this.drawn + this.table.reserve).toLocaleString('en')} tokens, all the page has left for it`, 'a macro that uses itself grows without end: check its definition');
+      this.table.reserve -= over;
+      this.drawn += over;
+    }
     for (let i = out.length - 1; i >= 0; i--) this.q.push(out[i]);
   }
 
@@ -1648,16 +1666,16 @@ function write(n) {
 
 // ---------------------------------------------------------------- the API
 
-const EMPTY = table();
 // The results for a table with no macros, by display and TeX: notes repeat
-// formulas, and an editor renders the whole note again on every change.
-// Results are shared, so callers must not change them.
+// formulas, and an editor renders the whole note again on every change. One
+// that drew on the table's reserve is not kept: it depends on the formulas
+// before it. Results are shared, so callers must not change them.
 const memo = new Map();
 const MEMO_MAX = 5000;
 
 function render(tex, opts) {
   const display = !!(opts && opts.display);
-  const macros = (opts && opts.macros) || EMPTY;
+  const macros = (opts && opts.macros) || table(null, 0);
   const plain = macros.defs.size === 0;
   const key = (display ? 'D' : 'T') + tex;
   if (plain) {
@@ -1674,7 +1692,7 @@ function render(tex, opts) {
     if (!e || !e.tex) throw e;
     r = { error: { code: e.code, at: e.at, end: e.end, message: e.message, hint: e.hint }, defined: !!(p && p.defined) };
   }
-  if (plain && !r.defined) {
+  if (plain && !r.defined && !(p && p.drawn)) {
     if (memo.size >= MEMO_MAX) memo.clear();
     memo.set(key, r);
   }

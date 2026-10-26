@@ -1652,7 +1652,8 @@ test('one command table: the CLI header comments, the tools page, the home page,
   const { SYNOPSIS, EXIT_1 } = require(path.join(ROOT, 'cli', 'commands.js'));
   const all = Object.keys(SYNOPSIS).sort().join(' ');
   const but = (x) => Object.keys(SYNOPSIS).filter((c) => c !== x).sort().join(' ');
-  const src = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  // As LF: a Windows checkout has CRLF.
+  const src = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
   const set = (list) => [...new Set(list)].sort().join(' ');
   const tools = src('docs/tools.html');
   const skill = src('skills/luccet-notes/references/tools.md');

@@ -157,6 +157,22 @@ test('what could hang or overflow stops in time with tex.limit: a macro that use
   }
 });
 
+test("a page's formulas share one reserve: a page of macros that use themselves, with long bodies, stays in time, and a formula after them has its own; a tree's \\gdef does not outlive it", (p) => {
+  const page = (n) => `:::macros\n\\gdef\\again{${'x'.repeat(300)}\\again}\n\\gdef\\R{\\mathbb{R}}\n:::\n\n${'$\\again$\n'.repeat(n)}\n$\\R + \\R$\n`;
+  luccet.toHTML(page(1));
+  const t0 = process.hrtime.bigint();
+  const html = luccet.toHTML(page(200));
+  const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  if (ms > 500) p.push(`200 such formulas took ${ms.toFixed(0)} ms`);
+  const errors = (html.match(/t-math t-error/g) || []).length;
+  if (errors !== 200) p.push(`${errors} formulas shown as their TeX, expected the 200 that do not end`);
+  if (!/<mi>ℝ<\/mi><mo>\+<\/mo><mi>ℝ<\/mi>/.test(html)) p.push('the formula after them did not translate');
+  const tree = (s) => luccet.emit(luccet.parse(s).ast);
+  tree('$\\gdef\\zz{b}\\zz$');
+  if (!/t-error/.test(tree('$\\zz$'))) p.push("a \\gdef in one tree's formula reached another tree's");
+  return `${ms.toFixed(0)} ms`;
+});
+
 test('a long formula translates in linear time', (p) => {
   const unit = 'a_{i} + \\frac{x^2}{y} - \\sqrt{z} \\cdot \\alpha ';
   const time = (n) => {

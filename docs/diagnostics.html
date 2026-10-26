@@ -1555,7 +1555,7 @@ Then $\sn x$.
 
 **Error.** A formula's macros expand without end, or its groups nest too deep.
 
-- **Trigger.** Macros expanded more than 10,000 times in one formula, or grown past 200,000 tokens, as a macro that uses itself does; groups nested more than 100 deep.
+- **Trigger.** Macros expanded more than 10,000 times in one formula, as a macro that uses itself is; or grown past what the page allows: each formula's macros may produce 100 tokens, and ten for each character of the formula, and past those they draw on a reserve of 20,000 that all the page's formulas share. Groups nested more than 100 deep.
 - **Position.** The macro that went over the limit, or the group.
 - **Content.** Changed: the formula is shown as its TeX. The limit keeps the page from hanging.
 
