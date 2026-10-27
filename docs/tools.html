@@ -55,7 +55,7 @@ $ echo $?
 | `luccet build FILE…` | writes static, pre-rendered pages | [luccet build](#build) |
 | `luccet mv FROM… TO` | moves notes and files, rewriting the links to and from them | [luccet mv](#mv) |
 | `luccet search QUERY` | searches notes by word, each hit at its file and line | [luccet search](#search) |
-| `luccet index [PATH…]` | writes `notes.json`, `search.json` and `glossary.json`, what the [notes](https://github.com/Luccet/notes), [search](https://github.com/Luccet/search) and [glossary](https://github.com/Luccet/glossary) add-ons read | [luccet index](#index) |
+| `luccet index [PATH…]` | writes `notes.json`, `search.json` and `glossary.json`, what the [wiki](https://github.com/Luccet/wiki)'s notes, search and glossary add-ons read | [luccet index](#index) |
 | `luccet lsp [--stdio]` | the language server, over stdio | [The language server](#lsp) |
 
 ## What every command shares {#common}
@@ -781,7 +781,7 @@ luccet mv: cannot move notes into itself
 
 ## luccet search {#search}
 
-`luccet search` finds the places in a folder of notes where words occur: the same lexical search as the [search add-on](https://github.com/Luccet/search), on files, with lines. It is `grep` that knows what a note is: a hit is a heading's section or a named block with an id, an exercise or a theorem, not a line.
+`luccet search` finds the places in a folder of notes where words occur: the same lexical search as the [search add-on](https://github.com/Luccet/wiki#search), on files, with lines. It is `grep` that knows what a note is: a hit is a heading's section or a named block with an id, an exercise or a theorem, not a line.
 
 :::syntax[luccet search]
 ```sh
@@ -815,7 +815,7 @@ The notes are parsed with their own vocabulary, as `luccet check` parses them ([
 
 ## luccet index {#index}
 
-`luccet index` writes what a site's add-ons read about a folder of notes, so that a page can list them, search them and define their terms without fetching every note: `notes.json`, a catalogue, `search.json`, the search index, and `glossary.json`, the terms the notes define with their definitions. All three are plain JSON derived from the notes, to be written again whenever the notes change: by hand, by a git hook, or in a workflow. No note needs them. They are read by the [search](https://github.com/Luccet/search) add-on (`search.json`, one request instead of a fetch per note), the [notes](https://github.com/Luccet/notes) add-on (`notes.json`, the list a hub page draws) and the [glossary](https://github.com/Luccet/glossary) add-on (`glossary.json`).
+`luccet index` writes what a site's add-ons read about a folder of notes, so that a page can list them, search them and define their terms without fetching every note: `notes.json`, a catalogue, `search.json`, the search index, and `glossary.json`, the terms the notes define with their definitions. All three are plain JSON derived from the notes, to be written again whenever the notes change: by hand, by a git hook, or in a workflow. No note needs them. They are read by the [wiki](https://github.com/Luccet/wiki)'s add-ons: [search](https://github.com/Luccet/wiki#search) (`search.json`, one request instead of a fetch per note), [notes](https://github.com/Luccet/wiki#notes) (`notes.json`, the list a hub page draws) and [glossary](https://github.com/Luccet/wiki#glossary) (`glossary.json`).
 
 :::syntax[luccet index]
 ```sh
@@ -872,7 +872,7 @@ $ echo $?
 
 **`search.json`** is the search index: `luccet` (the version that wrote it), `format` (the number of its format, [`luccet.search.format`](api.html#search)), `notes` (each note's `url` and `title`), and the index [`luccet.search.index`](api.html#search) builds, `entries`, `terms`, `lengths` and `avg`, the entries' `url` relative to the file and their `line` and `endLine` as file lines. It is written one note, entry or term per line, so that it diffs by what changed. It holds every entry's text, for the snippets, and the postings of every stem, so it weighs about as much as the notes together before compression, and a fifth of that as a host serves it. The words in `terms` are the tokeniser's, which changes only with the format, in a major release, so an index serves every reader of its format whatever version wrote it; a reader of another format says so and does without it.
 
-**`glossary.json`** is the glossary: `luccet`, `format` ([`luccet.glossary.format`](api.html#glossary); the [glossary add-on](https://github.com/Luccet/glossary) takes a file of its own format, whatever version wrote it), `notes` (each note's `url` and `title`) and `terms`, the terms the notes define ([`luccet.glossary`](api.html#glossary)), in the order of their folded key, then by note: each with `term`, `key`, `slug` (its id on a glossary page), `url` (the note, relative to the file), `id` (the anchor to jump to), `line` (a file line), `how` (`dfn`, or the block's name) and `definition`, the definition's nodes, which the glossary add-on renders. One term per line. A term is a `:dfn[…]`, defined by its paragraph, or a titled `:::definition` block, defined by its body. The summary counts the terms when there are any, and two things are said on stderr, as notes, the exit code unchanged: a term defined more than once, `the term "kernel" is defined in a.html:12 and b.html:3; the glossary lists both`, and a `:term[…]` no note defines, `c.html:5: the term "x" has no definition in these notes`.
+**`glossary.json`** is the glossary: `luccet`, `format` ([`luccet.glossary.format`](api.html#glossary); the [glossary add-on](https://github.com/Luccet/wiki#glossary) takes a file of its own format, whatever version wrote it), `notes` (each note's `url` and `title`) and `terms`, the terms the notes define ([`luccet.glossary`](api.html#glossary)), in the order of their folded key, then by note: each with `term`, `key`, `slug` (its id on a glossary page), `url` (the note, relative to the file), `id` (the anchor to jump to), `line` (a file line), `how` (`dfn`, or the block's name) and `definition`, the definition's nodes, which the glossary add-on renders. One term per line. A term is a `:dfn[…]`, defined by its paragraph, or a titled `:::definition` block, defined by its body. The summary counts the terms when there are any, and two things are said on stderr, as notes, the exit code unchanged: a term defined more than once, `the term "kernel" is defined in a.html:12 and b.html:3; the glossary lists both`, and a `:term[…]` no note defines, `c.html:5: the term "x" has no definition in these notes`.
 
 **Formats.** Each file carries the number of its format: `notes.json`'s 1, `search.json`'s [`luccet.search.format`](api.html#search) and `glossary.json`'s [`luccet.glossary.format`](api.html#glossary), both 1. A reader takes a file of its own format, whatever version of Luccet wrote it, and says so for any other: run `luccet index` again. The number changes only in a major release, when a field changes or goes; a minor release may add fields, which a reader ignores.
 

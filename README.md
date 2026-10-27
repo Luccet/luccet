@@ -4,7 +4,7 @@
 
 Documents with the full power of HTML, CSS and JavaScript. A note is one HTML file: its first line loads `luccet.js`, and everything below it is written in Luccet's syntax and rendered in place when the file is opened.
 
-*Luccet was called Tern until version 2.0. A note written for Tern needs its first line changed: see [Migrating a note](CHANGELOG.md#200-2026-10-26).*
+*Luccet was called Tern until version 2.0. A note written for Tern needs its first line changed: see [Migrating a note](CHANGELOG.md#200-2026-10-27).*
 
 ```html
 <!doctype html>
@@ -57,7 +57,7 @@ One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work to
 
 **Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 
-**Add-ons** live in their own repositories, each with its page: [code](https://github.com/Luccet/code) colours code by its language, [mermaid](https://github.com/Luccet/mermaid) draws `mermaid` fences as diagrams, [lightbox](https://github.com/Luccet/lightbox) opens a figure's image full size, [cite](https://github.com/Luccet/cite) cites the sources of a `:::bibliography` block, [search](https://github.com/Luccet/search) gives a `::search` box over a set of notes, [notes](https://github.com/Luccet/notes) lists the notes of a folder, [glossary](https://github.com/Luccet/glossary) lists the terms the notes define, and [katex](https://github.com/Luccet/katex) typesets math with KaTeX instead of the engine's MathML. List them in `:::use`, one per line, from jsDelivr: `https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js`. See [add-ons](https://luccet.dev/docs/addons.html).
+**Add-ons** live in repositories of their own, each with its page: [code](https://github.com/Luccet/code) colours code by its language, [mermaid](https://github.com/Luccet/mermaid) draws `mermaid` fences as diagrams, [lightbox](https://github.com/Luccet/lightbox) opens a figure's image full size, [cite](https://github.com/Luccet/cite) cites the sources of a `:::bibliography` block, [wiki](https://github.com/Luccet/wiki) makes a folder of notes a wiki, with a `::notes` list of them, a `::search` box and a `::glossary` of the terms they define, and [katex](https://github.com/Luccet/katex) typesets math with KaTeX instead of the engine's MathML. List them in `:::use`, one per line, from jsDelivr: `https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js`, `https://cdn.jsdelivr.net/gh/Luccet/wiki@1/search.js`. See [add-ons](https://luccet.dev/docs/addons.html).
 
 
 **With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js` and `luccet.css` under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.

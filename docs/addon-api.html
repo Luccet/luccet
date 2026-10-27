@@ -244,7 +244,7 @@ await luccet.render(el, content, { safe: true, idPrefix: 'c1-' });
 - **No behaviour touches it,** then or later: `el` is marked `data-t-safe`, its scripts do not run, and a `luccet.define` registered afterwards skips it. Listeners get `{safe: true}`.
 - **`idPrefix`** keeps its ids and fragment links apart from the page's.
 
-The [glossary add-on](https://github.com/Luccet/glossary) renders each definition it reads from `glossary.json` this way.
+The [glossary add-on](https://github.com/Luccet/wiki#glossary) renders each definition it reads from `glossary.json` this way.
 
 ## Under node {#node}
 

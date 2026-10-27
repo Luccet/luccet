@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // The terms a note defines (docs/api.html#glossary), for the glossary
-// add-on (github.com/Luccet/glossary) and `luccet index`, which gathers a folder's
+// add-on (github.com/Luccet/wiki) and `luccet index`, which gathers a folder's
 // into glossary.json. A term is the defining instance of a word, as HTML
 // has it: a `:dfn[…]` inline (any inline whose element is dfn), whose
 // definition is the paragraph it stands in; or a block of a listed name

@@ -3152,7 +3152,7 @@ module.exports = { outline };
   // ---- src/search.js
   defs['search'] = function (module, exports, require) {
 // Search over notes (docs/api.html#search): the pipeline behind the search
-// add-on (github.com/Luccet/search), `luccet search` and `luccet index`. records()
+// add-on (github.com/Luccet/wiki), `luccet search` and `luccet index`. records()
 // splits a transformed AST into entries — one per heading's section and one
 // per named block with an id — index() builds a lexical index over the
 // entries of any number of notes, query() ranks them BM25-style, snippet()
@@ -3522,7 +3522,7 @@ module.exports = { plain, title, describe, records, fold, stem, tokens, index, q
   // ---- src/glossary.js
   defs['glossary'] = function (module, exports, require) {
 // The terms a note defines (docs/api.html#glossary), for the glossary
-// add-on (github.com/Luccet/glossary) and `luccet index`, which gathers a folder's
+// add-on (github.com/Luccet/wiki) and `luccet index`, which gathers a folder's
 // into glossary.json. A term is the defining instance of a word, as HTML
 // has it: a `:dfn[…]` inline (any inline whose element is dfn), whose
 // definition is the paragraph it stands in; or a block of a listed name

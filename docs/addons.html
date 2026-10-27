@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Add-ons · Luccet</title><link rel="icon" href="favicon.ico"><link rel="apple-touch-icon" href="apple-touch-icon.png"><script src="../luccet.js" data-use="docs.js docs.css"></script>
 
 :::meta
-description: Luccet's add-ons, each in its own repository under github.com/Luccet: what an add-on is, how a note loads one, and the list, from code highlighting and diagrams to citations, search and a glossary, each linked to its page.
+description: Luccet's add-ons, in their repositories under github.com/Luccet: what an add-on is, how a note loads one, and the list, from code highlighting and diagrams to citations and a wiki with search and a glossary, each linked to its page.
 :::
 
 ::site-nav
@@ -10,7 +10,7 @@ description: Luccet's add-ons, each in its own repository under github.com/Lucce
 
 ::toc
 
-The add-ons each live in their own repository under [github.com/Luccet](https://github.com/Luccet), whose README is the add-on's page: what it does, its options, and how to use it offline.
+The add-ons live in repositories under [github.com/Luccet](https://github.com/Luccet), each with a README that is its page: what it does, its options, and how to use it offline. A repository can hold add-ons that work together: the wiki's three each load on their own.
 
 ## The add-ons {#list}
 
@@ -21,9 +21,7 @@ The add-ons each live in their own repository under [github.com/Luccet](https://
 | mermaid | draws ```` ```mermaid ```` fences as diagrams, in the theme's colours; can draw a built page's diagrams ahead | [Luccet/mermaid](https://github.com/Luccet/mermaid) |
 | lightbox | opens a figure's image full size in a dialog | [Luccet/lightbox](https://github.com/Luccet/lightbox) |
 | cite | cites sources from a `:::bibliography` block (BibTeX or CSL-JSON) as `@key`, and lists them | [Luccet/cite](https://github.com/Luccet/cite) |
-| search | a `::search` box over a set of notes, indexed in the browser or from the index [`luccet index`](tools.html#index) writes | [Luccet/search](https://github.com/Luccet/search) |
-| notes | `::notes`, a list of a folder's notes from the catalogue [`luccet index`](tools.html#index) writes | [Luccet/notes](https://github.com/Luccet/notes) |
-| glossary | `::glossary`, the terms a folder's notes define (`:dfn[…]`, `:::definition`), and `:term[…]` links to them | [Luccet/glossary](https://github.com/Luccet/glossary) |
+| wiki | a folder of notes as a wiki, from what [`luccet index`](tools.html#index) writes: `notes.js`, a `::notes` list of them; `search.js`, a `::search` box over them, indexed in the browser or from `search.json`; `glossary.js`, a `::glossary` of the terms they define (`:dfn[…]`, `:::definition`) and `:term[…]` links to it | [Luccet/wiki](https://github.com/Luccet/wiki) |
 | katex | typesets math with KaTeX, for KaTeX's look, in place of the engine's MathML | [Luccet/katex](https://github.com/Luccet/katex) |
 :::
 
@@ -49,7 +47,7 @@ https://cdn.jsdelivr.net/gh/Luccet/cite@1/cite.js
 :::
 ```
 
-Each add-on below lives in its own repository under [github.com/Luccet](https://github.com/Luccet), whose README is its page: what it does, its options, and how to use it offline. From jsDelivr, an add-on's URL is `https://cdn.jsdelivr.net/gh/Luccet/NAME@1/NAME.js`; a copy next to the note works too, and is the one `luccet check` can load ([remote add-ons](addon-api.html#addon-failed)). A [theme](schema.html#themes) is a stylesheet add-on, from [Luccet/themes](https://github.com/Luccet/themes).
+Each add-on in [the list](#list) lives in a repository under [github.com/Luccet](https://github.com/Luccet), whose README is its page: what it does, its options, and how to use it offline. From jsDelivr, an add-on's URL is `https://cdn.jsdelivr.net/gh/Luccet/REPOSITORY@1/FILE`: `…/code@1/code.js`, or `…/wiki@1/search.js` for one of the wiki's; a copy next to the note works too, and is the one `luccet check` can load ([remote add-ons](addon-api.html#addon-failed)). A [theme](schema.html#themes) is a stylesheet add-on, from [Luccet/themes](https://github.com/Luccet/themes).
 
 ## Your own {#own}
 

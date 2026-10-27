@@ -556,7 +556,7 @@ luccet.search.format → 1
 ```
 :::
 
-The pipeline behind the [search add-on](https://github.com/Luccet/search) and [`luccet search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
+The pipeline behind the [search add-on](https://github.com/Luccet/wiki#search) and [`luccet search`](tools.html#search), so the browser and the command line rank the same way. It is lexical: words are folded and stemmed lightly, and a query word stands for every indexed word it begins.
 
 ```js
 const { ast } = luccet.parse(String.raw`# Triangles {#tri}
@@ -585,7 +585,7 @@ luccet.search.snippet(entries[1].text, ['pythagora']);
 - **`describe(head, ast)`** is what a catalogue holds for a note ([`luccet index`](tools.html#index-files)): `title` as `title` gives it; `description`, the head's `<meta name="description">`, else `:::meta`'s, else `''`; `meta`, the `:::meta` keys with the head's `<meta>` names over them, a plain object; `headings`, every heading as `{depth, id, text}`; and `links`, the URLs the note's links name, as written, each once, a link to a fragment of the note itself left out.
 - **Words.** Text and query are read the same way. `fold(text)` composes compatibility forms (NFKC: `ﬁ` is `fi`, full-width letters are ASCII), lowers the case and removes the diacritics of Latin, Greek and Cyrillic letters, whichever Unicode form they were written in: `café` meets `cafe` and `Café`, `İstanbul` meets `istanbul`, `ё` meets `е`. The marks of other scripts (Devanagari, Thai, Arabic, the kana voicing marks) belong to their letters and are kept. A word is a run of letters, digits and their marks, of two characters or more. A run of Han, Kana or Hangul, which write no spaces between words, is searched as its pairs of characters, at index and query time alike, so `東京タワー` is found by `東京`, by `京タ` or by `タワー`, no segmenter is needed, and an index written under Node serves every browser; a run of one character is that character.
 - **`fold(text)`**, **`stem(word)`** and **`tokens(text)`** are the folding, the stemmer and the tokeniser the index and the query share; **`plain(node)`** is a node's content as the plain text `records` indexes (words, code and TeX as written, an image by its alt, raw HTML and footnote marks left out).
-- **`format`** is the number of the index's format, 1: `luccet index` writes it into `search.json`, and the [search add-on](https://github.com/Luccet/search) and [`luccet search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
+- **`format`** is the number of the index's format, 1: `luccet index` writes it into `search.json`, and the [search add-on](https://github.com/Luccet/wiki#search) and [`luccet search --index`](tools.html#search) take a file of the format they read, whatever version wrote it. It changes only in a major release; a file with no format was written before 1.0.
 
 ### `luccet.glossary` {#glossary}
 
@@ -599,7 +599,7 @@ luccet.glossary.format → 1
 ```
 :::
 
-The terms a note defines, for the [glossary add-on](https://github.com/Luccet/glossary) and [`luccet index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
+The terms a note defines, for the [glossary add-on](https://github.com/Luccet/wiki#glossary) and [`luccet index`](tools.html#index-files), which gathers a folder's into `glossary.json`. A term is the defining instance of a word, as HTML has it: a `:dfn[…]` (any inline whose element is `dfn`), defined by the paragraph it stands in, or a block of a listed name with a title, `definition` by default, the title being the term and the body the definition.
 
 ```js
 const { ast } = luccet.parse('# Terms {#terms}
@@ -623,7 +623,7 @@ luccet.glossary.uses(ast);
 - **`terms(ast, {blocks})`** walks a transformed tree and returns every term in note order. `term` is the text as written, or the `title=` of a `dfn`, which HTML takes as the term's canonical form (`:dfn[truisms]{title=truism}` defines "truism"). `key` is the term folded as [search](#search) folds words, one form for `Café` and `cafe`; `slug` is an id for the term on a glossary page, `glossary-` and the key with hyphens. `id` is the anchor nearest above the term: its own, else its block's, else its section's heading's, `''` at the top of the note. `how` is `'dfn'` or the block's name. `definition` holds the definition's nodes, positions removed, for `luccet.emit` on another page: a `dfn`'s paragraph (the paragraph after its heading when it stands in one; its cell, as a paragraph, in a table), a block's body without its title. A `dfn` inside a block that names the block's own term is not a second term. `blocks` lists the names of the blocks that define, `['definition']` by default; a block without a title defines nothing.
 - **`uses(ast)`** lists every `:term[…]`, with `title=` as the term, so a tool can say which has no definition.
 - **`key(text)`** and **`slug(text)`** are the folding and the id, for an add-on that links a use to a glossary page's entry.
-- **`format`** is the number of `glossary.json`'s format, 1, as [`luccet.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](https://github.com/Luccet/glossary) takes a file of its format whatever version wrote it.
+- **`format`** is the number of `glossary.json`'s format, 1, as [`luccet.search.format`](#search) is `search.json`'s: the terms' fields and the definitions' trees change only with it, in a major release, and the [glossary add-on](https://github.com/Luccet/wiki#glossary) takes a file of its format whatever version wrote it.
 
 ### `luccet.tex` {#tex}
 
