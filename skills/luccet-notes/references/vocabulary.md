@@ -375,12 +375,10 @@ Luccet's add-ons are not part of the engine. Each lives in a repository of its o
 | [mermaid](https://github.com/Luccet/mermaid) | draws diagrams from fences in Mermaid's language, in the theme's colours |
 | [lightbox](https://github.com/Luccet/lightbox) | opens a figure's image full size in a dialog |
 | [cite](https://github.com/Luccet/cite) | cites sources from a `:::bibliography` block (BibTeX or CSL-JSON) as `@key`, and lists them |
-| [search](https://github.com/Luccet/search) | a `::search` box over a set of notes, indexed in the browser or from the `search.json` that `luccet index` writes |
-| [notes](https://github.com/Luccet/notes) | `::notes`, a list of a folder's notes from the `notes.json` that `luccet index` writes |
-| [glossary](https://github.com/Luccet/glossary) | `::glossary`, the terms a folder's notes define (`:dfn[…]`, `:::definition`), and `:term[…]` links to them |
+| [wiki](https://github.com/Luccet/wiki) | a folder of notes as a wiki, from what `luccet index` writes: `notes.js`, a `::notes` list of them; `search.js`, a `::search` box over them (or over `search.json`); `glossary.js`, a `::glossary` of the terms they define (`:dfn[…]`, `:::definition`) and `:term[…]` links to it |
 | [katex](https://github.com/Luccet/katex) | typesets math with KaTeX, for KaTeX's look, in place of the engine's MathML |
 
-- **Load one** from jsDelivr, `https://cdn.jsdelivr.net/gh/Luccet/NAME@1/NAME.js`, in `data-use` or `:::use`, or from a copy next to the note. A remote one is `addon.remote` under `luccet check`, which then does not know the names it declares; a local copy is run.
+- **Load one** from jsDelivr, `https://cdn.jsdelivr.net/gh/Luccet/REPOSITORY@1/FILE` (`code@1/code.js`, `wiki@1/search.js`), in `data-use` or `:::use`, or from a copy next to the note. A remote one is `addon.remote` under `luccet check`, which then does not know the names it declares; a local copy is run.
 - **Math needs no add-on:** the engine writes every formula as MathML, offline too.
 - **Offline or under a strict Content-Security-Policy,** an add-on that fetches a library from a CDN (code, mermaid, katex) has its own way to use a local copy: see its page. With a CDN, allow it in `script-src`.
 

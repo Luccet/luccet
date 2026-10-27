@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Search over notes (docs/api.html#search): the pipeline behind the search
-// add-on (github.com/Luccet/search), `luccet search` and `luccet index`. records()
+// add-on (github.com/Luccet/wiki), `luccet search` and `luccet index`. records()
 // splits a transformed AST into entries — one per heading's section and one
 // per named block with an id — index() builds a lexical index over the
 // entries of any number of notes, query() ranks them BM25-style, snippet()

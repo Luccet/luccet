@@ -772,7 +772,7 @@ test('index: glossary.json holds the terms the notes define, by key then note, a
   write('gl/a.html', `${FIRST}<title>Alpha</title><script src="luccet.js" data-use="addons/glossary.js"></script>\n# Alpha {#top}\n\nA :dfn[truism] is obvious, see [b](sub/b.html).\n\n:::definition[Kernel]{#k}\nThe $v$ with $T(v)=0$.\n:::\n\nUses: :term[truism], :term[kernels]{title=kernel} and :term[nothing].\n`);
   write('gl/sub/b.html', `${FIRST}<title>Bee</title><script src="../luccet.js"></script>\n## Terms {#t}\n\nA :dfn[Truism] again, and :dfn[Widgets]{title=widget}.\n`);
   fs.mkdirSync(at('gl/addons'), { recursive: true });
-  write('gl/addons/glossary.js', "luccet.leaf('glossary', { tag: 'div' });\nluccet.inline('term', { tag: 'span' });\n", { luccet: false }); // the glossary add-on's names (github.com/Luccet/glossary)
+  write('gl/addons/glossary.js', "luccet.leaf('glossary', { tag: 'div' });\nluccet.inline('term', { tag: 'span' });\n", { luccet: false }); // the glossary add-on's names (github.com/Luccet/wiki)
   let r = run(['index', 'gl']);
   exits(r, 0, 'index');
   eq(r.err, 'luccet index: the term "truism" is defined in gl/a.html:4 and gl/sub/b.html:4; the glossary lists both\nluccet index: gl/a.html:10: the term "nothing" has no definition in these notes\nluccet index: 2 notes, 3 entries, 4 terms → gl/notes.json, gl/search.json, gl/glossary.json\n', 'the duplicate and the undefined use, at file lines; the terms counted');
