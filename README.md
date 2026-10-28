@@ -54,7 +54,6 @@ One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work to
 
 - **To follow releases,** use `v2.0/` (the newest 2.0.x) or `v2/` (the newest 2.x: a major keeps every note rendering the same). A release's own folder never changes, so a browser keeps its file for a year; a series' or a major's is checked for a newer release every hour.
 - **The same file** is each [GitHub Release](https://github.com/Luccet/luccet/releases)'s `luccet.js`: the minified build, under the name the tools and the editors look for. Its `luccet.css` is beside it, for a page under a strict [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
-- **From jsDelivr,** the readable build of any tag: `https://cdn.jsdelivr.net/gh/Luccet/luccet@vX.Y.Z/luccet.js`. Not `luccet.min.js`, which jsDelivr minifies on request beside it and which renders in the browser: the tools and the editors take a note only from a file called `luccet.js`.
 
 **Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.luccet.dev/themes/v1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 

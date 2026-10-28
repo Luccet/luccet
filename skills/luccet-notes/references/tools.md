@@ -12,7 +12,7 @@ The examples below are real runs. Paths are relative to the folder the command r
 4. Luccet is **not on npm**. Never run `npx luccet` outside a checkout: it fetches an unrelated package called `luccet`. Inside a checkout, `npx --no -- luccet check notes/` is safe (`--no` refuses to download, `--` keeps npx's own options apart).
 5. No checkout anywhere: say so. With the user's agreement, clone the release the notes load, outside the project: `git clone --depth 1 --branch vX.Y.Z https://github.com/Luccet/luccet.git`.
 
-Match versions. `luccet --version` prints the engine's version; line 2 of a `luccet.js` names its own (`sed -n 2p luccet.js`), and a cdn.luccet.dev URL carries it as its folder (`/vX.Y.Z/luccet.js`), a jsDelivr URL as its tag. A checkout of another release may report different diagnostics from the page.
+Match versions. `luccet --version` prints the engine's version; line 2 of a `luccet.js` names its own (`sed -n 2p luccet.js`), and a cdn.luccet.dev URL carries it as its folder (`/vX.Y.Z/luccet.js`). A checkout of another release may report different diagnostics from the page.
 
 ```text
 $ luccet --version
@@ -359,14 +359,14 @@ Offline, load `luccet.js`, the add-ons and the themes from copies next to the no
 Without a CSP header, skip this. Under a strict policy (no `'unsafe-inline'`):
 
 - **Link `luccet.css`** (copy it from the checkout, next to `luccet.js`) in the head, so `luccet.js` does not inline its stylesheet; or use `data-css`, or `data-nonce`.
-- **Math needs nothing:** it is MathML in the page, with no script, stylesheet or font to fetch. Allow `https://cdn.jsdelivr.net` only for add-ons loaded from it, or that load a library from it (code highlighting, diagrams, KaTeX); or serve copies, as each add-on's page says.
+- **Math needs nothing:** it is MathML in the page, with no script, stylesheet or font to fetch. Allow `https://cdn.luccet.dev` only for what is loaded from it: `script-src` for `luccet.js` and the add-ons, `style-src` for `luccet.css` and the themes. An add-on that loads a library (code highlighting, diagrams, KaTeX) names the origins it needs on its page; or serve copies, as that page says.
 - **Still blocked, and yours:** `style` attributes (`{style="…"}`, raw HTML: use classes), inline `<script>` blocks in the note (unless allowed by nonce or hash; move code to a file), and in a built page the `style` attributes of aligned columns and `cols` grids; under a strict CSP, publish the note itself.
 - **Nonces** on a static host are fixed values, no better than `'unsafe-inline'`.
 
 A policy that renders with no violation from Luccet, math included:
 
 ```text
-Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:
+Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.luccet.dev; style-src 'self' https://cdn.luccet.dev; img-src 'self' data:
 ```
 
 ```html
@@ -379,7 +379,7 @@ Details: [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
 
 - **In the browser a note is not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
 - **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse`, `search`, `index` and `lsp` run a note's local head scripts and script add-ons (`--no-scripts`, or the server's `noScripts`, runs none) to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
-- **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin versions: a release's folder on cdn.luccet.dev (`vX.Y.Z/`, `code/vX.Y.Z/`), a tag on jsDelivr.
+- **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin versions: a release's folder on cdn.luccet.dev (`vX.Y.Z/`, `code/vX.Y.Z/`).
 - **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `luccet.toHTML(text, { safe: true })` and insert the result. See [Trust](https://luccet.dev/docs/publishing.html#trust).
 
 ### When a note does not render
