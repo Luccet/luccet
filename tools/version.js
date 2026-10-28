@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Luccet's version, everywhere it is written. package.json holds it; the
 // PLACES below repeat it (luccet.version in src/index.js, the README's
-// jsDelivr tag, release series and major, the docs' examples of output), each
+// cdn.luccet.dev folder, release series and major, the docs' examples of output), each
 // found by the text around it. luccet.js is rebuilt from src/, not edited.
 //
 //   node tools/version.js                    list the places and what each says
@@ -46,9 +46,9 @@ const PLACES = [
   ['src/index.js', "const version = '{v}';"],
   ['luccet.js', '// luccet.js {v}: built from src/', { built: true }],
   ['luccet.js', "const version = '{v}';", { built: true }],
-  ['README.md', 'cdn.jsdelivr.net/gh/Luccet/luccet@v{v}/luccet.js'],
-  ['README.md', 'use `@{xy}` (the newest {xy}.x)'],
-  ['README.md', '`@{x}` (the newest {x}.x'],
+  ['README.md', 'cdn.luccet.dev/v{v}/luccet.js'],
+  ['README.md', 'use `v{xy}/` (the newest {xy}.x)'],
+  ['README.md', '`v{x}/` (the newest {x}.x'],
   ['docs/api.html', "| engine | `'{v}'` |"],
   ['docs/api.html', "luccet.version;                    // → '{v}'"],
   ['docs/api.html', "as a string: `'{v}'`"],
@@ -57,8 +57,8 @@ const PLACES = [
   ['docs/tools.html', '"serverInfo": { "name": "luccet", "version": "{v}" }'],
   ['docs/tools.html', '"luccet": "{v}",'],
   ['index.html', 'is at version {v} (`luccet.version`'],
-  ['index.html', 'Pin a release (`@v{v}`) to be sure; `@{xy}` follows the fixes of a series.'],
-  ['index.html', '`@{x}` follows every release of a major'],
+  ['index.html', 'Pin a release (`https://cdn.luccet.dev/v{v}/luccet.js`) to be sure; `v{xy}/` follows the fixes of a series.'],
+  ['index.html', '`v{x}/` follows every release of a major'],
 ];
 
 const CHANGELOG = 'CHANGELOG.md';

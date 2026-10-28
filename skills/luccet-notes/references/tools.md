@@ -12,7 +12,7 @@ The examples below are real runs. Paths are relative to the folder the command r
 4. Luccet is **not on npm**. Never run `npx luccet` outside a checkout: it fetches an unrelated package called `luccet`. Inside a checkout, `npx --no -- luccet check notes/` is safe (`--no` refuses to download, `--` keeps npx's own options apart).
 5. No checkout anywhere: say so. With the user's agreement, clone the release the notes load, outside the project: `git clone --depth 1 --branch vX.Y.Z https://github.com/Luccet/luccet.git`.
 
-Match versions. `luccet --version` prints the engine's version; line 2 of a `luccet.js` names its own (`sed -n 2p luccet.js`), and a jsDelivr URL carries it as its tag. A checkout of another release may report different diagnostics from the page.
+Match versions. `luccet --version` prints the engine's version; line 2 of a `luccet.js` names its own (`sed -n 2p luccet.js`), and a cdn.luccet.dev URL carries it as its folder (`/vX.Y.Z/luccet.js`), a jsDelivr URL as its tag. A checkout of another release may report different diagnostics from the page.
 
 ```text
 $ luccet --version
@@ -67,7 +67,7 @@ $ cat notes/kernel.html
 ```
 
 - **The path to luccet.js.** Without `--luccet`, it looks for a file called `luccet.js` in FILE's folder, then each folder above, and writes the nearest as a relative path (`../../luccet.js` two levels down). With none, it writes `luccet.js` and warns: `luccet new: no luccet.js in . or above; the note loads luccet.js from its own directory`. Copy `luccet.js` into place, or pass `--luccet`.
-- **`--luccet=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.jsdelivr.net/gh/Luccet/luccet@vX.Y.Z/luccet.js` (pin a tag). Prefer relative paths for anything published or opened from disk.
+- **`--luccet=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.luccet.dev/vX.Y.Z/luccet.js` (pin a release). Prefer relative paths for anything published or opened from disk.
 - **`--use=LIST`** writes a `:::use` block, one entry per line, after the `:::meta` block. `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same block. Paths are relative to the note; a local one that does not exist gets a warning on stderr, and the file is still written.
 - **`--title=TEXT`** adds a `:::meta` block with `title: TEXT` and a blank line. One non-empty line.
 - **`--lang=TAG`** adds `lang: TAG` to the `:::meta` block (after the title), which `luccet.js` puts on `<html>`; a language tag such as `en`, `de` or `pt-BR`. The guard's message is then in that language when the command has it (de, en, es, fr, it, nl, pt), English otherwise, and marked with the tag.
@@ -315,7 +315,7 @@ A note is a static file: no build step, no server code. Publishing is uploading 
 
 The notes, `luccet.js`, every add-on, theme, stylesheet and image they use, keeping the folder layout their relative paths expect.
 
-- **One `luccet.js` at the site's root**, each note pointing at it relatively (`luccet.js`, `../luccet.js`): `luccet new` writes that. Or load it from jsDelivr with a pinned tag (`@vX.Y.Z`); add-ons and themes on jsDelivr have versions of their own (`@1`).
+- **One `luccet.js` at the site's root**, each note pointing at it relatively (`luccet.js`, `../luccet.js`): `luccet new` writes that. Or load it from cdn.luccet.dev with a pinned release (`https://cdn.luccet.dev/vX.Y.Z/luccet.js`); add-ons and themes are on jsDelivr, with versions of their own (`@1`).
 - **Relative paths only.** Root-relative `/luccet.js` breaks from disk and under a sub-path. The file name must stay `luccet.js` (not `luccet.min.js`).
 - **The canonical first line** keeps the doctype (without it: quirks mode, math as TeX, `doc.quirks`) and the charset (without it, a server that names no charset garbles non-ASCII text, with no diagnostic):
 
@@ -379,7 +379,7 @@ Details: [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
 
 - **In the browser a note is not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
 - **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse`, `search`, `index` and `lsp` run a note's local head scripts and script add-ons (`--no-scripts`, or the server's `noScripts`, runs none) to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
-- **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin jsDelivr tags.
+- **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin versions: a release's folder on cdn.luccet.dev, a tag on jsDelivr.
 - **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `luccet.toHTML(text, { safe: true })` and insert the result. See [Trust](https://luccet.dev/docs/publishing.html#trust).
 
 ### When a note does not render

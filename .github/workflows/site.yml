@@ -2,7 +2,8 @@
 # publishes the pages of main (index.html, docs/, examples/) with the engine
 # of the newest release (luccet.js and luccet.css from the newest
 # v* tag), so a documentation fix reaches luccet.dev without a tag, and
-# what the site serves to notes that load its luccet.js stays a release. The
+# what the site serves to notes that load its luccet.js stays a release;
+# every release, each in a folder of its own (tools/site.js), as well. The
 # docs and samples suites run against that engine first: a page that needs
 # what the release does not have is refused here, not published.
 # release.yml publishes the whole tree of a tag; the two share the pages
@@ -55,12 +56,7 @@ jobs:
       # asset is (the same version, the same name), for the bytes it saves
       # every first visit: 61 KB gzipped where the build is 110 KB.
       - name: the site
-        run: |
-          mkdir -p _site
-          cp -r index.html docs examples luccet.css LICENSE _site/
-          npx --yes terser@5.51.2 luccet.js --compress --mangle --comments '/allFunctionsCalledOnLoad/' --output _site/luccet.js
-          test "$(node -p "require('./_site/luccet.js').version")" = "$(node -p "require('./luccet.js').version")"
-          rm -f _site/docs/README.md
+        run: node tools/site.js
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
