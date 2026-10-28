@@ -97,7 +97,7 @@ The toc is a `nav` listing both headings, the theorem a `section` labelled "Theo
 An add-on is a script or a stylesheet listed, space-separated, in `data-use` on the luccet.js tag:
 
 ```html expect="addon.remote"
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.luccet.dev/themes/v1/gruvbox.css https://cdn.luccet.dev/code/v1/code.js"></script>
 ```
 
 or, one or more per line, in a `:::use` block, the readable form for several. It must lead the note: top level, before any content, with only `:::meta` and blank lines before it; one anywhere else is `use.late` (error) and ignored. Both forms merge, the tag's entries first. The block emits nothing.
@@ -106,8 +106,8 @@ or, one or more per line, in a `:::use` block, the readable form for several. It
 <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::use
-https://cdn.jsdelivr.net/gh/Luccet/themes@1/gruvbox.css
-https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
+https://cdn.luccet.dev/themes/v1/gruvbox.css
+https://cdn.luccet.dev/code/v1/code.js
 :::
 ```
 
@@ -127,12 +127,12 @@ https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
 - **`luccet new FILE --use="../lib/callout.js ../lib/theme.css"`** writes the list as a `:::use` block, one entry per line as given, relative to the new note, and warns about a local entry that does not exist.
 
 ```html expect="addon.remote"
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.luccet.dev/code/v1/code.js https://cdn.luccet.dev/themes/v1/nord.css"></script>
 
 # Remote add-ons
 ```
 
-On jsDelivr, Luccet's add-ons and themes have versions of their own, not `luccet.js`'s: `@1` follows each one's major version 1.
+On cdn.luccet.dev, Luccet's add-ons and themes have versions of their own, not `luccet.js`'s: `v1/` follows each one's major version 1.
 
 ## The schema fields
 
@@ -378,13 +378,13 @@ Luccet's add-ons are not part of the engine. Each lives in a repository of its o
 | [wiki](https://github.com/Luccet/wiki) | a folder of notes as a wiki, from what `luccet index` writes: `notes.js`, a `::notes` list of them; `search.js`, a `::search` box over them (or over `search.json`); `glossary.js`, a `::glossary` of the terms they define (`:dfn[…]`, `:::definition`) and `:term[…]` links to it |
 | [katex](https://github.com/Luccet/katex) | typesets math with KaTeX, for KaTeX's look, in place of the engine's MathML |
 
-- **Load one** from jsDelivr, `https://cdn.jsdelivr.net/gh/Luccet/REPOSITORY@1/FILE` (`code@1/code.js`, `wiki@1/search.js`), in `data-use` or `:::use`, or from a copy next to the note. A remote one is `addon.remote` under `luccet check`, which then does not know the names it declares; a local copy is run.
+- **Load one** from cdn.luccet.dev, `https://cdn.luccet.dev/REPOSITORY/v1/FILE` (`code/v1/code.js`, `wiki/v1/search.js`), in `data-use` or `:::use`, or from a copy next to the note. A remote one is `addon.remote` under `luccet check`, which then does not know the names it declares; a local copy is run.
 - **Math needs no add-on:** the engine writes every formula as MathML, offline too.
 - **Offline or under a strict Content-Security-Policy,** an add-on that fetches a library from a CDN (code, mermaid, katex) has its own way to use a local copy: see its page. With a CDN, allow it in `script-src`.
 
 ## Themes
 
-A note looks like plain HTML, in the browser's own type and colours (light or dark); luccet.css only makes Luccet's constructs work. The look is a CSS add-on from Luccet's themes repository, [Luccet/themes](https://github.com/Luccet/themes), listed in `data-use` by its jsDelivr URL or as a copy next to the note: **`classic.css`** (the reading column, the type and the palette Luccet drew before 2.0), and **colour themes**, which listed after `classic.css` change its palette, or alone colour a plain note (background, text, links, highlights):
+A note looks like plain HTML, in the browser's own type and colours (light or dark); luccet.css only makes Luccet's constructs work. The look is a CSS add-on from Luccet's themes repository, [Luccet/themes](https://github.com/Luccet/themes), listed in `data-use` by its cdn.luccet.dev URL or as a copy next to the note: **`classic.css`** (the reading column, the type and the palette Luccet drew before 2.0), and **colour themes**, which listed after `classic.css` change its palette, or alone colour a plain note (background, text, links, highlights):
 
 | Theme | Files | Modes |
 |---|---|---|
@@ -404,7 +404,7 @@ A note looks like plain HTML, in the browser's own type and colours (light or da
 | Tokyo Night | `tokyo-night.css`, `tokyo-night-light.css`, `tokyo-night-dark.css` | light and dark |
 
 - **`NAME.css`** follows the reader's system light/dark setting; **`NAME-light.css`** and **`NAME-dark.css`** give every reader one palette. A one-mode theme is one file, the same for everyone.
-- **Load them:** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"` (`@1` follows the themes' fixes; pin `@v1.0.0` to be sure), or copies next to the note, `data-use="themes/classic.css themes/nord.css"`. Use one colour theme: one listed later overrides it at equal specificity.
+- **Load them:** `data-use="https://cdn.luccet.dev/themes/v1/classic.css https://cdn.luccet.dev/themes/v1/nord.css"` (`v1/` follows the themes' fixes; pin `v1.0.0/` to be sure), or copies next to the note, `data-use="themes/classic.css themes/nord.css"`. Use one colour theme: one listed later overrides it at equal specificity.
 - **Contrast.** Every text colour meets 4.5:1 (7:1 in High contrast). Print (dark on light) and forced colours are luccet.css's, whatever the theme.
 - **Your CSS still wins** over a theme: set one property to change one colour. To make a new theme, copy a file and change its values; to add one to the collection, add its palette to the themes repository's `build.js`.
 
@@ -565,7 +565,7 @@ conjecture: {tag: 'section', counter: 'theorem', label: 'Conjecture', ref: '{lab
 
 **Translate the labels.** Make each `label` a map with the new language and set `lang` once (`:::meta` or `<html lang>`).
 
-**Add a theme and code colours.** `data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/github.css https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js"`: both from jsDelivr, or copies next to the note by their paths relative to it; check that local files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
+**Add a theme and code colours.** `data-use="https://cdn.luccet.dev/themes/v1/github.css https://cdn.luccet.dev/code/v1/code.js"`: both from cdn.luccet.dev, or copies next to the note by their paths relative to it; check that local files exist there (`luccet check` reports a missing local stylesheet as `link.missing` and a missing script as `addon.failed`).
 
 **A note opened without a network.** Math needs nothing. Load `luccet.js`, the add-ons and the themes from copies next to the note; an add-on that fetches a library (code, mermaid, katex) has its own way to use a local copy of it, on its page.
 

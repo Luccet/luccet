@@ -1116,7 +1116,7 @@ body { max-inline-size: 42rem; margin-inline: auto; font: 1.1rem/1.6 Georgia, se
 ```html
 <!doctype html><meta charset="utf-8"><style>
 :root { --t-width: 48rem; --t-font: "Iowan Old Style", Georgia, serif; --t-link: #8a3ffc; }
-</style><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css"></script>
+</style><script src="luccet.js" data-use="https://cdn.luccet.dev/themes/v1/classic.css"></script>
 ```
 
 **The cascade.** Luccet's stylesheets form one group in the head, placed before the head's first stylesheet of your own, in this order:
@@ -1163,16 +1163,16 @@ luccet.style(css)   // adds a <style> to the head; returns it
 
 ### Themes {#themes}
 
-The look is a theme's, and Luccet's live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). A theme is a stylesheet [add-on](#addons): list it in `data-use`, from jsDelivr or as a copy next to the note.
+The look is a theme's, and Luccet's live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). A theme is a stylesheet [add-on](#addons): list it in `data-use`, from cdn.luccet.dev or as a copy next to the note.
 
 - **`classic.css`** is the reading column, the type and the palette `luccet.css` drew before 2.0, light or dark.
 - **Colour themes** after well-known editor palettes: Catppuccin, Dracula, Everforest, GitHub, Gruvbox, High contrast, Kanagawa, Monokai, Nord, One, Rosé Pine, Sepia, Solarized and Tokyo Night. Listed after `classic.css`, one changes its palette and keeps the rest; on its own, it colours a plain note: its background and text, links and highlights.
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.luccet.dev/themes/v1/classic.css https://cdn.luccet.dev/themes/v1/nord.css"></script>
 ```
 
-The repository's README lists every theme and its files. Pin a release of the themes (`@v1.0.0`) to be sure; `@1` follows the fixes of a major.
+The repository's README lists every theme and its files. Pin a release of the themes (`…/themes/v1.0.0/nord.css`) to be sure; `v1/` follows the fixes of a major.
 
 - **A colour theme with both modes has three files.** `NAME.css` follows the reader's system setting. `NAME-light.css` and `NAME-dark.css` give every reader one palette. A theme with one mode is one file, the same for every reader.
 - **Your CSS still wins.** A theme cascades after luccet.css and before your own styles ([Overriding them](#overriding)): set a property yourself to change one colour of a theme.

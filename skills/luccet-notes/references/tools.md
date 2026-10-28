@@ -315,7 +315,7 @@ A note is a static file: no build step, no server code. Publishing is uploading 
 
 The notes, `luccet.js`, every add-on, theme, stylesheet and image they use, keeping the folder layout their relative paths expect.
 
-- **One `luccet.js` at the site's root**, each note pointing at it relatively (`luccet.js`, `../luccet.js`): `luccet new` writes that. Or load it from cdn.luccet.dev with a pinned release (`https://cdn.luccet.dev/vX.Y.Z/luccet.js`); add-ons and themes are on jsDelivr, with versions of their own (`@1`).
+- **One `luccet.js` at the site's root**, each note pointing at it relatively (`luccet.js`, `../luccet.js`): `luccet new` writes that. Or load it from cdn.luccet.dev with a pinned release (`https://cdn.luccet.dev/vX.Y.Z/luccet.js`); add-ons and themes are there too, with versions of their own (`https://cdn.luccet.dev/code/v1/code.js`).
 - **Relative paths only.** Root-relative `/luccet.js` breaks from disk and under a sub-path. The file name must stay `luccet.js` (not `luccet.min.js`).
 - **The canonical first line** keeps the doctype (without it: quirks mode, math as TeX, `doc.quirks`) and the charset (without it, a server that names no charset garbles non-ASCII text, with no diagnostic):
 
@@ -379,7 +379,7 @@ Details: [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
 
 - **In the browser a note is not sandboxed.** Its head scripts, its add-ons and the `<script>` blocks in its body run with the page's full privileges; raw HTML (event handlers, iframes, `javascript:` links) reaches the page as written. Opening someone's note is opening their web page.
 - **The CLI runs a note's code in a sandbox.** `check`, `build`, `parse`, `search`, `index` and `lsp` run a note's local head scripts and script add-ons (`--no-scripts`, or the server's `noScripts`, runs none) to learn its vocabulary, but inside a locked-down child process and a sealed context: the code reaches no file, process or Node global, and a hang is cut off at 2 s (an `addon.failed` error). Network access is not blocked, so it is a seat belt, not a vault. Pass `--no-scripts` to analyse a note without running its code at all (its own vocabulary is then unknown).
-- **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin versions: a release's folder on cdn.luccet.dev, a tag on jsDelivr.
+- **Do not add** scripts, add-ons or themes from origins the user has not chosen; pin versions: a release's folder on cdn.luccet.dev (`vX.Y.Z/`, `code/vX.Y.Z/`), a tag on jsDelivr.
 - **Untrusted text** (comments posted by others) is never rendered safely by the runtime: render it with `luccet.toHTML(text, { safe: true })` and insert the result. See [Trust](https://luccet.dev/docs/publishing.html#trust).
 
 ### When a note does not render

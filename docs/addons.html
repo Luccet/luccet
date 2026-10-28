@@ -32,7 +32,7 @@ The add-ons live in repositories under [github.com/Luccet](https://github.com/Lu
 An add-on is a script or a stylesheet that a note loads, to add what the engine leaves out: names and their meaning, behaviour, a look. List it in `data-use` on the luccet.js tag:
 
 ```html
-<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js"></script>
+<!doctype html><meta charset="utf-8"><script src="luccet.js" data-use="https://cdn.luccet.dev/code/v1/code.js"></script>
 ```
 
 Several read better in a [`:::use` block](syntax-blocks.html#use), one or more per line, which must come first in the note, after `:::meta` at most:
@@ -41,13 +41,13 @@ Several read better in a [`:::use` block](syntax-blocks.html#use), one or more p
 <!doctype html><meta charset="utf-8"><script src="luccet.js"></script>
 
 :::use
-https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css
-https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
-https://cdn.jsdelivr.net/gh/Luccet/cite@1/cite.js
+https://cdn.luccet.dev/themes/v1/nord.css
+https://cdn.luccet.dev/code/v1/code.js
+https://cdn.luccet.dev/cite/v1/cite.js
 :::
 ```
 
-Each add-on in [the list](#list) lives in a repository under [github.com/Luccet](https://github.com/Luccet), whose README is its page: what it does, its options, and how to use it offline. From jsDelivr, an add-on's URL is `https://cdn.jsdelivr.net/gh/Luccet/REPOSITORY@1/FILE`: `…/code@1/code.js`, or `…/wiki@1/search.js` for one of the wiki's; a copy next to the note works too, and is the one `luccet check` can load ([remote add-ons](addon-api.html#addon-failed)). A [theme](schema.html#themes) is a stylesheet add-on, from [Luccet/themes](https://github.com/Luccet/themes).
+Each add-on in [the list](#list) lives in a repository under [github.com/Luccet](https://github.com/Luccet), whose README is its page: what it does, its options, and how to use it offline. From cdn.luccet.dev, an add-on's URL is `https://cdn.luccet.dev/REPOSITORY/v1/FILE`: `…/code/v1/code.js`, or `…/wiki/v1/search.js` for one of the wiki's. `v1/` follows each one's newest 1.x release, checked every hour; a release's own folder (`v1.0.0/`) never changes. jsDelivr serves the same tags (`https://cdn.jsdelivr.net/gh/Luccet/REPOSITORY@1/FILE`); a copy next to the note works too, and is the one `luccet check` can load ([remote add-ons](addon-api.html#addon-failed)). A [theme](schema.html#themes) is a stylesheet add-on, from [Luccet/themes](https://github.com/Luccet/themes).
 
 ## Your own {#own}
 
