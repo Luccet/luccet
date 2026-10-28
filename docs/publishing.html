@@ -33,7 +33,7 @@ This is the canonical first line, and `luccet new` writes it for you (see [lucce
 **What the tag must be.** A plain, synchronous, classic script, on one line:
 
 - no `async`, `defer` or `type="module"`: `luccet.js` must run while the browser is still reading the file, to capture the rest of it;
-- the file it names must be called exactly `luccet.js` (any path, any query string). The browser would run a copy called `luccet.min.js`, and jsDelivr serves one on request beside `luccet.js` at every tag, minified there, but the command line and editors would not take the file for a note: do not use it. For a smaller file under the right name, load a release's minified build from `https://cdn.luccet.dev/vX.Y.Z/luccet.js`, or copy it to your site; each [GitHub Release](https://github.com/Luccet/luccet/releases) carries the same file;
+- the file it names must be called exactly `luccet.js` (any path, any query string). The browser would run a copy under another name, such as `luccet.min.js`, but the command line and editors would not take the file for a note: keep the name. For a smaller file under the right name, load a release's minified build from `https://cdn.luccet.dev/vX.Y.Z/luccet.js`, or copy it to your site; each [GitHub Release](https://github.com/Luccet/luccet/releases) carries the same file;
 - the whole tag on one line, not inside a comment.
 
 The exact rule is [Note detection](tools.html#detection). Other attributes are allowed on the tag, and some configure `luccet.js` (see [The tag's attributes](#tag-attributes)).
@@ -255,7 +255,7 @@ Content-Security-Policy: default-src 'self'; img-src 'self' data:
 - `'self'` allows `luccet.js`, `luccet.css` and add-ons from your site.
 - **`luccet.js` from cdn.luccet.dev** needs it in `script-src`, and its `luccet.css` in `style-src`: `script-src 'self' https://cdn.luccet.dev; style-src 'self' https://cdn.luccet.dev`, with `<link rel="stylesheet" href="https://cdn.luccet.dev/vX.Y.Z/luccet.css">` for the same release.
 - **Math needs nothing more.** The engine writes it as MathML, which is markup: no script, stylesheet or font is fetched for it, and it carries no `style` attributes.
-- **An add-on from a CDN**, or one that fetches a library from a CDN, needs that CDN in `script-src`: `script-src 'self' https://cdn.jsdelivr.net` for an add-on loaded from jsDelivr. Or serve copies from your site: an add-on that loads a library has its own way to use a copy (see its page, from [Add-ons](addons.html#top)).
+- **An add-on from a CDN**, or one that fetches a library from a CDN, needs that CDN in `script-src`: `script-src 'self' https://cdn.luccet.dev` for Luccet's add-ons, and `style-src 'self' https://cdn.luccet.dev` for its themes. An add-on that fetches a library (highlight.js, Mermaid, KaTeX) names the origins it needs on its page, and has its own way to use a copy from your site instead (see its page, from [Add-ons](addons.html#top)).
 - `luccet.css` comes from the repository, next to `luccet.js`, or from the release's folder on cdn.luccet.dev. It is the same stylesheet `luccet.js` would otherwise inline in a `<style>` element, which a strict `style-src` blocks.
 
 ### Luccet's own styles {#csp-cssom}
@@ -523,7 +523,7 @@ error tex.unknown at line 4:35 (file line 5): \thetha is not a command Luccet kn
 | an inline style element (`style-src-elem`) | Luccet's inline base stylesheet | link `luccet.css` in the head, or use `data-css` or `data-nonce` |
 | inline style attributes (`style-src-attr`) | your `style=`, or a [built page](#csp-built) | use classes; publish the note rather than a built page |
 | an inline script (`script-src-elem`) | a `<script>` block in the note, or the guard | `data-nonce` with a nonce policy, or move the code to a file |
-| a script from `https://cdn.jsdelivr.net` (`script-src-elem`) | the CDN is not allowed for an [add-on](addons.html#top) loaded from it, or for the library an add-on loads | add `https://cdn.jsdelivr.net` to `script-src`, or serve copies from your site ([Offline use](#offline)) |
+| a script from a CDN, such as `https://cdn.luccet.dev` (`script-src-elem`) | the CDN is not allowed for an [add-on](addons.html#top) loaded from it, or for the library an add-on loads | add the CDN to `script-src`, or serve copies from your site ([Offline use](#offline)) |
 
 The details are on [Content-Security-Policy](#csp).
 

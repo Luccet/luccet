@@ -20,7 +20,7 @@ If $V$ is finite-dimensional then $\dim V = \dim \ker T + \dim \operatorname{im}
 By @thm-rn, an injective map between spaces of equal dimension is surjective.
 ```
 
-It renders as plain HTML, in the browser's own type and colours, light or dark, and the formulas as MathML: Luccet translates the TeX itself, with nothing to load ([math](https://luccet.dev/docs/math.html)). For a look, list a [theme](https://github.com/Luccet/themes): `<script src="luccet.js" data-use="https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css"></script>`.
+It renders as plain HTML, in the browser's own type and colours, light or dark, and the formulas as MathML: Luccet translates the TeX itself, with nothing to load ([math](https://luccet.dev/docs/math.html)). For a look, list a [theme](https://github.com/Luccet/themes): `<script src="luccet.js" data-use="https://cdn.luccet.dev/themes/v1/classic.css"></script>`.
 
 
 ## Documentation
@@ -37,8 +37,8 @@ A note needs only `luccet.js`
 <script src="luccet.js"></script>
 
 :::use
-https://cdn.jsdelivr.net/gh/Luccet/themes@1/classic.css
-https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
+https://cdn.luccet.dev/themes/v1/classic.css
+https://cdn.luccet.dev/code/v1/code.js
 :::
 ```
 
@@ -54,11 +54,10 @@ One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work to
 
 - **To follow releases,** use `v2.0/` (the newest 2.0.x) or `v2/` (the newest 2.x: a major keeps every note rendering the same). A release's own folder never changes, so a browser keeps its file for a year; a series' or a major's is checked for a newer release every hour.
 - **The same file** is each [GitHub Release](https://github.com/Luccet/luccet/releases)'s `luccet.js`: the minified build, under the name the tools and the editors look for. Its `luccet.css` is beside it, for a page under a strict [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
-- **From jsDelivr,** the readable build of any tag: `https://cdn.jsdelivr.net/gh/Luccet/luccet@vX.Y.Z/luccet.js`. Not `luccet.min.js`, which jsDelivr minifies on request beside it and which renders in the browser: the tools and the editors take a note only from a file called `luccet.js`.
 
-**Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
+**Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.luccet.dev/themes/v1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 
-**Add-ons** live in repositories of their own, each with its page: [code](https://github.com/Luccet/code) colours code by its language, [mermaid](https://github.com/Luccet/mermaid) draws `mermaid` fences as diagrams, [lightbox](https://github.com/Luccet/lightbox) opens a figure's image full size, [cite](https://github.com/Luccet/cite) cites the sources of a `:::bibliography` block, [wiki](https://github.com/Luccet/wiki) makes a folder of notes a wiki, with a `::notes` list of them, a `::search` box and a `::glossary` of the terms they define, and [katex](https://github.com/Luccet/katex) typesets math with KaTeX instead of the engine's MathML. List them in `:::use`, one per line, from jsDelivr: `https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js`, `https://cdn.jsdelivr.net/gh/Luccet/wiki@1/search.js`. See [add-ons](https://luccet.dev/docs/addons.html).
+**Add-ons** live in repositories of their own, each with its page: [code](https://github.com/Luccet/code) colours code by its language, [mermaid](https://github.com/Luccet/mermaid) draws `mermaid` fences as diagrams, [lightbox](https://github.com/Luccet/lightbox) opens a figure's image full size, [cite](https://github.com/Luccet/cite) cites the sources of a `:::bibliography` block, [wiki](https://github.com/Luccet/wiki) makes a folder of notes a wiki, with a `::notes` list of them, a `::search` box and a `::glossary` of the terms they define, and [katex](https://github.com/Luccet/katex) typesets math with KaTeX instead of the engine's MathML. List them in `:::use`, one per line, from cdn.luccet.dev, which serves the themes too: `https://cdn.luccet.dev/code/v1/code.js`, `https://cdn.luccet.dev/wiki/v1/search.js`. See [add-ons](https://luccet.dev/docs/addons.html).
 
 
 **With npm, from this repository:** `npm install github:Luccet/luccet#vX.Y.Z` (a tag) puts the same `luccet.js` and `luccet.css` under `node_modules/luccet/`, with type declarations and the `luccet` command ([Under node](https://luccet.dev/docs/api.html#under-node)). The package is not on the npm registry.
@@ -98,7 +97,7 @@ npm test            # build check, corpus, samples, perf, fuzz, API, CLI, LSP, d
 npm run smoke       # Chromium and Firefox (Playwright)
 ```
 
-**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `luccet.version`, the README's jsDelivr tag and the docs' examples. It rebuilds `luccet.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test, publishes the site (its `luccet.js` minified, as the release's asset is), drafts the GitHub Release with the changelog section as its notes and three assets (a minified `luccet.js`, built with a pinned terser and checked to be the same version; `luccet.css`; `luccet-vX.Y.Z.zip` holding `luccet.js`, `luccet.css`, `luccet.d.ts`, the add-ons and the themes). Publish the draft. Between releases, the `site` workflow, run by hand from the Actions tab on `main`, publishes the pages of `main` (`index.html`, `docs/`, `examples/`) with the engine of the newest tag, its `luccet.js` minified the same way, once the docs and samples suites pass against that engine. The package is not published to the npm registry; `npm install github:Luccet/luccet#vX.Y.Z` installs the tag. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
+**A release.** `npm run bump -- X.Y.Z` (or `patch`, `minor`, `major`) sets the new version everywhere it is written: `package.json`, `luccet.version`, the README's cdn.luccet.dev folder and the docs' examples. It rebuilds `luccet.js`, starts the version's section in `CHANGELOG.md`, and refuses a version that is already a tag. Write the changelog section, run `npm test`, commit, and once the commit is on `main`, run `npm run tag`: it refuses what the release workflow would (a branch other than `main`, a working tree with changes, a place that disagrees, a missing changelog section, a tag that exists), then creates `vX.Y.Z`. Push the tag (`git push origin vX.Y.Z`): the release workflow checks it against the version, runs every test, publishes the site (its `luccet.js` minified, as the release's asset is), drafts the GitHub Release with the changelog section as its notes and three assets (a minified `luccet.js`, built with a pinned terser and checked to be the same version; `luccet.css`; `luccet-vX.Y.Z.zip` holding `luccet.js`, `luccet.css`, `luccet.d.ts`, the add-ons and the themes). Publish the draft. Between releases, the `site` workflow, run by hand from the Actions tab on `main`, publishes the pages of `main` (`index.html`, `docs/`, `examples/`) with the engine of the newest tag, its `luccet.js` minified the same way, once the docs and samples suites pass against that engine. The package is not published to the npm registry; `npm install github:Luccet/luccet#vX.Y.Z` installs the tag. `npm test` fails if any place disagrees with `package.json`, or if a file names the version where `tools/version.js` does not look, so a new mention cannot be missed at the next bump.
 
 
 MIT licensed.
