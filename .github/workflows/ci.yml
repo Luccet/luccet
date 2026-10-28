@@ -114,6 +114,21 @@ jobs:
           node -e "require('luccet/cli/language.js'); require('luccet/test/fixtures/detect.json'); console.log('subpaths ok')"
           npx luccet --version
 
+  # What release.yml and site.yml deploy, built but not deployed: the pages
+  # and every release in its own folder, each luccet.js minified and checked.
+  site:
+    name: the site builds, with every release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/site.js
+
   cli:
     name: API, command line, language server and documentation
     runs-on: ubuntu-24.04

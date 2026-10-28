@@ -4,6 +4,7 @@ Every release of Luccet, called Tern until 2.0, newest first. Versions follow [s
 
 ## 2.0.1 (unreleased)
 
+- **cdn.luccet.dev.** Every release from 2.0 on is served from Luccet's own domain, minified: `https://cdn.luccet.dev/v2.0.0/luccet.js` for one release, `v2.0/` for the newest of a series and `v2/` for the newest of a major, each with its `luccet.css`. A release's folder never changes, so a browser keeps it for a year; a series' or a major's is checked every hour. The file is the same as the GitHub Release's `luccet.js`, and the README, the [status](https://luccet.dev/#status), [publishing](https://luccet.dev/docs/publishing.html#csp) and the skill name it where they named jsDelivr, which still serves every tag. The site is built by `tools/site.js` (`node tools/site.js`), which CI now runs on every push.
 - **The wiki.** The notes, search and glossary add-ons are one repository, [Luccet/wiki](https://github.com/Luccet/wiki), since all three read what `luccet index` writes: `https://cdn.jsdelivr.net/gh/Luccet/wiki@1/notes.js`, `search.js` and `glossary.js`, each loaded on its own as before. The 2.0.0 documentation named three repositories that were never published; it names the wiki now, and so do 2.0.0's migration notes.
 
 ## 2.0.0 (2026-10-27)

@@ -44,16 +44,17 @@ https://cdn.jsdelivr.net/gh/Luccet/code@1/code.js
 
 One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work together.
 
-**From jsDelivr**, which serves this repository's tagged releases:
+**From cdn.luccet.dev**, which serves every release from 2.0 on, minified:
 
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/gh/Luccet/luccet@v2.0.0/luccet.js"></script>
+<script src="https://cdn.luccet.dev/v2.0.0/luccet.js"></script>
 ```
 
-- **To follow releases,** use `@2.0` (the newest 2.0.x), `@2` (the newest 2.x: a major keeps every note rendering the same) or `@latest` (the newest release).
-- **Not `luccet.min.js`.** jsDelivr minifies any file on request, so `luccet.min.js` exists beside `luccet.js` at every tag and renders a note in the browser; do not use it. The tools and the editors take a note only from a tag whose file is called `luccet.js`. Where bytes matter, each [GitHub Release](https://github.com/Luccet/luccet/releases) carries a minified build under that name: `https://github.com/Luccet/luccet/releases/download/vX.Y.Z/luccet.js`, or copy it to your site.
+- **To follow releases,** use `v2.0/` (the newest 2.0.x) or `v2/` (the newest 2.x: a major keeps every note rendering the same). A release's own folder never changes, so a browser keeps its file for a year; a series' or a major's is checked for a newer release every hour.
+- **The same file** is each [GitHub Release](https://github.com/Luccet/luccet/releases)'s `luccet.js`: the minified build, under the name the tools and the editors look for. Its `luccet.css` is beside it, for a page under a strict [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
+- **From jsDelivr,** the readable build of any tag: `https://cdn.jsdelivr.net/gh/Luccet/luccet@vX.Y.Z/luccet.js`. Not `luccet.min.js`, which jsDelivr minifies on request beside it and which renders in the browser: the tools and the editors take a note only from a file called `luccet.js`.
 
 **Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.jsdelivr.net/gh/Luccet/themes@1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
 

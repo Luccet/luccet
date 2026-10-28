@@ -4,3 +4,4 @@ playwright-report/
 test/fuzz-failures/
 *.log
 .DS_Store
+_site/
