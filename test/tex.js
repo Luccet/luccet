@@ -145,6 +145,11 @@ test('what could hang or overflow stops in time with tex.limit: a macro that use
     ['\\def\\a{\\b\\b}\\def\\b{\\c\\c}\\def\\c{\\d\\d}\\def\\d{\\e\\e}\\def\\e{\\f\\f}\\def\\f{\\g\\g}\\def\\g{xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a\\a', null],
     ['{'.repeat(5000) + 'x' + '}'.repeat(5000), 'tex.limit'],
     ['\\left('.repeat(500) + 'x' + '\\right)'.repeat(500), 'tex.limit'],
+    ['\\def\\R{\\mathbb\\R}\\R', 'tex.limit'],
+    ['\\def\\a{\\sqrt\\a}\\a', 'tex.limit'],
+    ['\\def\\a{\\hat\\a}\\a', 'tex.limit'],
+    ['\\def\\a{\\mathop\\a}\\a', 'tex.limit'],
+    ['\\sqrt'.repeat(300) + 'x', 'tex.limit'],
     ['\\sqrt{'.repeat(300) + 'x' + '}'.repeat(300), 'tex.limit'],
     ['x^{'.repeat(300) + '2' + '}'.repeat(300), 'tex.limit'],
   ];
