@@ -800,7 +800,7 @@ async function buildPage(args) {
   const { values: o, positionals } = options(args, { output: { type: 'string', short: 'o' }, math: { type: 'string' }, katex: { type: 'boolean' }, diagrams: { type: 'boolean' }, json: { type: 'boolean' }, 'no-scripts': { type: 'boolean' } });
   if (o.help) return help('build');
   if (o.math !== undefined || o.katex) throw new UsageError(`${o.katex ? '--katex' : '--math'} is gone: since 2.0 every formula is MathML, written by the engine, with nothing to pre-render`);
-  if (o.diagrams) throw new UsageError('--diagrams is gone: since 2.0 the Mermaid add-on is separate (github.com/Luccet/mermaid), and draws a built page\'s diagrams ahead with its own tools/diagrams.js');
+  if (o.diagrams) throw new UsageError('--diagrams is gone: since 2.0 the diagram add-ons are separate (github.com/Luccet/diagrams), and draw a built page\'s diagrams ahead with their own tools/diagrams.js');
   if (!positionals.length) throw new UsageError('FILE is missing');
   const stat = (p) => {
     try {

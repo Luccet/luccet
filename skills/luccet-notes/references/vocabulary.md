@@ -372,7 +372,7 @@ Luccet's add-ons are not part of the engine. Each lives in a repository of its o
 | Add-on | What it does |
 |---|---|
 | [code](https://github.com/Luccet/code) | colours code fences by language, with highlight.js, in the theme's colours (`--t-code-*`) |
-| [mermaid](https://github.com/Luccet/mermaid) | draws diagrams from fences in Mermaid's language, in the theme's colours |
+| [diagrams](https://github.com/Luccet/diagrams) | draws diagrams in the theme's colours: `mermaid.js` from `mermaid` fences, with Mermaid; `graphviz.js` from `dot` or `graphviz` fences, with Graphviz |
 | [lightbox](https://github.com/Luccet/lightbox) | opens a figure's image full size in a dialog |
 | [cite](https://github.com/Luccet/cite) | cites sources from a `:::bibliography` block (BibTeX or CSL-JSON) as `@key`, and lists them |
 | [wiki](https://github.com/Luccet/wiki) | a folder of notes as a wiki, from what `luccet index` writes: `notes.js`, a `::notes` list of them; `search.js`, a `::search` box over them (or over `search.json`); `glossary.js`, a `::glossary` of the terms they define (`:dfn[…]`, `:::definition`) and `:term[…]` links to it |
@@ -380,7 +380,7 @@ Luccet's add-ons are not part of the engine. Each lives in a repository of its o
 
 - **Load one** from cdn.luccet.dev, `https://cdn.luccet.dev/REPOSITORY/v1/FILE` (`code/v1/code.js`, `wiki/v1/search.js`), in `data-use` or `:::use`, or from a copy next to the note. A remote one is `addon.remote` under `luccet check`, which then does not know the names it declares; a local copy is run.
 - **Math needs no add-on:** the engine writes every formula as MathML, offline too.
-- **Offline or under a strict Content-Security-Policy,** an add-on that fetches a library from a CDN (code, mermaid, katex) has its own way to use a local copy: see its page. With a CDN, allow it in `script-src`.
+- **Offline or under a strict Content-Security-Policy,** an add-on that fetches a library from a CDN (code, diagrams, katex) has its own way to use a local copy: see its page. With a CDN, allow it in `script-src`.
 
 ## Themes
 
