@@ -253,7 +253,7 @@ Content-Security-Policy: default-src 'self'; img-src 'self' data:
 ```
 
 - `'self'` allows `luccet.js`, `luccet.css` and add-ons from your site.
-- **`luccet.js` from cdn.luccet.dev** needs it in `script-src`, and its `luccet.css` in `style-src`: `script-src 'self' https://cdn.luccet.dev; style-src 'self' https://cdn.luccet.dev`, with `<link rel="stylesheet" href="https://cdn.luccet.dev/vX.Y.Z/luccet.css">` for the same release.
+- **`luccet.js` from cdn.luccet.dev** needs it in `script-src`, and its `luccet.css` in `style-src`: `script-src 'self' https://cdn.luccet.dev; style-src 'self' https://cdn.luccet.dev`, with `luccet.css` linked from the same release's folder (`https://cdn.luccet.dev/vX.Y.Z/luccet.css`).
 - **Math needs nothing more.** The engine writes it as MathML, which is markup: no script, stylesheet or font is fetched for it, and it carries no `style` attributes.
 - **An add-on from a CDN**, or one that fetches a library from a CDN, needs that CDN in `script-src`: `script-src 'self' https://cdn.luccet.dev` for Luccet's add-ons, and `style-src 'self' https://cdn.luccet.dev` for its themes. An add-on that fetches a library (highlight.js, Mermaid, KaTeX) names the origins it needs on its page, and has its own way to use a copy from your site instead (see its page, from [Add-ons](addons.html#top)).
 - `luccet.css` comes from the repository, next to `luccet.js`, or from the release's folder on cdn.luccet.dev. It is the same stylesheet `luccet.js` would otherwise inline in a `<style>` element, which a strict `style-src` blocks.

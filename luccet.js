@@ -4698,7 +4698,11 @@ class Parser {
     if (isCh(t, '{')) return this.group(t);
     if (isCh(t, '^') || isCh(t, '_')) fail('tex.script', t, `${what} cannot start with \`${t.v}\``, 'put it in braces');
     if (t.t === 'ch' && t.v >= '0' && t.v <= '9') return el('mn', this.font && this.font !== 'normal' && this.font !== 'rm' ? inFont(t.v, this.font)[0] : t.v);
+    // An argument without braces nests as a group does (\sqrt\sqrt x), and a
+    // macro that is its own argument (\def\R{\mathbb\R}) would nest forever.
+    if (++this.depth > MAX_DEPTH) fail('tex.limit', t, `arguments nest more than ${MAX_DEPTH} deep in this formula`, 'a macro that uses itself never ends: check its definition');
     const a = this.atom(t);
+    this.depth--;
     return a || el('mrow', []);
   }
   // A {group} as a row, its { already read: TeX's ordinary atom.

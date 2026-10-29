@@ -374,7 +374,7 @@ Then $\sin x$.
 
 ### `tex.limit` · error
 
-Macros that expand without end (past ten tokens for each character of the formula, and the page's shared reserve of 5,000), or groups nested more than 100 deep. The limit keeps the page from hanging.
+Macros that expand without end (past ten tokens for each character of the formula, and the page's shared reserve of 5,000), or groups or arguments nested more than 100 deep (a macro that is its own argument, as `\def\R{\mathbb\R}`). The limit keeps the page from hanging.
 **Fix:** give the macro a body that ends.
 
 ```luccet expect="tex.limit"
