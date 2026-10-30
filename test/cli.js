@@ -1450,7 +1450,7 @@ test('vendor and build --diagrams are gone with their add-ons, each with a messa
   ok(/^luccet vendor: this command is gone: since 2\.0 the add-ons are separate \(github\.com\/Luccet\), and each one that loads a library has its own tools\/vendor\.js; math needs nothing\n$/.test(v.err), `vendor: ${v.err}`);
   const d = run(['build', 'gone/n.html', '--diagrams']);
   exits(d, 2, 'build --diagrams');
-  ok(/--diagrams is gone: since 2\.0 the Mermaid add-on is separate \(github\.com\/Luccet\/mermaid\)/.test(d.err), `--diagrams: ${d.err}`);
+  ok(/--diagrams is gone: since 2\.0 the diagram add-ons are separate \(github\.com\/Luccet\/diagrams\)/.test(d.err), `--diagrams: ${d.err}`);
 });
 
 test('build: refusals and usage errors', () => {
