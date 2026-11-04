@@ -152,14 +152,14 @@ declare namespace luccet {
     readonly format: number;
   }
 
-  /** A term a note defines (docs/api.html#glossary): a `:dfn[…]` or a titled `:::definition` block. */
+  /** A term a note defines (docs/api.html#glossary): a `:dfn[…]`, defined by its paragraph or by a `:definition[…]` around it, or a titled `:::definition` block. */
   export interface GlossaryTerm {
     term: string;
     /** The term folded as search folds words. */
     key: string;
     /** An id for the term on a glossary page, from the key. */
     slug: string;
-    /** The anchor nearest above the term: its own, its block's, else its section's heading's. */
+    /** The anchor nearest above the term: its own, its inline definition's, its block's, else its section's heading's. */
     id: string;
     line: number;
     /** 'dfn', or the block's name. */
