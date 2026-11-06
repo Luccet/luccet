@@ -3531,13 +3531,19 @@ module.exports = { plain, title, describe, records, fold, stem, tokens, index, q
 // HTML's rule says, so `:dfn[truisms]{title=truism}` defines "truism". A
 // dfn inside such a block that names the block's own term is not a second
 // term. A dfn in a heading is defined by the paragraph after the heading; in
-// a table cell, by the cell.
+// a table cell, by the cell. An inline element of a listed name,
+// `:definition[…]`, bounds the definition of a dfn inside it: its content
+// is the definition, so a paragraph can define a term in one sentence and go
+// on to say more. The nearest bound wins: that element, else the cell, else
+// the paragraph. It is the same list of names as the blocks', so a
+// vocabulary that renames its definition block renames this too.
 //
 //   terms(ast, {blocks}) -> [{term, key, slug, id, line, how, definition}]
 //     key: the term folded as search folds words (one form for Café and
 //          cafe); slug: an id for the term on a glossary page, from the key;
-//     id: the anchor nearest above the term: its own, else its block's, else
-//         its section's heading's ('' at the top of the note);
+//     id: the anchor nearest above the term: its own, else its inline
+//         definition's, else its block's, else its section's heading's ('' at
+//         the top of the note);
 //     line: the note line the term is on; how: 'dfn' or the block's name;
 //     definition: the definition's nodes, positions removed, for luccet.emit
 //     on another page (empty for a term with no paragraph).
@@ -3608,6 +3614,14 @@ function terms(ast, opts) {
         const a = n.attributes || {};
         const term = (typeof a.title === 'string' && a.title.trim()) || plain(n).trim();
         if (term && !(f.block && f.block.key === key(term))) out.push(entry(term, (typeof a.id === 'string' && a.id) || current, n, 'dfn', f.para ? [f.para] : []));
+      } else if (blocks.has(n.name) && Array.isArray(n.children)) {
+        // An inline definition bounds the definition of a dfn inside it: its
+        // content, as a paragraph, where the dfn's own paragraph runs on.
+        // Its id is the anchor of the terms inside, as a block's is.
+        const id = n.attributes && typeof n.attributes.id === 'string' && n.attributes.id;
+        frames.push({ list: n.children, i: 0, para: { type: 'paragraph', children: n.children }, block: f.block, back: id ? current : null });
+        if (id) current = id;
+        continue;
       }
     }
     if (!n.children) continue;

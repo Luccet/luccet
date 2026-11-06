@@ -213,6 +213,43 @@ test('glossary.terms: a dfn is defined by its paragraph, by the paragraph after 
   eq([luccet.glossary.key('  Café  AU lait '), luccet.glossary.slug('Abelian group'), luccet.glossary.slug('Café au lait!'), luccet.glossary.slug('東京'), luccet.glossary.slug('')], ['cafe au lait', 'glossary-abelian-group', 'glossary-cafe-au-lait', 'glossary-東京', 'glossary-term'], 'key and slug');
 });
 
+test('glossary.terms: an inline element of a listed name, :definition[…], bounds the definition of a dfn inside it, the nearest bound winning over its cell and its paragraph; its id is the anchor of the terms inside; one with no dfn defines nothing; it renders as a span', () => {
+  const src = '# Intro {#intro}\n\n:definition[A :dfn[truism] is obvious, as is a :dfn[platitude].] This sentence is not part of it, and a :dfn[maxim] here has the whole paragraph.\n\n:definition[A :dfn[lemma] is a small theorem.]{#d-lemma} :definition[A :dfn[porism]{#p} follows.]{#d-porism}\n\n| :definition[A :dfn[cell] is a box.] More. | x |\n|---|---|\n| 1 | 2 |\n\n:definition[No term here.] :note[A :dfn[noted] term.]\n\n:::definition[Kernel]{#k}\n:definition[The :dfn[kernel] is a set.] Its :dfn[nullity] is a number.\n:::\n';
+  const { ast } = luccet.parse(src);
+  luccet.transform(ast);
+  const html = (t) => luccet.emit({ type: 'root', children: t.definition }, { positions: false }).trim();
+  const dfn = (w, id) => `<dfn${id ? ` id="${id}"` : ''} class="dfn" data-t="dfn">${w}</dfn>`;
+  const list = luccet.glossary.terms(ast);
+  eq(
+    list.map((t) => [t.term, t.id, t.line, t.how]),
+    [
+      ['truism', 'intro', 3, 'dfn'],
+      ['platitude', 'intro', 3, 'dfn'],
+      ['maxim', 'intro', 3, 'dfn'],
+      ['lemma', 'd-lemma', 5, 'dfn'],
+      ['porism', 'p', 5, 'dfn'],
+      ['cell', 'intro', 7, 'dfn'],
+      ['noted', 'intro', 11, 'dfn'],
+      ['Kernel', 'k', 13, 'definition'],
+      ['nullity', 'k', 14, 'dfn'],
+    ],
+    'the terms in note order: the inline definition\'s id as the anchor unless the dfn has its own; no term for a bound with no dfn; the block\'s own term inside an inline definition is no second term',
+  );
+  const by = Object.fromEntries(list.map((t) => [t.term, html(t)]));
+  eq(by.truism, `<p>A ${dfn('truism')} is obvious, as is a ${dfn('platitude')}.</p>`, 'the inline definition\'s content, not the rest of its paragraph');
+  eq(by.platitude, by.truism, 'two dfns in one inline definition share it');
+  eq(by.maxim.startsWith('<p><span class="definition" data-t="definition">') && by.maxim.endsWith('has the whole paragraph.</p>'), true, 'a dfn outside the inline definition still has its paragraph');
+  eq([by.lemma, by.porism], [`<p>A ${dfn('lemma')} is a small theorem.</p>`, `<p>A ${dfn('porism', 'p')} follows.</p>`], 'each inline definition bounds its own dfn');
+  eq(by.cell, `<p>A ${dfn('cell')} is a box.</p>`, 'in a cell, the inline definition rather than the cell');
+  eq(by.noted.includes('No term here.'), true, 'an unlisted name bounds nothing: the paragraph');
+  eq(by.nullity.startsWith('<p><span class="definition" data-t="definition">') && by.nullity.endsWith('is a number.</p>'), true, 'inside a definition block, a dfn outside the inline definition has its paragraph');
+  const renamed = luccet.glossary.terms(ast, { blocks: ['note'] });
+  eq(html(renamed.find((t) => t.term === 'noted')), `<p>A ${dfn('noted')} term.</p>`, 'blocks= names the inline definitions too');
+  eq(html(renamed.find((t) => t.term === 'truism')).endsWith('has the whole paragraph.</p>'), true, 'then :definition[…] bounds nothing');
+  eq(renamed.map((t) => t.term).includes('kernel'), true, 'and the definition block defines nothing, so its dfn is a term');
+  eq(luccet.toHTML(':definition[A :dfn[truism] is obvious.]{#d} More.', { positions: false }).trim(), `<p><span id="d" class="definition" data-t="definition">A ${dfn('truism')} is obvious.</span> More.</p>`, 'it renders as any unknown inline name does: a span with its name as the class');
+});
+
 test('search.format and glossary.format: the number of the format luccet index writes, which a reader of any version of the same major takes; 1 since 1.0', () => {
   eq([luccet.search.format, luccet.glossary.format], [1, 1], 'the formats');
   eq([Number.isInteger(luccet.search.format) && luccet.search.format > 0, Number.isInteger(luccet.glossary.format) && luccet.glossary.format > 0], [true, true], 'positive integers, written as JSON');
