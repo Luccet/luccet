@@ -73,7 +73,7 @@ Every command takes `--help` (or `-h`), which prints its synopsis and exits 0. O
 ```sh
 $ luccet new x.html --bogus
 luccet new: Unknown option '--bogus'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "--bogus"
-usage: luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
+usage: luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--guarded] [--force]
 ```
 
 ### How diagnostics print {#output}
@@ -163,11 +163,11 @@ luccet check: 1 note: 1 error, 0 warnings, 0 infos
 
 ## luccet new {#new}
 
-`luccet new` writes a new note: the canonical first line, with the right path to `luccet.js`, and after the tag the [guard](#guarded), which shows the note's source, readable, when `luccet.js` does not run.
+`luccet new` writes a new note: the canonical first line, with the right path to `luccet.js`. With `--guarded`, the line ends with the [guard](#guarded), which shows the note's source, readable, when `luccet.js` does not run.
 
 :::syntax[luccet new]
 ```sh
-luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
+luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--guarded] [--force]
 ```
 :::
 
@@ -175,7 +175,7 @@ luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare
 $ luccet new notes/kernel.html
 created notes/kernel.html, loading ../luccet.js
 $ cat notes/kernel.html
-<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.luccet||document.write('<p>luccet.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script>
 ```
 
 | Option | What it does |
@@ -183,8 +183,8 @@ $ cat notes/kernel.html
 | `--luccet=PATH` | The `src` of the script tag, as given: a relative path, a root-relative path, or a URL. Without it, see below. |
 | `--use=LIST` | The add-ons, written as a [`:::use` block](syntax-blocks.html#use), one per line, after the `:::meta` block, and each preloaded from the first line (`<link rel="preload">`, `as="script"` or `as="style"`), so the browser fetches it alongside `luccet.js` instead of after the note has arrived. Separate them with commas or spaces; the option may repeat. |
 | `--title=TEXT` | Adds a `:::meta` block with `title: TEXT`, then a blank line. One non-empty line. |
-| `--lang=TAG` | The note's language, as `lang: TAG` in the `:::meta` block (`en`, `de`, `pt-BR`), which `luccet.js` puts on `<html>` when it renders. The guard's message is in that language when the command has it, English otherwise. |
-| `--bare` | Leaves the guard out: the first line is the tag alone. |
+| `--lang=TAG` | The note's language, as `lang: TAG` in the `:::meta` block (`en`, `de`, `pt-BR`), which `luccet.js` puts on `<html>` when it renders. With `--guarded`, the guard's message is in that language when the command has it, English otherwise. |
+| `--guarded` | Ends the first line with the [guard](#guarded), which shows the note's source when `luccet.js` does not run. |
 | `--force` | Overwrites an existing file. |
 
 ### The path to luccet.js {#new-path}
@@ -209,7 +209,7 @@ created notes/first.html, loading ../luccet.js
 luccet new: :::use names theorems.js, which does not exist yet
 luccet new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../luccet.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.luccet||document.write('<p>luccet.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../luccet.js"></script>
 :::meta
 title: Linear maps
 :::
@@ -227,11 +227,11 @@ theme.css
 
 ### The guard {#guarded}
 
-A note whose `luccet.js` does not load shows its source run together as one paragraph of text, with any raw HTML in it rendered. The guard makes that case readable: it shows a one-line message, then the note exactly as written, wrapped at the window's width. `luccet new` writes it after the tag; `--bare` leaves it out.
+A note whose `luccet.js` does not load shows its source run together as one paragraph of text, with any raw HTML in it rendered. The guard makes that case readable: it shows a one-line message, then the note exactly as written, wrapped at the window's width. `luccet new --guarded` writes it after the tag.
 
 ```sh
-$ luccet new notes/guarded.html --lang=fr
-created notes/guarded.html, loading ../luccet.js
+$ luccet new notes/guarded.html --lang=fr --guarded
+created notes/guarded.html, loading ../luccet.js, guarded
 $ cat notes/guarded.html
 <!doctype html><meta charset="utf-8"><script src="../luccet.js"></script><noscript><p lang="fr">JavaScript est désactivé ; voici la source.</p><xmp hidden></noscript><script>self.luccet||document.write('<p lang="fr">luccet.js n’a pas été chargé ; voici la source.</p><xmp hidden>')</script></xmp><plaintext lang="fr" style="white-space:pre-wrap">
 :::meta
@@ -252,7 +252,7 @@ The guard is the rest of the first line, after the tag. It is still one line, so
 - The guard adds nothing to the rendered page: when `luccet.js` loads, its script never runs.
 - **CSP.** The guard's script is an inline script. When `luccet.js` loads, the guard is never parsed, so it causes no violation. When `luccet.js` does not load under a Content-Security-Policy that blocks inline scripts, the guard's script is blocked: the reader sees the note as plain text, without the message line. A policy that blocks inline styles blocks the `style` attribute that wraps the text: the source then shows unwrapped.
 - `luccet build` drops the guard from the page it writes (see [luccet build](#build)).
-- `--guarded`, the option that added the guard before 1.0, is accepted and changes nothing.
+- Without `--guarded`, the first line is the tag alone. `--bare`, which left the guard out while it was the default (1.0 to 2.0), is accepted and changes nothing.
 
 ### Refusals {#new-refusals}
 

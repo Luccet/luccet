@@ -117,8 +117,8 @@ test('DETECT takes linear time on pathological lines', () => {
 
 // ---------------------------------------------------------------- new
 
-// The guard luccet new writes after the tag, in English and, with --lang, in
-// the note's language, the language on its message and its text.
+// The guard luccet new --guarded writes after the tag, in English and, with
+// --lang, in the note's language, the language on its message and its text.
 const GUARD = (lang, off, missing) => {
   const at = lang ? ` lang="${lang}"` : '';
   return `<noscript><p${at}>${off}</p><xmp hidden></noscript><script>self.luccet||document.write('<p${at}>${missing}</p><xmp hidden>')</script></xmp><plaintext${at} style="white-space:pre-wrap">`;
@@ -126,19 +126,19 @@ const GUARD = (lang, off, missing) => {
 const GUARD_EN = GUARD('', 'JavaScript is off; the source follows.', 'luccet.js did not load; the source follows.');
 const GUARDED = /<\/script>(<noscript>[\s\S]*<plaintext[^>]*>)$/;
 
-test('new: the canonical first line and the guard, loading the nearest luccet.js above; --bare leaves the guard out', () => {
+test('new: the canonical first line, the tag alone, loading the nearest luccet.js above; --bare, the default, is still accepted', () => {
   write('w/luccet.js', '// stand-in\n');
   fs.mkdirSync(at('w/a/b'), { recursive: true });
   const r = run(['new', 'w/a/b/note.html']);
   exits(r, 0, 'new');
-  eq(read('w/a/b/note.html'), `${FIRST}<script src="../../luccet.js"></script>${GUARD_EN}\n`, 'the file');
+  eq(read('w/a/b/note.html'), `${FIRST}<script src="../../luccet.js"></script>\n`, 'the file');
   ok(/created w\/a\/b\/note\.html, loading \.\.\/\.\.\/luccet\.js$/m.test(r.out), `stdout: ${r.out}`);
   exits(run(['new', 'w/same.html']), 0, 'new next to luccet.js');
-  eq(read('w/same.html'), `${FIRST}<script src="luccet.js"></script>${GUARD_EN}\n`, 'luccet.js in the same directory');
+  eq(read('w/same.html'), `${FIRST}<script src="luccet.js"></script>\n`, 'luccet.js in the same directory');
   const b = run(['new', 'w/bare.html', '--bare']);
   exits(b, 0, 'new --bare');
-  eq(read('w/bare.html'), `${FIRST}<script src="luccet.js"></script>\n`, '--bare: the tag alone');
-  ok(/created w\/bare\.html, loading luccet\.js, bare$/m.test(b.out), `stdout: ${b.out}`);
+  eq(read('w/bare.html'), read('w/same.html'), '--bare writes the same file');
+  ok(/created w\/bare\.html, loading luccet\.js$/m.test(b.out), `stdout: ${b.out}`);
 });
 
 test('new: without a luccet.js above, src="luccet.js" and a note on stderr', () => {
@@ -164,37 +164,40 @@ test('new: --luccet, --use (commas, spaces, repeated) and --title', () => {
   eq(ast.data.luccet.meta.title, 'Linear maps: kernel & image', 'the title read back');
 });
 
-test('new: the guard follows the tag on the luccet.js line, and the file is still a note', () => {
+test('new --guarded: the guard follows the tag on the luccet.js line, and the file is still a note', () => {
   write('g/luccet.js', '');
-  exits(run(['new', 'g/n.html', '--title=Guarded']), 0, 'new');
+  const g = run(['new', 'g/n.html', '--title=Guarded', '--guarded']);
+  exits(g, 0, 'new --guarded');
+  ok(/created g\/n\.html, loading luccet\.js, guarded$/m.test(g.out), `stdout: ${g.out}`);
   const text = read('g/n.html');
   const first = text.split('\n')[0];
   ok(first.startsWith(`${FIRST}<script src="luccet.js"></script><noscript>`), `first line: ${first}`);
   ok(GUARDED.test(first) && /self\.luccet\|\|document\.write\(/.test(first), 'the guard script and its <plaintext>');
   ok(/<plaintext style="white-space:pre-wrap">$/.test(first), 'the source view wraps');
-  ok(fixture.match.some((c) => c.line === first), 'detect.json holds the line luccet new writes');
+  ok(fixture.match.some((c) => c.line === first), 'detect.json holds the line luccet new --guarded writes');
   const parts = split(text);
   ok(parts && parts.line === 1 && parts.tag === '<script src="luccet.js">' && parts.head === FIRST, 'split() finds the tag on line 1');
   ok(parts.note.startsWith(':::meta\ntitle: Guarded'), 'the note starts on line 2');
   const c = run(['check', 'g/n.html']);
   exits(c, 0, 'check');
   ok(/1 note: 0 errors/.test(c.err), `check: ${c.err}`);
-  exits(run(['new', 'g/old.html', '--guarded']), 0, '--guarded, the default, is still accepted');
-  eq(read('g/old.html'), `${FIRST}<script src="luccet.js"></script>${GUARD_EN}\n`, '--guarded writes the same file');
+  exits(run(['new', 'g/plain.html']), 0, 'new');
+  eq(read('g/plain.html'), `${FIRST}<script src="luccet.js"></script>\n`, 'without --guarded, no guard');
+  eq(read('g/n.html').split('\n')[0], `${FIRST}<script src="luccet.js"></script>${GUARD_EN}`, 'the English guard');
 });
 
-test('new --lang: the language in :::meta, and the guard in that language, marked with it', () => {
+test('new --lang: the language in :::meta, and with --guarded the guard in that language, marked with it', () => {
   write('l/luccet.js', '');
   const fr = GUARD('fr', 'JavaScript est désactivé ; voici la source.', 'luccet.js n’a pas été chargé ; voici la source.');
-  exits(run(['new', 'l/fr.html', '--lang=fr', '--title=Gardée']), 0, 'new --lang=fr');
+  exits(run(['new', 'l/fr.html', '--lang=fr', '--title=Gardée', '--guarded']), 0, 'new --lang=fr --guarded');
   eq(read('l/fr.html'), `${FIRST}<script src="luccet.js"></script>${fr}\n:::meta\ntitle: Gardée\nlang: fr\n:::\n\n`, 'the French file: title then lang in :::meta');
   ok(fixture.match.some((c) => c.line === read('l/fr.html').split('\n')[0]), 'detect.json holds the French line');
-  exits(run(['new', 'l/br.html', '--lang=pt-BR']), 0, 'new --lang=pt-BR');
+  exits(run(['new', 'l/br.html', '--lang=pt-BR', '--guarded']), 0, 'new --lang=pt-BR --guarded');
   eq(read('l/br.html'), `${FIRST}<script src="luccet.js"></script>${GUARD('pt-BR', 'O JavaScript está desativado; segue o código-fonte.', 'O luccet.js não foi carregado; segue o código-fonte.')}\n:::meta\nlang: pt-BR\n:::\n\n`, 'pt-BR: the Portuguese words, the tag as given');
-  exits(run(['new', 'l/ja.html', '--lang=ja']), 0, 'new --lang=ja');
+  exits(run(['new', 'l/ja.html', '--lang=ja', '--guarded']), 0, 'new --lang=ja --guarded');
   eq(read('l/ja.html'), `${FIRST}<script src="luccet.js"></script>${GUARD('ja', 'JavaScript is off; the source follows.', 'luccet.js did not load; the source follows.')}\n:::meta\nlang: ja\n:::\n\n`, 'a language with no words: English, marked ja');
-  exits(run(['new', 'l/bare.html', '--lang=de', '--bare']), 0, 'new --lang=de --bare');
-  eq(read('l/bare.html'), `${FIRST}<script src="luccet.js"></script>\n:::meta\nlang: de\n:::\n\n`, '--bare keeps the :::meta language');
+  exits(run(['new', 'l/bare.html', '--lang=de']), 0, 'new --lang=de');
+  eq(read('l/bare.html'), `${FIRST}<script src="luccet.js"></script>\n:::meta\nlang: de\n:::\n\n`, 'without --guarded: the :::meta language, no guard');
   const ast = JSON.parse(run(['parse', 'l/fr.html', '--transformed']).out);
   eq(ast.data.luccet.lang, 'fr', 'the language read back');
   const c = run(['check', 'l/']);
@@ -209,7 +212,7 @@ test('new: refusals and usage errors', () => {
   exits(run(['new', 'r/old.html']), 1, 'an existing file');
   eq(read('r/old.html'), 'keep me', 'the existing file');
   exits(run(['new', 'r/old.html', '--force']), 0, 'an existing file with --force');
-  eq(read('r/old.html'), `${FIRST}<script src="luccet.js"></script>${GUARD_EN}\n`, 'the overwritten file');
+  eq(read('r/old.html'), `${FIRST}<script src="luccet.js"></script>\n`, 'the overwritten file');
   exits(run(['new', 'r/dir.html']), 1, 'a directory');
   exits(run(['new', 'r/nowhere/n.html']), 1, 'a missing directory');
   const notTern = run(['new', 'r/min.html', '--luccet=lib/luccet.min.js']);

@@ -54,24 +54,24 @@ A page written by `luccet build` is skipped too: "it is a page written by luccet
 ## luccet new
 
 ```sh
-luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]
+luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--guarded] [--force]
 ```
 
-Writes one file: the canonical first line, with the right path to `luccet.js`, and after the tag the guard, which shows the source as readable text when `luccet.js` does not load. Write the body after it; do not touch line 1.
+Writes one file: the canonical first line, with the right path to `luccet.js`. Write the body after it; do not touch line 1.
 
 ```text
 $ luccet new notes/kernel.html
 created notes/kernel.html, loading ../luccet.js
 $ cat notes/kernel.html
-<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.luccet||document.write('<p>luccet.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><script src="../luccet.js"></script>
 ```
 
 - **The path to luccet.js.** Without `--luccet`, it looks for a file called `luccet.js` in FILE's folder, then each folder above, and writes the nearest as a relative path (`../../luccet.js` two levels down). With none, it writes `luccet.js` and warns: `luccet new: no luccet.js in . or above; the note loads luccet.js from its own directory`. Copy `luccet.js` into place, or pass `--luccet`.
 - **`--luccet=PATH`** is written as given: relative, root-relative, or a URL such as `https://cdn.luccet.dev/vX.Y.Z/luccet.js` (pin a release). Prefer relative paths for anything published or opened from disk.
 - **`--use=LIST`** writes a `:::use` block, one entry per line, after the `:::meta` block. `--use=a.js,b.css`, `--use "a.js b.css"` and `--use=a.js --use=b.css` all give the same block. Paths are relative to the note; a local one that does not exist gets a warning on stderr, and the file is still written.
 - **`--title=TEXT`** adds a `:::meta` block with `title: TEXT` and a blank line. One non-empty line.
-- **`--lang=TAG`** adds `lang: TAG` to the `:::meta` block (after the title), which `luccet.js` puts on `<html>`; a language tag such as `en`, `de` or `pt-BR`. The guard's message is then in that language when the command has it (de, en, es, fr, it, nl, pt), English otherwise, and marked with the tag.
-- **The guard** is the rest of line 1 after the tag: when `luccet.js` does not load (or JavaScript is off), the reader sees a one-line message and the source as wrapped plain text instead of a run-together paragraph. It changes nothing when `luccet.js` loads; `luccet build` drops it. **`--bare`** leaves it out (`--guarded`, the old option, is accepted and changes nothing).
+- **`--lang=TAG`** adds `lang: TAG` to the `:::meta` block (after the title), which `luccet.js` puts on `<html>`; a language tag such as `en`, `de` or `pt-BR`. With `--guarded`, the guard's message is then in that language when the command has it (de, en, es, fr, it, nl, pt), English otherwise, and marked with the tag.
+- **`--guarded`** ends line 1 with the guard: when `luccet.js` does not load (or JavaScript is off), the reader sees a one-line message and the source as wrapped plain text instead of a run-together paragraph. It changes nothing when `luccet.js` loads; `luccet build` drops it. Add it only when the user asks for it. Without it, line 1 is the tag alone (`--bare`, the old option for that, is accepted and changes nothing).
 - **`--force`** overwrites. Do not use it on an existing note unless the user asked for a fresh file.
 
 ```text
@@ -80,7 +80,7 @@ created notes/first.html, loading ../luccet.js
 luccet new: :::use names theorems.js, which does not exist yet
 luccet new: :::use names theme.css, which does not exist yet
 $ cat notes/first.html
-<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../luccet.js"></script><noscript><p>JavaScript is off; the source follows.</p><xmp hidden></noscript><script>self.luccet||document.write('<p>luccet.js did not load; the source follows.</p><xmp hidden>')</script></xmp><plaintext style="white-space:pre-wrap">
+<!doctype html><meta charset="utf-8"><link rel="preload" href="theorems.js" as="script"><link rel="preload" href="theme.css" as="style"><script src="../luccet.js"></script>
 :::meta
 title: Linear maps
 :::
@@ -388,7 +388,7 @@ Run `luccet check FILE` first; then match the symptom.
 
 | What the page shows | Cause and fix |
 |---|---|
-| The source run together as one paragraph (`#`, `*`, `:::` visible) | `luccet.js` did not load or start. Check the `src` from the note's folder (`luccet check` reports a `link.missing` error with "so the note does not render"); a root-relative path opened from disk; `luccet.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`luccet check` says "is not a note"). The guard `luccet new` writes makes this case readable; a note written by hand, or with `--bare`, has none. |
+| The source run together as one paragraph (`#`, `*`, `:::` visible) | `luccet.js` did not load or start. Check the `src` from the note's folder (`luccet check` reports a `link.missing` error with "so the note does not render"); a root-relative path opened from disk; `luccet.js` not uploaded. Or the tag has `async`, `defer` or `type="module"` (`luccet check` says "is not a note"). The guard `luccet new --guarded` writes makes this case readable; a note without it shows its source run together. |
 | Layout broken, add-ons misbehave; `doc.quirks` | No `<!doctype html>` at the very start of the file, so the browser is in quirks mode. |
 | A formula shown as its TeX, in red | Its TeX does not translate: `luccet check` names the `tex.*` code and the command at fault (a typo, a missing brace, an unsupported command). |
 | Brackets do not stretch, big operators small | No math font on the reader's computer: install one (STIX Two Math, Latin Modern Math), or use a theme that brings one. |
