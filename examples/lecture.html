@@ -31,10 +31,12 @@ date: 2026-10-07
 :::note
 This example is a lecture. It shows numbered definitions and theorems, a lemma that shares
 the theorems' counter, proofs that end with ∎, numbered equations, references with `@id`,
-TeX macros, a footnote, a figure and a collapsible question. The vocabulary that makes the
-labels and numbers is declared in the script at the top of the file; the styles are at the
-end. Part of [Luccet's documentation](../index.html), whose look it wears through
-`../docs/docs.css`.
+macros, a footnote, a figure and questions that open to their answer. Its terms are marked
+for a glossary, as `luccet index` reads them: a definition's title, a `:dfn[…]`, and a
+`:definition[…]` where the definition is less than its paragraph. [Study notes](study.html)
+review it in the Cornell layout. The vocabulary that makes the labels and numbers is
+declared in the script at the top of the file; the styles are at the end. Part of
+[Luccet's documentation](../index.html), whose look it wears through `../docs/docs.css`.
 :::
 
 {.byline}
@@ -44,28 +46,37 @@ Lecture 7 · O. Carrera · 7 October 2026
 
 :::macros
 \gdef\R{\mathbb{R}}
-\gdef\im{\operatorname{im}}
-\gdef\norm#1{\lVert #1 \rVert}
+\DeclareMathOperator{\im}{im}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\nullity}{null}
 :::
+
+Throughout, $T: V \to W$ is a linear map between vector spaces over $\R$.
 
 ## Definitions {#defs}
 
-:::definition[Kernel and image]{#def-kernel}
-For a linear map $T: V \to W$ the **kernel** is $\ker T = \{\, v \in V : Tv = 0 \,\}$ and the
-**image** is $\im T = \{\, Tv : v \in V \,\}$. Both are subspaces.[^subspace]
+:::definition[Kernel]{#def-kernel}
+The kernel of $T$ is $\ker T = \{\, v \in V : Tv = 0 \,\}$, the vectors $T$ sends to zero.
 :::
+
+:::definition[Image]{#def-image}
+The image of $T$ is $\im T = \{\, Tv : v \in V \,\}$, the vectors $T$ reaches.
+:::
+
+Both are subspaces.[^subspace]
 
 [^subspace]: Closed under addition and scaling: if $Tu = Tv = 0$ then
-  $T(u + \lambda v) = 0$ for every scalar $\lambda$.
+  $T(u + \lambda v) = 0$ for every scalar $\lambda$, and $Tu + \lambda Tv = T(u + \lambda v)$
+  is in the image.
 
-:::definition[Rank and nullity]{#def-rank}
-$\operatorname{rank} T = \dim \im T$ and $\operatorname{null} T = \dim \ker T$.
+:::definition{#def-rank}
+The :dfn[rank] of $T$ is $\rank T = \dim \im T$, and its :dfn[nullity] is
+$\nullity T = \dim \ker T$.
 :::
 
-Notation is cheap. The sum $\sum_{i=1}^{n} x_i^*$ adds the optimum $x_i^*$ of every
-coordinate; evaluating it on the department cluster costs $5 per term, or $10 at peak
-hours. The $0$th coordinate is the bias, the norm $\norm{x}$ is never $\$$-valued, the
-interval $`]0,1[` is open, and `$HOME` is a shell variable, not maths.
+For example, $T(x, y, z) = (x + y + z, 0, 0)$ sends the plane $x + y + z = 0$ to zero and
+the rest of $\R^3$ onto the first axis. Its kernel is that plane and its image that line
+(@fig-kernel), so $\rank T = 1$ and $\nullity T = 2$.
 
 ## Two theorems {#theorems}
 
@@ -86,6 +97,10 @@ $$
 then $\sum_j a_j v_j \in \ker T$, so every $a_j = 0$. Counting gives @eq-rank-nullity.
 :::
 
+$T$ is :definition[:dfn[injective] when different vectors have different images]{#def-injective},
+and :definition[:dfn[surjective] when its image is all of $W$]{#def-surjective}. The kernel
+decides the first:
+
 :::lemma[Injectivity test]{#lem-inj}
 $T$ is injective exactly when $\ker T = \{0\}$.
 :::
@@ -99,18 +114,25 @@ By @lem-inj, the @lem-inj{ref=title}, $T$ is injective iff $\dim \ker T = 0$. By
 @thm-rank-nullity that holds iff $\dim \im T = \dim V = \dim W$, iff $T$ is surjective.
 Equation @eq-rank-nullity does all the work; compare @eq-bound, which only bounds the rank:
 $$
-\operatorname{rank} T \le \min(\dim V, \dim W).
+\rank T \le \min(\dim V, \dim W).
 $$ {#eq-bound}
 :::/proof
 
-:::figure[The kernel (plane) and image (line) of a rank-one map $\R^3 \to \R^3$.]{#fig-kernel}
+:::figure[The kernel (plane) and image (line) of $T(x, y, z) = (x + y + z, 0, 0)$.]{#fig-kernel}
 ![A plane through the origin, and a line through it, in 3-space](img/kernel-image.svg){width=60%}
 :::
 
 As @fig-kernel shows, @thm-rank-nullity says the two pictures add up to three dimensions.
 
+## Revision {#revision}
+
 :::recall[When is a square matrix invertible?]
-When its determinant is nonzero; equivalently, by @thm-bij, when its kernel is trivial.
+When its kernel is trivial: by @lem-inj it is then injective, and by @thm-bij surjective too.
+Equivalently, its determinant is nonzero.
+:::
+
+:::recall[A linear map $\R^5 \to \R^3$ is surjective. What is its nullity?]
+$2$. Its rank is $3$, and @thm-rank-nullity gives $5 = \nullity T + 3$.
 :::
 
 <style>
@@ -119,7 +141,8 @@ When its determinant is nonzero; equivalently, by @thm-bij, when its kernel is t
   [data-t="note"] { font-size: .92em; }
   [data-t="theorem"], [data-t="lemma"] { font-style: italic; background: var(--t-soft); border-inline-start: 3px solid var(--docs-head); border-radius: 4px; padding: .7rem 1rem; }
   [data-t="theorem"] .t-title, [data-t="lemma"] .t-title { font-style: normal; }
-  [data-t="definition"] { border-inline-start: 3px solid var(--docs-gold); padding-inline-start: 1rem; }
+  /* .t-block: the :::definition blocks, not the :definition[…] spans in a sentence. */
+  .t-block[data-t="definition"] { border-inline-start: 3px solid var(--docs-gold); padding-inline-start: 1rem; }
   :is([data-t="definition"], [data-t="theorem"], [data-t="lemma"]) > .t-title { font-family: var(--docs-heading); font-size: 1.2em; color: var(--docs-head); font-variant-numeric: lining-nums; }
   [data-t="proof"] > .t-title .t-label { font-weight: normal; font-style: italic; }
   [data-t="proof"] .t-end { color: var(--docs-gold-ink); }
