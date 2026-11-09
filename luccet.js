@@ -3530,7 +3530,10 @@ module.exports = { plain, title, describe, records, fold, stem, tokens, index, q
 // body the definition. `title=` on a dfn is the term's canonical form, as
 // HTML's rule says, so `:dfn[truisms]{title=truism}` defines "truism". A
 // dfn inside such a block that names the block's own term is not a second
-// term. A dfn in a heading is defined by the paragraph after the heading; in
+// term. A block whose dfns name other terms only, as
+// `:::definition[Kernel and image]` around `:dfn[kernel]` and `:dfn[image]`,
+// has those as its terms: its title is a label, not a term. A dfn in the
+// title of such a block is defined by its body. A dfn in a heading is defined by the paragraph after the heading; in
 // a table cell, by the cell. An inline element of a listed name,
 // `:definition[…]`, bounds the definition of a dfn inside it: its content
 // is the definition, so a paragraph can define a term in one sentence and go
@@ -3567,16 +3570,46 @@ const strip = (nodes) => JSON.parse(JSON.stringify(nodes, (k, v) => (k === 'posi
 
 const entry = (term, id, node, how, nodes) => ({ term, key: key(term), slug: slug(term), id, line: node.position ? node.position.start.line : 0, how, definition: strip(nodes) });
 const isTitle = (k) => k && k.type === 'paragraph' && k.data && k.data.directiveLabel;
+const isDfn = (n) => {
+  const tag = n.data && n.data.luccet && n.data.luccet.tag;
+  return n.type === 'textDirective' && (tag === 'dfn' || (!tag && n.name === 'dfn'));
+};
+const dfnTerm = (n) => {
+  const a = n.attributes || {};
+  return (typeof a.title === 'string' && a.title.trim()) || plain(n).trim();
+};
+
+// The keys of the dfns in a block, its title's included, short of the
+// blocks of a listed name inside it, whose dfns are theirs. A stack, not
+// recursion, as terms() walks.
+function dfnKeys(kids, blocks) {
+  const keys = new Set();
+  const stack = [kids];
+  while (stack.length) {
+    for (const n of stack.pop()) {
+      if (!n || typeof n !== 'object') continue;
+      if (n.type === 'containerDirective' && blocks.has(n.name)) continue;
+      if (isDfn(n)) {
+        const term = dfnTerm(n);
+        if (term) keys.add(key(term));
+      }
+      if (Array.isArray(n.children)) stack.push(n.children);
+    }
+  }
+  return keys;
+}
 
 function terms(ast, opts) {
   const blocks = new Set(((opts && opts.blocks) || ['definition']).map(String));
   const out = [];
   let current = '';
   // Explicit frames, so a deep tree cannot overflow the call stack: each
-  // holds a child list, the index in it, the paragraph that defines a dfn
-  // found in the list, the listed block the list is in, and the anchor to
-  // come back to when the list ends.
-  const frames = [{ list: (ast && ast.children) || [], i: 0, para: null, block: null, back: null }];
+  // holds a child list, the index in it, the nodes that define a dfn found
+  // in the list (its paragraph, or a block's body for a dfn in the block's
+  // title), the listed block the list is in, the body of the listed block
+  // the list is the children of, and the anchor to come back to when the
+  // list ends.
+  const frames = [{ list: (ast && ast.children) || [], i: 0, def: null, block: null, body: null, back: null }];
   while (frames.length) {
     const f = frames[frames.length - 1];
     if (f.i >= f.list.length) {
@@ -3589,7 +3622,7 @@ function terms(ast, opts) {
     if (n.type === 'heading') {
       current = (n.attributes && n.attributes.id) || '';
       const next = f.list[f.i];
-      frames.push({ list: n.children || [], i: 0, para: next && next.type === 'paragraph' ? next : null, block: f.block, back: null });
+      frames.push({ list: n.children || [], i: 0, def: next && next.type === 'paragraph' ? [next] : null, block: f.block, body: null, back: null });
       continue;
     }
     if (n.type === 'containerDirective') {
@@ -3599,34 +3632,39 @@ function terms(ast, opts) {
       let block = f.block;
       if (blocks.has(n.name) && title) {
         const term = plain(title).trim();
-        if (term) {
+        // Its dfns, when it has some, say what it defines: the title is one
+        // of its terms only when one of them names it.
+        const marked = term ? dfnKeys(kids, blocks) : null;
+        if (term && (!marked.size || marked.has(key(term)))) {
           block = { key: key(term) };
           out.push(entry(term, id || current, n, n.name, kids.filter((k) => k !== title)));
         }
       }
-      frames.push({ list: kids, i: 0, para: null, block, back: id ? current : null });
+      const body = blocks.has(n.name) && title ? kids.filter((k) => k !== title) : null;
+      frames.push({ list: kids, i: 0, def: null, block, body, back: id ? current : null });
       if (id) current = id;
       continue;
     }
     if (n.type === 'textDirective') {
-      const tag = n.data && n.data.luccet && n.data.luccet.tag;
-      if (tag === 'dfn' || (!tag && n.name === 'dfn')) {
+      if (isDfn(n)) {
         const a = n.attributes || {};
-        const term = (typeof a.title === 'string' && a.title.trim()) || plain(n).trim();
-        if (term && !(f.block && f.block.key === key(term))) out.push(entry(term, (typeof a.id === 'string' && a.id) || current, n, 'dfn', f.para ? [f.para] : []));
+        const term = dfnTerm(n);
+        if (term && !(f.block && f.block.key === key(term))) out.push(entry(term, (typeof a.id === 'string' && a.id) || current, n, 'dfn', f.def || []));
       } else if (blocks.has(n.name) && Array.isArray(n.children)) {
         // An inline definition bounds the definition of a dfn inside it: its
         // content, as a paragraph, where the dfn's own paragraph runs on.
         // Its id is the anchor of the terms inside, as a block's is.
         const id = n.attributes && typeof n.attributes.id === 'string' && n.attributes.id;
-        frames.push({ list: n.children, i: 0, para: { type: 'paragraph', children: n.children }, block: f.block, back: id ? current : null });
+        frames.push({ list: n.children, i: 0, def: [{ type: 'paragraph', children: n.children }], block: f.block, body: null, back: id ? current : null });
         if (id) current = id;
         continue;
       }
     }
     if (!n.children) continue;
-    const para = n.type === 'paragraph' ? n : n.type === 'tableCell' ? { type: 'paragraph', children: n.children } : n.type === 'heading' ? f.para : n.children.some((k) => k.type === 'paragraph' || k.type === 'listItem') ? null : f.para;
-    frames.push({ list: n.children, i: 0, para, block: f.block, back: null });
+    // A dfn in a listed block's title is defined by the block's body, as one
+    // in a heading is by the paragraph after it.
+    const def = isTitle(n) && f.body ? f.body : n.type === 'paragraph' ? [n] : n.type === 'tableCell' ? [{ type: 'paragraph', children: n.children }] : n.children.some((k) => k.type === 'paragraph' || k.type === 'listItem') ? null : f.def;
+    frames.push({ list: n.children, i: 0, def, block: f.block, body: null, back: null });
   }
   return out;
 }
