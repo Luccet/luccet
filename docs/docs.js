@@ -99,6 +99,7 @@
   ];
   const EXAMPLES = [
     ['examples/lecture.html', 'Lecture notes'],
+    ['examples/study.html', 'Study notes'],
     ['examples/cheatsheet.html', 'Cheat sheet'],
     ['examples/code.html', 'Code notes'],
     ['examples/media.html', 'Field notes'],

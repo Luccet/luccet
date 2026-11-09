@@ -22,15 +22,16 @@ lang: en
 
 :::note
 This example is a cheat sheet. It shows keys with `:kbd[…]`, highlight and strikethrough,
-a three-column grid of tables (`:::row{cols=3}` with `+++` between the cells), callouts,
+a grid of tables three to a row (`:::row{cols=3}` with `+++` between the cells), callouts,
 code spans that hold pipes and backticks, and a nested task list. The page is wider than
 a note's default, through the `--t-width` variable in the styles at the end. Part of
 [Luccet's documentation](../index.html), whose look it wears through
 `../docs/docs.css`.
 :::
 
-Keys are shown as :kbd[Ctrl]+:kbd[w]. ==Highlighted== entries are new in 0.11;
-~~struck~~ ones were removed.
+For Neovim 0.12, with a language server attached. Keys are shown as :kbd[Ctrl]+:kbd[w].
+==Highlighted== keys are new in 0.12; ~~struck~~ ones are my old mappings, which the defaults
+replace.
 
 :::row{cols=3 .wide}
 ### Motion
@@ -40,7 +41,7 @@ Keys are shown as :kbd[Ctrl]+:kbd[w]. ==Highlighted== entries are new in 0.11;
 | :kbd[h] :kbd[j] :kbd[k] :kbd[l] | left, down, up, right |
 | :kbd[w] / :kbd[b] | next / previous word |
 | :kbd[gg] / :kbd[G] | top / bottom |
-| :kbd[Ctrl]+:kbd[d] | half page down |
+| :kbd[Ctrl]+:kbd[d] / :kbd[Ctrl]+:kbd[u] | half a page down / up |
 | :kbd[%] | matching bracket |
 | :kbd[\`]:kbd[a] | jump to mark `a` |
 +++
@@ -48,47 +49,77 @@ Keys are shown as :kbd[Ctrl]+:kbd[w]. ==Highlighted== entries are new in 0.11;
 
 | Keys | Action |
 |---|---|
-| :kbd[dd] | delete line |
-| :kbd[ciw] | change inner word |
+| :kbd[dd] | delete the line |
+| :kbd[ciw] | change the word |
+| :kbd[gcc] | comment the line |
 | :kbd[>>] | indent |
-| :kbd[.] | repeat last change |
+| :kbd[.] | repeat the last change |
 | :kbd[u] / :kbd[Ctrl]+:kbd[r] | undo / redo |
-| ~~:kbd[Ctrl]+:kbd[s]~~ | ~~save~~ (write `:w`) |
+| :kbd[\[]:kbd[Space] / :kbd[\]]:kbd[Space] | blank line above / below |
++++
+### Code
+
+| Keys | Action |
+|---|---|
+| :kbd[K] | hover |
+| :kbd[grn] ~~`<leader>rn`~~ | rename |
+| :kbd[grr] ~~`<leader>gr`~~ | references |
+| :kbd[gri] | implementation |
+| ==:kbd[grt]== | type definition |
+| :kbd[gra] ~~`<leader>ca`~~ | code action |
+| ==:kbd[grx]== | run the code lens |
+| :kbd[gO] | the file's symbols |
+| :kbd[Ctrl]+:kbd[s] in Insert mode | signature help |
++++
+### Diagnostics
+
+| Keys | Action |
+|---|---|
+| :kbd[\[]:kbd[d] / :kbd[\]]:kbd[d] | previous / next |
+| :kbd[\[]:kbd[D] / :kbd[\]]:kbd[D] | first / last |
+| :kbd[Ctrl]+:kbd[w] :kbd[d] | the one under the cursor |
+| `:lua vim.diagnostic.setqflist()` | all of them, in the quickfix list |
++++
+### Lists
+
+| Keys | Action |
+|---|---|
+| :kbd[\[]:kbd[q] / :kbd[\]]:kbd[q] | previous / next quickfix entry |
+| :kbd[\[]:kbd[l] / :kbd[\]]:kbd[l] | previous / next location |
+| :kbd[\[]:kbd[b] / :kbd[\]]:kbd[b] | previous / next buffer |
+| :kbd[\[]:kbd[a] / :kbd[\]]:kbd[a] | previous / next argument |
+| `:copen` | open the quickfix list |
 +++
 ### Windows and the command line
 
 | Keys | Action |
 |---|---|
-| :kbd[Ctrl]+:kbd[w] :kbd[\|] | ==maximise the window's width== |
+| :kbd[Ctrl]+:kbd[w] :kbd[v] | split side by side |
+| :kbd[Ctrl]+:kbd[w] :kbd[\|] | the window as wide as it goes |
 | `:w` | write |
 | `:%s/a/b/g` | replace all |
 | `:'<,'>!sort | uniq` | filter the selection |
-| `:g/^$/d` | delete blank lines |
+| `` :args `git ls-files '*.lua'` `` | the repository's Lua files as the arguments |
 :::
 
 :::tip[Counts go first]
-Any motion takes a count: `3dd`, `5j`. ==The count comes first==, not ~~last~~.
+Any motion takes a count, before it: `3dd`, `5j`, `2]d`.
 :::
 
 :::warning
 `:q!` discards changes. Prefer `:x` (write if changed, then quit).
 :::
 
-## Pipes and backticks in code
-
-A shell filter in a sentence: `sort | uniq -c`. A backtick itself: `` ` ``, and a span that
-contains one: ``a`b``. In a table cell `` `a|b` `` and $|x|$ keep their pipes; a literal pipe
-anywhere else is `\|`, and a backtick inside :kbd[…] is `` \` ``.
-
 ## Learning path
 
 - [x] Motions: `hjkl`, `w`, `b`, `e`
-- [ ] Operators + motions
+- [ ] Operators and motions
   - [x] `d`, `c`, `y`
   - [ ] Text objects: `iw`, `i(`, `it`
-    1. inner vs around (`i` vs `a`)
-    2. counts
+    1. inner and around (`i` and `a`)
+    2. with a count: `d2aw`
 - [ ] Registers: `"ayy`, `"ap`
+- [x] Drop the LSP mappings from my config that the defaults replace
 
 <style>
   :root { --t-width: 68rem; }

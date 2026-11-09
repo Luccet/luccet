@@ -23,8 +23,9 @@ lang: en-GB
 This example is about media. It shows images that become numbered figures because they
 carry an id, an image that stays an image, a video and an embedded page as one-line leaves
 (`::video`, `::iframe`), a web component defined by a script in the note, and a plot drawn
-by a script into a figure. The pictures are small SVG files in `img/`; the video's clip is
-not included, so it shows its poster. Part of [Luccet's documentation](../index.html),
+by a script into a figure (the [plots add-on](../docs/addons.html) draws one from a fence
+instead). The pictures are small SVG files in `img/`; the video's clip is not included, so
+it shows its poster. Part of [Luccet's documentation](../index.html),
 whose look it wears through `../docs/docs.css`.
 :::
 
@@ -57,12 +58,14 @@ Any page can go in an `::iframe`, a map from another site included.
 
 <script>
   // A web component: ::tide-clock became <tide-clock station="Leith" units="m">.
-  // The tide is a toy model (a sine with a 12 h 25 min period), not a forecast.
+  // The tide is a toy model, not a forecast: the tide of the plot below, a
+  // sine of 12 h 25 min with a smaller one of twice that period.
   customElements.define('tide-clock', class extends HTMLElement {
     connectedCallback() {
-      const period = 12.42 * 3600e3;
+      const hours = () => Date.now() / 3600e3;
       const show = () => {
-        const height = 2.9 + 2.4 * Math.sin((2 * Math.PI * Date.now()) / period);
+        const t = hours();
+        const height = 2.9 + 2.4 * Math.sin((2 * Math.PI * t) / 12.42) - 0.3 * Math.sin((2 * Math.PI * t) / 24.84);
         this.textContent = `${this.getAttribute('station')}: ${height.toFixed(1)} ${this.getAttribute('units')} above chart datum (toy model)`;
       };
       show();
@@ -76,21 +79,29 @@ Any page can go in an `::iframe`, a map from another site included.
 
 ## Tide curve (a plot drawn by a script)
 
-:::figure[Two tide cycles at Leith, in metres above chart datum.]{#fig-curve}
+:::figure[Two tide cycles at Leith, in metres above chart datum (a toy model).]{#fig-curve}
 ::plot{#tide-plot}
 :::
 
 <script>
-  const el = document.getElementById('tide-plot');
-  const w = 640, h = 200;
-  const pts = Array.from({ length: 97 }, (_, i) =>
-    `${(i * w / 96).toFixed(1)},${(h / 2 - Math.sin(i / 96 * 4 * Math.PI) * h * 0.4).toFixed(1)}`);
-  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Two tide cycles">
+  // The tide of the clock above over one lunar day, 24 h 50 min: two high
+  // waters, the second higher (the diurnal inequality).
+  {
+    const tide = (t) => 2.9 + 2.4 * Math.sin((2 * Math.PI * t) / 12.42) - 0.3 * Math.sin((2 * Math.PI * t) / 24.84);
+    const day = 24.84, w = 640, h = 200, left = 32, bottom = 24;
+    const x = (t) => left + (t / day) * (w - left - 8);
+    const y = (m) => h - bottom - (m / 6) * (h - bottom - 8);
+    const pts = Array.from({ length: 121 }, (_, i) => `${x((i * day) / 120).toFixed(1)},${y(tide((i * day) / 120)).toFixed(1)}`);
+    const hours = [0, 6, 12, 18, 24].map((t) => `<text x="${x(t)}" y="${h - 6}" text-anchor="middle">${t} h</text>`);
+    const metres = [0, 3, 6].map((m) => `<text x="${left - 6}" y="${y(m) + 4}" text-anchor="end">${m}</text><line x1="${left}" x2="${w - 8}" y1="${y(m)}" y2="${y(m)}" stroke="currentColor" stroke-opacity=".15"/>`);
+    document.getElementById('tide-plot').innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Two tide cycles: high water near 5.1 m at 3 h and 5.5 m at 15.6 h">
+<g font-size="11" fill="currentColor">${hours.join('')}${metres.join('')}</g>
 <polyline fill="none" stroke="currentColor" stroke-width="2" points="${pts.join(' ')}"/>
 </svg>`;
+  }
 </script>
 
-See @fig-curve: the second high water is the higher one.
+See @fig-curve: the second high water, 5.5 m, is higher than the first, 5.1 m.
 
 <style>
   [data-t="note"] { font-size: .92em; }

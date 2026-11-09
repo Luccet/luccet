@@ -1,0 +1,122 @@
+<!doctype html><meta charset="utf-8"><link rel="icon" href="../docs/favicon.ico"><link rel="apple-touch-icon" href="../docs/apple-touch-icon.png">
+<script>
+  // This note's vocabulary (window.LUCCET.schema) and its macros. :::cornell
+  // and :::summary need no entry: a name HTML does not know becomes
+  // div.cornell, div.summary. The macros could be a :::macros block too.
+  window.LUCCET = {
+    schema: {
+      block: {
+        note: {tag: 'aside', label: 'Note'},
+        recall: {tag: 'details'},
+      },
+    },
+    macros: {'\\R': '\\mathbb{R}', '\\im': '\\operatorname{im}'},
+  };
+</script>
+<script src="../luccet.js" data-use="../docs/docs.css"></script>
+
+:::meta
+title: Study notes: linear maps
+lang: en
+date: 2026-10-09
+:::
+
+# Study notes: linear maps
+
+:::note
+This example is study notes in the Cornell layout. Each `:::cornell{cols="1 2"}` is a grid of
+two columns, a question in the narrow one beside the notes that answer it, one pair of cells
+after another with `+++` between them; a summary closes the notes, and questions that open
+to their answer are for revision. It reviews [the lecture](lecture.html) and links to its
+definitions and theorems, which `luccet check` follows to their ids. Part of
+[Luccet's documentation](../index.html), whose look it wears through `../docs/docs.css`.
+:::
+
+{.byline}
+[Lecture 7](lecture.html), 7 October 2026 · reviewed 9 October
+
+## Kernel and image {#kernel-image}
+
+:::cornell{cols="1 2"}
+What does $T$ send to zero?
++++
+Its [kernel](lecture.html#def-kernel), $\ker T$, a subspace of $V$. It always holds $0$, so it
+is never empty.
++++
+What does $T$ reach?
++++
+Its [image](lecture.html#def-image), $\im T$, a subspace of $W$.
++++
+How do I show that $T$ is injective?
++++
+Show that $\ker T = \{0\}$ ([the injectivity test](lecture.html#lem-inj)): one equation,
+$Tv = 0$, instead of $Tu = Tv$ for every pair.
+:::
+
+## Rank–nullity {#rank-nullity}
+
+:::cornell{cols="1 2"}
+What does it say?
++++
+$\dim V = \dim \ker T + \dim \im T$ ([rank–nullity](lecture.html#thm-rank-nullity)): the
+nullity and the rank add up to the dimension of $V$.
++++
+Why is it true?
++++
+Extend a basis of $\ker T$ to one of $V$. The images of the vectors added are a basis of
+$\im T$.
++++
+An example?
++++
+$T(x, y, z) = (x + y + z, 0, 0)$: the kernel is the plane $x + y + z = 0$, the image the
+first axis, and $2 + 1 = 3$.
++++
+Why does it matter?
++++
+When $\dim V = \dim W$, injective and surjective are the same thing
+([theorem 3](lecture.html#thm-bij)): a trivial kernel is enough for $T$ to be invertible.
+:::
+
+:::summary[Summary]
+The kernel is what $T$ loses and the image what it reaches. Their dimensions, the nullity
+and the rank, add up to $\dim V$, so between spaces of the same dimension a trivial kernel
+is all it takes to be invertible.
+:::
+
+## Check yourself {#check}
+
+:::recall[A map $\R^4 \to \R^4$ has a kernel of dimension $1$. Is it surjective?]
+No. Its rank is $4 - 1 = 3$: its image is a 3-dimensional subspace of $\R^4$.
+:::
+
+:::recall[Can a linear map $\R^2 \to \R^3$ be surjective?]
+No. Its rank is at most $\dim \R^2 = 2$.
+:::
+
+:::recall[Can a linear map $\R^3 \to \R^2$ be injective?]
+No. Its nullity is at least $3 - 2 = 1$.
+:::
+
+## To do {#todo}
+
+- [x] Write the definitions in my own words
+- [ ] Prove rank–nullity without the notes
+- [ ] Exercises 7.1 to 7.4
+
+<style>
+  [data-t="note"] { font-size: .92em; }
+  .byline { color: var(--t-muted); margin-block-start: -.5rem; }
+  /* The Cornell layout: a rule between the cues and the notes, a line under each pair. */
+  .cornell { gap: 0; margin-block: 1rem 1.5rem; border-block-start: 1px solid var(--t-line); }
+  .cornell > .t-cell { padding: .6rem 1rem; border-block-end: 1px solid var(--t-line); }
+  .cornell > .t-cell:nth-child(odd) { border-inline-end: 2px solid var(--docs-gold); color: var(--docs-head); font-family: var(--docs-heading); font-size: 1.1em; }
+  .cornell > .t-cell > :first-child { margin-block-start: 0; }
+  .cornell > .t-cell > :last-child { margin-block-end: 0; }
+  /* On a narrow screen the grid is one column: each question stands above its notes. */
+  @media (max-width: 36rem) {
+    .cornell > .t-cell:nth-child(odd) { border-inline-end: 0; border-block-end: 0; padding-block-end: 0; }
+  }
+  [data-t="summary"] { background: var(--t-soft); border-block-start: 2px solid var(--docs-gold); border-radius: 0 0 6px 6px; padding: .8rem 1rem; }
+  [data-t="summary"] > .t-title { font-family: var(--docs-heading); font-size: 1.2em; color: var(--docs-head); }
+  [data-t="recall"] > summary { cursor: pointer; }
+</style>

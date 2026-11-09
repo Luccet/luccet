@@ -20,65 +20,121 @@ lang: en
 # Notes on iterators
 
 :::note
-This example is about code. It shows a numbered listing with a title, line numbers and a
-highlighted line; a fence that starts its numbering at 10; code spans that hold pipes,
-backticks and tags; escapes; an HTML comment; a raw HTML form and table; and a note script
-that adds a copy button to every code block. Part of [Luccet's documentation](../index.html),
+This example is about code. It shows numbered listings with a title, line numbers and a
+highlighted line; a fence whose numbering starts at 10; code spans that hold pipes,
+backticks and tags; an escape; an HTML comment; raw HTML, a table with a cell that spans two
+rows and a form; and two note scripts, one that steps a generator in the page and one that
+adds a copy button to every code block. Part of [Luccet's documentation](../index.html),
 whose look it wears through `../docs/docs.css`.
 :::
+
+An iterator is an object whose `next()` returns `{ value, done }`; an iterable is one whose
+`[Symbol.iterator]()` returns an iterator. `for…of`, spread (`[...it]`) and destructuring take
+an iterable and call `next()` until `done` is `true`. TypeScript names the two `Iterator<T>`
+and `Iterable<T>`.
+
+## Generators {#generators}
+
+A generator function, written `function*`, returns an iterator that runs its body up to the
+next `yield` on each `next()`. Nothing runs before it is asked for, so a generator can be
+infinite:
 
 ```js[A lazy Fibonacci generator]{#lst-fib lines hl=4}
 function* fib() {
   let [a, b] = [0, 1];
   for (;;) {
-    yield a;              // the highlighted line
+    yield a;              // each next() resumes here
     [a, b] = [b, a + b];
   }
 }
 ```
 
-@lst-fib yields forever; take what you need with `take(fib(), 10)`.
+@lst-fib never returns, so `[...fib()]` never ends. @lst-take takes what is needed:
 
-Inline code keeps every character: a pipeline `ls -l | sort -k5`, a comparison
-`a < b && c > d`, a backtick `` ` ``, a span that contains one ``a`b``, a closing tag
-`</script>` and a generic `Vec<T>`. Outside code, Vec<T> and List<int> are text as typed.
+```js[The first n values of an iterable]{#lst-take lines hl=5}
+function* take(iterable, n) {
+  if (n <= 0) return;
+  for (const x of iterable) {
+    yield x;
+    if (--n === 0) return;   // leaving for…of calls the source's return()
+  }
+}
+
+[...take(fib(), 10)];   // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+```
+
+Python's generators work the same way, and `itertools.islice` is its `take`. By hand, from
+line 10 of `seq.py`:
 
 ```python {start=10 lines .wide}
 def take(it, n):
     return [x for _, x in zip(range(n), it)]
 ```
 
-## Escapes
+`zip` asks `range(n)` first, so it stops without taking an extra value from `it`;
+`zip(it, range(n))` would lose one. Python's \@functools.cache does not help here: it would
+cache the generator object, used up after one pass. In prose, *args and **kwargs stay as
+typed, with no escape.
 
-A literal asterisk \*, an underscore in snake_case (no escape needed), a price of $5 (no
-escape needed either) and a pair of dollars \$x\$ that must not become maths, a colon before
-a bracket \:kbd[x], an at-sign \@handle, and brackets \[not a span\]{.x}. Backslash
-itself: \\. Some_file_name.txt and 2 * 3 * 4 need nothing.
+## Closing early {#closing}
 
-\# Not a heading: the hash is escaped.
-
-<!-- TODO: async iterators, for await -->
-
-## A raw widget
-
-<form id="guess" onsubmit="event.preventDefault(); this.out.value = +this.n.value === 7 ? 'yes' : 'no'">
-  <label>Guess a number <input name="n" type="number" min="1" max="10"></label>
-
-  <button>Check</button> <output name="out"></output>
-</form>
+Leaving a `for…of` early, by `break`, `return` or an exception, calls the iterator's
+`return()`, so a generator's `finally` blocks run and it is done. A shell pipeline does the
+same with processes: in `yes | head -3`, `yes` is stopped once `head` has its three lines.
+The whole protocol, as a raw HTML table, since a cell of a Luccet table cannot span two rows:
 
 <table class="grid">
-  <tr><th rowspan="2">Iterator</th><th>next()</th><th>return()</th></tr>
-  <tr><td>{value, done}</td><td>closes it</td></tr>
+  <tr><th></th><th>Method</th><th>Returns</th><th>Called</th></tr>
+  <tr><th>Required</th><td><code>next()</code></td><td><code>{ value, done }</code></td><td>at every step</td></tr>
+  <tr><th rowspan="2">Optional</th><td><code>return(v)</code></td><td><code>{ value: v, done: true }</code></td><td>when a loop stops early</td></tr>
+  <tr><td><code>throw(e)</code></td><td>the next <code>{ value, done }</code></td><td>by hand: <code>e</code> is thrown at the paused <code>yield</code></td></tr>
 </table>
+
+<!-- TODO: async iterators, for await…of -->
+
+## Step through it {#step}
+
+The buttons call the methods of a `fib()` of their own, and a note script below the form
+shows each result as a template literal writes it, `` `it.${name}() → { value: ${value}, … }` ``.
+A note script is raw HTML, so a string in it may not hold `</script>`: the browser would end
+the script there.
+
+<form id="stepper">
+  <button type="button" name="start">it = fib()</button> <button type="button" name="next">it.next()</button> <button type="button" name="return">it.return()</button>
+  <output name="out">it = fib(): nothing has run yet</output>
+</form>
+
+<script>
+  // Steps a generator like the one of Listing 1. The braces keep its names
+  // out of the page's global scope.
+  {
+    function* fib() {
+      let [a, b] = [0, 1];
+      for (;;) {
+        yield a;
+        [a, b] = [b, a + b];
+      }
+    }
+    const form = document.getElementById('stepper');
+    let it = fib();
+    const show = (text) => { form.out.value = text; };
+    form.start.onclick = () => { it = fib(); show('it = fib(): nothing has run yet'); };
+    for (const name of ['next', 'return']) {
+      form[name].onclick = () => {
+        const { value, done } = it[name]();
+        show(`it.${name}() → { value: ${value}, done: ${done} }`);
+      };
+    }
+  }
+</script>
 
 <style>
   [data-t="note"] { font-size: .92em; }
   pre[data-lines] .t-line.t-hl { background: var(--t-mark); }
-  .copy, #guess button { font: .8rem var(--t-sans); color: var(--t-fg); background: var(--t-bg); border: 1px solid color-mix(in srgb, var(--docs-gold) 70%, transparent); border-radius: 4px; padding: .15rem .55rem; cursor: pointer; }
+  .copy, #stepper button { font: .8rem var(--t-sans); color: var(--t-fg); background: var(--t-bg); border: 1px solid color-mix(in srgb, var(--docs-gold) 70%, transparent); border-radius: 4px; padding: .15rem .55rem; cursor: pointer; }
   .copy { float: inline-end; margin: .4rem; }
-  #guess input { font: inherit; inline-size: 4rem; }
-  #guess output { font-weight: 700; }
+  #stepper button { font-family: var(--t-mono); }
+  #stepper output { display: block; margin-block-start: .5rem; font: .9em var(--t-mono); }
   .grid td, .grid th { border: 1px solid var(--t-line); padding: .2rem .5rem; }
 </style>
 
