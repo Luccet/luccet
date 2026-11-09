@@ -250,6 +250,35 @@ test('glossary.terms: an inline element of a listed name, :definition[…], boun
   eq(luccet.toHTML(':definition[A :dfn[truism] is obvious.]{#d} More.', { positions: false }).trim(), `<p><span id="d" class="definition" data-t="definition">A ${dfn('truism')} is obvious.</span> More.</p>`, 'it renders as any unknown inline name does: a span with its name as the class');
 });
 
+test('glossary.terms: a titled definition block whose dfns name other terms only has those as its terms, not its title; one with a dfn of its own term, or with none, keeps its title as a term; a dfn in its title is defined by its body; a listed block inside one has its own dfns', () => {
+  const src = ':::definition[Kernel and image]{#ki}\nThe :dfn[kernel] goes to zero; the :dfn[image] comes out.\n:::\n\n:::definition[Group]{#g}\nA :dfn[group] is a set with an operation; its :dfn[identity] leaves all fixed.\n:::\n\n:::definition[Group]{#g2}\nA group is a set; its :dfn[inverse] undoes.\n:::\n\n:::definition[Rings]{#r}\nA :dfn[ring]{title=rings} has two operations.\n:::\n\n:::definition[:dfn[Field] and :dfn[module]]{#fm}\nTwo structures.\n\nBoth common.\n:::\n\n:::definition[Outer]{#o}\nOuter text.\n\n::::definition[Inner]{#i}\nThe :dfn[inner thing].\n::::\n:::\n\n:::definition[Plain]{#p}\nA body.\n:::\n';
+  const { ast } = luccet.parse(src);
+  luccet.transform(ast);
+  const list = luccet.glossary.terms(ast);
+  eq(
+    list.map((t) => [t.term, t.id, t.how]),
+    [
+      ['kernel', 'ki', 'dfn'],
+      ['image', 'ki', 'dfn'],
+      ['Group', 'g', 'definition'],
+      ['identity', 'g', 'dfn'],
+      ['inverse', 'g2', 'dfn'],
+      ['Rings', 'r', 'definition'],
+      ['Field', 'fm', 'dfn'],
+      ['module', 'fm', 'dfn'],
+      ['Outer', 'o', 'definition'],
+      ['inner thing', 'i', 'dfn'],
+      ['Plain', 'p', 'definition'],
+    ],
+    'a title that is a label gives way to the dfns; a title its dfns name, or a block with none, stays a term; title= names it too; an inner block\'s dfns are its own',
+  );
+  const html = (t) => luccet.emit({ type: 'root', children: t.definition }, { positions: false }).trim();
+  const by = Object.fromEntries(list.map((t) => [t.term, html(t)]));
+  eq(by.kernel, '<p>The <dfn class="dfn" data-t="dfn">kernel</dfn> goes to zero; the <dfn class="dfn" data-t="dfn">image</dfn> comes out.</p>', 'its dfns are defined by their paragraph');
+  eq([by.Field, by.module], ['<p>Two structures.</p>\n<p>Both common.</p>', '<p>Two structures.</p>\n<p>Both common.</p>'], "a dfn in the title, by the block's body");
+  eq(by.Group.endsWith('leaves all fixed.</p>'), true, "a title that stays is defined by the block's body");
+});
+
 test('search.format and glossary.format: the number of the format luccet index writes, which a reader of any version of the same major takes; 1 since 1.0', () => {
   eq([luccet.search.format, luccet.glossary.format], [1, 1], 'the formats');
   eq([Number.isInteger(luccet.search.format) && luccet.search.format > 0, Number.isInteger(luccet.glossary.format) && luccet.glossary.format > 0], [true, true], 'positive integers, written as JSON');
