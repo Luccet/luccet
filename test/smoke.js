@@ -18,7 +18,7 @@
 //   /gen/use-long.html   a long note with a leading :::use (useLongNote)
 //   /gen/built.html      test/smoke/built.html through `luccet build`;
 //                        guarded.html and
-//                        guarded-fr.html from `luccet new` (--lang=fr); built-own-schema.html,
+//                        guarded-fr.html from `luccet new --guarded` (--lang=fr); built-own-schema.html,
 //                        built-note-config.html, built-addon-throws.html and
 //                        built-poster.html are
 //                        test/smoke/own-schema.html, note-config.html,
@@ -410,7 +410,7 @@ function cliPage(name) {
       html = cli(['build', file]);
     } else {
       const file = path.join(tmp, `${name}.html`);
-      cli(['new', file, '--luccet=/luccet.js', ...(name === 'guarded-fr' ? ['--lang=fr', '--title=Une note gardée'] : [])]);
+      cli(['new', file, '--luccet=/luccet.js', '--guarded', ...(name === 'guarded-fr' ? ['--lang=fr', '--title=Une note gardée'] : [])]);
       html = fs.readFileSync(file, 'utf8') + GUARDED_NOTE;
     }
     cliPages.set(name, html);

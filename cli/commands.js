@@ -27,7 +27,7 @@ const { relocate, apply } = require('./relocate');
 // skill and the header comments name the same commands, and EXIT_1 the
 // same reasons for exit 1.
 const SYNOPSIS = {
-  new: 'luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--bare] [--force]',
+  new: 'luccet new FILE [--luccet=PATH] [--use=LIST] [--title=TEXT] [--lang=TAG] [--guarded] [--force]',
   check: 'luccet check PATH… [--json] [--fail-on=error|warning|info] [--quiet] [--no-scripts]',
   parse: 'luccet parse FILE [--transformed] [--compact] [--no-scripts]',
   build: 'luccet build FILE… [-o OUT] [--json] [--no-scripts]',
@@ -65,9 +65,9 @@ const usage = () =>
       Write a new note: the canonical first line, loading the nearest luccet.js
       in FILE's directory or above (or PATH); --use lists add-ons in a :::use
       block (separated by commas or spaces), each preloaded from the first
-      line; --title adds a :::meta block and --lang its language. The line
-      ends with a guard that shows the source, readable, when luccet.js does
-      not load, in the note's language; --bare leaves the guard out.
+      line; --title adds a :::meta block and --lang its language. --guarded
+      ends the line with a guard that shows the source, readable, when
+      luccet.js does not load, in the note's language.
   ${SYNOPSIS.check}
       Print the diagnostics of notes; directories are searched for .html
       notes. --quiet prints only those at or above --fail-on (default error).
@@ -190,7 +190,7 @@ function format(file, d) {
 
 // ---------------------------------------------------------------- new
 
-// The guard, the rest of the luccet.js line (left out with --bare): it shows
+// The guard, the rest of the luccet.js line with --guarded: it shows
 // the source when luccet.js does not run, and is inert when it does, since
 // luccet.js's capture swallows the rest of the file, this included.
 //   - Scripts on, luccet.js missing: the <noscript> is inert text in the head;
@@ -235,8 +235,8 @@ function newNote(args) {
     use: { type: 'string', multiple: true },
     title: { type: 'string' },
     lang: { type: 'string' },
-    bare: { type: 'boolean' },
-    guarded: { type: 'boolean' }, // the default since 0.7; accepted, says nothing
+    bare: { type: 'boolean' }, // the default again (the guard was, from 1.0 to 2.0); accepted, says nothing
+    guarded: { type: 'boolean' },
     force: { type: 'boolean' },
   });
   if (o.help) return help('new');
@@ -248,7 +248,7 @@ function newNote(args) {
   if (o.title !== undefined && (!o.title.trim() || /[\r\n]/.test(o.title))) throw new UsageError('--title is one non-empty line');
   if (o.luccet !== undefined && !o.luccet.trim()) throw new UsageError('--luccet is empty');
   if (o.lang !== undefined && !LANG_TAG.test(o.lang.trim())) throw new UsageError('--lang is a language tag such as en, de or pt-BR');
-  if (o.bare && o.guarded) throw new UsageError('--bare and --guarded contradict; the guard is the default');
+  if (o.bare && o.guarded) throw new UsageError('--bare and --guarded contradict; the bare line is the default');
   let st = null;
   try {
     st = fs.statSync(file);
@@ -270,7 +270,7 @@ function newNote(args) {
   // A preload for each add-on: luccet.js finds a :::use entry only once it has
   // the note, so the head asks for the file alongside luccet.js itself.
   const preload = use.map((u) => `<link rel="preload" href="${escAttr(u)}" as="${/\.css(?:[?#]|$)/i.test(u) ? 'style' : 'script'}">`).join('');
-  const first = `<!doctype html><meta charset="utf-8">${preload}<script src="${escAttr(src)}"></script>${o.bare ? '' : guard(lang)}`;
+  const first = `<!doctype html><meta charset="utf-8">${preload}<script src="${escAttr(src)}"></script>${o.guarded ? guard(lang) : ''}`;
   const fields = `${title === null ? '' : `title: ${title}\n`}${lang === null ? '' : `lang: ${lang}\n`}`;
   const text = `${first}\n${fields ? `:::meta\n${fields}:::\n\n` : ''}${use.length ? `:::use\n${use.join('\n')}\n:::\n\n` : ''}`;
 
@@ -289,7 +289,7 @@ function newNote(args) {
   } catch (e) {
     return refuse(`cannot write ${given}: ${e.code === 'EEXIST' ? 'it exists' : e.message}`);
   }
-  say(`created ${given}, loading ${src}${o.bare ? ', bare' : ''}`);
+  say(`created ${given}, loading ${src}${o.guarded ? ', guarded' : ''}`);
   if (o.luccet === undefined && !found) warn(`luccet new: no luccet.js in ${path.dirname(given)} or above; the note loads luccet.js from its own directory`);
   for (const u of use) {
     const local = u.replace(/[?#].*$/, '');

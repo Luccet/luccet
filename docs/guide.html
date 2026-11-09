@@ -1757,15 +1757,15 @@ The command line, `luccet-cli.js`, comes with the repository and runs on Node 22
 luccet new notes/linear-maps.html --title="Linear maps"
 ```
 
-It writes the first line, with the relative path to the nearest `luccet.js` in the note's folder or above, followed by a guard that shows the source as readable text when `luccet.js` cannot load, and a `:::meta` block when you give `--title` or `--lang`. It never overwrites a file unless you add `--force`.
+It writes the first line, with the relative path to the nearest `luccet.js` in the note's folder or above, and a `:::meta` block when you give `--title` or `--lang`. It never overwrites a file unless you add `--force`.
 
 | Option | Effect |
 |---|---|
 | `--title=TEXT` | adds a `:::meta` block with that title |
 | `--use=a.js,b.css` | lists add-ons in a `:::use` block |
 | `--luccet=PATH` | the path to `luccet.js`, as written |
-| `--lang=TAG` | sets the note's language in `:::meta`; the guard's message follows it |
-| `--bare` | leaves out the guard |
+| `--lang=TAG` | sets the note's language in `:::meta`, and the guard's with `--guarded` |
+| `--guarded` | ends the line with a [guard](tools.html#guarded), which shows the source as readable text when `luccet.js` cannot load |
 | `--force` | overwrites an existing file |
 
 ### Check notes: `luccet check` {#luccet-check}
