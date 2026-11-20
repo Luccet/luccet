@@ -18,7 +18,7 @@ const T = require('./tex');
 const { symbols: TEX_SYMBOLS } = require('./tex-symbols');
 const runtime = require('./runtime');
 
-const version = '2.0.0';
+const version = '2.1.0';
 // The add-on contract's number (docs/addon-api.html): it changes only when
 // the contract breaks, which only a major release may do, and not at every
 // major. What a minor release adds, an add-on finds by feature detection.
