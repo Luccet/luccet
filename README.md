@@ -49,10 +49,10 @@ One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work to
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.luccet.dev/v2.0.0/luccet.js"></script>
+<script src="https://cdn.luccet.dev/v2.1.0/luccet.js"></script>
 ```
 
-- **To follow releases,** use `v2.0/` (the newest 2.0.x) or `v2/` (the newest 2.x: a major keeps every note rendering the same). A release's own folder never changes, so a browser keeps its file for a year; a series' or a major's is checked for a newer release every hour.
+- **To follow releases,** use `v2.1/` (the newest 2.1.x) or `v2/` (the newest 2.x: a major keeps every note rendering the same). A release's own folder never changes, so a browser keeps its file for a year; a series' or a major's is checked for a newer release every hour.
 - **The same file** is each [GitHub Release](https://github.com/Luccet/luccet/releases)'s `luccet.js`: the minified build, under the name the tools and the editors look for. Its `luccet.css` is beside it, for a page under a strict [Content-Security-Policy](https://luccet.dev/docs/publishing.html#csp).
 
 **Themes:** colour themes after well-known palettes (Solarized, Gruvbox, Nord, Dracula, Catppuccin, Tokyo Night and more) live in their own repository, [Luccet/themes](https://github.com/Luccet/themes). Each is an add-on: `https://cdn.luccet.dev/themes/v1/nord.css` in `:::use` (or `data-use`). See [themes](https://luccet.dev/docs/schema.html#themes).
