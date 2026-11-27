@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
 const { spawnSync } = require('child_process');
-const { split, notNote, attributes, analyse, htmlFiles, repository, luccet, clean, readText } = require('./note');
+const { split, notNote, attributes, analyse, htmlFiles, repository, containingProject, scriptProject, luccet, clean, readText } = require('./note');
 const { build, escAttr } = require('./build');
 const links = require('./links');
 const { relocate, apply } = require('./relocate');
@@ -308,31 +308,15 @@ function check(args) {
   if (!RANK[level]) throw new UsageError(`--fail-on is error, warning or info, not "${level}"`);
   if (!positionals.length) throw new UsageError('give at least one PATH');
 
-  // Files named, then files found in directories, each once.
-  const files = [];
-  const seen = new Set();
-  const add = (p, named) => {
-    const key = path.resolve(p);
-    if (!seen.has(key)) seen.add(key), files.push({ shown: slash(p), named });
-  };
-  for (const p of positionals) {
-    let st;
-    try {
-      st = fs.statSync(p);
-    } catch (e) {
-      throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
-    }
-    if (st.isDirectory()) for (const f of htmlFiles(p)) add(f, false);
-    else add(p, true);
-  }
-
+  const files = filesOf(positionals);
+  const projects = new Set(files.map((f) => f.projectRoot));
   const out = [];
   const count = { error: 0, warning: 0, info: 0 };
   let notes = 0;
   let failed = false;
   let broken = false;
   // Every file is analysed once, as a note checked or as a link's target.
-  const targets = new links.Targets({ analyse: (text, file) => analyse(text, file, { noScripts: o['no-scripts'] }) });
+  const targets = new links.Targets({ analyse: (text, file) => analyse(text, file, { noScripts: o['no-scripts'], projectRoot: containingProject(projects, file) }) });
   for (const f of files) {
     let text;
     try {
@@ -373,9 +357,9 @@ function check(args) {
 function filesOf(positionals) {
   const files = [];
   const seen = new Set();
-  const add = (p, named) => {
+  const add = (p, named, projectRoot) => {
     const key = path.resolve(p);
-    if (!seen.has(key)) seen.add(key), files.push({ shown: slash(p), named });
+    if (!seen.has(key)) seen.add(key), files.push({ shown: slash(p), named, projectRoot });
   };
   for (const p of positionals) {
     let st;
@@ -384,8 +368,9 @@ function filesOf(positionals) {
     } catch (e) {
       throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
     }
-    if (st.isDirectory()) for (const f of htmlFiles(p)) add(f, false);
-    else add(p, true);
+    const project = scriptProject(path.resolve(st.isDirectory() ? p : path.dirname(p)));
+    if (st.isDirectory()) for (const f of htmlFiles(p)) add(f, false, project);
+    else add(p, true, project);
   }
   return files;
 }
@@ -440,7 +425,7 @@ function search(args) {
       broken = true;
       continue;
     }
-    const a = analyse(text, f.shown, { noScripts: o['no-scripts'] });
+    const a = analyse(text, f.shown, { noScripts: o['no-scripts'], projectRoot: f.projectRoot });
     if (!a) {
       if (f.named) warn(`luccet search: ${f.shown} is not a note (${notNote(text)}); skipped`);
       continue;
@@ -666,7 +651,7 @@ function index(args) {
       broken = true;
       continue;
     }
-    const a = analyse(text, f.shown, { noScripts: o['no-scripts'] });
+    const a = analyse(text, f.shown, { noScripts: o['no-scripts'], projectRoot: f.projectRoot });
     if (!a) {
       if (f.named) warn(`luccet index: ${f.shown} is not a note (${notNote(text)}); skipped`);
       continue;
@@ -850,9 +835,9 @@ async function buildMany(positionals, dir, o) {
   };
   const jobs = [];
   const seen = new Set();
-  const add = (file, page, named) => {
+  const add = (file, page, named, projectRoot) => {
     const k = path.resolve(file);
-    if (!seen.has(k)) seen.add(k), jobs.push({ file, page, named });
+    if (!seen.has(k)) seen.add(k), jobs.push({ file, page, named, projectRoot });
   };
   for (const p of positionals) {
     let pst;
@@ -862,7 +847,8 @@ async function buildMany(positionals, dir, o) {
       throw new UsageError(`cannot read ${p}: ${e.code === 'ENOENT' ? 'no such file or directory' : e.message}`, false);
     }
     if (pst.isDirectory()) {
-      for (const f of htmlFiles(p)) if (!inside(f)) add(f, path.join(dir, path.relative(p, f)), false);
+      const project = scriptProject(path.resolve(p));
+      for (const f of htmlFiles(p)) if (!inside(f)) add(f, path.join(dir, path.relative(p, f)), false, project);
     } else add(p, path.join(dir, path.basename(p)), true);
   }
   const pages = new Map();
@@ -875,7 +861,7 @@ async function buildMany(positionals, dir, o) {
   const built = [];
   let left = 0;
   for (const j of jobs) {
-    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, { named: j.named, urls: false });
+    const json = await buildOne(j.file, j.page, path.dirname(j.page), o, { named: j.named, urls: false, projectRoot: j.projectRoot });
     if (json) built.push(json);
     else left++;
   }
@@ -889,10 +875,10 @@ async function buildMany(positionals, dir, o) {
 // its warnings and diagnostics on stderr: the --json object, or null for a
 // file found in a folder that is not a note (a named one is an error).
 // `urls`: say when the page's relative URLs resolve from another folder.
-async function buildOne(file, out, into, o, { named, urls }) {
+async function buildOne(file, out, into, o, { named, urls, projectRoot }) {
   const shown = slash(file); // paths printed, and in --json, with forward slashes on every platform
   const text = read(file, 'build');
-  const r = build(text, file, { noScripts: o['no-scripts'] });
+  const r = build(text, file, { noScripts: o['no-scripts'], projectRoot });
   if (!r) {
     if (!named) return null;
     throw new UsageError(`${shown} is not a note (${notNote(text)})`, false);

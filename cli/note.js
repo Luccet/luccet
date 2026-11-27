@@ -85,23 +85,75 @@ function attributes(tag) {
   return out;
 }
 
-// The project a note's local head scripts and add-ons must stay in: the
-// folder of the luccet.js its tag names, when that is a relative path (the
-// site root a static host would serve it from); else the repository the note
-// is in; else the note's own folder. A root-relative URL (/lib/x.js) resolves
-// against it, and a path that leaves it is not read: a note cannot make the
-// tools read a file outside its project and run it as code.
-function projectRoot(dir, tag) {
-  const src = (attributes(tag).src || '').replace(/[?#].*$/, '');
-  if (src && !isRemote(src) && !src.startsWith('/')) return path.dirname(path.resolve(dir, src));
-  return repository(dir) || path.resolve(dir);
+function contains(root, file) {
+  const rel = path.relative(root, file);
+  return rel !== '..' && !rel.startsWith('..' + path.sep) && !path.isAbsolute(rel);
 }
 
-// A local file's path, or null when it lies outside the project root.
-function locate(dir, url, root) {
-  const file = url.startsWith('/') ? path.join(root, url) : path.resolve(dir, url);
-  const rel = path.relative(root, file);
-  return rel.startsWith('..') || path.isAbsolute(rel) ? null : file;
+// Nested workspace folders use the narrowest applicable boundary.
+function containingProject(roots, file) {
+  let best = null;
+  for (const root of roots) {
+    if ((!best || root.length > best.length) && contains(root, file)) best = root;
+  }
+  return best;
+}
+
+// An explicit CLI input establishes a project even outside the working tree.
+function scriptProject(dir) {
+  const cwd = process.cwd();
+  return repository(dir) || (cwd !== path.parse(cwd).root && contains(cwd, dir) ? cwd : dir);
+}
+
+// The engine tag can select a smaller site within the caller's project.
+function siteRoot(dir, src, project) {
+  const url = (src || '').replace(/[?#].*$/, '');
+  if (url && !isRemote(url) && !url.startsWith('/')) {
+    const site = path.dirname(path.resolve(dir, url));
+    if (contains(project, site)) return site;
+  }
+  return project;
+}
+
+// Native real paths carry the filesystem's spelling. Compare it exactly,
+// including on Windows volumes with case-sensitive directories.
+function containsReal(root, file) {
+  return file === root || file.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
+}
+
+// Resolve aliases before loading. Read through the descriptor whose identity
+// we checked, so replacing a name cannot redirect the subsequent read.
+function localScript(dir, url, site, project, files, noScripts) {
+  if (!project) return { outside: true, problem: 'outside the project' };
+  const file = url.startsWith('/') ? path.join(site, url) : path.resolve(dir, url);
+  const outside = { outside: true, problem: `outside the project (${site})` };
+  if (!contains(site, file)) return outside;
+  files.add(file); // also watch missing dependencies, so their creation is seen
+  try {
+    const realProject = fs.realpathSync.native(project);
+    const realSite = fs.realpathSync.native(site);
+    if (!containsReal(realProject, realSite)) return outside;
+    const real = fs.realpathSync.native(file);
+    if (!containsReal(realSite, real)) return outside;
+    const st = fs.statSync(real, { bigint: true });
+    if (st.isDirectory()) return { file, problem: `${file} is a directory` };
+    if (!st.isFile()) return { file, problem: `cannot read ${file}` };
+    files.add(real);
+    if (noScripts) {
+      fs.accessSync(real, fs.constants.R_OK);
+      return {};
+    }
+    const fd = fs.openSync(real, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    try {
+      const opened = fs.fstatSync(fd, { bigint: true });
+      if (!opened.isFile() || opened.dev !== st.dev || opened.ino !== st.ino || fs.realpathSync.native(real) !== real) return outside;
+      return { code: fs.readFileSync(fd, 'utf8') };
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return { file, problem: `cannot read ${file}` };
+  }
 }
 
 // The head's classic scripts before the luccet.js tag, in document order:
@@ -171,87 +223,57 @@ function readText(file) {
 // problems the host finds here and those the sandbox finds there merge back
 // into document order; `vocabSeq` is where a window.LUCCET problem belongs,
 // after the head scripts and before the add-ons.
-function collect(tag, dir, head, note) {
+function collect(tag, dir, head, note, opts = {}) {
   const scripts = [];
   const addons = [];
   const problems = [];
-  const files = []; // the local files read, absolute: an editor watches them
+  const files = new Set(); // source paths and their resolved targets, for the editor
   const attrs = attributes(tag);
-  const root = projectRoot(dir, tag);
-  const outside = `outside the project (${root})`;
+  const project = opts.projectRoot === undefined ? scriptProject(dir) : opts.projectRoot;
+  const site = project && siteRoot(dir, attrs.src, project);
+  const local = (url) => localScript(dir, url, site, project, files, opts.noScripts);
   let seq = 0;
   for (const s of headScripts(head)) {
     const at = { kind: 'head', line: s.line, column: s.column, seq: seq++ };
     const url = s.src === null ? `inline script on line ${s.line}` : s.src;
     if (s.src === null) {
-      scripts.push({ url, code: s.body, line: s.line, column: s.column, seq: at.seq });
+      if (!opts.noScripts) scripts.push({ url, code: s.body, line: s.line, column: s.column, seq: at.seq });
       continue;
     }
     if (isRemote(s.src)) {
       problems.push({ ...at, severity: 'info', url, message: `the head script ${url} is not run under node, so vocabulary it declares in window.LUCCET.schema is unknown here` });
       continue;
     }
-    const file = locate(dir, s.src.replace(/[?#].*$/, ''), root);
-    if (!file) {
-      problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} is ${outside}, so it is not run` });
-      continue;
-    }
-    files.push(file);
-    try {
-      scripts.push({ url, code: fs.readFileSync(file, 'utf8'), line: s.line, column: s.column, seq: at.seq });
-    } catch {
-      problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} cannot be read (${file})` });
-    }
+    const r = local(s.src.replace(/[?#].*$/, ''));
+    if (r.problem) {
+      const why = r.outside ? `is ${r.problem}, so it is not run` : `cannot be read (${r.file})`;
+      problems.push({ ...at, severity: 'warning', url, message: `the head script ${url} ${why}` });
+    } else if (!opts.noScripts) scripts.push({ url, code: r.code, line: s.line, column: s.column, seq: at.seq });
   }
   const vocabSeq = seq - 0.5;
-  for (const entry of (attrs['data-use'] || '').split(/\s+/).filter(Boolean)) {
+  const add = (entry, position) => {
     const url = entry.replace(/[?#].*$/, '');
-    if (/\.css$/i.test(url)) continue; // a stylesheet; anything else is a script
+    if (/\.css$/i.test(url)) return;
+    const at = { url, seq: seq++, position };
     if (isRemote(url)) {
-      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to luccet check`, seq: seq++ });
-      continue;
+      problems.push({ ...at, kind: 'remote', message: `the add-on ${url} is not loaded under node; names it declares are unknown to luccet check` });
+      return;
     }
-    const file = locate(dir, url, root);
-    if (!file) {
-      problems.push({ url, message: outside, seq: seq++ });
-      continue;
-    }
-    files.push(file);
-    try {
-      addons.push({ url, code: fs.readFileSync(file, 'utf8'), seq: seq++ });
-    } catch (e) {
-      problems.push({ url, message: e && e.code === 'EISDIR' ? `${file} is a directory` : `cannot read ${file}`, seq: seq++ });
-    }
-  }
-  // The leading `:::use` block's entries (src/use.js), after the tag's, each
-  // at its line in the note so a problem with one points there.
+    const r = local(url);
+    if (r.problem) problems.push({ ...at, message: r.problem });
+    else if (!opts.noScripts) addons.push({ ...at, url: position ? entry : url, code: r.code });
+  };
+  for (const entry of (attrs['data-use'] || '').split(/\s+/).filter(Boolean)) add(entry);
   const use = scanUse(note || '', { eof: true }).entries;
   for (const e of use) {
-    const span = { start: { line: e.line, column: e.column, offset: e.offset }, end: { line: e.line, column: e.column + e.url.length, offset: e.offset + e.url.length } };
-    const url = e.url.replace(/[?#].*$/, '');
-    if (/\.css$/i.test(url)) continue;
-    if (isRemote(url)) {
-      problems.push({ kind: 'remote', url, message: `the add-on ${url} is not loaded under node; names it declares are unknown to luccet check`, seq: seq++, position: span });
-      continue;
-    }
-    const file = locate(dir, url, root);
-    if (!file) {
-      problems.push({ url, message: outside, seq: seq++, position: span });
-      continue;
-    }
-    files.push(file);
-    try {
-      addons.push({ url: e.url, code: fs.readFileSync(file, 'utf8'), seq: seq++, position: span });
-    } catch (err) {
-      problems.push({ url, message: err && err.code === 'EISDIR' ? `${file} is a directory` : `cannot read ${file}`, seq: seq++, position: span });
-    }
+    add(e.url, { start: { line: e.line, column: e.column, offset: e.offset }, end: { line: e.line, column: e.column + e.url.length, offset: e.offset + e.url.length } });
   }
   const dataUse = [attrs['data-use'], ...use.map((e) => e.url)].filter(Boolean).join(' ') || undefined;
   return {
     scripts,
     addons,
     problems,
-    files,
+    files: [...files],
     vocabSeq,
     use,
     dataUse,
@@ -303,7 +325,7 @@ const toFile = (pos, line) => ({
 // same note again passes the last one as `opts.lastVocab`: when the code
 // fails to run and the stamp still holds, that vocabulary stands in, so an
 // editor keeps a note's names while a script of it is stuck. `.files` are
-// the local script and add-on files the analysis read.
+// the local script and add-on paths to watch, including missing dependencies.
 // analyseAsync is the same over the sandbox's asynchronous bridge, for the
 // language server; analyse blocks, for the tools.
 function analyse(text, file, opts = {}) {
@@ -323,7 +345,7 @@ function prepare(text, file, opts) {
   const parts = split(text);
   if (!parts) return null;
   const dir = file ? path.dirname(path.resolve(file)) : process.cwd();
-  const c = collect(parts.tag, dir, parts.head, parts.note);
+  const c = collect(parts.tag, dir, parts.head, parts.note, opts);
   const transform = opts.transform !== false;
   const stamp = crypto
     .createHash('sha1')
@@ -450,4 +472,4 @@ function repository(dir) {
   }
 }
 
-module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, analyseAsync, readText, htmlFiles, repository, luccet, shutdown: sandbox.shutdown, clean: sandbox.clean };
+module.exports = { DETECT, detect, notNote, split, attributes, headScripts, collect, loadingDiagnostic, analyse, analyseAsync, readText, htmlFiles, repository, containingProject, scriptProject, luccet, shutdown: sandbox.shutdown, clean: sandbox.clean };

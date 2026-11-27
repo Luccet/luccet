@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// luccet.js 2.1.0: built from src/ by tools/concat.js. Edit the sources, not this file.
+// luccet.js 2.1.1: built from src/ by tools/concat.js. Edit the sources, not this file.
 //# allFunctionsCalledOnLoad
 (function (global) {
   'use strict';
@@ -3334,14 +3334,14 @@ function records(ast, { url = '', title: pageTitle = '' } = {}) {
     const s = plain(c).trim();
     if (s) current.text.push(s);
   }
-  // A heading's section ends where the next entry at the top level starts.
-  for (let i = 0; i < out.length; i++) {
-    if (out[i].kind === 'heading' && out[i].endLine === undefined) {
-      const next = out.slice(i + 1).find((r) => r.kind === 'heading' && r.line !== undefined);
-      out[i].endLine = next ? next.line - 1 : endLineOf(ast);
+  // A section ends just before the next heading with a known line.
+  let sectionEnd = endLineOf(ast);
+  for (let i = out.length - 1; i >= 0; i--) {
+    const r = out[i];
+    if (r.kind === 'heading') {
+      if (r.endLine === undefined) r.endLine = sectionEnd;
+      if (r.line !== undefined) sectionEnd = r.line - 1;
     }
-  }
-  for (const r of out) {
     r.text = r.text.join('\n');
     if (r.endLine === undefined) delete r.endLine;
     if (r.line === undefined) delete r.line;
@@ -9428,7 +9428,7 @@ const T = require('./tex');
 const { symbols: TEX_SYMBOLS } = require('./tex-symbols');
 const runtime = require('./runtime');
 
-const version = '2.1.0';
+const version = '2.1.1';
 // The add-on contract's number (docs/addon-api.html): it changes only when
 // the contract breaks, which only a major release may do, and not at every
 // major. What a minor release adds, an add-on finds by feature detection.

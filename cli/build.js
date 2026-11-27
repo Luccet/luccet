@@ -63,7 +63,7 @@ function htmlAttributes(head, add) {
 // {html, diagnostics, warnings, math: {total}, use, nonce, toFile}. The
 // formulas are MathML, as the engine writes them.
 function build(text, file, opts = {}) {
-  const a = analyse(text, file, { noScripts: opts.noScripts });
+  const a = analyse(text, file, { noScripts: opts.noScripts, projectRoot: opts.projectRoot });
   if (!a) return null;
   const attrs = attributes(a.tag);
   const warnings = [];

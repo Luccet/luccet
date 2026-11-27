@@ -268,7 +268,7 @@ An add-on gets **the engine itself** as `window.luccet`, the object `require('lu
 - **Browser globals** (`document`, `customElements`, `HTMLElement`, `fetch`, `setTimeout` …) are stand-ins that accept anything and do nothing. So `customElements.define(…)` or `class X extends HTMLElement` does not stop the add-on before its `luccet.block` calls.
 - **`window`**, `self` and `globalThis` are the sandbox. Its `console` writes to stderr.
 - **Time.** The scripts, and the parse and transforms the sandbox runs with them, share 2 seconds ([Running a note's code](tools.html#sandbox)).
-- **Files.** Only local files load: a relative URL from the note's directory, a root-relative one (`/lib/x.js`) from the note's directory or the nearest ancestor that has it. A remote add-on is not loaded: `addon.remote` ([When an add-on fails](#addon-failed)).
+- **Files.** Only local files load: a relative URL from the note's directory, a root-relative one (`/lib/x.js`) from the [site root](tools.html#vocabulary). Linked files must resolve inside the site and project. A remote add-on is not loaded: `addon.remote` ([When an add-on fails](#addon-failed)).
 
 What follows:
 - **Vocabulary is identical** under node and in the browser, options included, if the add-on declares it without reading the DOM.
