@@ -38,7 +38,7 @@ The package is not on the npm registry, and `npx luccet` looks there for a packa
 
 ```sh
 $ luccet --version
-2.1.0
+2.1.1
 $ luccet bogus
 luccet: unknown command "bogus"
 usage: luccet COMMAND …
@@ -121,7 +121,8 @@ How the sandbox behaves:
 
 - **Browser globals** (`document`, `customElements`, `HTMLElement`, `location`, `fetch` …) exist but do nothing. So an add-on that defines a custom element or adds a listener while it loads still reaches its `luccet.block` calls.
 - **Output.** An add-on's `console` writes to stderr. stdout carries only the command's output: JSON for `luccet parse` and `luccet check --json`, the protocol for `luccet lsp`.
-- **Paths.** A relative URL is resolved from the note's folder. A root-relative URL (`/lib/theorems.js`) is resolved against the note's project root: the folder of the `luccet.js` its tag names, when that is a relative path (where a static host would serve it from); otherwise the repository the note is in; otherwise the note's own folder. A path that leaves that root, by `..` or as a root-relative URL to a folder above it, is not read and is reported as `addon.failed`, so a note cannot make the tools read a file outside its project and run it as code.
+- **Project folders.** The command line uses the input’s Git repository. For inputs outside Git, it uses the working directory when it contains the input and is below the filesystem root. Otherwise it uses the directory you named, or the parent of a named file. The language server uses the most specific workspace folder. For a file opened on its own, it uses the file’s repository or parent directory. Following a link into another project does not authorize loading its script files.
+- **Script paths.** A relative URL resolves from the note’s folder. For a relative engine URL inside the project, the engine’s folder is the site root. Other engine URLs use the project folder as the site root. A root-relative URL such as `/lib/theorems.js` resolves from that site root. Both the path and its filesystem target must stay inside the site and the project. An in-site symbolic link or directory junction can name a shared library. The tools report a refused head script as `head.script` and a refused add-on as `addon.failed`. With `--no-scripts` or the editor’s `noScripts`, they still check paths and report missing files without reading script contents.
 - **Time.** A note's scripts and transforms together may run for 2 seconds, with the parse the sandbox makes between them when the code adds a transform or a label function; still running then, they are stopped and the note gets an [`addon.failed`](diagnostics.html#addon-failed) error that says whether the scripts, the parse or the transforms took the time.
 
 What cannot be loaded is reported, and the note is still checked without it:
@@ -847,7 +848,7 @@ $ echo $?
 
 ```json
 {
-  "luccet": "2.1.0",
+  "luccet": "2.1.1",
   "format": 1,
   "notes": [
     {
@@ -994,7 +995,7 @@ $$ {#eq}
       }
     }
   },
-  "serverInfo": { "name": "luccet", "version": "2.1.0" }
+  "serverInfo": { "name": "luccet", "version": "2.1.1" }
 }
 ```
 

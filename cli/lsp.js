@@ -173,6 +173,7 @@ const REQUESTS = {
     const folders = Array.isArray(params.workspaceFolders) ? params.workspaceFolders.map((f) => f && f.uri) : [params.rootUri];
     roots = folders.map(fileOf).filter(Boolean);
     if (!roots.length && typeof params.rootPath === 'string') roots = [path.resolve(params.rootPath)];
+    updateProjects();
     // initializationOptions.noScripts: true analyses without running notes'
     // own code (cli/sandbox.js), for a workspace of notes you do not trust.
     const init = params.initializationOptions;
@@ -232,8 +233,28 @@ function exit() {
 const docs = new Map();
 let opened = 0;
 let roots = []; // the workspace folders, from initialize and didChangeWorkspaceFolders
+let projects = []; // workspace folders and the projects of explicitly opened standalone files
 let noScripts = false; // initializationOptions.noScripts: do not run notes' code
 let watches = false; // the client can watch files for the server (dynamic registration)
+
+// A link is allowed to use projects the client already opened. It cannot
+// introduce another project by naming a note in it.
+function updateProjects() {
+  const next = new Set(roots);
+  for (const doc of docs.values()) {
+    if (doc.file && !note.containingProject(roots, doc.file)) next.add(doc.standalone);
+  }
+  const previous = projects;
+  projects = [...next].sort();
+  if (previous.length === projects.length && previous.every((p, i) => p === projects[i])) return;
+  targets = makeTargets();
+  indexes.clear();
+  for (const d of docs.values()) {
+    if (!d.file || note.containingProject(previous, d.file) === note.containingProject(projects, d.file)) continue;
+    d.vocab = null;
+    if (d.a || d.running) analyse(d);
+  }
+}
 
 // The workspace's folders changed: searches across files read the new set.
 function didChangeWorkspaceFolders({ event }) {
@@ -241,6 +262,8 @@ function didChangeWorkspaceFolders({ event }) {
   const list = (k) => (Array.isArray(event[k]) ? event[k].map((f) => f && fileOf(f.uri)).filter(Boolean) : []);
   const gone = new Set(list('removed'));
   roots = [...roots.filter((r) => !gone.has(r)), ...list('added').filter((r) => !roots.includes(r))];
+  updateProjects();
+  refresh(null);
 }
 
 // A watched file changed on disk: the open notes' links are checked again,
@@ -255,7 +278,12 @@ function didChangeWatchedFiles({ changes }) {
 function didOpen({ textDocument: d }) {
   if (!d || typeof d.uri !== 'string') return;
   const doc = { uri: d.uri, file: fileOf(d.uri), opened: ++opened, version: d.version, text: String(d.text ?? ''), timer: null, index: null, wasNote: false, a: null, analysed: null, links: [], running: null, again: false, started: null, vocab: null };
+  if (doc.file) {
+    const dir = path.dirname(doc.file);
+    doc.standalone = note.repository(dir) || dir;
+  }
   docs.set(d.uri, doc);
+  updateProjects();
   analyse(doc);
 }
 
@@ -290,6 +318,7 @@ function didClose({ textDocument: d }) {
   if (!doc) return;
   clearTimeout(doc.timer);
   docs.delete(d.uri);
+  updateProjects();
   notify('textDocument/publishDiagnostics', { uri: doc.uri, diagnostics: [] });
   refresh(null); // a note that linked to it now reads the disk's copy
 }
@@ -331,11 +360,14 @@ function analyse(doc) {
     return;
   }
   const version = doc.version;
+  const projectRoot = doc.file && note.containingProject(projects, doc.file);
   doc.started = Date.now();
   doc.running = note
-    .analyseAsync(doc.text, doc.file, { noScripts, lastVocab: doc.vocab })
+    .analyseAsync(doc.text, doc.file, { noScripts, projectRoot, lastVocab: doc.vocab })
     .then(
-      (a) => guard(() => analysed(doc, version, a)),
+      (a) => {
+        if (!doc.file || projectRoot === note.containingProject(projects, doc.file)) guard(() => analysed(doc, version, a));
+      },
       (e) => log(`analysing ${doc.uri}: ${(e && e.stack) || e}`),
     )
     .then(() => {
@@ -374,17 +406,20 @@ function publish(doc) {
 // A note a link names is analysed over the sandbox's asynchronous bridge and
 // never waited for: its links are checked again when it lands, so a linked
 // note whose script never returns stalls no other document.
-const targets = new links.Targets({
-  open(file) {
-    for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
-    return undefined;
-  },
-  analyse: (text, file) => note.analyse(text, file, { noScripts }),
-  analyseAsync: (text, file) => note.analyseAsync(text, file, { noScripts }),
-  landed: () => {
-    if (phase === 'running') guard(() => refresh(null));
-  },
-});
+function makeTargets() {
+  return new links.Targets({
+    open(file) {
+      for (const d of docs.values()) if (d.file === file) return { text: d.text, stamp: `${d.opened} ${d.version}` };
+      return undefined;
+    },
+    analyse: (text, file) => note.analyse(text, file, { noScripts, projectRoot: note.containingProject(projects, file) }),
+    analyseAsync: (text, file) => note.analyseAsync(text, file, { noScripts, projectRoot: note.containingProject(projects, file) }),
+    landed: () => {
+      if (phase === 'running') guard(() => refresh(null));
+    },
+  });
+}
+let targets = makeTargets();
 
 // The link diagnostics of an open note; none for an untitled document.
 function linksOf(doc) {
@@ -614,18 +649,23 @@ function workspaceSymbol(params) {
   const matches = (name, id) => !q || name.toLowerCase().includes(q) || (id !== undefined && `#${id}`.toLowerCase().includes(q));
   targets.during(() => {
     for (const file of workspaceNotes()) {
-      if (out.length >= 1000) break;
       const { a } = targets.parsed(file);
       if (!a) continue;
       const uri = uriOf(file);
       const { lines, outline: o } = digest(a);
       const location = (line, endLine) => ({ uri, range: { start: { line: line + a.line - 1, character: 0 }, end: { line: (endLine || line) + a.line - 1, character: (lines[(endLine || line) - 1] || '').length } } });
       const containerName = shownPath(file);
-      for (const h of o.headings) if (matches(h.text, h.id)) out.push({ name: h.text || '(untitled)', kind: SYMBOL.heading, location: location(h.line), containerName });
+      for (const h of o.headings) {
+        if (!matches(h.text, h.id)) continue;
+        out.push({ name: h.text || '(untitled)', kind: SYMBOL.heading, location: location(h.line), containerName });
+        if (out.length === 1000) return;
+      }
       for (const b of o.blocks) {
         if (b.id === undefined && b.title === undefined) continue;
         const name = b.title || b.name;
-        if (matches(name, b.id)) out.push({ name: b.id !== undefined ? `${name} #${b.id}` : name, kind: SYMBOL[b.kind], location: location(b.line, b.endLine), containerName });
+        if (!matches(name, b.id)) continue;
+        out.push({ name: b.id !== undefined ? `${name} #${b.id}` : name, kind: SYMBOL[b.kind], location: location(b.line, b.endLine), containerName });
+        if (out.length === 1000) return;
       }
     }
   });
@@ -690,7 +730,9 @@ async function indexOf(file) {
   const stamp = targets.source(file).stamp;
   const hit = indexes.get(file);
   if (hit && hit.stamp === stamp) return hit.index;
-  const index = language.index(await targets.later(file));
+  const view = targets;
+  const index = language.index(await view.later(file));
+  if (targets !== view) return indexOf(file); // the workspace changed while the analysis ran
   indexes.delete(file);
   indexes.set(file, { stamp, index });
   if (indexes.size > 64) indexes.delete(indexes.keys().next().value);

@@ -147,6 +147,15 @@ test('search.records: one entry per heading section and per block with an id, wi
   eq(JSON.parse(JSON.stringify(luccet.search.index(r))).entries.length, 4, 'the index is plain data');
 });
 
+test('search.records: adjacent headings, nested named blocks, and the last section keep their ranges', () => {
+  const source = '# First\n## Second\n:::note{#outer}\n:::note{#inner}\nBody.\n:::\n:::\n# Last\n';
+  const { ast } = luccet.parse(source);
+  luccet.transform(ast);
+  eq(luccet.search.records(ast).map((r) => [r.id, r.line, r.endLine]), [
+    ['first', 1, 1], ['second', 2, 7], ['outer', 3, 7], ['inner', 4, 6], ['last', 8, 9],
+  ], 'source ranges');
+});
+
 test('search.query: a word stands for the stems it begins, a title hit weighs more, a miss is empty', () => {
   const { ast } = luccet.parse('# Triangles {#tri}\n\nA right triangle.\n\n:::note{#n}\nThe triangles inscribed in a circle.\n:::\n\n## Circles {#c}\n\nThe circumference is $2\\pi r$.\n');
   luccet.transform(ast);

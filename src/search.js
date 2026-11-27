@@ -183,14 +183,14 @@ function records(ast, { url = '', title: pageTitle = '' } = {}) {
     const s = plain(c).trim();
     if (s) current.text.push(s);
   }
-  // A heading's section ends where the next entry at the top level starts.
-  for (let i = 0; i < out.length; i++) {
-    if (out[i].kind === 'heading' && out[i].endLine === undefined) {
-      const next = out.slice(i + 1).find((r) => r.kind === 'heading' && r.line !== undefined);
-      out[i].endLine = next ? next.line - 1 : endLineOf(ast);
+  // A section ends just before the next heading with a known line.
+  let sectionEnd = endLineOf(ast);
+  for (let i = out.length - 1; i >= 0; i--) {
+    const r = out[i];
+    if (r.kind === 'heading') {
+      if (r.endLine === undefined) r.endLine = sectionEnd;
+      if (r.line !== undefined) sectionEnd = r.line - 1;
     }
-  }
-  for (const r of out) {
     r.text = r.text.join('\n');
     if (r.endLine === undefined) delete r.endLine;
     if (r.line === undefined) delete r.line;

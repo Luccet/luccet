@@ -1188,6 +1188,51 @@ check('workspace/symbol: headings and blocks with an id or a title, across the w
   w.proc.kill();
 });
 
+check('workspace folder changes update the project used for script discovery', async () => {
+  const project = path.join(DIR, 'workspace-library');
+  const sub = path.join(project, 'notes');
+  fs.mkdirSync(sub, { recursive: true });
+  fs.writeFileSync(path.join(project, 'vocab.js'), '// local vocabulary');
+  const folder = { uri: pathToFileURL(sub).href, name: 'notes' };
+  const text = '<script src="../luccet.js" data-use="/vocab.js"></script>\n# Note\n';
+  const w = new Client();
+  try {
+    await w.call('initialize', { rootUri: pathToFileURL(project).href, initializationOptions: { noScripts: true } });
+    const d = await w.open(path.join(sub, 'note.html'), text);
+    const missing = (list) => list.some((x) => x.code === 'addon.failed');
+    assert.ok(!missing(d.diagnostics));
+    w.notify('workspace/didChangeWorkspaceFolders', { event: { added: [folder], removed: [] } });
+    assert.ok(missing((await w.published(d.uri)).diagnostics), 'the nested workspace has its own site root');
+    w.notify('workspace/didChangeWorkspaceFolders', { event: { added: [], removed: [folder] } });
+    assert.ok(!missing((await w.published(d.uri)).diagnostics), 'the parent workspace supplies the vocabulary again');
+  } finally {
+    w.proc.kill();
+  }
+});
+
+check('workspace/symbol stops at 1000 headings or blocks in workspace order', async () => {
+  const folder = path.join(DIR, 'symbol-limit');
+  fs.mkdirSync(folder);
+  const header = '<script src="luccet.js"></script>\n';
+  const headings = Array.from({ length: 1005 }, (_, i) => `# Section ${i}\n`);
+  fs.writeFileSync(path.join(folder, 'a.html'), header + headings.join(''));
+  fs.writeFileSync(path.join(folder, 'b.html'), header + ':::note{#first}\nx\n:::\n:::note{#second}\ny\n:::\n');
+  const w = new Client();
+  try {
+    await w.call('initialize', { rootUri: pathToFileURL(folder).href, capabilities: {} });
+    const symbols = () => w.call('workspace/symbol', { query: '' });
+    const one = await symbols();
+    assert.strictEqual(one.length, 1000);
+    assert.strictEqual(one[999].name, 'Section 999');
+    fs.writeFileSync(path.join(folder, 'a.html'), header + headings.slice(0, 999).join(''));
+    const two = await symbols();
+    assert.strictEqual(two.length, 1000);
+    assert.strictEqual(two[999].name, 'note #first');
+  } finally {
+    w.proc.kill();
+  }
+});
+
 check('initializationOptions.noScripts: a note’s own code is not run', async () => {
   // An inline head script turns on strict mode; with it, an unknown block is
   // name.unknown. The default server runs it; a noScripts server does not.

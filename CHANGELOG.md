@@ -2,6 +2,12 @@
 
 Every release of Luccet, called Tern until 2.0, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may break what the promise covers: the HTML and diagnostics the conformance corpus records for a note, the documented API and add-on options, the command line's commands, options, exit codes and `--json` shapes, and the files `luccet index` writes, read by their `format` number. A minor release may add to any of them, diagnostics at warning or info severity included, and something deprecated keeps working until the next major release; the whole promise is under [Status](https://luccet.dev/#status). Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `luccet.version` (`tern.version` before 2.0); the tags on GitHub carry the same number from 0.4.3 on.
 
+## 2.1.1 (unreleased)
+
+- The CLI and language server check the filesystem targets of local head scripts and add-ons against the selected project and site folders. With scripts disabled, they report missing dependencies without reading script contents. See [Vocabulary under Node](docs/tools.html#vocabulary).
+- Search and indexing now compute heading ranges in one pass. Notes with many sections take less time to index.
+- Workspace symbol searches stop at 1,000 matches, including when a single note contains more.
+
 ## 2.1.0 
 
 - **cdn.luccet.dev.** Every release from 2.0 on is served from Luccet's own domain, minified: `https://cdn.luccet.dev/v2.0.0/luccet.js` for one release, `v2.0/` for the newest of a series and `v2/` for the newest of a major, each with its `luccet.css`. A release's folder never changes, so a browser keeps it for a year; a series' or a major's is checked every hour. The file is the same as the GitHub Release's `luccet.js`, and the README, the [status](https://luccet.dev/#status), [publishing](https://luccet.dev/docs/publishing.html#csp) and the skill give its URL. The site is built by `tools/site.js` (`node tools/site.js`), which CI now runs on every push.

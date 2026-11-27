@@ -49,7 +49,7 @@ One add-on also fits on the tag, as `data-use="…/code.js"`; both forms work to
 ```html
 <!doctype html>
 <meta charset="utf-8">
-<script src="https://cdn.luccet.dev/v2.1.0/luccet.js"></script>
+<script src="https://cdn.luccet.dev/v2.1.1/luccet.js"></script>
 ```
 
 - **To follow releases,** use `v2.1/` (the newest 2.1.x) or `v2/` (the newest 2.x: a major keeps every note rendering the same). A release's own folder never changes, so a browser keeps its file for a year; a series' or a major's is checked for a newer release every hour.

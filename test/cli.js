@@ -598,6 +598,51 @@ test('check: head scripts and add-ons are read inside the project only; a root-r
   ok(/the head script \.\.\/\.\.\/head2\.js is outside the project \(.*pr[\\/]site\), so it is not run/.test(m.out + m.err), `the head script refused: ${m.out}${m.err}`);
 });
 
+test('script discovery checks local dependencies without reading their contents when scripts are disabled', async () => {
+  const { analyse, analyseAsync } = require('../cli/note');
+  const file = at('discovery', 'note.html');
+  write('discovery/lib.js', '// vocabulary', { luccet: false });
+  const source = '<script src="lib.js"></script><script src="luccet.js" data-use="lib.js"></script>\n:::use\nlib.js\nmissing.js\n:::\n';
+  const readFile = fs.readFileSync;
+  let reads = 0;
+  fs.readFileSync = function (...args) {
+    reads++;
+    return readFile.apply(this, args);
+  };
+  try {
+    for (const run of [analyse, analyseAsync]) {
+      const a = await run(source, file, { noScripts: true });
+      eq(a.diagnostics.map((d) => [d.code, d.filePosition.start.line]), [['addon.failed', 4]], 'missing entry at its line');
+      ok(a.files.includes(at('discovery', 'lib.js')), 'dependency recorded');
+    }
+  } finally {
+    fs.readFileSync = readFile;
+  }
+  eq(reads, 0, 'script reads');
+});
+
+test('script discovery resolves site URLs and checks directory links against the selected project', () => {
+  const { collect } = require('../cli/note');
+  const project = at('script-project');
+  const site = path.join(project, 'site');
+  const dir = path.join(site, 'notes');
+  fs.mkdirSync(dir, { recursive: true });
+  write('script-project/site/lib/entry.js', '// local vocabulary', { luccet: false });
+  fs.mkdirSync(at('other-library'));
+  for (const [link, target] of [['alias', path.join(site, 'lib')], ['other', at('other-library')]]) {
+    fs.symlinkSync(target, path.join(site, link), process.platform === 'win32' ? 'junction' : 'dir');
+  }
+  const tag = '<script src="../luccet.js" data-use="/alias/entry.js"></script>';
+  const result = collect(tag, dir, '', '', { projectRoot: project });
+  eq(result.addons.map((a) => a.code), ['// local vocabulary'], 'allowed shared dependency');
+  ok(result.files.includes(fs.realpathSync.native(path.join(site, 'lib', 'entry.js'))), 'canonical target watched');
+  const source = ':::use\n/other\n:::\n';
+  const blocked = collect(tag, dir, '<script src="/other"></script>', source, { projectRoot: project, noScripts: true });
+  eq(blocked.problems.map((p) => [p.url, p.message.includes('outside the project')]), [['/other', true], ['/other', true]], 'head and use share the physical site boundary');
+  const sharedEngine = collect('<script src="../../../luccet.js" data-use="/site/lib/entry.js"></script>', dir, '', '', { projectRoot: project });
+  eq(sharedEngine.addons.map((a) => a.code), ['// local vocabulary'], 'an engine elsewhere keeps root-relative URLs inside the selected project');
+});
+
 // Where the blocking bridge cannot read the child's pipe (Windows, and here
 // LUCCET_SANDBOX_ONESHOT=1), a worker thread drives one child for the run. A
 // preload, in every thread, counts the sandbox children the command starts.

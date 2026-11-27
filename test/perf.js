@@ -15,7 +15,7 @@
 //
 // The cases are inputs known to make Markdown-like parsers slow, plus one
 // generator per linear-time claim of the inline parser
-// (docs/syntax-inline.html#properties).
+// (docs/syntax-inline.html#properties), and search record extraction.
 //
 //   node test/perf.js [--filter=TEXT] [--factor=N]
 'use strict';
@@ -120,14 +120,18 @@ function timeIt(run, input) {
   return best;
 }
 
+function timeCase(run, c, input) {
+  return timeIt(c.run || run, c.prepare ? c.prepare(input) : input);
+}
+
 // The growth check for one generated case: 4× the input, and when that step
 // costs over 6×, the next 4× step too (a one-off step is not growth).
 function growth(run, c) {
-  const small = timeIt(run, c.gen(c.n));
-  const big = timeIt(run, c.gen(c.n * 4));
+  const small = timeCase(run, c, c.gen(c.n));
+  const big = timeCase(run, c, c.gen(c.n * 4));
   const ratio = big / Math.max(small, 0.25);
   if (small < 1 || ratio <= 6) return { ratio };
-  const next = timeIt(run, c.gen(c.n * 16)) / big;
+  const next = timeCase(run, c, c.gen(c.n * 16)) / big;
   return { ratio, next, problem: next > 6 ? `4× the input took ${ratio.toFixed(1)}× the time, then ${next.toFixed(1)}× (superlinear)` : null };
 }
 
@@ -154,7 +158,15 @@ function main() {
   const opts = { schema: fixture };
   const run = (s) => luccet.toHTML(s, opts);
   const filter = opt('filter');
-  const cases = CASES.filter((c) => !filter || c.name.includes(filter));
+  // Prepare the tree outside the timer to isolate section extraction.
+  const sections = {
+    name: 'search section ranges',
+    n: 4000,
+    gen: (n) => '# Section\n\nParagraph.\n'.repeat(n),
+    prepare: (s) => luccet.parse(s).ast,
+    run: (ast) => luccet.search.records(ast),
+  };
+  const cases = [...CASES, sections].filter((c) => !filter || c.name.includes(filter));
   if (args.includes('--growth')) {
     const out = {};
     for (const c of cases) if (c.gen) out[c.name] = growth(run, c);
@@ -172,7 +184,7 @@ function main() {
     const problems = [];
     let ms = NaN;
     try {
-      ms = timeIt(run, input);
+      ms = timeCase(run, c, input);
       if (ms > budget) problems.push(`${ms.toFixed(1)} ms > budget ${budget.toFixed(1)} ms`);
     } catch (e) {
       problems.push(`threw: ${(e && e.message) || e}`);
