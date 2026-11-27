@@ -387,11 +387,15 @@ function readIndex(file) {
     if (e instanceof UsageError) throw e;
     throw new UsageError(`${file} is not JSON: ${e.message}`, false);
   }
-  if (!data || typeof data !== 'object' || !Array.isArray(data.entries) || !data.terms || typeof data.terms !== 'object' || !Array.isArray(data.lengths)) {
-    throw new UsageError(`${file} is not a search index written by luccet index`, false);
+  try {
+    return luccet.search.readIndex(data);
+  } catch (e) {
+    if (e instanceof RangeError) {
+      const writer = typeof data.luccet === 'string' && data.luccet ? clean(data.luccet).replace(/[\n\t]/g, ' ') : '?';
+      throw new UsageError(`${file} was written by luccet ${writer} in a format this luccet (${luccet.version}) does not read: run luccet index again`, false);
+    }
+    throw new UsageError(`${file}: ${clean(e.message)}; run luccet index again`, false);
   }
-  if (data.format !== luccet.search.format) throw new UsageError(`${file} was written by luccet ${data.luccet || '?'} in a format this luccet (${luccet.version}) does not read: run luccet index again`, false);
-  return data;
 }
 
 function search(args) {

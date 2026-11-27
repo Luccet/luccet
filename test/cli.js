@@ -320,6 +320,17 @@ test('index: a link before any heading is from null, one in a block with an id i
   eq(JSON.parse(read('il/notes.json')).notes[0].links, [{ url: 'b.html', fragment: null, line: 2, from: null }, { url: 'b.html', fragment: 'part 2', line: 7, from: 'n1' }], 'from, line and fragment');
 });
 
+test('search --index: an invalid posting is refused even when the query misses that term', () => {
+  const entries = [{ url: 'page.html', kind: 'page', text: 'winter', title: '', label: '' }];
+  const catalogue = { format: 1, ...luccet.search.index(entries) };
+  catalogue.terms.winter = [[1, 1]];
+  write('inconsistent.json', JSON.stringify(catalogue), { luccet: false });
+  const r = run(['search', 'summer', '--index=inconsistent.json', '--json']);
+  exits(r, 2, 'invalid index');
+  eq(r.out, '', 'no partial JSON results');
+  ok(/inconsistent\.json.*terms.*winter.*run luccet index again/.test(r.err), r.err);
+});
+
 test('index: notes.json and search.json, paths relative to -o, titles, descriptions and dates from the head and :::meta, links to notes in the catalogue, noindex left out; --check; search --index', () => {
   write('i/a.html', `${FIRST}<title>A note</title><meta name="description" content="About A &amp; B"><script src="luccet.js"></script>\n:::meta\ndate: 2026-01-02\n:::\n\n# Alpha {#alpha}\n\nSee [b](sub/b.html), [c](c.html#secret), [the readme](README.md), [b again](sub/b.html?x) and [nowhere](https://example.com/x.html).\n\n:::note[I.1]{#ex-1}\nProve Pythagoras theorem.\n:::\n`);
   write('i/sub/b.html', `${FIRST}<script src="../luccet.js"></script>\n:::meta\ntitle: Bee\ndescription: From meta\n:::\n\n# Bee\n\nBack to [a](../a.html).\n`);

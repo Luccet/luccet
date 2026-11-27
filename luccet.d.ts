@@ -128,6 +128,10 @@ declare namespace luccet {
     lengths: number[];
     avg: number;
   }
+  export interface SearchCatalogue extends SearchIndex {
+    format: number;
+    notes?: Array<{ url: string; title: string }>;
+  }
   export interface SearchHit {
     entry: SearchEntry;
     score: number;
@@ -144,6 +148,8 @@ declare namespace luccet {
     /** The stems of a text's words. */
     tokens(text: string): string[];
     index(entries: SearchEntry[]): SearchIndex;
+    /** Validate parsed search.json once before querying. Returns the original object, or throws on an unsupported format or invalid field. */
+    readIndex(value: unknown): SearchCatalogue;
     query(index: SearchIndex, text: string, opts?: { limit?: number }): SearchHit[];
     snippet(text: string, matched: string[], opts?: { width?: number }): { text: string; marks: Array<[number, number]> };
     title(head: string, ast: Root): string;
