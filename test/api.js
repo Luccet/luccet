@@ -425,6 +425,19 @@ test('limits: a reference or toc entry copies at most 200 characters of its targ
   eq(/<a class="t-ref" href="#c"><code>([^<]*)<\/code>/.exec(code)[1].length, 201, 'a code span cut');
 });
 
+test('limits: a copied formula keeps its MathML only when its TeX fits in the title', () => {
+  const opts = { positions: false, schema: { leaf: { toc: { transform: 'toc' } } } };
+  const render = (prefix) => luccet.toHTML(`## ${prefix}$x<y$ {#h}\n\n::toc\n\n@h\n`, opts);
+  const fits = render('a'.repeat(196) + ' ');
+  eq((fits.match(/<math\b/g) || []).length, 3, 'the heading, toc and reference each render the complete formula');
+
+  const prefix = 'a'.repeat(197) + ' ';
+  const clipped = render(prefix);
+  eq((clipped.match(/<math\b/g) || []).length, 1, 'only the heading renders the complete formula');
+  eq(clipped.includes(`<li><a href="#h">${prefix}x&lt;…</a>`), true, 'the toc shows the clipped TeX as text');
+  eq(clipped.includes(`<a class="t-ref" href="#h">${prefix}x&lt;…</a>`), true, 'the reference shows the clipped TeX as text');
+});
+
 // The emitter has an output budget, 64 M characters unless maxOutput says
 // otherwise: past it the HTML stops and the tree carries output.limit.
 test('emit: opts.strings overrides the emitter\'s words, whatever the language', () => {

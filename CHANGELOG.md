@@ -4,6 +4,7 @@ Every release of Luccet, called Tern until 2.0, newest first. Versions follow [s
 
 ## Unreleased
 
+- References and table-of-contents entries now honor the 200-character title limit when it cuts through a formula. The copy shows the shortened TeX as text and the original heading keeps its full formula.
 - `luccet search --index` checks a catalogue before ranking results and identifies inconsistent entries, posting lists or token counts. Browser and Node consumers can use [`luccet.search.readIndex`](docs/api.html#search) to validate a parsed `search.json` once at load time.
 
 ## 2.1.1 (unreleased)

@@ -1008,7 +1008,10 @@ function copy(nodes, ctx) {
     }
     if (n.type === 'ref') add(out, { type: 'text', value: take(shortText(n, ctx)) });
     else if (n.type === 'text' && !(n.data && n.data.luccet && n.data.luccet.entity)) add(out, { type: 'text', value: take(n.value) });
-    else {
+    else if (n.type === 'inlineMath' && typeof n.value === 'string' && n.value.length > left) {
+      // A partial formula is text. Its cached MathML describes the full TeX.
+      add(out, { type: 'text', value: take(n.value) });
+    } else {
       const c = clone(n);
       if (typeof c.value === 'string') c.value = take(c.value); // code, math
       if (typeof c.alt === 'string') c.alt = take(c.alt); // an image
