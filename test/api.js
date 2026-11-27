@@ -9,6 +9,7 @@
 //   node test/api.js
 'use strict';
 
+const assert = require('node:assert/strict');
 const engine = require('./lib/engine');
 
 const { luccet, why } = engine.load();
@@ -156,6 +157,40 @@ test('search.records: adjacent headings, nested named blocks, and the last secti
   ], 'source ranges');
 });
 
+test('search.readIndex: a format-1 catalogue is ready to query, with the same entries, scores and extra fields', () => {
+  const { search } = luccet;
+  const entries = search.records(luccet.transform(luccet.parse('# Red apples\n\nApples.\n# Green apples\n').ast), { url: '../fruit.html' });
+  const idx = search.index(entries);
+  const data = JSON.parse(JSON.stringify({ format: 1, tern: '1.0.0', notes: [{ url: '../fruit.html', title: 'Fruit' }], ...idx, extra: true }));
+  for (const list of Object.values(data.terms)) list.reverse();
+  const back = search.readIndex(data);
+  eq(back === data, true, 'same catalogue');
+  eq(search.query(back, 'appl'), search.query(idx, 'appl'), 'same hits, scores, matches and order');
+  const empty = { format: 1, ...search.index([]) };
+  eq(search.readIndex(empty), empty, 'empty index, optional note titles omitted');
+  const unsearchable = { format: 1, ...search.index([{ url: 'a.html', kind: 'heading', label: '', title: '', text: '!' }]) };
+  eq(search.readIndex(unsearchable), unsearchable, 'zero-token entry');
+});
+
+test('search.readIndex: the first invalid field is reported before any query', () => {
+  const base = { format: 1, notes: [{ url: 'a', title: 'A' }], entries: [{ url: 'a', kind: 'page', text: 'word' }], terms: { word: [[0, 1]] }, lengths: [1], avg: 1 };
+  for (const [change, field] of [
+    [{ format: 2 }, 'format'], [{ notes: {} }, 'notes'], [{ notes: [null] }, 'notes[0]'],
+    [{ entries: [null] }, 'entries[0]'], [{ entries: [{ ...base.entries[0], title: {} }] }, 'entries[0].title'],
+    [{ entries: [{ ...base.entries[0], url: 'other' }] }, 'entries[0].url'],
+    [{ entries: [{ ...base.entries[0], line: -1 }] }, 'entries[0].line'],
+    [{ entries: [{ ...base.entries[0], line: 3, endLine: 2 }] }, 'entries[0].endLine'],
+    [{ lengths: [] }, 'lengths'], [{ lengths: [1.5] }, 'lengths[0]'], [{ avg: 2 }, 'avg'],
+    [{ terms: [] }, 'terms'], [{ terms: { word: 0 } }, 'terms'], [{ terms: { word: [[0]] } }, 'terms'],
+    [{ terms: { word: [[1, 1]] } }, 'terms'], [{ terms: { word: [[0, 0]] } }, 'terms'],
+    [{ terms: { word: [[0, 1], [0, 1]] } }, 'terms'], [{ terms: {} }, 'lengths[0]'],
+    [{ terms: { word: [[0, 2]] } }, 'lengths[0]'], [{ terms: { word: [[0, 5]] } }, 'lengths[0]'],
+  ]) {
+    const error = field === 'format' ? RangeError : TypeError;
+    assert.throws(() => luccet.search.readIndex({ ...base, ...change }), (e) => e instanceof error && e.message.includes(field), field);
+  }
+});
+
 test('search.query: a word stands for the stems it begins, a title hit weighs more, a miss is empty', () => {
   const { ast } = luccet.parse('# Triangles {#tri}\n\nA right triangle.\n\n:::note{#n}\nThe triangles inscribed in a circle.\n:::\n\n## Circles {#c}\n\nThe circumference is $2\\pi r$.\n');
   luccet.transform(ast);
@@ -298,7 +333,7 @@ test('search: words that name Object.prototype members are words like any, befor
   luccet.transform(ast);
   const idx = luccet.search.index(luccet.search.records(ast, { url: 'a.html' }));
   for (const q of ['constructor', 'tostring', 'hasownproperty', 'proto']) eq(luccet.search.query(idx, q).map((h) => h.entry.id), ['c'], q);
-  const back = JSON.parse(JSON.stringify(idx));
+  const back = luccet.search.readIndex(JSON.parse(JSON.stringify({ format: 1, ...idx })));
   eq(luccet.search.query(back, 'constructor').map((h) => h.entry.id), ['c'], 'after JSON');
   eq(luccet.search.query(back, 'valueof'), [], 'a prototype member that is not a word in the notes');
 });

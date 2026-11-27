@@ -548,6 +548,7 @@ luccet.outline(ast);
 ```js
 luccet.search.records(ast, { url, title }) → entries
 luccet.search.index(entries) → index
+luccet.search.readIndex(value) → validated catalogue
 luccet.search.query(index, text, { limit }) → [{ entry, score, matched }]
 luccet.search.snippet(text, matched, { width }) → { text, marks }
 luccet.search.title(head, ast) → string
@@ -579,6 +580,8 @@ luccet.search.snippet(entries[1].text, ['pythagora']);
 
 - **`records(ast, {url, title})`** splits a transformed AST into entries: one per heading's section and one per named block with an id. A block's text is its own, not its section's; a block without an id gives its text to the entry it is in. `kind` is `'page'` (the text before the first heading), `'heading'`, or the block's name; `label` is the heading's text, the page's title, or the block's label ("Exercise 3"); `title` a block's bracket title. `line` and `endLine` are note lines. An entry with nothing to search is left out.
 - **`index(entries)`** builds the index over the entries of any number of notes: plain data (`{entries, terms, lengths, avg}`), so it can be written out and read back, which is what [`luccet index`](tools.html#index-files) writes as `search.json`. Its words are `tokens`'s, whose folding, segmentation and stemming change only with `format`, in a major release, so an index serves every reader of its format. A word in an entry's label or title weighs three times one in its text.
+- **`readIndex(value)`** checks a parsed `search.json` and returns the same object. Call it once when the catalogue loads, then pass that object to `query` for each search. An unsupported or missing format on an index raises `RangeError`. Invalid entries, note titles, token counts, averages or postings raise `TypeError` with the field to check. Extra fields and the writer’s version are ignored. If the optional `notes` list is present, each entry’s URL must appear in it.
+
 - **`query(index, text, {limit})`** ranks the entries BM25-style for the words of `text`, best first, at most `limit` (20; `Infinity` for all). `matched` lists the stems the hit matched, for `snippet`.
 - **`snippet(text, matched, {width})`** cuts a passage of about `width` characters (160) around the first matching word, `…` where it is cut, with the `[start, end)` ranges of every matching word in it.
 - **`title(head, ast)`** is a note's title: the head's `<title>`, else the `:::meta` title, else the first heading's text, else `''`.

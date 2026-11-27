@@ -3437,6 +3437,83 @@ function index(entries) {
   return { entries, terms, lengths, avg };
 }
 
+// readIndex(value) accepts a parsed search.json and returns it by reference.
+// Validate at the reader boundary so repeated queries use the same postings.
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const positiveInteger = (value) => Number.isSafeInteger(value) && value > 0;
+function invalid(field, reason) {
+  throw new TypeError(`${field} ${reason}`);
+}
+
+function readIndex(data) {
+  if (!isRecord(data) || (data.format === undefined && !Array.isArray(data.entries))) {
+    throw new TypeError('data is not a search index written by luccet index');
+  }
+  if (data.format !== FORMAT) throw new RangeError(`unsupported search index format (expected ${FORMAT})`);
+  const { notes, entries, terms, lengths, avg } = data;
+  if (!Array.isArray(entries)) invalid('entries', 'must be an array');
+  if (!isRecord(terms)) invalid('terms', 'must be an object of posting lists');
+  if (!Array.isArray(lengths) || lengths.length !== entries.length) invalid('lengths', 'must have one token count per entry');
+
+  const urls = new Set();
+  if (notes !== undefined) {
+    if (!Array.isArray(notes)) invalid('notes', 'must be an array');
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      if (!isRecord(note) || typeof note.url !== 'string' || typeof note.title !== 'string') invalid(`notes[${i}]`, 'must have a string url and title');
+      urls.add(note.url);
+    }
+  }
+
+  let total = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (!isRecord(entry)) invalid(`entries[${i}]`, 'must be an object');
+    for (const k of ['url', 'kind', 'text']) {
+      if (typeof entry[k] !== 'string') invalid(`entries[${i}].${k}`, 'must be a string');
+    }
+    for (const k of ['id', 'label', 'title']) {
+      if (entry[k] !== undefined && typeof entry[k] !== 'string') invalid(`entries[${i}].${k}`, 'must be a string');
+    }
+    for (const k of ['line', 'endLine']) {
+      if (entry[k] !== undefined && !positiveInteger(entry[k])) invalid(`entries[${i}].${k}`, 'must be a positive line number');
+    }
+    if (entry.endLine < entry.line) invalid(`entries[${i}].endLine`, 'precedes its starting line');
+    if (notes !== undefined && !urls.has(entry.url)) invalid(`entries[${i}].url`, 'must name a note in notes');
+    if (!Number.isSafeInteger(lengths[i]) || lengths[i] < 0) invalid(`lengths[${i}]`, 'must be a nonnegative integer');
+    total += lengths[i];
+  }
+  if (!Number.isSafeInteger(total)) invalid('lengths', 'has a total outside the safe integer range');
+  if (avg !== total / (entries.length || 1)) invalid('avg', 'must equal the mean of lengths (zero for an empty index)');
+  checkPostings(terms, lengths);
+  return data;
+}
+
+function checkPostings(terms, lengths) {
+  const weights = new Array(lengths.length).fill(0);
+  const lastTerm = new Array(lengths.length);
+  for (const term of Object.keys(terms)) {
+    const list = terms[term];
+    const field = `terms[${JSON.stringify(term.slice(0, 80))}]`;
+    if (!term || !Array.isArray(list) || !list.length) invalid(field, 'must have a stem and a nonempty posting list');
+    for (let j = 0; j < list.length; j++) {
+      const pair = list[j];
+      if (!Array.isArray(pair) || pair.length !== 2) invalid(`${field}[${j}]`, 'must be [entry number, weight]');
+      const [i, weight] = pair;
+      if (!Number.isSafeInteger(i) || i < 0 || i >= lengths.length) invalid(`${field}[${j}]`, 'names an entry outside entries');
+      if (!positiveInteger(weight)) invalid(`${field}[${j}]`, 'must have a positive integer weight');
+      if (lastTerm[i] === term) invalid(`${field}[${j}]`, 'repeats an entry for this stem');
+      lastTerm[i] = term;
+      weights[i] += weight;
+    }
+  }
+  // Each of an entry's tokens contributes one or three to its total weight.
+  for (let i = 0; i < lengths.length; i++) {
+    const extra = weights[i] - lengths[i];
+    if (!Number.isSafeInteger(weights[i]) || extra < 0 || extra > 2 * lengths[i] || extra % 2 !== 0) invalid(`lengths[${i}]`, 'is inconsistent with its posting weights');
+  }
+}
+
 // query(index, text, {limit}) -> [{entry, score, matched}], best first:
 // BM25, each query word standing for every indexed stem it begins, an exact
 // stem weighing a little more. `matched` lists the stems the hit matched.
@@ -3517,7 +3594,7 @@ function snippet(text, matched, { width = 160 } = {}) {
   return { text: `${pre}${piece}${end < flat.length ? '…' : ''}`, marks };
 }
 
-module.exports = { plain, title, describe, records, fold, stem, tokens, index, query, snippet, format: FORMAT };
+module.exports = { plain, title, describe, records, fold, stem, tokens, index, readIndex, query, snippet, format: FORMAT };
   };
   // ---- src/glossary.js
   defs['glossary'] = function (module, exports, require) {

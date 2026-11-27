@@ -2,6 +2,10 @@
 
 Every release of Luccet, called Tern until 2.0, newest first. Versions follow [semantic versioning](https://semver.org): a patch release fixes, a minor release adds, and only a major release may break what the promise covers: the HTML and diagnostics the conformance corpus records for a note, the documented API and add-on options, the command line's commands, options, exit codes and `--json` shapes, and the files `luccet index` writes, read by their `format` number. A minor release may add to any of them, diagnostics at warning or info severity included, and something deprecated keeps working until the next major release; the whole promise is under [Status](https://luccet.dev/#status). Before 1.0 a minor release could change these, and the entry says so where it did. The engine reports its version as `luccet.version` (`tern.version` before 2.0); the tags on GitHub carry the same number from 0.4.3 on.
 
+## Unreleased
+
+- `luccet search --index` checks a catalogue before ranking results and identifies inconsistent entries, posting lists or token counts. Browser and Node consumers can use [`luccet.search.readIndex`](docs/api.html#search) to validate a parsed `search.json` once at load time.
+
 ## 2.1.1 (unreleased)
 
 - The CLI and language server check the filesystem targets of local head scripts and add-ons against the selected project and site folders. With scripts disabled, they report missing dependencies without reading script contents. See [Vocabulary under Node](docs/tools.html#vocabulary).
